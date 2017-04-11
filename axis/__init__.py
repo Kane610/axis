@@ -13,7 +13,7 @@ SOURCE = re.compile('(?<=<tt:Source>).*Name="(?P<name>\w+)"' +
                     '.*Value="(?P<value>\w+)".*(?=<\/tt:Source>)')
 DATA = re.compile('(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
                   '.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
-PARAM_URL = 'http://{0}/axis-cgi/param.cgi?action=list&group={1}'
+PARAM_URL = 'http://{0}/axis-cgi/{1}?action=list&group={2}'
 
 # Externt pypi paket
 class AxisDevice(object):
@@ -40,9 +40,11 @@ class AxisDevice(object):
         self.events = {}  # Active device events
 
         # Device data needs to be aqcuired manually
-        self._version = self.get_param('root.Properties.Firmware.Version')
-        self._model = self.get_param('root.Brand.ProdNbr')
-        self._serial_number = self.get_param('root.Properties.System.SerialNumber')
+        self._version = self.get_param('Properties.Firmware.Version')
+        self._model = self.get_param('Brand.ProdNbr')
+        self._serial_number = self.get_param('Properties.System.SerialNumber')
+
+        # Unsupported configuration
         self._video = 0  # No support for this yet
         self._audio = 0  # No support for this yet
 
@@ -50,10 +52,20 @@ class AxisDevice(object):
 
     def get_param(self, param):
         """Get parameter and remove descriptive part of response"""
-        url = PARAM_URL.format(self._url, param)
+        cgi = 'param.cgi'
+        r = self.do_request(cgi, param)
+        return r[param]
+
+    def do_request(self, cgi, param):
+        """Do HTTP request and return response as dictionary"""
+        url = PARAM_URL.format(self._url, cgi, param)
         auth = HTTPDigestAuth(self._username, self._password)
         r = requests.get(url, auth=auth)
-        return r.text.replace(param + '=', '').replace('\n', '')
+        v = {}
+        for s in filter(None, r.text.split('\n')):
+            key, value = s.split('=')
+            v[key] = value
+        return v
 
     @property
     def metadata_url(self):
