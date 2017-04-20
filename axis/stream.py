@@ -8,6 +8,7 @@ Gst.init(None)
 _LOGGER = logging.getLogger(__name__)
 
 STATE_PLAYING = 'playing'
+STATE_STOPPED = 'stopped'
 STATE_PAUSED = 'paused'
 
 
@@ -17,7 +18,7 @@ class MetaDataStream(object):
     def __init__(self, rtsp_url=None):
         """Initialize process."""
         self._data = None
-        self._stream_state = None
+        self.stream_state = None
         self.signal_parent = None
 
         if not rtsp_url:
@@ -30,22 +31,25 @@ class MetaDataStream(object):
             'latency=10', '!',
             'appsink', 'name=sink',
         ]
-        pipeline_string = " ".join(pipeline)
+        self.pipeline_string = " ".join(pipeline)
+        self.set_up_stream()
+
+    def set_up_stream(self):
+        self.stream_state = None
         # Simplest way to create a pipeline
-        self._stream = Gst.parse_launch(pipeline_string)
-        # Getting the sink by its name set in CLI
-        self._appsink = self._stream.get_by_name("sink")
+        self._stream = Gst.parse_launch(self.pipeline_string)
+        # Getting the sink by its name set in pipeline_string
+        appsink = self._stream.get_by_name("sink")
         # Prevent the app to consume huge part of memory
-        self._appsink.set_property("max-buffers", 20)
+        appsink.set_property("max-buffers", 20)
         # Tell sink to emit signals
-        self._appsink.set_property('emit-signals', True)
+        appsink.set_property('emit-signals', True)
         # No sync to make decoding as fast as possible
-        self._appsink.set_property('sync', False)
+        appsink.set_property('sync', False)
         # Connect signal to callable func
-        self._appsink.connect('new-sample', self._on_new_buffer)
+        appsink.connect('new-sample', self._on_new_buffer)
         bus = self._stream.get_bus()
-        bus.add_signal_watch()
-        bus.connect('message', self._on_message)
+        bus.set_sync_handler(self._on_message, self._stream)
 
     def _on_new_buffer(self, appsink):
         sample = appsink.emit('pull-sample')
@@ -59,29 +63,45 @@ class MetaDataStream(object):
 
     def start(self):
         """Change state to playing."""
-        if self._stream_state is None:
+        if self.stream_state in [None, STATE_PAUSED]:
             self._stream.set_state(Gst.State.PLAYING)
-            print("stream started")
-            self._stream_state = STATE_PLAYING
+            _LOGGER.info("Stream started")
+            self.stream_state = STATE_PLAYING
 
     def stop(self):
         """Stop pipeline."""
-        self._stream.set_state(Gst.State.NULL)
-        print("stream stopped")
+        if self.stream_state in [STATE_PLAYING, STATE_PAUSED]:
+            self._stream.set_state(Gst.State.NULL)
+            _LOGGER.info("Stream stopped")
+            self.stream_state = STATE_STOPPED
+
+    def pause(self):
+        """Pause pipeline."""
+        if self.stream_state == STATE_PLAYING:
+            self._stream.set_state(Gst.State.PAUSED)
+            _LOGGER.info("Stream paused")
+            self.stream_state = STATE_PAUSED
+
+    def reconnect(self):
+        """Reconnect stream"""
+        self.set_up_stream()
+        self.start()
 
     @property
     def data(self):
         """Get metadata."""
         return self._data
 
-    def _on_message(self, bus, message):
+    def _on_message(self, bus, message, pipeline):
         """When a message is received from Gstreamer."""
-        print('metadatastream bus message type:', message.type)
-        if message.type == Gst.MessageType.EOS:
-            self.stop()
-        elif message.type == Gst.MessageType.ERROR:
-            self.stop()
+        if message.type in [Gst.MessageType.EOS, Gst.MessageType.ERROR]:
+            self.stream_state = STATE_STOPPED
+            self.signal_parent()
+            _LOGGER.info('No connection to device')
+
+        if message.type == Gst.MessageType.ERROR:
             err, _ = message.parse_error()
-            _LOGGER.error('%s', err)
-        # else:
-        #     print('metadatastream bus message type:', message.type)
+            _LOGGER.debug('%s', err)
+        else:
+            _LOGGER.debug('metadatastream bus message type:', message.type)
+        return Gst.BusSyncReply.PASS

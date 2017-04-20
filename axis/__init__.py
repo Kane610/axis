@@ -2,8 +2,9 @@ from .stream import MetaDataStream
 
 import logging
 import requests
-from requests.auth import HTTPDigestAuth # , HTTPBasicAuth
 import re
+from requests.auth import HTTPDigestAuth # , HTTPBasicAuth
+from threading import Timer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,10 +91,11 @@ class AxisDevice(object):
                                                 event_topic)
 
     def initiate_metadatastream(self):
-        """Set up gstreamer pipeline and data callback for metadatastream """
+        """Set up gstreamer pipeline and data callback for metadatastream"""
         self._metadatastream = MetaDataStream(self.metadata_url)
-        self._metadatastream.signal_parent = self.new_metadata
+        self._metadatastream.signal_parent = self.stream_signal
         self._metadatastream.start()
+        self._retry_timer = None
 
     def start_metadatastream(self):
         """Start metadatastream."""
@@ -102,6 +104,23 @@ class AxisDevice(object):
     def stop_metadatastream(self):
         """Stop metadatastream."""
         self._metadatastream.stop()
+        if self._retry_timer is not None:
+            self._retry_timer.cancel()
+
+    def reconnect_metadatastream(self):
+        """Reconnect metadatastream"""
+        if self._retry_timer is not None:
+            self._retry_timer.cancel()
+        self._retry_timer = Timer(15, self._metadatastream.reconnect)
+        self._retry_timer.start()
+
+    def stream_signal(self):
+        """Manage signals from stream"""
+        if self._metadatastream.stream_state == 'playing':
+            self.new_metadata()
+        elif self._metadatastream.stream_state == 'stopped':
+            print('Metadatastream signal stopped')
+            self.reconnect_metadatastream()
 
     def parse_metadata(self, metadata):
         """Parse metadata xml."""
@@ -147,7 +166,7 @@ class AxisDevice(object):
             self.events[event_name].state = data['Data_value']
 
         elif data['Operation'] == 'Deleted':
-            print("Deleted event from stream")
+            _LOGGER.info("Deleted event from stream")
             # keep a list of deleted events and a follow up timer of X,
             # then clean up. This should also take care of rebooting a camera
 
@@ -212,7 +231,7 @@ class AxisEvent(object):  # pylint: disable=R0904
         if self.callback:
             self.callback()
         else:
-            print("state.setter has no callback")
+            _LOGGER.info("state.setter has no callback")
 
     @property
     def location(self):
