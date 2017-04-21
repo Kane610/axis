@@ -8,5 +8,6 @@ setup(
   author = 'Robert Svensson',
   author_email = 'Kane610@users.noreply.github.com',
   url = 'https://github.com/Kane610/axis',
-  download_url = 'https://github.com/Kane610/axis/archive/v2.tar.gz'
+  download_url = 'https://github.com/Kane610/axis/archive/v2.tar.gz',
+  install_requires=['requests']
 )
