@@ -84,7 +84,7 @@ class MetaDataStream(object):
 
     def reconnect(self):
         """Reconnect stream"""
-        self.set_up_stream()
+        self.set_up_stream()  # Connection has been closed, new set up required
         self.start()
 
     @property
