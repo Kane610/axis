@@ -57,6 +57,8 @@ class AxisDevice(object):
             r = self.do_request(cgi, param)
         except requests.ConnectionError:
             return None
+        except requests.exceptions.HTTPError:
+            return None
         return r[param]
 
     def do_request(self, cgi, param):
@@ -65,8 +67,12 @@ class AxisDevice(object):
         auth = HTTPDigestAuth(self._username, self._password)
         try:
             r = requests.get(url, auth=auth)
+            r.raise_for_status()
         except requests.ConnectionError as err:
             _LOGGER.error("Connection error: {0}".format(err))
+            raise
+        except requests.exceptions.HTTPError as err:
+            _LOGGER.error("HTTP error: {0}".format(err))
             raise
         v = {}
         for s in filter(None, r.text.split('\n')):
