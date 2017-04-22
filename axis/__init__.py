@@ -3,7 +3,7 @@ from .stream import MetaDataStream
 import logging
 import requests
 import re
-from requests.auth import HTTPDigestAuth # , HTTPBasicAuth
+from requests.auth import HTTPDigestAuth  # , HTTPBasicAuth
 from threading import Timer
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ DATA = re.compile('(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
 
 PARAM_URL = 'http://{0}/axis-cgi/{1}?action=list&group={2}'
 
-# Externt pypi paket
+
 class AxisDevice(object):
     """Creates a new Axis device."""
 
@@ -27,12 +27,10 @@ class AxisDevice(object):
         _LOGGER.debug("Initializing new Axis device at: %s", config['host'])
 
         # Device configuration
-        self._alias = config['alias']  # Used as unique identifier internally
         self._name = config['name']
         self._url = config['host']
         self._username = config['username']
         self._password = config['password']
-        self._location = config['location']
         self._config = config
 
         # Metadatastream
@@ -240,11 +238,6 @@ class AxisEvent(object):  # pylint: disable=R0904
             self.callback()
         else:
             _LOGGER.info("state.setter has no callback")
-
-    @property
-    def location(self):
-        """Where the device is placed."""
-        return self._device._location
 
     @property
     def is_tripped(self):
