@@ -14,6 +14,7 @@ SOURCE = re.compile('(?<=<tt:Source>).*Name="(?P<name>\w+)"' +
                     '.*Value="(?P<value>\w+)".*(?=<\/tt:Source>)')
 DATA = re.compile('(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
                   '.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
+
 PARAM_URL = 'http://{0}/axis-cgi/{1}?action=list&group={2}'
 
 # Externt pypi paket
@@ -54,14 +55,21 @@ class AxisDevice(object):
     def get_param(self, param):
         """Get parameter and remove descriptive part of response"""
         cgi = 'param.cgi'
-        r = self.do_request(cgi, param)
+        try:
+            r = self.do_request(cgi, param)
+        except requests.ConnectionError:
+            return None
         return r[param]
 
     def do_request(self, cgi, param):
         """Do HTTP request and return response as dictionary"""
         url = PARAM_URL.format(self._url, cgi, param)
         auth = HTTPDigestAuth(self._username, self._password)
-        r = requests.get(url, auth=auth)
+        try:
+            r = requests.get(url, auth=auth)
+        except requests.ConnectionError as err:
+            _LOGGER.error("Connection error: {0}".format(err))
+            raise
         v = {}
         for s in filter(None, r.text.split('\n')):
             key, value = s.split('=')
