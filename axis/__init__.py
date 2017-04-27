@@ -171,7 +171,6 @@ class AxisDevice(object):
             if new_event.name not in self.events:
                 self.events[new_event.name] = new_event
                 self.initialize_new_event(new_event)
-                # self.initialize_new_event(self._alias, new_event.name)
 
         elif data['Operation'] == 'Changed':
             event_name = '{}_{}'.format(data['Topic'], data['Source_value'])
