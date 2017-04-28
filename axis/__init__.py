@@ -94,6 +94,11 @@ class AxisDevice(object):
         """Device name"""
         return self._name
 
+    @property
+    def serial_number(self):
+        """Device MAC address"""
+        return self._serial_number
+
     def add_event_topic(self, event_topic):
         """Add new event topic to subscribe to on metadatastream"""
         if self._event_topics is None:
@@ -204,6 +209,11 @@ class AxisEvent(object):  # pylint: disable=R0904
     def device_name(self):
         """Return device name that the event belongs to."""
         return self._device.name
+
+    @property
+    def device_config(self, key):
+        """Return config value"""
+        return self._device._config[key]
 
     @property
     def topic(self):
