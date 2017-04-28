@@ -48,8 +48,6 @@ class AxisDevice(object):
         self._video = 0  # No support for this yet
         self._audio = 0  # No support for this yet
 
-        print(self._name, self._url, self._username, self._password)
-
     def get_param(self, param):
         """Get parameter and remove descriptive part of response"""
         cgi = 'param.cgi'
@@ -136,7 +134,7 @@ class AxisDevice(object):
         if self._metadatastream.stream_state == 'playing':
             self.new_metadata()
         elif self._metadatastream.stream_state == 'stopped':
-            print('Metadatastream signal stopped')
+            _LOGGER.info('Data stream stopped, trying to reconnect')
             self.reconnect_metadatastream()
 
     def parse_metadata(self, metadata):
@@ -161,7 +159,8 @@ class AxisDevice(object):
             output['Data_name'] = data.group('name')
             output['Data_value'] = data.group('value')
 
-        print(output)
+        _LOGGER.debug(output)
+
         return output
 
     def new_metadata(self):
@@ -182,12 +181,12 @@ class AxisDevice(object):
             self.events[event_name].state = data['Data_value']
 
         elif data['Operation'] == 'Deleted':
-            _LOGGER.info("Deleted event from stream")
+            _LOGGER.debug("Deleted event from stream")
             # keep a list of deleted events and a follow up timer of X,
             # then clean up. This should also take care of rebooting a camera
 
         else:
-            print("Unexpected response: {}".format(data))
+            _LOGGER.warning("Unexpected response: {}".format(data))
 
 
 class AxisEvent(object):  # pylint: disable=R0904
@@ -195,7 +194,7 @@ class AxisEvent(object):  # pylint: disable=R0904
 
     def __init__(self, data, device):
         """Setup an Axis event."""
-        print("New AxisEvent {}".format(data))
+        _LOGGER.info("New AxisEvent {}".format(data))
         self._device = device
         self._topic = data['Topic']
         self._id = data['Source_value']
