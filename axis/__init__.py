@@ -209,7 +209,6 @@ class AxisEvent(object):  # pylint: disable=R0904
         """Return device name that the event belongs to."""
         return self._device.name
 
-    @property
     def device_config(self, key):
         """Return config value"""
         return self._device._config[key]
