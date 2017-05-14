@@ -1,3 +1,8 @@
+# https://jeffknupp.com/blog/2013/08/16/open-sourcing-a-python-project-the-right-way/
+# http://peterdowns.com/posts/first-time-with-pypi.html
+# Upload to PyPI Live
+# python setup.py sdist upload -r pypi
+
 from setuptools import setup
 
 setup(
@@ -10,5 +15,7 @@ setup(
   license='MIT',
   url='https://github.com/Kane610/axis',
   download_url='https://github.com/Kane610/axis/archive/v7.tar.gz',
-  install_requires=['requests']
+  install_requires=['requests'],
+  keywords=['axis', 'vapix', 'onvif', 'event stream', 'homeassistant'],
+  classifiers=[],
 )
