@@ -15,7 +15,7 @@ SOURCE = re.compile('(?<=<tt:Source>).*Name="(?P<name>\w+)"' +
 DATA = re.compile('(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
                   '.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
 
-PARAM_URL = 'http://{0}/axis-cgi/{1}?action=list&group={2}'
+PARAM_URL = 'http://{0}/axis-cgi/{1}?action={2}&{3}'
 
 
 class AxisDevice(object):
@@ -51,32 +51,37 @@ class AxisDevice(object):
     def get_param(self, param):
         """Get parameter and remove descriptive part of response"""
         cgi = 'param.cgi'
+        action = 'list'
         try:
-            r = self.do_request(cgi, param)
+            r = self.do_request(cgi, action, 'group=' + param)
         except requests.ConnectionError:
             return None
         except requests.exceptions.HTTPError:
             return None
-        return r[param]
+        v = {}
+        for s in filter(None, r.split('\n')):
+            key, value = s.split('=')
+            v[key] = value
+        if len(v.items()) == 1:
+            return v[param]
+        else:
+            return v
 
-    def do_request(self, cgi, param):
+    def do_request(self, cgi, action, param):
         """Do HTTP request and return response as dictionary"""
-        url = PARAM_URL.format(self._url, cgi, param)
+        url = PARAM_URL.format(self._url, cgi, action, param)
         auth = HTTPDigestAuth(self._username, self._password)
         try:
             r = requests.get(url, auth=auth)
             r.raise_for_status()
         except requests.ConnectionError as err:
-            _LOGGER.error("Connection error: {0}".format(err))
+            _LOGGER.error("Connection error: %s", err)
             raise
         except requests.exceptions.HTTPError as err:
-            _LOGGER.error("HTTP error: {0}".format(err))
+            _LOGGER.error("HTTP error: %s", err)
             raise
-        v = {}
-        for s in filter(None, r.text.split('\n')):
-            key, value = s.split('=')
-            v[key] = value
-        return v
+        _LOGGER.debug('Request response: %s', r.text)
+        return r.text
 
     @property
     def metadata_url(self):
