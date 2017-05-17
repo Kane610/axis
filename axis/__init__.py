@@ -119,6 +119,7 @@ class AxisDevice(object):
         self._metadatastream.signal_parent = self.stream_signal
         self._metadatastream.start()
         self._retry_timer = None
+        return True
 
     def start_metadatastream(self):
         """Start metadatastream."""
