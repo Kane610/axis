@@ -1,5 +1,3 @@
-from .stream import MetaDataStream
-
 import logging
 import requests
 import re
@@ -112,6 +110,11 @@ class AxisDevice(object):
 
     def initiate_metadatastream(self):
         """Set up gstreamer pipeline and data callback for metadatastream"""
+        try:
+            from .stream import MetaDataStream
+        except ImportError as err:
+            _LOGGER.error("Missing dependency: %s, check documentation", err)
+            return False
         self._metadatastream = MetaDataStream(self.metadata_url)
         self._metadatastream.signal_parent = self.stream_signal
         self._metadatastream.start()
@@ -119,11 +122,13 @@ class AxisDevice(object):
 
     def start_metadatastream(self):
         """Start metadatastream."""
-        self._metadatastream.start()
+        if self._metadatastream:
+            self._metadatastream.start()
 
     def stop_metadatastream(self):
         """Stop metadatastream."""
-        self._metadatastream.stop()
+        if self._metadatastream:
+            self._metadatastream.stop()
         if self._retry_timer is not None:
             self._retry_timer.cancel()
 
