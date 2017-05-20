@@ -20,11 +20,17 @@ class MetaDataStream(object):
         self._data = None
         self.stream_state = None
         self.signal_parent = None
+        self.pipeline_string = None
 
         if not rtsp_url:
             _LOGGER.error('No device url to stream from')
             return False
 
+        self.set_up_pipeline(rtsp_url)
+        self.set_up_stream()
+
+    def set_up_pipeline(self, rtsp_url):
+        """Set up pipeline describing how gstreamer will be configured."""
         pipeline = [
             'rtspsrc',
             'location=%s' % (rtsp_url),
@@ -32,9 +38,9 @@ class MetaDataStream(object):
             'appsink', 'name=sink',
         ]
         self.pipeline_string = " ".join(pipeline)
-        self.set_up_stream()
 
     def set_up_stream(self):
+        """Configure gstreamer with pipeline and appsink."""
         self.stream_state = None
         # Simplest way to create a pipeline
         self._stream = Gst.parse_launch(self.pipeline_string)

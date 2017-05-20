@@ -145,7 +145,8 @@ class AxisDevice(object):
         if self._metadatastream.stream_state == 'playing':
             self.new_metadata()
         elif self._metadatastream.stream_state == 'stopped':
-            _LOGGER.info('Data stream stopped, trying to reconnect')
+            _LOGGER.info('Data stream stopped, trying to reconnect to %s',
+                         self._url)
             self.reconnect_metadatastream()
 
     def parse_metadata(self, metadata):
