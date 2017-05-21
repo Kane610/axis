@@ -149,7 +149,7 @@ class AxisDevice(object):
         """Reconnect metadatastream"""
         if self._retry_timer is not None:
             self._retry_timer.cancel()
-        self._retry_timer = Timer(15, self._metadatastream.start)
+        self._retry_timer = Timer(15, self.start_metadatastream)
         self._retry_timer.start()
 
     def stream_signal(self):
