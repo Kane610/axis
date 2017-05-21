@@ -69,6 +69,10 @@ class MetaDataStream(object):
 
     def start(self):
         """Change state to playing."""
+        if self.stream_state == STATE_STOPPED:
+            # Connection has been closed, new set up required
+            self.set_up_stream()
+
         if self.stream_state in [None, STATE_PAUSED]:
             self._stream.set_state(Gst.State.PLAYING)
             _LOGGER.info("Stream started")
@@ -87,11 +91,6 @@ class MetaDataStream(object):
             self._stream.set_state(Gst.State.PAUSED)
             _LOGGER.info("Stream paused")
             self.stream_state = STATE_PAUSED
-
-    def reconnect(self):
-        """Reconnect stream"""
-        self.set_up_stream()  # Connection has been closed, new set up required
-        self.start()
 
     @property
     def data(self):
