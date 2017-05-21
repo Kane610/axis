@@ -100,6 +100,18 @@ class AxisDevice(object):
         """Device MAC address"""
         return self._serial_number
 
+    @property
+    def url(self):
+        return self._url
+
+    @url.setter
+    def url(self, url):
+        """Update url of device."""
+        self._url = url
+        if self._metadatastream:
+            self._metadatastream.set_up_pipeline(self.metadata_url)
+        _LOGGER.info("New IP (%s) set for device %s", self.url, self.name)
+
     def add_event_topic(self, event_topic):
         """Add new event topic to subscribe to on metadatastream"""
         if self._event_topics is None:
@@ -198,7 +210,7 @@ class AxisDevice(object):
             # then clean up. This should also take care of rebooting a camera
 
         else:
-            _LOGGER.warning("Unexpected response: {}".format(data))
+            _LOGGER.warning("Unexpected response: %s", data)
 
 
 class AxisEvent(object):  # pylint: disable=R0904
