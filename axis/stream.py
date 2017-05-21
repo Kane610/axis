@@ -15,16 +15,12 @@ STATE_PAUSED = 'paused'
 class MetaDataStream(object):
     """Gstreamer process."""
 
-    def __init__(self, rtsp_url=None):
+    def __init__(self, rtsp_url):
         """Initialize process."""
         self._data = None
         self.stream_state = None
         self.signal_parent = None
         self.pipeline_string = None
-
-        if not rtsp_url:
-            _LOGGER.error('No device url to stream from')
-            return False
 
         self.set_up_pipeline(rtsp_url)
         self.set_up_stream()
