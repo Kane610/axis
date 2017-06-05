@@ -86,7 +86,7 @@ class AxisDevice(object):
         """Set up url for metadatastream"""
         rtsp = "rtsp://{0}:{1}@{2}/axis-media/media.amp?".format(
             self._username, self._password, self._url)
-        source = 'video={0}&audio={1}&even=on&eventtopic={2}'.format(
+        source = 'video={0}&audio={1}&event=on&eventtopic={2}'.format(
             self._video, self._audio, self._event_topics)
         return rtsp + source
 
