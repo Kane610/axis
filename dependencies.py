@@ -1,4 +1,6 @@
-import os, pkgutil, site
+import os
+import pkgutil
+import site
 
 if pkgutil.find_loader("gi"):
     try:
@@ -9,6 +11,7 @@ if pkgutil.find_loader("gi"):
     except ValueError:
         print('Couldn\'t find Gst')
         print('Please run \'sudo apt-get install gir1.2-gstreamer-1.0\'')
+        return False
     print('Environment seems to be ok.')
 else:
     print('No gi installed', '\n',
