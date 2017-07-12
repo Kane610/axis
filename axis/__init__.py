@@ -120,8 +120,16 @@ class AxisDevice(object):
             self._event_topics = '{}|{}'.format(self._event_topics,
                                                 event_topic)
 
+    def minimum_firmware(self, constraint):
+        """Checks that firmwware isn't older than constraint."""
+        from packaging import version
+        return version.parse(self._version) >= version.parse(constraint)
+
     def initiate_metadatastream(self):
         """Set up gstreamer pipeline and data callback for metadatastream"""
+        if not self.minimum_firmware('5.50'):
+            _LOGGER.info("Too old firmware for metadatastream")
+            return False
         try:
             from .stream import MetaDataStream
         except ImportError as err:
@@ -206,6 +214,7 @@ class AxisDevice(object):
 
         elif data['Operation'] == 'Deleted':
             _LOGGER.debug("Deleted event from stream")
+            # ToDo:
             # keep a list of deleted events and a follow up timer of X,
             # then clean up. This should also take care of rebooting a camera
 
