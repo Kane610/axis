@@ -104,5 +104,5 @@ class MetaDataStream(object):
             err, _ = message.parse_error()
             _LOGGER.debug('%s', err)
         else:
-            _LOGGER.debug('metadatastream bus message type:', message.type)
+            _LOGGER.debug('metadatastream bus message type: %s', message.type)
         return Gst.BusSyncReply.PASS
