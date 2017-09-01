@@ -129,9 +129,10 @@ class AxisDevice(object):
         """Set up gstreamer pipeline and data callback for metadatastream"""
         if not self.minimum_firmware('5.50'):
             _LOGGER.info("Too old firmware for metadatastream")
-            return False
+            #return False
         try:
             from .stream import MetaDataStream
+            #from .rtsp import MetaDataStream
         except ImportError as err:
             _LOGGER.error("Missing dependency: %s, check documentation", err)
             return False
@@ -289,3 +290,10 @@ class AxisEvent(object):  # pylint: disable=R0904
     def is_tripped(self):
         """Event is tripped now."""
         return self._state == '1'
+
+    def as_dict(self):
+        """Callback for __dict__."""
+        cdict = self.__dict__.copy()
+        del cdict['callback']
+        del cdict['_device']
+        return cdict
