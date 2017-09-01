@@ -11,14 +11,13 @@ event_topics = 'onvif:VideoAnalytics/axis:MotionDetection'
 rtsp = "rtsp://{0}:{1}@{2}/axis-media/media.amp?".format(username,
                                                          password,
                                                          url)
-source = 'video={0}&audio={1}&even=on&eventtopic={2}'.format(video,
-                                                             audio,
-                                                             event_topics)
+source = 'video={0}&audio={1}&event=on&eventtopic={2}'.format(video,
+                                                              audio,
+                                                              event_topics)
 metadata_url = rtsp + source
 
 
 def stream_signal():
-    global metadatastream
     print(metadatastream.data)
 
 

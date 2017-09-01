@@ -28,5 +28,5 @@ else:
           "/srv/homeassistant/lib/python3.4/site-packages",
           '\n',
           "run this script inside and outside of the virtual environment",
-          "to find the paths needed")
+          "to find the paths needed.")
     print(site.getsitepackages())
