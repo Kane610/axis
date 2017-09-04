@@ -13,7 +13,7 @@ SOURCE = re.compile('(?<=<tt:Source>).*Name="(?P<name>\w+)"' +
 DATA = re.compile('(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
                   '.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
 
-PARAM_URL = 'http://{0}/axis-cgi/{1}?action={2}&{3}'
+PARAM_URL = 'http://{}:{}/axis-cgi/{}?action={}&{}'
 
 
 class AxisDevice(object):
@@ -29,6 +29,7 @@ class AxisDevice(object):
         self._url = config['host']
         self._username = config['username']
         self._password = config['password']
+        self._http_port = config.get('http_port', 80)
         self._config = config
 
         # Metadatastream
@@ -67,7 +68,7 @@ class AxisDevice(object):
 
     def do_request(self, cgi, action, param):
         """Do HTTP request and return response as dictionary"""
-        url = PARAM_URL.format(self._url, cgi, action, param)
+        url = PARAM_URL.format(self._url, self._http_port, cgi, action, param)
         auth = HTTPDigestAuth(self._username, self._password)
         try:
             r = requests.get(url, auth=auth)
