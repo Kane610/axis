@@ -29,7 +29,7 @@ class AxisDevice(object):
         self._url = config['host']
         self._username = config['username']
         self._password = config['password']
-        self._http_port = config.get('http_port', 80)
+        self._port = config.get('port', 80)
         self._config = config
 
         # Metadatastream
@@ -68,7 +68,7 @@ class AxisDevice(object):
 
     def do_request(self, cgi, action, param):
         """Do HTTP request and return response as dictionary"""
-        url = PARAM_URL.format(self._url, self._http_port, cgi, action, param)
+        url = PARAM_URL.format(self._url, self._port, cgi, action, param)
         auth = HTTPDigestAuth(self._username, self._password)
         try:
             r = requests.get(url, auth=auth)
