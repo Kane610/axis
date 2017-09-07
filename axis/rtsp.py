@@ -66,18 +66,6 @@ class MetaDataStream(object):
         self.username = urlsplit(self.metadata_url).username
         self.password = urlsplit(self.metadata_url).password
 
-    def setup_rtsp(self):
-        self.rtsp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.rtsp.settimeout(10)
-        self.rtsp.connect((self.url, 554))
-        print('connect')
-
-    def setup_keep_alive(self):
-        if self.session_timeout != 0:
-            interval = self.session_timeout - 5
-            #interval = 15
-            self.keep_alive = Periodic(interval, self.send_request, 'OPTIONS')
-
     def generate_authentication(self, method):
         if self.auth_method == 'digest':
             from hashlib import md5
@@ -123,11 +111,12 @@ class MetaDataStream(object):
         message = request.encode('UTF-8')
         try:
             self.rtsp.send(message)
-        except:
+            rtsp_response = self.rtsp.recv(4096)
+        except Exception as err:
+            print("RTSP error: ", err)
             self.stop()
             self.on_data()
             return False
-        rtsp_response = self.rtsp.recv(4096)
         response = rtsp_response.decode('UTF-8')
         print_response(response)
         return response
@@ -165,11 +154,20 @@ class MetaDataStream(object):
             self.stream_state = STATE_STARTING
             self.authentication = None
             self.session_id = None
-            self.session_timeout = None
+            self.session_timeout = 0
             self.sequence = 0
             self.keep_alive = None
+
             self.rtp_client = threading_RTPClient(self.on_data)
-            self.setup_rtsp()
+            # Connect RTSP
+            self.rtsp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.rtsp.settimeout(10)
+            try:
+                self.rtsp.connect((self.url, 554))
+            except Exception as err:
+                print('Setup RTSP failed', err)
+                return False
+
             methods = ['OPTIONS', 'DESCRIBE', 'SETUP', 'PLAY']
             while self.sequence < len(methods):
                 method = methods[self.sequence]
@@ -178,7 +176,13 @@ class MetaDataStream(object):
                 if action is False:
                     print('Error starting stream')
                     return False
-            self.setup_keep_alive()
+
+            # Keep-Alive
+            if self.session_timeout != 0:
+                interval = self.session_timeout - 5
+                self.keep_alive = Periodic(interval,
+                                           self.send_request,
+                                           'OPTIONS')
             self.rtp_client.start()
             self.stream_state = STATE_PLAYING
             # _LOGGER.info("Stream started")
@@ -187,15 +191,14 @@ class MetaDataStream(object):
         """Change state to stop."""
         if self.stream_state in [STATE_STARTING, STATE_PLAYING, STATE_PAUSED]:
             self.stream_state = STATE_STOPPED
-            self.sequence += 1
-            self.send_request('TEARDOWN')
-            self.rtsp.close()
-            self.rtp_client.do_continue = False
             self.rtp_client.rtp.close()
             if self.rtp_client.is_alive():
                 self.rtp_client.join()
             if self.keep_alive:
                 self.keep_alive.stop()
+            self.sequence += 1
+            self.send_request('TEARDOWN')
+            self.rtsp.close()
             # _LOGGER.info("Stream stopped")
 
     @property
@@ -286,19 +289,23 @@ class threading_RTPClient(Thread):
         self.rtp_port = self.rtp.getsockname()[1]
         self.rtcp_port = int(self.rtp_port) + 1
         self.rtp.settimeout(5)
-        self.do_continue = True
         self._data = None
 
     def run(self):
-        while(self.do_continue):
+        while(True):
             try:
                 rtp_response = self.rtp.recv(4096)
+            except socket.timeout:
+                # Timeouts are OK, they're expected
+                #print('TIMEOUT')
+                pass
+            except Exception as err:
+                print("Exit RTP loop", err)
+                break
+            else:
                 response = rtp_response[12:]  # Remove RTP header
                 self._data = response.decode('UTF-8')
                 self.callback()
-            except socket.timeout:
-                # print('TIMEOUT')
-                pass
 
     @property
     def data(self):
