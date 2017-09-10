@@ -15,7 +15,7 @@ setup(
   license='MIT',
   url='https://github.com/Kane610/axis',
   download_url='https://github.com/Kane610/axis/archive/v11.tar.gz',
-  install_requires=['requests'],
+  install_requires=['packaging', 'requests'],
   keywords=['axis', 'vapix', 'onvif', 'event stream', 'homeassistant'],
   classifiers=[],
 )
