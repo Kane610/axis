@@ -152,8 +152,8 @@ class AxisDevice(object):
         """Stop metadatastream."""
         if self._metadatastream:
             self._metadatastream.stop()
-        if self._retry_timer is not None:
-            self._retry_timer.cancel()
+            if self._retry_timer is not None:
+                self._retry_timer.cancel()
 
     def reconnect_metadatastream(self):
         """Reconnect metadatastream"""
