@@ -124,7 +124,11 @@ class RTSPSession(asyncio.Protocol):
         self.sequence = 0
         self.rtp = RTPClient(loop, callback)
         conn = loop.create_connection(lambda: self, self.host, 554)
-        #loop.run_until_complete(conn)
+        loop.create_task(conn)
+
+    def ready(self):
+        conn = loop.create_connection(lambda: self, self.host, 554)
+        loop.create_task(conn)
 
     def stop(self):
         self.transport.close()
@@ -153,8 +157,7 @@ class RTSPSession(asyncio.Protocol):
         #print('Data sent: {!r}'.format(self.request('OPTIONS')))
 
     def connection_lost(self, exc):
-        print('The server closed the connection')
-        print('Stop the event loop')
+        print('RTSP Session connection lost')
 
     def method(self):
         methods = ['OPTIONS', 'DESCRIBE', 'SETUP', 'PLAY']
@@ -233,15 +236,18 @@ class RTPClient(object):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', 0))
         self.port = sock.getsockname()[1]
-        self.rtcp_port = self.port + 1
+        #self.rtcp_port = self.port + 1
         self.client = self.UDPClient(callback)
         #conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
+        #conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
         conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', self.port))
-        #self.transport, protocol = loop.run_until_complete(conn)
+        loop.create_task(conn)
+        #self.port = self.client.transport.get_extra_info('sockname')[1]
+        self.rtcp_port = self.port + 1
 
     def stop(self):
-        if self.transport:
-            self.transport.close()
+        if self.client.transport:
+            self.client.transport.close()
 
     @property
     def data(self):
@@ -251,9 +257,15 @@ class RTPClient(object):
         def __init__(self, callback=None):
             self.callback = callback
             self.data = None
+            self.transport = None
 
         def connection_made(self, transport):
+            print('connection made')
+            self.transport = transport
             pass
+
+        def connection_lost(self, exc):
+            print('UDP connection lost')
 
         def datagram_received(self, data, addr):
             # print('Received %r from %s' % (data, addr))
@@ -370,9 +382,11 @@ class EventManager(object):
 
         elif data['Operation'] == 'Initialized':
             new_event = AxisEvent(data)
-            print("new event")
             if new_event.name not in self.events:
                 self.events[new_event.name] = new_event
+                if self.signal:
+                    self.signal('add', new_event)
+                    pass
                 # self.initialize_new_event(new_event)
 
         elif data['Operation'] == 'Changed':
@@ -402,6 +416,7 @@ class AxisEvent(object):  # pylint: disable=R0904
         self._source = data['Source_name']
 
         self._state = None
+        self.callback = None
 
     @property
     def topic(self):
@@ -437,6 +452,8 @@ class AxisEvent(object):  # pylint: disable=R0904
     def state(self, state):
         """Update state of event."""
         self._state = state
+        if self.callback:
+            self.callback()
 
     @property
     def is_tripped(self):
@@ -446,8 +463,10 @@ class AxisEvent(object):  # pylint: disable=R0904
     def as_dict(self):
         """Callback for __dict__."""
         cdict = self.__dict__.copy()
-        del cdict['callback']
-        del cdict['_device']
+        if 'callback' in cdict:
+            del cdict['callback']
+        if '_device' in cdict:
+            del cdict['_device']
         return cdict
 
 
@@ -496,6 +515,7 @@ class AxisDevice(Configuration, Vapix, StreamManager):
     def __init__(self, loop, host, username, password, port=8080):
         """Initialize device."""
         self.loop = loop
+        self.signal = None
         Configuration.__init__(self, host, username, password, port)
         StreamManager.__init__(self)
 
