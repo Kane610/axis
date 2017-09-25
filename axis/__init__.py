@@ -110,23 +110,22 @@ class RTSP_Response(object):
 
 class RTSPSession(asyncio.Protocol):
 
-    def __init__(self, loop, metadata_url, callback):
+    def __init__(self, loop, url, callback):
         self.loop = loop
         from urllib.parse import urlsplit
-        self.metadata_url = metadata_url
-        self.host = urlsplit(self.metadata_url).hostname
-        self.username = urlsplit(self.metadata_url).username
-        self.password = urlsplit(self.metadata_url).password
+        self.url = url
+        self.host = urlsplit(url).hostname
+        self.username = urlsplit(url).username
+        self.password = urlsplit(url).password
+        # self.host = '10.0.1.51'
+        # self.username = 'root'
+        # self.password = 'pass'
         self.auth_method = None
         self.authentication = None
         self.session_id = None
         self.session_timeout = 0
         self.sequence = 0
         self.rtp = RTPClient(loop, callback)
-        conn = loop.create_connection(lambda: self, self.host, 554)
-        loop.create_task(conn)
-
-    def ready(self):
         conn = loop.create_connection(lambda: self, self.host, 554)
         loop.create_task(conn)
 
@@ -157,7 +156,7 @@ class RTSPSession(asyncio.Protocol):
         #print('Data sent: {!r}'.format(self.request('OPTIONS')))
 
     def connection_lost(self, exc):
-        print('RTSP Session connection lost')
+        print('RTSP Session connection lost', exc)
 
     def method(self):
         methods = ['OPTIONS', 'DESCRIBE', 'SETUP', 'PLAY']
@@ -168,7 +167,7 @@ class RTSPSession(asyncio.Protocol):
         return method
 
     def request(self, method):
-        request = method + ' ' + self.metadata_url + ' ' + RTSP_VERSION
+        request = method + ' ' + self.url + ' ' + RTSP_VERSION
         request += USERAGENT.format("Python RTSP Client 1.0")
         request += SEQUENCE.format(self.sequence)
         if self.auth_method:
@@ -210,7 +209,7 @@ class RTSPSession(asyncio.Protocol):
             from hashlib import md5
             ha1 = self.username + ":" + self.realm + ":" + self.password
             HA1 = md5(ha1.encode('UTF-8')).hexdigest()
-            ha2 = method + ":" + self.metadata_url
+            ha2 = method + ":" + self.url
             HA2 = md5(ha2.encode('UTF-8')).hexdigest()
             encrypt_response = HA1 + ":" + self.nonce + ":" + HA2
             response = md5(encrypt_response.encode('UTF-8')).hexdigest()
@@ -219,7 +218,7 @@ class RTSPSession(asyncio.Protocol):
             digest_auth += 'realm=\"' + self.realm + "\", "
             digest_auth += "algorithm=\"MD5\", "
             digest_auth += 'nonce=\"' + self.nonce + "\", "
-            digest_auth += 'uri=\"' + self.metadata_url + "\", "
+            digest_auth += 'uri=\"' + self.url + "\", "
             digest_auth += 'response=\"' + response + '\"'
             self.authentication = AUTHENTICATION.format('Digest', digest_auth)
         elif self.auth_method == 'basic':
@@ -236,11 +235,11 @@ class RTPClient(object):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', 0))
         self.port = sock.getsockname()[1]
-        #self.rtcp_port = self.port + 1
         self.client = self.UDPClient(callback)
-        #conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
-        #conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
-        conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', self.port))
+        # conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
+        # conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
+        conn = loop.create_datagram_endpoint(lambda: self.client,
+                                             local_addr=('0.0.0.0', self.port))
         loop.create_task(conn)
         #self.port = self.client.transport.get_extra_info('sockname')[1]
         self.rtcp_port = self.port + 1
@@ -279,11 +278,12 @@ from requests.auth import HTTPDigestAuth  # , HTTPBasicAuth
 
 
 class Configuration(object):
-    def __init__(self, host, username, password, port=80):
+    def __init__(self, host, username, password, port=80, kwargs=None):
         self.host = host
         self.port = port
         self.username = username
         self.password = password
+        self.kwargs = kwargs
 
     @property
     def version(self):
@@ -346,6 +346,25 @@ class Vapix(object):
 
 
 class EventManager(object):
+    def __init__(self):
+        self.events = {}
+        event_types = self.kwargs.get('events', None)
+        self.event_query = self.create_event_query(event_types)
+
+    def create_event_query(self, event_types):
+        if event_types:
+            topics = None
+            for event in event_types:
+                topic = convert(event, 'type', 'subscribe')
+                if topics is None:
+                    topics = topic
+                else:
+                    topics = '{}|{}'.format(topics, topic)
+            topic_query = '&eventtopic={}'.format(topics)
+            return 'on' + topic_query
+        else:
+            return 'off'
+
     def parse_event(self, event_data):
         """Parse metadata xml."""
         output = {}
@@ -387,7 +406,6 @@ class EventManager(object):
                 if self.signal:
                     self.signal('add', new_event)
                     pass
-                # self.initialize_new_event(new_event)
 
         elif data['Operation'] == 'Changed':
             event_name = '{}_{}'.format(data['Topic'], data['Source_value'])
@@ -414,6 +432,7 @@ class AxisEvent(object):  # pylint: disable=R0904
         self._id = data['Source_value']
         self._type = data['Data_name']
         self._source = data['Source_name']
+        self._name = '{}_{}'.format(self._topic, self._id)
 
         self._state = None
         self.callback = None
@@ -441,7 +460,20 @@ class AxisEvent(object):  # pylint: disable=R0904
     @property
     def name(self):
         """Uniquely identifying name for the event within the device."""
-        return '{}_{}'.format(self._topic, self._id)
+        return self._name
+        # return '{}_{}'.format(self._topic, self._id)
+
+    @property
+    def event_class(self):
+        return convert(self.topic, 'topic', 'class')
+
+    @property
+    def event_type(self):
+        return convert(self.topic, 'topic', 'type')
+
+    @property
+    def event_platform(self):
+        return convert(self.topic, 'topic', 'platform')
 
     @property
     def state(self):
@@ -472,24 +504,41 @@ class AxisEvent(object):  # pylint: disable=R0904
 
 class StreamManager(EventManager):
     def __init__(self):
-        print('init stream manager')
-        self.events = {}
-        self.video = 0  # Unsupported
-        self.audio = 0  # Unsupported
-        self.topics = 'onvif:VideoAnalytics/axis:MotionDetection'
-        rtsp_str = 'rtsp://{0}:{1}@{2}/axis-media/media.amp'
-        source_str = '?video={0}&audio={1}&event=on&eventtopic={2}'
-        rtsp = rtsp_str.format(self.username, self.password, self.host)
-        source = source_str.format(self.video, self.audio, self.topics)
-        self.stream_url = rtsp + source
+        self.video = 0  # Unsupported self.kwargs.get('video', 0)
+        self.audio = 0  # Unsupported self.kwargs.get('audio', 0)
+        EventManager.__init__(self)
         self.stream_state = None
         self.start()
+
+    @property
+    def stream_url(self):
+        rtsp = 'rtsp://{0}:{1}@{2}/axis-media/media.amp'.format(self.username,
+                                                                self.password,
+                                                                self.host)
+        #rtsp = 'rtsp://10.0.1.51/axis-media/media.amp'
+        source = '?video={0}&audio={1}&event={2}'.format(self.video_query,
+                                                         self.audio_query,
+                                                         self.event_query)
+        return rtsp + source
+
+    @property
+    def video_query(self):
+        return self.video
+
+    @property
+    def audio_query(self):
+        return self.audio
 
     def packet_dispatcher(self):
         print('Vart ska data paketet?')
 
     def on_data(self):
         self.manage_event(self.data)
+
+    @property
+    def data(self):
+        """Get data."""
+        return self.stream.rtp.data
 
     def start(self):
         """Change state to playing."""
@@ -503,25 +552,21 @@ class StreamManager(EventManager):
             self.stream_state = STATE_STOPPED
             self.stream.stop()
 
-    @property
-    def data(self):
-        """Get metadata."""
-        return self.stream.rtp.data
-
 
 class AxisDevice(Configuration, Vapix, StreamManager):
     """Creates a new Axis device."""
 
-    def __init__(self, loop, host, username, password, port=8080):
+    def __init__(self, loop, host, username, password, port=8080, **kwargs):
         """Initialize device."""
         self.loop = loop
         self.signal = None
-        Configuration.__init__(self, host, username, password, port)
+        print('kwargs ', kwargs)
+        Configuration.__init__(self, host, username, password, port, kwargs)
         StreamManager.__init__(self)
 
-        print(self.version)
-        print(self.model)
-        print(self.serial_number)
+        #print(self.version)
+        #print(self.model)
+        #print(self.serial_number)
 
 
 if __name__ == '__main__':
@@ -541,6 +586,48 @@ if __name__ == '__main__':
 
 
 
+def convert(item, from_key, to_key):
+    """Translate between Axis and HASS syntax."""
+    for entry in REMAP:
+        if entry[from_key] == item:
+            return entry[to_key]
+
+
+REMAP = [{'type': 'motion',
+          'class': 'motion',
+          'topic': 'tns1:VideoAnalytics/tnsaxis:MotionDetection',
+          'subscribe': 'onvif:VideoAnalytics/axis:MotionDetection',
+          'platform': 'binary_sensor'},
+         {'type': 'vmd3',
+          'class': 'motion',
+          'topic': 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
+          'subscribe': 'onvif:RuleEngine/axis:VMD3/vmd3_video_1',
+          'platform': 'binary_sensor'},
+         {'type': 'pir',
+          'class': 'motion',
+          'topic': 'tns1:Device/tnsaxis:Sensor/PIR',
+          'subscribe': 'onvif:Device/axis:Sensor/axis:PIR',
+          'platform': 'binary_sensor'},
+         {'type': 'sound',
+          'class': 'sound',
+          'topic': 'tns1:AudioSource/tnsaxis:TriggerLevel',
+          'subscribe': 'onvif:AudioSource/axis:TriggerLevel',
+          'platform': 'binary_sensor'},
+         {'type': 'daynight',
+          'class': 'light',
+          'topic': 'tns1:VideoSource/tnsaxis:DayNightVision',
+          'subscribe': 'onvif:VideoSource/axis:DayNightVision',
+          'platform': 'binary_sensor'},
+         {'type': 'tampering',
+          'class': 'safety',
+          'topic': 'tns1:VideoSource/tnsaxis:Tampering',
+          'subscribe': 'onvif:VideoSource/axis:Tampering',
+          'platform': 'binary_sensor'},
+         {'type': 'input',
+          'class': 'input',
+          'topic': 'tns1:Device/tnsaxis:IO/Port',
+          'subscribe': 'onvif:Device/axis:IO/Port',
+          'platform': 'binary_sensor'}, ]
 
 
 
