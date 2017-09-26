@@ -59,6 +59,7 @@ class RTSP_Response(object):
         self.range = None
         self.rtp_info = None
         self.sdp = None
+        self.control_url = None
 
         data = response.splitlines()
         # print(data)
@@ -102,10 +103,15 @@ class RTSP_Response(object):
             elif not line:
                 if data:
                     self.sdp = data
-                    data = []
-            else:
-                # print('BREAK')
-                break
+                    break
+        if self.sdp:
+            stream_found = False
+            for param in self.sdp:
+                if not stream_found and 'm=application' in param:
+                    stream_found = True
+                elif stream_found and 'a=control:rtsp' in param:
+                    self.control_url = param.split(':', 1)[1]
+                    break
 
 
 class RTSPSession(asyncio.Protocol):
@@ -145,7 +151,7 @@ class RTSPSession(asyncio.Protocol):
             method = self.method()
             self.transport.write(self.request(method).encode())
             #print('Data sent: {!r}'.format(self.request(method)))
-            print(method)
+            #print(method)
         else:
             interval = self.session_timeout - 15
             self.loop.call_later(interval, self.keep_alive)
@@ -168,6 +174,10 @@ class RTSPSession(asyncio.Protocol):
 
     def request(self, method):
         request = method + ' ' + self.url + ' ' + RTSP_VERSION
+        ### temporary
+        if self.sequence == 2:
+            request = method + ' ' + self.control_url + ' ' + RTSP_VERSION
+            print(method)
         request += USERAGENT.format("Python RTSP Client 1.0")
         request += SEQUENCE.format(self.sequence)
         if self.auth_method:
@@ -194,6 +204,10 @@ class RTSPSession(asyncio.Protocol):
                 self.auth_method = 'basic'
             return True
 
+        ### temporary
+        if method == 'DESCRIBE':
+            self.control_url = rtsp.control_url
+
         if method == 'SETUP':
             self.session_id = rtsp.session_id
             self.session_timeout = rtsp.session_timeout
@@ -201,6 +215,8 @@ class RTSPSession(asyncio.Protocol):
         if rtsp.status_code == 200:
             self.sequence += 1
             return True
+        elif rtsp.status_code == 404:
+            print(rtsp.status_text)
         else:
             return False
 
@@ -556,7 +572,7 @@ class StreamManager(EventManager):
 class AxisDevice(Configuration, Vapix, StreamManager):
     """Creates a new Axis device."""
 
-    def __init__(self, loop, host, username, password, port=8080, **kwargs):
+    def __init__(self, loop, host, username, password, port=80, **kwargs):
         """Initialize device."""
         self.loop = loop
         self.signal = None
@@ -936,3 +952,10 @@ REMAP = [{'type': 'motion',
 #         del cdict['callback']
 #         del cdict['_device']
 #         return cdict
+
+
+
+
+
+
+
