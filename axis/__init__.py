@@ -7,6 +7,11 @@ import requests
 from requests.auth import HTTPDigestAuth  # , HTTPBasicAuth
 
 # import aiohttp
+# PYTHON RTSP INSPIRATION
+# https://github.com/timohoeting/python-mjpeg-over-rtsp-client/blob/master/rtsp_client.py
+# http://codegist.net/snippet/python/rtsp_authenticationpy_crayfishapps_python
+# https://github.com/perexg/satip-axe/blob/master/tools/multicast-rtp
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -239,11 +244,12 @@ class RTSPSession(object):
         if self.status_code == 200:
             if self.state == STATE_STARTING:
                 self.sequence += 1
-            return True
-        elif self.status_code == 404:
-            print(self.status_text)
+        elif self.status_code == 401:
+            # Device requires authorization, do not increment to next method
+            pass
         else:
-            return False
+            # If device configuration is correct we should never get here
+            print(self.status_code, self.status_text)
 
     def generate_digest(self):
         from hashlib import md5
@@ -280,27 +286,45 @@ class RTSPClient(asyncio.Protocol):
         self.session.rtp_port = self.rtp.port
         self.session.rtcp_port = self.rtp.rtcp_port
         self.method = RTSPMethods(self.session)
-        conn = loop.create_connection(lambda: self, self.session.host, self.session.port)
-        loop.create_task(conn)
+        self.transport = None
+        conn = loop.create_connection(lambda: self,
+                                      self.session.host,
+                                      self.session.port)
+        task = loop.create_task(conn)
+        task.add_done_callback(self.init_done)
+
+    def init_done(self, fut):
+        # Server up and running
+        try:
+            if fut.exception():
+                fut.result()
+        except OSError as err:
+            print('Got exception', err)
+            self.stop()
 
     def stop(self):
-        self.method.TEARDOWN()
-        self.transport.close()
+        if self.transport:
+            self.transport.write(self.method.TEARDOWN().encode())
+            self.transport.close()
         self.rtp.stop()
 
     def connection_made(self, transport):
         self.transport = transport
         self.transport.write(self.method.message.encode())
+        self.time_out_handle = self.loop.call_later(1, self.time_out)
         # print('Data sent: {!r}'.format(self.request('OPTIONS')))
 
     def data_received(self, data):
         # print('Data received: {!r}'.format(data.decode()))
-        result = self.session.update(data.decode())
+        self.time_out_handle.cancel()
+        self.session.update(data.decode())
         if self.session.state == STATE_STARTING:
             self.transport.write(self.method.message.encode())
+            self.time_out_handle = self.loop.call_later(2, self.time_out)
             #print('Data sent: {!r}'.format(self.request(method)))
         elif self.session.state == STATE_PLAYING:
-            interval = self.session.session_timeout - 15
+            interval = self.session.session_timeout - 5
+            # interval = 15
             self.loop.call_later(interval, self.keep_alive)
         else:
             self.stop()
@@ -308,7 +332,12 @@ class RTSPClient(asyncio.Protocol):
     def keep_alive(self):
         print("KEEP ALIVE")
         self.transport.write(self.method.message.encode())
+        self.time_out_handle = self.loop.call_later(2, self.time_out)
         # print('Data sent: {!r}'.format(self.request('OPTIONS')))
+
+    def time_out(self):
+        print('TIMEOUT')
+        self.stop()
 
     def connection_lost(self, exc):
         print("RTSP Session connection lost", exc)
@@ -337,7 +366,7 @@ class RTPClient(object):
         return self.client.data
 
     class UDPClient:
-        def __init__(self, callback=None):
+        def __init__(self, callback):
             self.callback = callback
             self.data = None
             self.transport = None
@@ -348,6 +377,8 @@ class RTPClient(object):
 
         def connection_lost(self, exc):
             print('UDP connection lost')
+            if self.callback:
+                self.callback('retry')
 
         def datagram_received(self, data, addr):
             # print('Received %r from %s' % (data, addr))
@@ -405,16 +436,13 @@ class AxisEvent(object):  # pylint: disable=R0904
         cdict = self.__dict__.copy()
         if 'callback' in cdict:
             del cdict['callback']
-        if '_device' in cdict:
-            del cdict['_device']
         return cdict
 
 
 class EventManager(object):
-    def __init__(self, kwargs, signal):
+    def __init__(self, event_types, signal):
         self.signal = signal
         self.events = {}
-        event_types = kwargs.get('events', None)
         self.query = self.create_event_query(event_types)
 
     def create_event_query(self, event_types):
@@ -490,15 +518,17 @@ class EventManager(object):
 class StreamManager(EventManager):
     @asyncio.coroutine
     def __init__(self):
+        # self.config
         self.video = 0  # Unsupported self.kwargs.get('video', 0)
         self.audio = 0  # Unsupported self.kwargs.get('audio', 0)
-        self.event = EventManager(self.kwargs, self.signal)
+        self.event = EventManager(self.config.event_types, self.config.signal)
         self.stream = None
-        self.start()
+        if self.event != 'off':
+            self.start()
 
     @property
     def stream_url(self):
-        rtsp = 'rtsp://{}/axis-media/media.amp'.format(self.host)
+        rtsp = 'rtsp://{}/axis-media/media.amp'.format(self.config.host)
         source = '?video={0}&audio={1}&event={2}'.format(self.video_query,
                                                          self.audio_query,
                                                          self.event.query)
@@ -515,8 +545,11 @@ class StreamManager(EventManager):
     def packet_dispatcher(self):
         print('Vart ska data paketet?')
 
-    def event_data(self):
-        self.event.manage_event(self.data)
+    def session_callback(self, info=None):
+        if info and info == 'retry':
+            self.retry()
+        else:
+            self.event.manage_event(self.data)
 
     @property
     def data(self):
@@ -526,23 +559,32 @@ class StreamManager(EventManager):
     def start(self):
         """Change state to playing."""
         if not self.stream or self.stream.session.state == STATE_STOPPED:
-            self.stream = RTSPClient(self.loop,
+            self.stream = RTSPClient(self.config.loop,
                                      self.stream_url,
-                                     self.host,
-                                     self.username,
-                                     self.password,
-                                     self.event_data)
+                                     self.config.host,
+                                     self.config.username,
+                                     self.config.password,
+                                     self.session_callback)
 
     def stop(self):
         """Change state to stop."""
         if self.stream and self.stream.session.state != STATE_STOPPED:
             self.stream.stop()
 
+    def retry(self):
+        self.stream = None
+        self.config.loop.call_later(15, self.start)
+        print('retry')
+        pass
+
 
 PARAM_URL = 'http://{}:{}/axis-cgi/{}?action={}&{}'
 
 
 class Vapix(object):
+    def __init__(self, config):
+        self.config = config
+
     def get_param(self, param):
         """Get parameter and remove descriptive part of response"""
         cgi = 'param.cgi'
@@ -564,8 +606,8 @@ class Vapix(object):
 
     def do_request(self, cgi, action, param):
         """Do HTTP request and return response as dictionary"""
-        url = PARAM_URL.format(self.host, self.port, cgi, action, param)
-        auth = HTTPDigestAuth(self.username, self.password)
+        url = PARAM_URL.format(self.config.host, self.config.port, cgi, action, param)
+        auth = HTTPDigestAuth(self.config.username, self.config.password)
         try:
             r = requests.get(url, auth=auth)
             r.raise_for_status()
@@ -579,49 +621,60 @@ class Vapix(object):
         return r.text
 
 
-class Configuration(object):
-    def __init__(self, host, username, password, port=80, kwargs=None):
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-        self.kwargs = kwargs
-        # kwargs.get('events', None)
-
+# class Parameters(Vapix):
+class Parameters(object):
     @property
     def version(self):
         if '_version' not in self.__dict__:
-            self._version = self.get_param('Properties.Firmware.Version')
+            self._version = self.vapix.get_param('Properties.Firmware.Version')
         return self._version
 
     @property
     def model(self):
         if '_model' not in self.__dict__:
-            self._model = self.get_param('Brand.ProdNbr')
+            self._model = self.vapix.get_param('Brand.ProdNbr')
         return self._model
 
     @property
     def serial_number(self):
         if '_serial_number' not in self.__dict__:
-            self._serial_number = self.get_param('Properties.System.SerialNumber')
+            self._serial_number = self.vapix.get_param('Properties.System.SerialNumber')
         return self._serial_number
 
+    @property
+    def meta_data_support(self):
+        if '_meta_data_support' not in self.__dict__:
+            self._meta_data_support = self.vapix.get_param('Properties.API.Metadata.Metadata')
+        return self._meta_data_support
 
-class AxisDevice(Configuration, Vapix, StreamManager):
+
+class Configuration(object):
+    # def __init__(self, loop, host, username, password, port=80, kwargs=None):
+    def __init__(self, loop, host, username, password, **kwargs):
+        print('kwargs ', kwargs)
+        self.loop = loop
+        self.host = host
+        self.port = kwargs.get('port', 80)
+        self.username = username
+        self.password = password
+        self.event_types = kwargs.get('events', None)
+        self.signal = kwargs.get('signal', None)
+        self.kwargs = kwargs
+
+
+class AxisDevice(Parameters, StreamManager):
     """Creates a new Axis device."""
 
-    def __init__(self, loop, host, username, password, port=80, **kwargs):
+    def __init__(self, loop, **kwargs):
         """Initialize device."""
-        self.loop = loop
-        self.signal = None
-        print('kwargs ', kwargs)
-        Configuration.__init__(self, host, username, password, port, kwargs)
+        self.config = Configuration(loop, **kwargs)
+        self.vapix = Vapix(self.config)
         loop.create_task(StreamManager.__init__(self))
-        print('after')
 
-        #print(self.version)
-        #print(self.model)
-        #print(self.serial_number)
+        # print(self.version)
+        # print(self.model)
+        # print(self.serial_number)
+        # print(self.meta_data_support)
 
 
 def convert(item, from_key, to_key):
@@ -674,12 +727,15 @@ if __name__ == '__main__':
     port = 8080
     #port = 443
     event_list = ['motion']
-    loop.call_soon(partial(AxisDevice,
-                           loop,
-                           '10.0.1.51',
-                           'root',
-                           'pass',
-                           port,
-                           events=event_list))
+    kw = {'host': '10.0.1.51',
+          'username': 'root',
+          'password': 'pass',
+          'port': port,
+          'events': event_list}
+    loop.call_soon(partial(AxisDevice, loop, **kw))
     loop.run_forever()
     loop.close()
+
+
+
+## observe som hanterar device status tillgånglig/otillgänglig och sköter retry
