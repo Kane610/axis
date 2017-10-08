@@ -37,7 +37,12 @@ DATA = re.compile('(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
 
 
 class RTSPMethods(object):
+    """Generate RTSP messages based on session data.
+    """
+
     def __init__(self, session):
+        """Define message methods
+        """
         self.session = session
         self.message_methods = {'OPTIONS': self.OPTIONS,
                                 'DESCRIBE': self.DESCRIBE,
@@ -48,14 +53,20 @@ class RTSPMethods(object):
 
     @property
     def message(self):
+        """Returns RTSP method based on sequence number from session.
+        """
         message = self.message_methods[self.session.method]()
-        # print(message)
+        _LOGGER.debug(message)
         return message
 
     def KEEP_ALIVE(self):
+        """Keep-Alive messages doesn't need authentication
+        """
         return self.OPTIONS(False)
 
     def OPTIONS(self, authenticate=True):
+        """Request options device supports
+        """
         message = "OPTIONS " + self.session.url + " RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication if authenticate else ''
@@ -65,6 +76,8 @@ class RTSPMethods(object):
         return message
 
     def DESCRIBE(self):
+        """Request description of what services RTSP server make available
+        """
         message = "DESCRIBE " + self.session.url + " RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
@@ -74,6 +87,8 @@ class RTSPMethods(object):
         return message
 
     def SETUP(self):
+        """Set up stream transport
+        """
         message = "SETUP " + self.session.control_url + " RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
@@ -83,6 +98,8 @@ class RTSPMethods(object):
         return message
 
     def PLAY(self):
+        """RTSP session is ready to send data.
+        """
         message = "PLAY " + self.session.url + " RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
@@ -92,6 +109,8 @@ class RTSPMethods(object):
         return message
 
     def TEARDOWN(self):
+        """Tell device to tear down session.
+        """
         message = "TEARDOWN " + self.session.url + " RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
@@ -102,10 +121,14 @@ class RTSPMethods(object):
 
     @property
     def sequence(self):
+        """Generate sequence string.
+        """
         return "CSeq: " + str(self.session.sequence) + '\r\n'
 
     @property
     def authentication(self):
+        """Generate authentication string.
+        """
         if self.session.digest:
             authentication = self.session.generate_digest()
         elif self.session.basic:
@@ -116,10 +139,14 @@ class RTSPMethods(object):
 
     @property
     def user_agent(self):
+        """Generate user-agent string.
+        """
         return "User-Agent: " + self.session.user_agent + '\r\n'
 
     @property
     def session_id(self):
+        """Generate session string.
+        """
         if self.session.session_id:
             return "Session: " + self.session.session_id + '\r\n'
         else:
@@ -127,14 +154,21 @@ class RTSPMethods(object):
 
     @property
     def transport(self):
+        """Generate transport string.
+        """
         transport = "Transport: RTP/AVP;unicast;client_port={}-{}\r\n"
         return transport.format(str(self.session.rtp_port),
                                 str(self.session.rtcp_port))
 
 
 class RTSPSession(object):
+    """All RTSP session data.
+    Stores device stream configuration and session data.
+    """
 
     def __init__(self, url, host, username, password):
+        """Session parameters.
+        """
         self.url = url
         self.host = host
         self.port = 554
@@ -145,6 +179,13 @@ class RTSPSession(object):
         self.rtp_port = None
         self.rtcp_port = None
         self.basic_auth = None
+        self.methods = ['OPTIONS',
+                        'DESCRIBE',
+                        'SETUP',
+                        'PLAY',
+                        'KEEP-ALIVE',
+                        'TEARDOWN']
+        # Information as part of ack from device
         self.rtsp_version = None
         self.status_code = None
         self.status_text = None
@@ -166,34 +207,43 @@ class RTSPSession(object):
         self.rtp_info = None
         self.sdp = None
         self.control_url = None
-        self.methods = ['OPTIONS',
-                        'DESCRIBE',
-                        'SETUP',
-                        'PLAY',
-                        'KEEP-ALIVE',
-                        'TEARDOWN']
 
     @property
     def method(self):
+        """Which method the sequence number corresponds to.
+        0 - OPTIONS
+        1 - DESCRIBE
+        2 - SETUP
+        3 - PLAY
+        4 - KEEP-ALIVE (OPTIONS)
+        5 - TEARDOWN
+        """
         return self.methods[self.sequence]
 
     @property
     def state(self):
+        """Which state the session is in
+        Starting - all messages needed to get stream started
+        Playing - keep-alive messages every self.session_timeout
+        """
         if self.method in ['OPTIONS', 'DESCRIBE', 'SETUP', 'PLAY']:
             state = STATE_STARTING
         elif self.method in ['KEEP-ALIVE']:
             state = STATE_PLAYING
         else:
             state = STATE_STOPPED
-        # print('STATE: ', state)
+        _LOGGER.debug('RTSP session state %s', state)
         return state
 
     def update(self, response):
+        """Update session information from device response.
+        Increment sequence number when starting stream, not when playing.
+        If device requires authentication resend previous message with auth.
+        """
         data = response.splitlines()
-        # print(data)
+        _LOGGER.debug('Received data %s', data)
         while data:
             line = data.pop(0)
-            # print(line)
             if 'RTSP/1.0' in line:
                 self.rtsp_version = int(line.split(' ')[0][5])
                 self.status_code = int(line.split(' ')[1])
@@ -252,6 +302,8 @@ class RTSPSession(object):
             print(self.status_code, self.status_text)
 
     def generate_digest(self):
+        """RFC 2617
+        """
         from hashlib import md5
         ha1 = self.username + ':' + self.realm + ':' + self.password
         HA1 = md5(ha1.encode('UTF-8')).hexdigest()
@@ -270,6 +322,8 @@ class RTSPSession(object):
         return digest_auth
 
     def generate_basic(self):
+        """RFC 2617
+        """
         from base64 import b64encode
         if not self.basic_auth:
             creds = self.username + ':' + self.password
@@ -279,7 +333,12 @@ class RTSPSession(object):
 
 
 class RTSPClient(asyncio.Protocol):
+    """RTSP transport, session handling, message generation.
+    """
+
     def __init__(self, loop, url, host, username, password, callback):
+        """RTSP
+        """
         self.loop = loop
         self.rtp = RTPClient(loop, callback)
         self.session = RTSPSession(url, host, username, password)
@@ -294,7 +353,9 @@ class RTSPClient(asyncio.Protocol):
         task.add_done_callback(self.init_done)
 
     def init_done(self, fut):
-        # Server up and running
+        """Server ready.
+        If we get OSError during init the device is not available.
+        """
         try:
             if fut.exception():
                 fut.result()
@@ -302,49 +363,73 @@ class RTSPClient(asyncio.Protocol):
             print('Got exception', err)
             self.stop()
 
-    def stop(self):
+    def stop(self, retry=False):
+        """Stop session.
+        """
         if self.transport:
             self.transport.write(self.method.TEARDOWN().encode())
             self.transport.close()
-        self.rtp.stop()
+        self.rtp.stop(retry)
 
     def connection_made(self, transport):
+        """Connection to device is successful.
+        Start configuring RTSP session.
+        Schedule time out handle in case device doesn't respond.
+        """
         self.transport = transport
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(1, self.time_out)
+        self.time_out_handle = self.loop.call_later(5, self.time_out)
         # print('Data sent: {!r}'.format(self.request('OPTIONS')))
 
     def data_received(self, data):
+        """Got response on RTSP session.
+        Manage time out handle since response came in a reasonable time.
+        Update session parameters with latest response.
+        If state is playing schedule keep-alive.
+        """
         # print('Data received: {!r}'.format(data.decode()))
         self.time_out_handle.cancel()
         self.session.update(data.decode())
         if self.session.state == STATE_STARTING:
             self.transport.write(self.method.message.encode())
-            self.time_out_handle = self.loop.call_later(2, self.time_out)
+            self.time_out_handle = self.loop.call_later(5, self.time_out)
             #print('Data sent: {!r}'.format(self.request(method)))
         elif self.session.state == STATE_PLAYING:
             interval = self.session.session_timeout - 5
-            # interval = 15
             self.loop.call_later(interval, self.keep_alive)
         else:
             self.stop()
 
     def keep_alive(self):
-        print("KEEP ALIVE")
+        """Keep RTSP session alive per negotiated time interval
+        """
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(2, self.time_out)
+        self.time_out_handle = self.loop.call_later(5, self.time_out)
         # print('Data sent: {!r}'.format(self.request('OPTIONS')))
 
     def time_out(self):
-        print('TIMEOUT')
-        self.stop()
+        """If we don't get a response within time the RTSP request time out.
+        This usually happens if device isn't available on specified IP.
+        """
+        _LOGGER.warning('Response timed out %s', self.config.host)
+        retry = True
+        self.stop(retry)
 
     def connection_lost(self, exc):
+        """Happens when device closes connection or stop() has been called.
+        """
         print("RTSP Session connection lost", exc)
 
 
 class RTPClient(object):
+    """Data connection to device.
+    When data is received send a signal on callback to whoever is interested.
+    """
+
     def __init__(self, loop, callback=None):
+        """Configure and bind socket
+        Store port for RTSP session setup
+        """
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', 0))
         self.port = sock.getsockname()[1]
@@ -354,44 +439,64 @@ class RTPClient(object):
         conn = loop.create_datagram_endpoint(lambda: self.client,
                                              local_addr=('0.0.0.0', self.port))
         loop.create_task(conn)
-        #self.port = self.client.transport.get_extra_info('sockname')[1]
+        # self.port = self.client.transport.get_extra_info('sockname')[1]
         self.rtcp_port = self.port + 1
 
-    def stop(self):
+    def stop(self, retry=False):
+        """Close transport from receiving any more packages.
+        """
+        self.client.retry = retry
         if self.client.transport:
             self.client.transport.close()
 
     @property
     def data(self):
+        """Reference to most recently received data.
+        """
         return self.client.data
 
     class UDPClient:
+        """Datagram recepient for device data.
+        """
+
         def __init__(self, callback):
+            """Callback is used to signal events to subscriber.
+            """
             self.callback = callback
             self.data = None
+            self.retry = False
             self.transport = None
 
         def connection_made(self, transport):
-            print('UDP connection made')
+            """Executes when port is up and listening.
+            Save reference to transport for future control.
+            """
+            _LOGGER.debug('Stream listener online')
             self.transport = transport
 
         def connection_lost(self, exc):
-            print('UDP connection lost')
-            if self.callback:
+            """Signal retry if RTSP session fails to get a response.
+            """
+            _LOGGER.debug('Stream recepient offline')
+            if self.retry and self.callback:
                 self.callback('retry')
 
         def datagram_received(self, data, addr):
+            """Signals when new data is available
+            """
             # print('Received %r from %s' % (data, addr))
             if self.callback:
                 self.data = data[12:]
-                self.callback()
+                self.callback('data')
 
 
 class AxisEvent(object):  # pylint: disable=R0904
-    """Class to represent each Axis device event."""
+    """Class to represent each Axis device event.
+    """
 
     def __init__(self, data):
-        """Setup an Axis event."""
+        """Setup an Axis event.
+        """
         _LOGGER.info("New AxisEvent {}".format(data))
         self.topic = data['Topic']
         self.id = data['Source_value']
@@ -404,35 +509,45 @@ class AxisEvent(object):  # pylint: disable=R0904
 
     @property
     def event_class(self):
+        """
+        """
         return convert(self.topic, 'topic', 'class')
 
     @property
     def event_type(self):
+        """
+        """
         return convert(self.topic, 'topic', 'type')
 
     @property
     def event_platform(self):
+        """
+        """
         return convert(self.topic, 'topic', 'platform')
 
     @property
     def state(self):
-        """The State of the event."""
+        """The State of the event.
+        """
         return self._state
 
     @state.setter
     def state(self, state):
-        """Update state of event."""
+        """Update state of event.
+        """
         self._state = state
         if self.callback:
             self.callback()
 
     @property
     def is_tripped(self):
-        """Event is tripped now."""
+        """Event is tripped now.
+        """
         return self._state == '1'
 
     def as_dict(self):
-        """Callback for __dict__."""
+        """Callback for __dict__.
+        """
         cdict = self.__dict__.copy()
         if 'callback' in cdict:
             del cdict['callback']
@@ -440,12 +555,19 @@ class AxisEvent(object):  # pylint: disable=R0904
 
 
 class EventManager(object):
+    """Initialize new events and update states of existing events
+    """
+
     def __init__(self, event_types, signal):
+        """Ready information about events
+        """
         self.signal = signal
         self.events = {}
         self.query = self.create_event_query(event_types)
 
     def create_event_query(self, event_types):
+        """Takes a list of event types and returns a query string
+        """
         if event_types:
             topics = None
             for event in event_types:
@@ -460,7 +582,8 @@ class EventManager(object):
             return 'off'
 
     def parse_event(self, event_data):
-        """Parse metadata xml."""
+        """Parse metadata xml.
+        """
         output = {}
 
         data = event_data.decode()
@@ -488,7 +611,11 @@ class EventManager(object):
         return output
 
     def manage_event(self, event_data):
-        """Received new metadata."""
+        """Received new metadata.
+        Operation missing means this is the first message in stream
+        Operation initialized means new event, will also happen if reconnecting
+        Operation changed updates existing events state
+        """
         data = self.parse_event(event_data)
         if 'Operation' not in data:
             return False
@@ -515,12 +642,17 @@ class EventManager(object):
             _LOGGER.warning("Unexpected response: %s", data)
 
 
-class StreamManager(EventManager):
+class StreamManager(object):
+    """Setup, start, stop and retry stream
+    """
+
     @asyncio.coroutine
     def __init__(self):
+        """Start stream if any event type is specified
+        """
         # self.config
-        self.video = 0  # Unsupported self.kwargs.get('video', 0)
-        self.audio = 0  # Unsupported self.kwargs.get('audio', 0)
+        self.video = None  # Unsupported
+        self.audio = None  # Unsupported
         self.event = EventManager(self.config.event_types, self.config.signal)
         self.stream = None
         if self.event != 'off':
@@ -528,36 +660,46 @@ class StreamManager(EventManager):
 
     @property
     def stream_url(self):
+        """Build url for stream
+        """
         rtsp = 'rtsp://{}/axis-media/media.amp'.format(self.config.host)
         source = '?video={0}&audio={1}&event={2}'.format(self.video_query,
                                                          self.audio_query,
                                                          self.event.query)
+        _LOGGER.debug(rtsp + source)
         return rtsp + source
 
     @property
     def video_query(self):
-        return self.video
+        """Generate video query, not supported
+        """
+        return 0
 
     @property
     def audio_query(self):
-        return self.audio
+        """Generate audio query, not supported
+        """
+        return 0
 
-    def packet_dispatcher(self):
-        print('Vart ska data paketet?')
-
-    def session_callback(self, info=None):
-        if info and info == 'retry':
-            self.retry()
-        else:
+    def session_callback(self, signal):
+        """Signalling from stream session.
+           Data - new data available for processing
+           Retry - if there is no connection to device.
+        """
+        if signal == 'data':
             self.event.manage_event(self.data)
+        elif signal == 'retry':
+            self.retry()
 
     @property
     def data(self):
-        """Get data."""
+        """Get stream data.
+        """
         return self.stream.rtp.data
 
     def start(self):
-        """Change state to playing."""
+        """Start stream.
+        """
         if not self.stream or self.stream.session.state == STATE_STOPPED:
             self.stream = RTSPClient(self.config.loop,
                                      self.stream_url,
@@ -567,26 +709,34 @@ class StreamManager(EventManager):
                                      self.session_callback)
 
     def stop(self):
-        """Change state to stop."""
+        """Stop stream.
+        """
         if self.stream and self.stream.session.state != STATE_STOPPED:
             self.stream.stop()
 
     def retry(self):
+        """No connection to device, retry connection after 15 seconds.
+        """
         self.stream = None
         self.config.loop.call_later(15, self.start)
-        print('retry')
-        pass
+        _LOGGER.debug('Reconnecting to %s', self.config.host)
 
 
 PARAM_URL = 'http://{}:{}/axis-cgi/{}?action={}&{}'
 
 
 class Vapix(object):
+    """Vapix parameter request
+    """
+
     def __init__(self, config):
+        """Store local reference to device config
+        """
         self.config = config
 
     def get_param(self, param):
-        """Get parameter and remove descriptive part of response"""
+        """Get parameter and remove descriptive part of response.
+        """
         cgi = 'param.cgi'
         action = 'list'
         try:
@@ -605,7 +755,8 @@ class Vapix(object):
             return v
 
     def do_request(self, cgi, action, param):
-        """Do HTTP request and return response as dictionary"""
+        """Do HTTP request and return response as dictionary.
+        """
         url = PARAM_URL.format(self.config.host, self.config.port, cgi, action, param)
         auth = HTTPDigestAuth(self.config.username, self.config.password)
         try:
@@ -617,41 +768,54 @@ class Vapix(object):
         except requests.exceptions.HTTPError as err:
             _LOGGER.error("HTTP error: %s", err)
             raise
-        _LOGGER.debug('Request response: %s', r.text)
+        _LOGGER.debug('Request response: %s from %s', r.text, self.config.host)
         return r.text
 
 
-# class Parameters(Vapix):
 class Parameters(object):
+    """Device parameters resolved upon request
+    """
+
     @property
     def version(self):
+        """Firmware version
+        """
         if '_version' not in self.__dict__:
             self._version = self.vapix.get_param('Properties.Firmware.Version')
         return self._version
 
     @property
     def model(self):
+        """Product model
+        """
         if '_model' not in self.__dict__:
             self._model = self.vapix.get_param('Brand.ProdNbr')
         return self._model
 
     @property
     def serial_number(self):
+        """Device MAC address
+        """
         if '_serial_number' not in self.__dict__:
             self._serial_number = self.vapix.get_param('Properties.System.SerialNumber')
         return self._serial_number
 
     @property
     def meta_data_support(self):
+        """Yes if meta data stream is supported
+        """
         if '_meta_data_support' not in self.__dict__:
             self._meta_data_support = self.vapix.get_param('Properties.API.Metadata.Metadata')
         return self._meta_data_support
 
 
 class Configuration(object):
-    # def __init__(self, loop, host, username, password, port=80, kwargs=None):
+    """Device configuration
+    """
+
     def __init__(self, loop, host, username, password, **kwargs):
-        print('kwargs ', kwargs)
+        """All config params available to the device
+        """
         self.loop = loop
         self.host = host
         self.port = kwargs.get('port', 80)
@@ -663,10 +827,12 @@ class Configuration(object):
 
 
 class AxisDevice(Parameters, StreamManager):
-    """Creates a new Axis device."""
+    """Creates a new Axis device.self.
+    """
 
     def __init__(self, loop, **kwargs):
-        """Initialize device."""
+        """Initialize device functionality.
+        """
         self.config = Configuration(loop, **kwargs)
         self.vapix = Vapix(self.config)
         loop.create_task(StreamManager.__init__(self))
@@ -678,7 +844,13 @@ class AxisDevice(Parameters, StreamManager):
 
 
 def convert(item, from_key, to_key):
-    """Translate between Axis and HASS syntax."""
+    """Translate between Axis and HASS syntax.
+    Type: configuration value for event manager
+    Class: what class should event belong to in HASS
+    Platform: which HASS platform this event belongs to
+    Topic: event topic to look for when receiving events
+    Subscribe: subscription form of event topic
+    """
     for entry in REMAP:
         if entry[from_key] == item:
             return entry[to_key]
@@ -686,39 +858,40 @@ def convert(item, from_key, to_key):
 
 REMAP = [{'type': 'motion',
           'class': 'motion',
+          'platform': 'binary_sensor',
           'topic': 'tns1:VideoAnalytics/tnsaxis:MotionDetection',
-          'subscribe': 'onvif:VideoAnalytics/axis:MotionDetection',
-          'platform': 'binary_sensor'},
+          'subscribe': 'onvif:VideoAnalytics/axis:MotionDetection'},
          {'type': 'vmd3',
           'class': 'motion',
+          'platform': 'binary_sensor',
           'topic': 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
-          'subscribe': 'onvif:RuleEngine/axis:VMD3/vmd3_video_1',
-          'platform': 'binary_sensor'},
+          'subscribe': 'onvif:RuleEngine/axis:VMD3/vmd3_video_1'},
          {'type': 'pir',
           'class': 'motion',
+          'platform': 'binary_sensor',
           'topic': 'tns1:Device/tnsaxis:Sensor/PIR',
-          'subscribe': 'onvif:Device/axis:Sensor/axis:PIR',
-          'platform': 'binary_sensor'},
+          'subscribe': 'onvif:Device/axis:Sensor/axis:PIR'},
          {'type': 'sound',
           'class': 'sound',
+          'platform': 'binary_sensor',
           'topic': 'tns1:AudioSource/tnsaxis:TriggerLevel',
-          'subscribe': 'onvif:AudioSource/axis:TriggerLevel',
-          'platform': 'binary_sensor'},
+          'subscribe': 'onvif:AudioSource/axis:TriggerLevel'},
          {'type': 'daynight',
           'class': 'light',
+          'platform': 'binary_sensor',
           'topic': 'tns1:VideoSource/tnsaxis:DayNightVision',
-          'subscribe': 'onvif:VideoSource/axis:DayNightVision',
-          'platform': 'binary_sensor'},
+          'subscribe': 'onvif:VideoSource/axis:DayNightVision'},
          {'type': 'tampering',
           'class': 'safety',
+          'platform': 'binary_sensor',
           'topic': 'tns1:VideoSource/tnsaxis:Tampering',
-          'subscribe': 'onvif:VideoSource/axis:Tampering',
-          'platform': 'binary_sensor'},
+          'subscribe': 'onvif:VideoSource/axis:Tampering'},
          {'type': 'input',
           'class': 'input',
+          'platform': 'binary_sensor',
           'topic': 'tns1:Device/tnsaxis:IO/Port',
-          'subscribe': 'onvif:Device/axis:IO/Port',
-          'platform': 'binary_sensor'}, ]
+          'subscribe': 'onvif:Device/axis:IO/Port'}
+         ]
 
 
 if __name__ == '__main__':
