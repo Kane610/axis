@@ -28,14 +28,6 @@ DATA = re.compile('(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
                   '.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
 
 
-# def print_response(response_string):
-#     """ Human readable RTSP response
-#     """
-#     for response in response_string.splitlines():
-#         print(response)
-#         _LOGGER.debug(response)
-
-
 class RTSPMethods(object):
     """Generate RTSP messages based on session data.
     """
@@ -299,7 +291,10 @@ class RTSPSession(object):
             pass
         else:
             # If device configuration is correct we should never get here
-            print(self.status_code, self.status_text)
+            _LOGGER.debug('%s RTSP %s %s',
+                          self.host,
+                          self.status_code,
+                          self.status_text)
 
     def generate_digest(self):
         """RFC 2617
@@ -360,7 +355,7 @@ class RTSPClient(asyncio.Protocol):
             if fut.exception():
                 fut.result()
         except OSError as err:
-            print('Got exception', err)
+            _LOGGER.debug('RTSP got exception %s', err)
             self.stop()
 
     def stop(self, retry=False):
@@ -379,7 +374,6 @@ class RTSPClient(asyncio.Protocol):
         self.transport = transport
         self.transport.write(self.method.message.encode())
         self.time_out_handle = self.loop.call_later(5, self.time_out)
-        # print('Data sent: {!r}'.format(self.request('OPTIONS')))
 
     def data_received(self, data):
         """Got response on RTSP session.
@@ -387,13 +381,11 @@ class RTSPClient(asyncio.Protocol):
         Update session parameters with latest response.
         If state is playing schedule keep-alive.
         """
-        # print('Data received: {!r}'.format(data.decode()))
         self.time_out_handle.cancel()
         self.session.update(data.decode())
         if self.session.state == STATE_STARTING:
             self.transport.write(self.method.message.encode())
             self.time_out_handle = self.loop.call_later(5, self.time_out)
-            #print('Data sent: {!r}'.format(self.request(method)))
         elif self.session.state == STATE_PLAYING:
             interval = self.session.session_timeout - 5
             self.loop.call_later(interval, self.keep_alive)
@@ -405,7 +397,6 @@ class RTSPClient(asyncio.Protocol):
         """
         self.transport.write(self.method.message.encode())
         self.time_out_handle = self.loop.call_later(5, self.time_out)
-        # print('Data sent: {!r}'.format(self.request('OPTIONS')))
 
     def time_out(self):
         """If we don't get a response within time the RTSP request time out.
@@ -418,7 +409,7 @@ class RTSPClient(asyncio.Protocol):
     def connection_lost(self, exc):
         """Happens when device closes connection or stop() has been called.
         """
-        print("RTSP Session connection lost", exc)
+        _LOGGER.debug('RTSP session lost connection')
 
 
 class RTPClient(object):
@@ -484,7 +475,6 @@ class RTPClient(object):
         def datagram_received(self, data, addr):
             """Signals when new data is available
             """
-            # print('Received %r from %s' % (data, addr))
             if self.callback:
                 self.data = data[12:]
                 self.callback('data')
@@ -630,7 +620,6 @@ class EventManager(object):
         elif data['Operation'] == 'Changed':
             event_name = '{}_{}'.format(data['Topic'], data['Source_value'])
             self.events[event_name].state = data['Data_value']
-            print('Changed', event_name, data['Data_value'])
 
         elif data['Operation'] == 'Deleted':
             _LOGGER.debug("Deleted event from stream")
@@ -836,11 +825,6 @@ class AxisDevice(Parameters, StreamManager):
         self.config = Configuration(loop, **kwargs)
         self.vapix = Vapix(self.config)
         loop.create_task(StreamManager.__init__(self))
-
-        # print(self.version)
-        # print(self.model)
-        # print(self.serial_number)
-        # print(self.meta_data_support)
 
 
 def convert(item, from_key, to_key):
