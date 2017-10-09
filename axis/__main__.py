@@ -1,6 +1,7 @@
 # python3 -m axis
 
 import asyncio
+
 from axis import AxisDevice
 from functools import partial
 

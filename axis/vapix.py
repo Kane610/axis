@@ -1,5 +1,6 @@
 import logging
 import requests
+
 from requests.auth import HTTPDigestAuth  # , HTTPBasicAuth
 
 _LOGGER = logging.getLogger(__name__)

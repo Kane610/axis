@@ -9,6 +9,8 @@ STATE_PLAYING = 'playing'
 STATE_STOPPED = 'stopped'
 STATE_PAUSED = 'paused'
 
+TIME_OUT_LIMIT = 5
+
 
 class RTSPClient(asyncio.Protocol):
     """RTSP transport, session handling, message generation.
@@ -18,6 +20,7 @@ class RTSPClient(asyncio.Protocol):
         """RTSP
         """
         self.loop = loop
+        self.callback = callback
         self.rtp = RTPClient(loop, callback)
         self.session = RTSPSession(url, host, username, password)
         self.session.rtp_port = self.rtp.port
@@ -40,14 +43,15 @@ class RTSPClient(asyncio.Protocol):
         except OSError as err:
             _LOGGER.debug('RTSP got exception %s', err)
             self.stop()
+            self.callback('retry')
 
-    def stop(self, retry=False):
+    def stop(self):
         """Stop session.
         """
         if self.transport:
             self.transport.write(self.method.TEARDOWN().encode())
             self.transport.close()
-        self.rtp.stop(retry)
+        self.rtp.stop()
 
     def connection_made(self, transport):
         """Connection to device is successful.
@@ -56,7 +60,8 @@ class RTSPClient(asyncio.Protocol):
         """
         self.transport = transport
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(5, self.time_out)
+        self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT,
+                                                    self.time_out)
 
     def data_received(self, data):
         """Got response on RTSP session.
@@ -66,12 +71,15 @@ class RTSPClient(asyncio.Protocol):
         """
         self.time_out_handle.cancel()
         self.session.update(data.decode())
+
         if self.session.state == STATE_STARTING:
             self.transport.write(self.method.message.encode())
-            self.time_out_handle = self.loop.call_later(5, self.time_out)
+            self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT,
+                                                        self.time_out)
         elif self.session.state == STATE_PLAYING:
-            interval = self.session.session_timeout - 5
-            self.loop.call_later(interval, self.keep_alive)
+            if self.session.session_timeout != 0:
+                interval = self.session.session_timeout - 5
+                self.loop.call_later(interval, self.keep_alive)
         else:
             self.stop()
 
@@ -79,15 +87,16 @@ class RTSPClient(asyncio.Protocol):
         """Keep RTSP session alive per negotiated time interval
         """
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(5, self.time_out)
+        self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT,
+                                                    self.time_out)
 
     def time_out(self):
         """If we don't get a response within time the RTSP request time out.
         This usually happens if device isn't available on specified IP.
         """
-        _LOGGER.warning('Response timed out %s', self.config.host)
-        retry = True
-        self.stop(retry)
+        _LOGGER.warning('Response timed out %s', self.session.host)
+        self.stop()
+        self.callback('retry')
 
     def connection_lost(self, exc):
         """Happens when device closes connection or stop() has been called.
@@ -116,10 +125,9 @@ class RTPClient(object):
         # self.port = self.client.transport.get_extra_info('sockname')[1]
         self.rtcp_port = self.port + 1
 
-    def stop(self, retry=False):
+    def stop(self):
         """Close transport from receiving any more packages.
         """
-        self.client.retry = retry
         if self.client.transport:
             self.client.transport.close()
 
@@ -138,7 +146,6 @@ class RTPClient(object):
             """
             self.callback = callback
             self.data = None
-            self.retry = False
             self.transport = None
 
         def connection_made(self, transport):
@@ -152,8 +159,6 @@ class RTPClient(object):
             """Signal retry if RTSP session fails to get a response.
             """
             _LOGGER.debug('Stream recepient offline')
-            if self.retry and self.callback:
-                self.callback('retry')
 
         def datagram_received(self, data, addr):
             """Signals when new data is available
@@ -328,7 +333,7 @@ class RTSPSession(object):
         self.content_base = None
         self.content_length = None
         self.session_id = None
-        self.session_timeout = None
+        self.session_timeout = 0
         self.transport_ack = None
         self.range = None
         self.rtp_info = None

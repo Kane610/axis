@@ -1,20 +1,8 @@
-import asyncio
 import logging
 
-try:
-    from .configuration import Configuration
-except SystemError:
-    from configuration import Configuration
-
-try:
-    from .vapix import Vapix, Parameters
-except SystemError:
-    from vapix import Vapix, Parameters
-
-try:
-    from .streammanager import StreamManager
-except SystemError:
-    from streammanager import StreamManager
+from .configuration import Configuration
+from .vapix import Vapix, Parameters
+from .streammanager import StreamManager
 
 # import aiohttp
 # PYTHON RTSP INSPIRATION

@@ -1,6 +1,9 @@
 import asyncio
 import logging
 
+from .rtsp import RTSPClient
+from .event import EventManager
+
 _LOGGER = logging.getLogger(__name__)
 
 STATE_STARTING = 'starting'
@@ -8,16 +11,7 @@ STATE_PLAYING = 'playing'
 STATE_STOPPED = 'stopped'
 STATE_PAUSED = 'paused'
 
-try:
-    from .rtsp import RTSPClient
-except SystemError:
-    from rtsp import RTSPClient
-
-try:
-    from .event import EventManager
-except SystemError:
-    from event import EventManager
-
+RETRY_TIMER = 15
 
 class StreamManager(object):
     """Setup, start, stop and retry stream
@@ -95,5 +89,5 @@ class StreamManager(object):
         """No connection to device, retry connection after 15 seconds.
         """
         self.stream = None
-        self.config.loop.call_later(15, self.start)
+        self.config.loop.call_later(RETRY_TIMER, self.start)
         _LOGGER.debug('Reconnecting to %s', self.config.host)
