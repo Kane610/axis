@@ -143,7 +143,6 @@ class AxisEvent(object):  # pylint: disable=R0904
     def state(self, state):
         """Update state of event.
         """
-        print(state)
         self._state = state
         if self.callback:
             self.callback()
