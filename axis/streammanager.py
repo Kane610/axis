@@ -13,11 +13,11 @@ STATE_PAUSED = 'paused'
 
 RETRY_TIMER = 15
 
+
 class StreamManager(object):
     """Setup, start, stop and retry stream
     """
 
-    @asyncio.coroutine
     def __init__(self):
         """Start stream if any event type is specified
         """
@@ -26,8 +26,9 @@ class StreamManager(object):
         self.audio = None  # Unsupported
         self.event = EventManager(self.config.event_types, self.config.signal)
         self.stream = None
-        if self.event != 'off':
-            self.start()
+        # if self.event.query != 'off':
+            # print('start', self.event)
+            # self.start()
 
     @property
     def stream_url(self):

@@ -23,7 +23,7 @@ class AxisDevice(Parameters, StreamManager):
         """
         self.config = Configuration(loop, **kwargs)
         self.vapix = Vapix(self.config)
-        loop.create_task(StreamManager.__init__(self))
+        StreamManager.__init__(self)
 
 
 ## observe som hanterar device status tillgånglig/otillgänglig och sköter retry
