@@ -5,9 +5,10 @@ import asyncio
 from axis import AxisDevice
 from functools import partial
 
+
 loop = asyncio.get_event_loop()
+
 port = 8080
-#port = 443
 event_list = ['motion']
 kw = {'host': '10.0.1.51',
       'username': 'root',
