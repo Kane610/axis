@@ -1,3 +1,5 @@
+"""Python library to enable Axis devices to be integrated in to Home Assistant."""
+
 import asyncio
 import logging
 
@@ -15,12 +17,10 @@ RETRY_TIMER = 15
 
 
 class StreamManager(object):
-    """Setup, start, stop and retry stream
-    """
+    """Setup, start, stop and retry stream."""
 
     def __init__(self, config):
-        """Start stream if any event type is specified
-        """
+        """Start stream if any event type is specified."""
         self.config = config
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
@@ -32,8 +32,7 @@ class StreamManager(object):
 
     @property
     def stream_url(self):
-        """Build url for stream
-        """
+        """Build url for stream."""
         rtsp = 'rtsp://{}/axis-media/media.amp'.format(self.config.host)
         source = '?video={0}&audio={1}&event={2}'.format(self.video_query,
                                                          self.audio_query,
@@ -43,20 +42,19 @@ class StreamManager(object):
 
     @property
     def video_query(self):
-        """Generate video query, not supported
-        """
+        """Generate video query, not supported."""
         return 0
 
     @property
     def audio_query(self):
-        """Generate audio query, not supported
-        """
+        """Generate audio query, not supported."""
         return 0
 
     def session_callback(self, signal):
         """Signalling from stream session.
-           Data - new data available for processing
-           Retry - if there is no connection to device.
+
+        Data - new data available for processing.
+        Retry - if there is no connection to device.
         """
         if signal == 'data':
             self.event.manage_event(self.data)
@@ -65,13 +63,11 @@ class StreamManager(object):
 
     @property
     def data(self):
-        """Get stream data.
-        """
+        """Get stream data."""
         return self.stream.rtp.data
 
     def start(self):
-        """Start stream.
-        """
+        """Start stream."""
         if not self.stream or self.stream.session.state == STATE_STOPPED:
             self.stream = RTSPClient(self.config.loop,
                                      self.stream_url,
@@ -81,14 +77,12 @@ class StreamManager(object):
                                      self.session_callback)
 
     def stop(self):
-        """Stop stream.
-        """
+        """Stop stream."""
         if self.stream and self.stream.session.state != STATE_STOPPED:
             self.stream.stop()
 
     def retry(self):
-        """No connection to device, retry connection after 15 seconds.
-        """
+        """No connection to device, retry connection after 15 seconds."""
         self.stream = None
         self.config.loop.call_later(RETRY_TIMER, self.start)
         _LOGGER.debug('Reconnecting to %s', self.config.host)

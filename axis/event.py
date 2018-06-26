@@ -1,3 +1,5 @@
+"""Python library to enable Axis devices to be integrated in to Home Assistant."""
+
 import logging
 import re
 
@@ -12,19 +14,16 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class EventManager(object):
-    """Initialize new events and update states of existing events
-    """
+    """Initialize new events and update states of existing events."""
 
     def __init__(self, event_types, signal):
-        """Ready information about events
-        """
+        """Ready information about events."""
         self.signal = signal
         self.events = {}
         self.query = self.create_event_query(event_types)
 
     def create_event_query(self, event_types):
-        """Takes a list of event types and returns a query string
-        """
+        """Take a list of event types and return a query string."""
         if event_types:
             topics = None
             for event in event_types:
@@ -39,8 +38,7 @@ class EventManager(object):
             return 'off'
 
     def parse_event(self, event_data):
-        """Parse metadata xml.
-        """
+        """Parse metadata xml."""
         output = {}
 
         data = event_data.decode()
@@ -69,9 +67,10 @@ class EventManager(object):
 
     def manage_event(self, event_data):
         """Received new metadata.
-        Operation missing means this is the first message in stream
-        Operation initialized means new event, will also happen if reconnecting
-        Operation changed updates existing events state
+
+        Operation missing means this is the first message in stream.
+        Operation initialized means new event, also happens if reconnecting.
+        Operation changed updates existing events state.
         """
         data = self.parse_event(event_data)
         if 'Operation' not in data:
@@ -99,12 +98,10 @@ class EventManager(object):
 
 
 class AxisEvent(object):  # pylint: disable=R0904
-    """Class to represent each Axis device event.
-    """
+    """Class to represent each Axis device event."""
 
     def __init__(self, data):
-        """Setup an Axis event.
-        """
+        """Set up Axis event."""
         _LOGGER.info("New AxisEvent {}".format(data))
         self.topic = data['Topic']
         self.id = data['Source_value']
@@ -117,45 +114,38 @@ class AxisEvent(object):  # pylint: disable=R0904
 
     @property
     def event_class(self):
-        """
-        """
+        """Class event should belong to in HASS."""
         return convert(self.topic, 'topic', 'class')
 
     @property
     def event_type(self):
-        """
-        """
+        """Use to configure what events to subscribe to in event manager."""
         return convert(self.topic, 'topic', 'type')
 
     @property
     def event_platform(self):
-        """
-        """
+        """Which HASS platform this event belongs to."""
         return convert(self.topic, 'topic', 'platform')
 
     @property
     def state(self):
-        """The State of the event.
-        """
+        """State of the event."""
         return self._state
 
     @state.setter
     def state(self, state):
-        """Update state of event.
-        """
+        """Update state of event."""
         self._state = state
         if self.callback:
             self.callback()
 
     @property
     def is_tripped(self):
-        """Event is tripped now.
-        """
+        """Event is tripped now."""
         return self._state == '1'
 
     def as_dict(self):
-        """Callback for __dict__.
-        """
+        """Callback for __dict__."""
         cdict = self.__dict__.copy()
         if 'callback' in cdict:
             del cdict['callback']
@@ -164,11 +154,12 @@ class AxisEvent(object):  # pylint: disable=R0904
 
 def convert(item, from_key, to_key):
     """Translate between Axis and HASS syntax.
-    Type: configuration value for event manager
-    Class: what class should event belong to in HASS
-    Platform: which HASS platform this event belongs to
-    Topic: event topic to look for when receiving events
-    Subscribe: subscription form of event topic
+
+    Type: configuration value for event manager.
+    Class: what class should event belong to in HASS.
+    Platform: which HASS platform this event belongs to.
+    Topic: event topic to look for when receiving events.
+    Subscribe: subscription form of event topic.
     """
     for entry in REMAP:
         if entry[from_key] == item:
