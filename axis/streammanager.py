@@ -18,10 +18,10 @@ class StreamManager(object):
     """Setup, start, stop and retry stream
     """
 
-    def __init__(self):
+    def __init__(self, config):
         """Start stream if any event type is specified
         """
-        # self.config
+        self.config = config
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = EventManager(self.config.event_types, self.config.signal)

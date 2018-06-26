@@ -4,7 +4,6 @@ from .configuration import Configuration
 from .vapix import Vapix, Parameters
 from .streammanager import StreamManager
 
-# import aiohttp
 # PYTHON RTSP INSPIRATION
 # https://github.com/timohoeting/python-mjpeg-over-rtsp-client/blob/master/rtsp_client.py
 # http://codegist.net/snippet/python/rtsp_authenticationpy_crayfishapps_python
@@ -14,7 +13,7 @@ from .streammanager import StreamManager
 _LOGGER = logging.getLogger(__name__)
 
 
-class AxisDevice(Parameters, StreamManager):
+class AxisDevice(Parameters):
     """Creates a new Axis device.self.
     """
 
@@ -23,7 +22,13 @@ class AxisDevice(Parameters, StreamManager):
         """
         self.config = Configuration(loop, **kwargs)
         self.vapix = Vapix(self.config)
-        StreamManager.__init__(self)
+        self.stream = StreamManager(self.config)
+
+    def start(self):
+        self.stream.start()
+
+    def stop(self):
+        self.stream.stop()
 
 
 ## observe som hanterar device status tillgånglig/otillgänglig och sköter retry
