@@ -1,11 +1,11 @@
 import logging
 import requests
 
-from requests.auth import HTTPDigestAuth  # , HTTPBasicAuth
+from requests.auth import HTTPDigestAuth
 
 _LOGGER = logging.getLogger(__name__)
 
-PARAM_URL = 'http://{}:{}/axis-cgi/{}?action={}&{}'
+PARAM_URL = '{}://{}:{}/axis-cgi/{}?action={}&{}'
 
 
 class Vapix(object):
@@ -16,6 +16,7 @@ class Vapix(object):
         """Store local reference to device config
         """
         self.config = config
+        #self.config.session = session
 
     def get_param(self, param):
         """Get parameter and remove descriptive part of response.
@@ -40,14 +41,12 @@ class Vapix(object):
     def do_request(self, cgi, action, param):
         """Do HTTP request and return response as dictionary.
         """
-        url = PARAM_URL.format(self.config.host,
-                               self.config.port,
-                               cgi,
-                               action,
-                               param)
+        url = PARAM_URL.format(
+            self.config.web_proto, self.config.host, self.config.port,
+            cgi, action, param)
         auth = HTTPDigestAuth(self.config.username, self.config.password)
         try:
-            r = requests.get(url, auth=auth)
+            r = requests.get(url, auth=auth, verify=False)
             r.raise_for_status()
         except requests.ConnectionError as err:
             _LOGGER.error("Connection error: %s", err)

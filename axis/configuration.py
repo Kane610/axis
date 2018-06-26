@@ -6,6 +6,7 @@ class Configuration(object):
         """All config params available to the device
         """
         self.loop = loop
+        self.web_proto = kwargs.get('web_proto', 'http')
         self.host = host
         self.port = kwargs.get('port', 80)
         self.username = username
