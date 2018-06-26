@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to be integrated in to Home Assistant."""
+"""Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
 
@@ -33,4 +33,4 @@ class AxisDevice(Parameters):
         self.stream.stop()
 
 
-## observe som hanterar device status tillganglig/otillganglig och skoter retry
+# observe som hanterar device status tillganglig/otillganglig och skoter retry

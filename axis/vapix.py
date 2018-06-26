@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to be integrated in to Home Assistant."""
+"""Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
 import requests
@@ -16,7 +16,7 @@ class Vapix(object):
     def __init__(self, config):
         """Store local reference to device config."""
         self.config = config
-        #self.config.session = session
+        # self.config.session = session
 
     def get_param(self, param):
         """Get parameter and remove descriptive part of response."""
@@ -34,8 +34,7 @@ class Vapix(object):
             v[key] = value
         if len(v.items()) == 1:
             return v[param]
-        else:
-            return v
+        return v
 
     def do_request(self, cgi, action, param):
         """Do HTTP request and return response as dictionary."""
@@ -77,12 +76,14 @@ class Parameters(object):
     def serial_number(self):
         """Device MAC address."""
         if '_serial_number' not in self.__dict__:
-            self._serial_number = self.vapix.get_param('Properties.System.SerialNumber')
+            self._serial_number = self.vapix.get_param(
+                'Properties.System.SerialNumber')
         return self._serial_number
 
     @property
     def meta_data_support(self):
         """Yes if meta data stream is supported."""
         if '_meta_data_support' not in self.__dict__:
-            self._meta_data_support = self.vapix.get_param('Properties.API.Metadata.Metadata')
+            self._meta_data_support = self.vapix.get_param(
+                'Properties.API.Metadata.Metadata')
         return self._meta_data_support

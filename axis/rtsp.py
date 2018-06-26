@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to be integrated in to Home Assistant."""
+"""Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
 import logging
@@ -61,8 +61,8 @@ class RTSPClient(asyncio.Protocol):
         """
         self.transport = transport
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT,
-                                                    self.time_out)
+        self.time_out_handle = self.loop.call_later(
+            TIME_OUT_LIMIT, self.time_out)
 
     def data_received(self, data):
         """Got response on RTSP session.
@@ -76,8 +76,8 @@ class RTSPClient(asyncio.Protocol):
 
         if self.session.state == STATE_STARTING:
             self.transport.write(self.method.message.encode())
-            self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT,
-                                                        self.time_out)
+            self.time_out_handle = self.loop.call_later(
+                TIME_OUT_LIMIT, self.time_out)
         elif self.session.state == STATE_PLAYING:
             if self.session.session_timeout != 0:
                 interval = self.session.session_timeout - 5
@@ -88,8 +88,8 @@ class RTSPClient(asyncio.Protocol):
     def keep_alive(self):
         """Keep RTSP session alive per negotiated time interval."""
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT,
-                                                    self.time_out)
+        self.time_out_handle = self.loop.call_later(
+            TIME_OUT_LIMIT, self.time_out)
 
     def time_out(self):
         """If we don't get a response within time the RTSP request time out.
@@ -122,8 +122,8 @@ class RTPClient(object):
         self.client = self.UDPClient(callback)
         # conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
         # conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
-        conn = loop.create_datagram_endpoint(lambda: self.client,
-                                             local_addr=('0.0.0.0', self.port))
+        conn = loop.create_datagram_endpoint(
+            lambda: self.client, local_addr=('0.0.0.0', self.port))
         loop.create_task(conn)
         # self.port = self.client.transport.get_extra_info('sockname')[1]
         self.rtcp_port = self.port + 1
@@ -266,15 +266,14 @@ class RTSPMethods(object):
         """Generate session string."""
         if self.session.session_id:
             return "Session: " + self.session.session_id + '\r\n'
-        else:
-            return ''
+        return ''
 
     @property
     def transport(self):
         """Generate transport string."""
         transport = "Transport: RTP/AVP;unicast;client_port={}-{}\r\n"
-        return transport.format(str(self.session.rtp_port),
-                                str(self.session.rtcp_port))
+        return transport.format(
+            str(self.session.rtp_port), str(self.session.rtcp_port))
 
 
 class RTSPSession(object):
@@ -418,10 +417,8 @@ class RTSPSession(object):
             pass
         else:
             # If device configuration is correct we should never get here
-            _LOGGER.debug('%s RTSP %s %s',
-                          self.host,
-                          self.status_code,
-                          self.status_text)
+            _LOGGER.debug(
+                "%s RTSP %s %s", self.host, self.status_code, self.status_text)
 
     def generate_digest(self):
         """RFC 2617."""

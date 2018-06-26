@@ -1,6 +1,5 @@
-"""Python library to enable Axis devices to be integrated in to Home Assistant."""
+"""Python library to enable Axis devices to integrate with Home Assistant."""
 
-import asyncio
 import logging
 
 from .rtsp import RTSPClient
@@ -26,9 +25,6 @@ class StreamManager(object):
         self.audio = None  # Unsupported
         self.event = EventManager(self.config.event_types, self.config.signal)
         self.stream = None
-        # if self.event.query != 'off':
-            # print('start', self.event)
-            # self.start()
 
     @property
     def stream_url(self):

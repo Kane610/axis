@@ -1,4 +1,5 @@
-"""Python library to enable Axis devices to be integrated in to Home Assistant."""
+"""Python library to enable Axis devices to integrate with Home Assistant."""
+
 
 class Configuration(object):
     """Device configuration."""
