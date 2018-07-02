@@ -164,6 +164,8 @@ def convert(item, from_key, to_key):
     return result
 
 
+#tnsaxis: CameraApplicationPlatform/VMD//
+#tns1:VideoSource/MotionAlarm//.
 REMAP = [{'type': 'motion',
           'class': 'motion',
           'platform': 'binary_sensor',

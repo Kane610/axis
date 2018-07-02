@@ -5,6 +5,8 @@ import requests
 
 from requests.auth import HTTPDigestAuth
 
+from .utils import session_request
+
 _LOGGER = logging.getLogger(__name__)
 
 PARAM_URL = '{}://{}:{}/axis-cgi/{}?action={}&{}'
@@ -16,20 +18,21 @@ class Vapix(object):
     def __init__(self, config):
         """Store local reference to device config."""
         self.config = config
-        # self.config.session = session
+        self.config.session = requests.Session()
+        self.config.session.auth = HTTPDigestAuth(
+            self.config.username, self.config.password)
+        if self.config.web_proto == 'https':
+            self.config.session.verify = False
 
     def get_param(self, param):
         """Get parameter and remove descriptive part of response."""
         cgi = 'param.cgi'
         action = 'list'
-        try:
-            r = self.do_request(cgi, action, 'group=' + param)
-        except requests.ConnectionError:
-            return None
-        except requests.exceptions.HTTPError:
+        result = self.do_request(cgi, action, 'group=' + param)
+        if result is None:
             return None
         v = {}
-        for s in filter(None, r.split('\n')):
+        for s in filter(None, result.split('\n')):
             key, value = s.split('=')
             v[key] = value
         if len(v.items()) == 1:
@@ -41,18 +44,12 @@ class Vapix(object):
         url = PARAM_URL.format(
             self.config.web_proto, self.config.host, self.config.port,
             cgi, action, param)
-        auth = HTTPDigestAuth(self.config.username, self.config.password)
-        try:
-            r = requests.get(url, auth=auth, verify=False)
-            r.raise_for_status()
-        except requests.ConnectionError as err:
-            _LOGGER.error("Connection error: %s", err)
-            raise
-        except requests.exceptions.HTTPError as err:
-            _LOGGER.error("HTTP error: %s", err)
-            raise
-        _LOGGER.debug('Request response: %s from %s', r.text, self.config.host)
-        return r.text
+        kwargs = {}
+        if self.config.web_proto == 'https':
+            kwargs['verify'] = False
+        result = session_request(self.config.session.get, url, **kwargs)
+        _LOGGER.debug('Request response: %s from %s', result, self.config.host)
+        return result
 
 
 class Parameters(object):
