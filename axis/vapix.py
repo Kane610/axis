@@ -40,14 +40,11 @@ class Vapix(object):
         return v
 
     def do_request(self, cgi, action, param):
-        """Do HTTP request and return response as dictionary."""
+        """Prepare HTTP request."""
         url = PARAM_URL.format(
             self.config.web_proto, self.config.host, self.config.port,
             cgi, action, param)
-        kwargs = {}
-        if self.config.web_proto == 'https':
-            kwargs['verify'] = False
-        result = session_request(self.config.session.get, url, **kwargs)
+        result = session_request(self.config.session.get, url)
         _LOGGER.debug('Request response: %s from %s', result, self.config.host)
         return result
 
