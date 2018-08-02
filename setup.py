@@ -1,7 +1,11 @@
+"""Setup for Axis."""
+
 # https://jeffknupp.com/blog/2013/08/16/open-sourcing-a-python-project-the-right-way/
 # http://peterdowns.com/posts/first-time-with-pypi.html
+# pip install -e .
 # Upload to PyPI Live
-# python setup.py sdist upload -r pypi
+# python setup.py sdist bdist_wheel
+# twine upload dist/pydeconz-* --skip-existing
 
 from setuptools import setup
 
