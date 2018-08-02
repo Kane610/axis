@@ -7,7 +7,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def session_request(session, url, **kwargs):
-    """Do HTTP/S request and return response as dictionary."""
+    """Do HTTP/S request and return response as a string."""
     try:
         response = session(url, **kwargs)
         response.raise_for_status()
