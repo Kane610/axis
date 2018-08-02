@@ -27,9 +27,8 @@ class RTSPClient(asyncio.Protocol):
         self.session.rtcp_port = self.rtp.rtcp_port
         self.method = RTSPMethods(self.session)
         self.transport = None
-        conn = loop.create_connection(lambda: self,
-                                      self.session.host,
-                                      self.session.port)
+        conn = loop.create_connection(
+            lambda: self, self.session.host, self.session.port)
         task = loop.create_task(conn)
         task.add_done_callback(self.init_done)
 
