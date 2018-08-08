@@ -44,12 +44,31 @@ class EventManager(object):
                 return entry
         return None
 
+    def new_map_entry(self, item):
+        """Create new map entry based on item.
+
+        Returns a copy of the entry.
+        """
+        if re.search(r'^tnsaxis:CameraApplicationPlatform/VMD', item):
+            topic, profile = item.rsplit('/', 1)
+            index = re.findall(r'\d+|ANY$', profile)
+            from copy import deepcopy
+            for entry in MAPPING:
+                if topic == entry['topic']:
+                    entry_copy = deepcopy(entry)
+                    entry_copy['topic'] = item
+                    entry_copy['source'] = '{}_{}'.format(index[0], index[1])
+                    self.event_map.append(entry_copy)
+                    return entry_copy
+                return None
+
+
     def create_event_query(self, event_types):
         """Take a list of event types and return a query string."""
         if not event_types:
             return 'off'
         topics = [event['subscribe']
-                  for event in self.event_map
+                  for event in self.event_map + MAPPING
                   if event['type'] in event_types]
         return 'on&eventtopic={}'.format('|'.join(topics))
 
@@ -72,7 +91,7 @@ class EventManager(object):
             output['Source_name'] = source.group('name')
             output['Source_value'] = source.group('value')
         else:
-            output['Source_name'] = 'SOURCE'
+            output['Source_name'] = 'VMD4'
             output['Source_value'] = 0
 
         data = DATA.search(data)
@@ -96,6 +115,9 @@ class EventManager(object):
 
         if operation == 'Initialized':
             description = self.translate(data['Topic'], 'topic')
+            if not description:
+                description = self.new_map_entry(data['Topic'])
+                data['Source_value'] = description['source']
             new_event = AxisEvent(data, description)
             if new_event.name not in self.events:
                 self.events[new_event.name] = new_event
@@ -169,12 +191,6 @@ REMAP = [{'type': 'motion',
           'base': {'onvif': ['RuleEngine'], 'axis': ['VMD3', 'vmd3_video_1']},
           'topic': 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
           'subscribe': 'onvif:RuleEngine/axis:VMD3/vmd3_video_1'},
-         {'type': 'vmd4',
-          'class': 'motion',
-          'platform': 'binary_sensor',
-          'base': {'axis': ['CameraApplicationPlatform', 'VMD']},
-          'topic': 'tnsaxis:CameraApplicationPlatform/VMD/{}',
-          'subscribe': 'axis:CameraApplicationPlatform/VMD/{}/.'},
          {'type': 'pir',
           'class': 'motion',
           'platform': 'binary_sensor',
@@ -207,6 +223,13 @@ REMAP = [{'type': 'motion',
           'subscribe': 'onvif:Device/axis:IO/Port'}
         ]
 
+MAPPING = [{'type': 'vmd4',
+            'class': 'motion',
+            'platform': 'binary_sensor',
+            'base': {'axis': ['CameraApplicationPlatform', 'VMD']},
+            'topic': 'tnsaxis:CameraApplicationPlatform/VMD',
+            'subscribe': 'axis:CameraApplicationPlatform/VMD//.'}]
+
 
 device_event_url = '{}://{}:{}/vapix/services'
 headers = {'Content-Type': 'application/soap+xml',
@@ -229,7 +252,7 @@ def device_events(config):
     raw_event_list = _prepare_event(eventinstances)
 
     event_list = {}
-    for entry in REMAP:
+    for entry in REMAP + MAPPING:
         instance = raw_event_list
         try:
             for item in sum(entry['base'].values(), []):
@@ -247,7 +270,7 @@ def device_map(event_list):
     Event_map can be used to replace event_map in event_manager.
     """
     event_map = []
-    for entry in REMAP:
+    for entry in REMAP + MAPPING:
         if entry['type'] in event_list and entry['type'] == 'vmd4':
             for profile, instance in event_list['vmd4'].items():
                 if re.search(r'^Camera[0-9]Profile[0-9]$', profile):
