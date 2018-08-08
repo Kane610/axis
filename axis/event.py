@@ -3,6 +3,10 @@
 import logging
 import re
 
+from .utils import session_request
+
+_LOGGER = logging.getLogger(__name__)
+
 MESSAGE = re.compile(r'(?<=PropertyOperation)="(?P<operation>\w+)"')
 TOPIC = re.compile(r'(?<=<wsnt:Topic).*>(?P<topic>.*)(?=<\/wsnt:Topic>)')
 SOURCE = re.compile(r'(?<=<tt:Source>).*Name="(?P<name>\w+)"' +
@@ -10,7 +14,7 @@ SOURCE = re.compile(r'(?<=<tt:Source>).*Name="(?P<name>\w+)"' +
 DATA = re.compile(r'(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
                   r'.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
 
-_LOGGER = logging.getLogger(__name__)
+EVENT_NAME = '{topic}_{source}'
 
 
 class EventManager(object):
@@ -20,23 +24,36 @@ class EventManager(object):
         """Ready information about events."""
         self.signal = signal
         self.events = {}
+        self.event_map = REMAP
         self.query = self.create_event_query(event_types)
+
+    def translate(self, item, key, to_key=None):
+        """Translate between Axis and HASS syntax.
+
+        If to_key is omitted full entry will be returned.
+        Type: configuration value for event manager.
+        Class: what class should event belong to in HASS.
+        Platform: which HASS platform this event belongs to.
+        Topic: event topic to look for when receiving events.
+        Subscribe: subscription form of event topic.
+        """
+        for entry in self.event_map:
+            if entry[key] == item:
+                if to_key:
+                    return entry[to_key]
+                return entry
+        return None
 
     def create_event_query(self, event_types):
         """Take a list of event types and return a query string."""
-        if event_types:
-            topics = None
-            for event in event_types:
-                topic = convert(event, 'type', 'subscribe')
-                if topics is None:
-                    topics = topic
-                else:
-                    topics = '{}|{}'.format(topics, topic)
-            topic_query = '&eventtopic={}'.format(topics)
-            return 'on' + topic_query
-        return 'off'
+        if not event_types:
+            return 'off'
+        topics = [event['subscribe']
+                  for event in self.event_map
+                  if event['type'] in event_types]
+        return 'on&eventtopic={}'.format('|'.join(topics))
 
-    def parse_event(self, event_data):
+    def _parse_event(self, event_data):
         """Parse metadata xml."""
         output = {}
 
@@ -54,6 +71,9 @@ class EventManager(object):
         if source:
             output['Source_name'] = source.group('name')
             output['Source_value'] = source.group('value')
+        else:
+            output['Source_name'] = 'SOURCE'
+            output['Source_value'] = 0
 
         data = DATA.search(data)
         if data:
@@ -71,18 +91,19 @@ class EventManager(object):
         Operation initialized means new event, also happens if reconnecting.
         Operation changed updates existing events state.
         """
-        data = self.parse_event(event_data)
+        data = self._parse_event(event_data)
         operation = data.get('Operation')
 
         if operation == 'Initialized':
-            new_event = AxisEvent(data)
+            description = self.translate(data['Topic'], 'topic')
+            new_event = AxisEvent(data, description)
             if new_event.name not in self.events:
                 self.events[new_event.name] = new_event
-                if self.signal:
-                    self.signal('add', new_event)
+                self.signal('add', new_event)
 
         elif operation == 'Changed':
-            event_name = '{}_{}'.format(data['Topic'], data['Source_value'])
+            event_name = EVENT_NAME.format(
+                topic=data['Topic'], source=data['Source_value'])
             self.events[event_name].state = data['Data_value']
 
         elif operation == 'Deleted':
@@ -95,32 +116,21 @@ class EventManager(object):
 class AxisEvent(object):  # pylint: disable=R0904
     """Class to represent each Axis device event."""
 
-    def __init__(self, data):
+    def __init__(self, data, description):
         """Set up Axis event."""
         _LOGGER.info("New AxisEvent %s", data)
         self.topic = data['Topic']
         self.id = data['Source_value']
         self.type = data['Data_name']
         self.source = data['Source_name']
-        self.name = '{}_{}'.format(self.topic, self.id)
+        self.event_class = description['class']
+        self.event_type = description['type']
+        self.event_platform = description['platform']
+        self.event_name = description.get('name')  # Only VMD4
+        self.name = EVENT_NAME.format(topic=self.topic, source=self.id)
 
         self._state = None
         self.callback = None
-
-    @property
-    def event_class(self):
-        """Class event should belong to in HASS."""
-        return convert(self.topic, 'topic', 'class')
-
-    @property
-    def event_type(self):
-        """Use to configure what events to subscribe to in event manager."""
-        return convert(self.topic, 'topic', 'type')
-
-    @property
-    def event_platform(self):
-        """Which HASS platform this event belongs to."""
-        return convert(self.topic, 'topic', 'platform')
 
     @property
     def state(self):
@@ -147,58 +157,155 @@ class AxisEvent(object):  # pylint: disable=R0904
         return cdict
 
 
-def convert(item, from_key, to_key):
-    """Translate between Axis and HASS syntax.
-
-    Type: configuration value for event manager.
-    Class: what class should event belong to in HASS.
-    Platform: which HASS platform this event belongs to.
-    Topic: event topic to look for when receiving events.
-    Subscribe: subscription form of event topic.
-    """
-    result = None
-    for entry in REMAP:
-        if entry[from_key] == item:
-            result = entry[to_key]
-            break
-    return result
-
-
-#tnsaxis: CameraApplicationPlatform/VMD//
-#tns1:VideoSource/MotionAlarm//.
 REMAP = [{'type': 'motion',
           'class': 'motion',
           'platform': 'binary_sensor',
+          'base': {'onvif': ['VideoAnalytics'], 'axis': ['MotionDetection']},
           'topic': 'tns1:VideoAnalytics/tnsaxis:MotionDetection',
           'subscribe': 'onvif:VideoAnalytics/axis:MotionDetection'},
          {'type': 'vmd3',
           'class': 'motion',
           'platform': 'binary_sensor',
+          'base': {'onvif': ['RuleEngine'], 'axis': ['VMD3', 'vmd3_video_1']},
           'topic': 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
           'subscribe': 'onvif:RuleEngine/axis:VMD3/vmd3_video_1'},
+         {'type': 'vmd4',
+          'class': 'motion',
+          'platform': 'binary_sensor',
+          'base': {'axis': ['CameraApplicationPlatform', 'VMD']},
+          'topic': 'tnsaxis:CameraApplicationPlatform/VMD/{}',
+          'subscribe': 'axis:CameraApplicationPlatform/VMD/{}/.'},
          {'type': 'pir',
           'class': 'motion',
           'platform': 'binary_sensor',
+          'base': {'onvif': ['Device'], 'axis': ['Sensor', 'PIR']},
           'topic': 'tns1:Device/tnsaxis:Sensor/PIR',
-          'subscribe': 'onvif:Device/axis:Sensor/axis:PIR'},
+          'subscribe': 'onvif:Device/axis:Sensor/PIR'},
          {'type': 'sound',
           'class': 'sound',
           'platform': 'binary_sensor',
+          'base': {'onvif': ['AudioSource'], 'axis': ['TriggerLevel']},
           'topic': 'tns1:AudioSource/tnsaxis:TriggerLevel',
           'subscribe': 'onvif:AudioSource/axis:TriggerLevel'},
          {'type': 'daynight',
           'class': 'light',
           'platform': 'binary_sensor',
+          'base': {'onvif': ['VideoSource'], 'axis': ['DayNightVision']},
           'topic': 'tns1:VideoSource/tnsaxis:DayNightVision',
           'subscribe': 'onvif:VideoSource/axis:DayNightVision'},
          {'type': 'tampering',
           'class': 'safety',
           'platform': 'binary_sensor',
+          'base': {'onvif': ['VideoSource'], 'axis': ['Tampering']},
           'topic': 'tns1:VideoSource/tnsaxis:Tampering',
           'subscribe': 'onvif:VideoSource/axis:Tampering'},
          {'type': 'input',
           'class': 'input',
           'platform': 'binary_sensor',
+          'base': {'onvif': ['Device'], 'axis':['IO', 'Port']},
           'topic': 'tns1:Device/tnsaxis:IO/Port',
           'subscribe': 'onvif:Device/axis:IO/Port'}
         ]
+
+
+device_event_url = '{}://{}:{}/vapix/services'
+headers = {'Content-Type': 'application/soap+xml',
+            'SOAPAction': 'http://www.axis.com/vapix/ws/event1/GetEventInstances'}
+request_xml = ("<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\">"
+                "<s:Body xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">"
+                "<GetEventInstances xmlns=\"http://www.axis.com/vapix/ws/event1\"/>"
+                "</s:Body>"
+                "</s:Envelope>")
+
+
+def device_events(config):
+    """Get a dict of supported events from device."""
+    eventinstances = session_request(
+        config.session.post, device_event_url.format(
+            config.web_proto, config.host, config.port),
+        auth=config.session.auth, headers=headers, data=request_xml)
+
+    raw_event_list = _prepare_event(eventinstances)
+
+    event_list = {}
+    for entry in REMAP:
+        instance = raw_event_list
+        try:
+            for item in sum(entry['base'].values(), []):
+                instance = instance[item]
+        except KeyError:
+            continue
+        event_list[entry['type']] = instance
+    return event_list
+
+
+def device_map(event_list):
+    """Create a map of device supported events.
+
+    event_list is output from device_events.
+    Event_map can be used to replace event_map in event_manager.
+    """
+    event_map = []
+    for entry in REMAP:
+        if entry['type'] in event_list and entry['type'] == 'vmd4':
+            for profile, instance in event_list['vmd4'].items():
+                if re.search(r'^Camera[0-9]Profile[0-9]$', profile):
+                    from copy import deepcopy
+                    entry_copy = deepcopy(entry)
+                    entry_copy['base']['axis'].append(profile)
+                    entry_copy['name'] = instance['NiceName']
+                    entry_copy['subscribe'] = entry_copy['subscribe'].format(
+                        profile)
+                    entry_copy['topic'] = entry_copy['topic'].format(profile)
+                    event_map.append(entry_copy)
+        elif entry['type'] in event_list:
+            event_map.append(entry)
+    return event_map
+
+
+def create_topics(event_map):
+    """"""
+    topics = []
+    for entry in event_map:
+        topic = []
+        for namespace, item_list in entry['base'].items():
+            topic.append('{}:{}'.format(namespace, '/'.join(item_list)))
+        topics.append('/'.join(topic))
+    return topics
+
+
+def _prepare_event(eventinstances):
+    """"""
+    import xml.etree.ElementTree as ET
+
+    def parse_event(events):
+        """Find all events inside of an topicset list.
+
+        MessageInstance signals that subsequent children will
+        contain source and data descriptions.
+        """
+
+        def clean_attrib(attrib={}):
+            """Clean up child attributes by removing XML namespace."""
+            attributes = {}
+            for key, value in attrib.items():
+                attributes[key.split('}')[-1]] = value
+            return attributes
+
+        description = {}
+        for child in events:
+            child_tag = child.tag.split('}')[-1]
+            child_attrib = clean_attrib(child.attrib)
+            if child_tag != 'MessageInstance':
+                description[child_tag] = {
+                    **child_attrib, **parse_event(child)}
+            elif child_tag == 'MessageInstance':
+                description = {}
+                for item in child:
+                    tag = item.tag.split('}')[-1]
+                    description[tag] = clean_attrib(item[0].attrib)
+        return description
+
+    root = ET.fromstring(eventinstances)
+    return parse_event(root[0][0][0])
