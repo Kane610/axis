@@ -3,7 +3,7 @@
 import logging
 
 from .configuration import Configuration
-from .vapix import Vapix, Parameters
+from .vapix import Vapix
 from .streammanager import StreamManager
 
 # PYTHON RTSP INSPIRATION
@@ -15,7 +15,7 @@ from .streammanager import StreamManager
 _LOGGER = logging.getLogger(__name__)
 
 
-class AxisDevice(Parameters):
+class AxisDevice:
     """Creates a new Axis device.self."""
 
     def __init__(self, loop, **kwargs):

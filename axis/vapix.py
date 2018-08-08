@@ -48,29 +48,25 @@ class Vapix(object):
         _LOGGER.debug('Request response: %s from %s', result, self.config.host)
         return result
 
-
-class Parameters(object):
-    """Device parameters resolved upon request."""
-
     @property
     def version(self):
         """Firmware version."""
         if '_version' not in self.__dict__:
-            self._version = self.vapix.get_param('Properties.Firmware.Version')
+            self._version = self.get_param('Properties.Firmware.Version')
         return self._version
 
     @property
     def model(self):
         """Product model."""
         if '_model' not in self.__dict__:
-            self._model = self.vapix.get_param('Brand.ProdNbr')
+            self._model = self.get_param('Brand.ProdNbr')
         return self._model
 
     @property
     def serial_number(self):
         """Device MAC address."""
         if '_serial_number' not in self.__dict__:
-            self._serial_number = self.vapix.get_param(
+            self._serial_number = self.get_param(
                 'Properties.System.SerialNumber')
         return self._serial_number
 
@@ -78,6 +74,6 @@ class Parameters(object):
     def meta_data_support(self):
         """Yes if meta data stream is supported."""
         if '_meta_data_support' not in self.__dict__:
-            self._meta_data_support = self.vapix.get_param(
+            self._meta_data_support = self.get_param(
                 'Properties.API.Metadata.Metadata')
         return self._meta_data_support
