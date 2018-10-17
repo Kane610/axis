@@ -1,5 +1,10 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+# PYTHON RTSP INSPIRATION
+# https://github.com/timohoeting/python-mjpeg-over-rtsp-client/blob/master/rtsp_client.py
+# http://codegist.net/snippet/python/rtsp_authenticationpy_crayfishapps_python
+# https://github.com/perexg/satip-axe/blob/master/tools/multicast-rtp
+
 import asyncio
 import logging
 import socket

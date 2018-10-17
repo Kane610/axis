@@ -7,6 +7,9 @@ from .event import EventManager
 
 _LOGGER = logging.getLogger(__name__)
 
+RTSP_URL = 'rtsp://{host}/axis-media/media.amp'
+RTSP_SOURCE = '?video={video}&audio={audio}&event={event}'
+
 STATE_STARTING = 'starting'
 STATE_PLAYING = 'playing'
 STATE_STOPPED = 'stopped'
@@ -29,10 +32,10 @@ class StreamManager(object):
     @property
     def stream_url(self):
         """Build url for stream."""
-        rtsp = 'rtsp://{}/axis-media/media.amp'.format(self.config.host)
-        source = '?video={0}&audio={1}&event={2}'.format(self.video_query,
-                                                         self.audio_query,
-                                                         self.event.query)
+        rtsp = RTSP_URL.format(host=self.config.host)
+        source = RTSP_SOURCE.format(video=self.video_query,
+                                    audio=self.audio_query,
+                                    event=self.event.query)
         _LOGGER.debug(rtsp + source)
         return rtsp + source
 
@@ -65,12 +68,10 @@ class StreamManager(object):
     def start(self):
         """Start stream."""
         if not self.stream or self.stream.session.state == STATE_STOPPED:
-            self.stream = RTSPClient(self.config.loop,
-                                     self.stream_url,
-                                     self.config.host,
-                                     self.config.username,
-                                     self.config.password,
-                                     self.session_callback)
+            self.stream = RTSPClient(
+                self.config.loop, self.stream_url, self.config.host,
+                self.config.username, self.config.password,
+                self.session_callback)
 
     def stop(self):
         """Stop stream."""

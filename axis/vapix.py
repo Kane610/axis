@@ -1,9 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
-import requests
-
-from requests.auth import HTTPDigestAuth
 
 from .utils import session_request
 
@@ -18,11 +15,6 @@ class Vapix(object):
     def __init__(self, config):
         """Store local reference to device config."""
         self.config = config
-        self.config.session = requests.Session()
-        self.config.session.auth = HTTPDigestAuth(
-            self.config.username, self.config.password)
-        if self.config.web_proto == 'https':
-            self.config.session.verify = False
 
     def get_param(self, param):
         """Get parameter and remove descriptive part of response."""
