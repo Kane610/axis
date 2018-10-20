@@ -5,7 +5,7 @@
 # pip install -e .
 # Upload to PyPI Live
 # python setup.py sdist bdist_wheel
-# twine upload dist/pydeconz-* --skip-existing
+# twine upload dist/axis-* --skip-existing
 
 from setuptools import setup
 

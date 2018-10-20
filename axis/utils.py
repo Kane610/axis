@@ -3,6 +3,8 @@
 import logging
 import requests
 
+from .errors import raise_error, RequestError
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -10,15 +12,20 @@ def session_request(session, url, **kwargs):
     """Do HTTP/S request and return response as a string."""
     try:
         response = session(url, **kwargs)
+
         response.raise_for_status()
-        if response.status_code != 200:
-            _LOGGER.error(
-                "HTTP status %d, response %s.", response.status, response.text)
-            return None
-    except requests.ConnectionError as err:
-        _LOGGER.error("Connection error: %s", err)
-        return None
-    except requests.exceptions.HTTPError as err:
-        _LOGGER.error("HTTP error: %s", err)
-        return None
-    return response.text
+
+        return response.text
+
+    except requests.exceptions.HTTPError as errh:
+        print(response)
+        raise_error(response.status_code)
+
+    except requests.exceptions.ConnectionError as errc:
+        raise RequestError("Connection error: {}".format(errc))
+
+    except requests.exceptions.Timeout as errt:
+        raise RequestError("Timeout: {}".format(errt))
+
+    except requests.exceptions.RequestException as err:
+        raise RequestError("Unknown error: {}".format(err))
