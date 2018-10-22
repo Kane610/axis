@@ -42,6 +42,10 @@ class Vapix(object):
             self.config.web_proto, self.config.host, self.config.port,
             cgi, action, param)
 
+        result = session_request(self.config.session.get, url)
+        _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        return result
+
         try:
             result = session_request(self.config.session.get, url)
             _LOGGER.debug("Response: %s from %s", result, self.config.host)

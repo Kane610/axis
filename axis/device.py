@@ -12,9 +12,9 @@ _LOGGER = logging.getLogger(__name__)
 class AxisDevice:
     """Creates a new Axis device.self."""
 
-    def __init__(self, loop, **kwargs):
+    def __init__(self, **kwargs):
         """Initialize device functionality."""
-        self.config = Configuration(loop, **kwargs)
+        self.config = Configuration(**kwargs)
         self.vapix = Vapix(self.config)
         self.stream = StreamManager(self.config)
 
@@ -25,6 +25,3 @@ class AxisDevice:
     def stop(self):
         """Stop functionality of device."""
         self.stream.stop()
-
-
-
