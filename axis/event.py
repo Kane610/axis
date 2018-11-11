@@ -260,6 +260,7 @@ def device_events(config):
         except KeyError:
             continue
         event_list[entry['type']] = instance
+
     return event_list
 
 
