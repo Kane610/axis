@@ -25,7 +25,7 @@ class LoginRequired(AxisException):
 
 
 class NoPermission(AxisException):
-    """Users permissions are read only."""
+    """Users permissions are not high enough."""
 
 
 ERRORS = {

@@ -56,11 +56,6 @@ class Vapix(object):
             self.config.web_proto, self.config.host, self.config.port,
             cgi, action, param)
 
-        try:
-            result = session_request(self.config.session.get, url)
-            _LOGGER.debug("Response: %s from %s", result, self.config.host)
-            return result
-
-        except (RequestError, Unauthorized):
-            _LOGGER.error("Couldn't get data from %s", self.config.host)
-            return None
+        result = session_request(self.config.session.get, url)
+        _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        return result
