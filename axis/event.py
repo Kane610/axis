@@ -3,15 +3,31 @@
 import logging
 import re
 
+from copy import deepcopy
+
 from .utils import session_request
 
 _LOGGER = logging.getLogger(__name__)
 
+MAP_BASE = 'base'
+MAP_CLASS = 'class'
+MAP_PLATFORM = 'platform'
+MAP_SUBSCRIBE = 'subscribe'
+MAP_TOPIC = 'topic'
+MAP_TYPE = 'type'
+
+EVENT_OPERATION = 'operation'
+EVENT_SOURCE = 'source'
+EVENT_SOURCE_IDX = 'source_idx'
+EVENT_TOPIC = 'topic'
+EVENT_TYPE = 'type'
+EVENT_VALUE = 'value'
+
 MESSAGE = re.compile(r'(?<=PropertyOperation)="(?P<operation>\w+)"')
 TOPIC = re.compile(r'(?<=<wsnt:Topic).*>(?P<topic>.*)(?=<\/wsnt:Topic>)')
-SOURCE = re.compile(r'(?<=<tt:Source>).*Name="(?P<name>\w+)"' +
-                    r'.*Value="(?P<value>\w+)".*(?=<\/tt:Source>)')
-DATA = re.compile(r'(?<=<tt:Data>).*Name="(?P<name>\w*)"' +
+SOURCE = re.compile(r'(?<=<tt:Source>).*Name="(?P<source>\w+)"' +
+                    r'.*Value="(?P<source_idx>\w+)".*(?=<\/tt:Source>)')
+DATA = re.compile(r'(?<=<tt:Data>).*Name="(?P<type>\w*)"' +
                   r'.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
 
 EVENT_NAME = '{topic}_{source}'
@@ -24,7 +40,7 @@ class EventManager(object):
         """Ready information about events."""
         self.signal = signal
         self.events = {}
-        self.event_map = REMAP
+        self.event_map = MAP
         self.query = self.create_event_query(event_types)
 
     def translate(self, item, key, to_key=None):
@@ -49,26 +65,20 @@ class EventManager(object):
 
         Returns a copy of the entry.
         """
-        if re.search(r'^tnsaxis:CameraApplicationPlatform/VMD', item):
-            topic, profile = item.rsplit('/', 1)
-            index = re.findall(r'\d+|ANY$', profile)
-            from copy import deepcopy
-            for entry in MAPPING:
-                if topic == entry['topic']:
-                    entry_copy = deepcopy(entry)
-                    entry_copy['topic'] = item
-                    entry_copy['source'] = '{}_{}'.format(index[0], index[1])
-                    self.event_map.append(entry_copy)
-                    return entry_copy
-                return None
-
+        for entry in METAMAP:
+            if entry[EVENT_TOPIC] in item:
+                entry_copy = deepcopy(entry)
+                entry_copy[EVENT_TOPIC] = item
+                self.event_map.append(entry_copy)
+                return entry_copy
+        return
 
     def create_event_query(self, event_types):
         """Take a list of event types and return a query string."""
         if not event_types:
             return 'off'
         topics = [event['subscribe']
-                  for event in self.event_map + MAPPING
+                  for event in self.event_map + METAMAP
                   if event['type'] in event_types]
         return 'on&eventtopic={}'.format('|'.join(topics))
 
@@ -79,25 +89,23 @@ class EventManager(object):
         data = event_data.decode()
 
         message = MESSAGE.search(data)
-        if message:
-            output['Operation'] = message.group('operation')
+        if not message:
+            return {}
+        output[EVENT_OPERATION] = message.group(EVENT_OPERATION)
 
         topic = TOPIC.search(data)
         if topic:
-            output['Topic'] = topic.group('topic')
+            output[EVENT_TOPIC] = topic.group(EVENT_TOPIC)
 
         source = SOURCE.search(data)
         if source:
-            output['Source_name'] = source.group('name')
-            output['Source_value'] = source.group('value')
-        else:
-            output['Source_name'] = 'VMD4'
-            output['Source_value'] = 0
+            output[EVENT_SOURCE] = source.group(EVENT_SOURCE)
+            output[EVENT_SOURCE_IDX] = source.group(EVENT_SOURCE_IDX)
 
         data = DATA.search(data)
         if data:
-            output['Data_name'] = data.group('name')
-            output['Data_value'] = data.group('value')
+            output[EVENT_TYPE] = data.group(EVENT_TYPE)
+            output[EVENT_VALUE] = data.group(EVENT_VALUE)
 
         _LOGGER.debug(output)
 
@@ -111,28 +119,29 @@ class EventManager(object):
         Operation changed updates existing events state.
         """
         data = self._parse_event(event_data)
-        operation = data.get('Operation')
+        operation = data.get(EVENT_OPERATION)
+
+        if operation:
+            event_name = EVENT_NAME.format(
+                topic=data[EVENT_TOPIC], source=data.get(EVENT_SOURCE_IDX))
 
         if operation == 'Initialized':
-            description = self.translate(data['Topic'], 'topic')
+            description = self.translate(data[EVENT_TOPIC], EVENT_TOPIC)
+
             if not description:
-                description = self.new_map_entry(data['Topic'])
-                data['Source_value'] = description['source']
+                description = self.new_map_entry(data[EVENT_TOPIC])
+
             new_event = AxisEvent(data, description)
-            if new_event.name not in self.events:
-                self.events[new_event.name] = new_event
+
+            if event_name not in self.events:
+                self.events[event_name] = new_event
                 self.signal('add', new_event)
 
         elif operation == 'Changed':
-            event_name = EVENT_NAME.format(
-                topic=data['Topic'], source=data['Source_value'])
-            self.events[event_name].state = data['Data_value']
+            self.events[event_name].state = data[EVENT_VALUE]
 
         elif operation == 'Deleted':
             _LOGGER.debug("Deleted event from stream")
-            # ToDo:
-            # keep a list of deleted events and a follow up timer of X,
-            # then clean up. This should also take care of rebooting a camera
 
 
 class AxisEvent(object):  # pylint: disable=R0904
@@ -141,15 +150,13 @@ class AxisEvent(object):  # pylint: disable=R0904
     def __init__(self, data, description):
         """Set up Axis event."""
         _LOGGER.info("New AxisEvent %s", data)
-        self.topic = data['Topic']
-        self.id = data['Source_value']
-        self.type = data['Data_name']
-        self.source = data['Source_name']
-        self.event_class = description['class']
-        self.event_type = description['type']
-        self.event_platform = description['platform']
-        self.event_name = description.get('name')  # Only VMD4
-        self.name = EVENT_NAME.format(topic=self.topic, source=self.id)
+        self.topic = data[EVENT_TOPIC]
+        self.source = data.get(EVENT_SOURCE)
+        self.id = data.get(EVENT_SOURCE_IDX)
+
+        self.event_class = description[MAP_CLASS]
+        self.event_type = description[MAP_TYPE]
+        self.event_platform = description[MAP_PLATFORM]
 
         self._state = None
         self.callback = None
@@ -179,59 +186,72 @@ class AxisEvent(object):  # pylint: disable=R0904
         return cdict
 
 
-REMAP = [{'type': 'motion',
-          'class': 'motion',
-          'platform': 'binary_sensor',
-          'base': {'onvif': ['VideoAnalytics'], 'axis': ['MotionDetection']},
-          'topic': 'tns1:VideoAnalytics/tnsaxis:MotionDetection',
-          'subscribe': 'onvif:VideoAnalytics/axis:MotionDetection'},
-         {'type': 'vmd3',
-          'class': 'motion',
-          'platform': 'binary_sensor',
-          'base': {'onvif': ['RuleEngine'], 'axis': ['VMD3', 'vmd3_video_1']},
-          'topic': 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
-          'subscribe': 'onvif:RuleEngine/axis:VMD3/vmd3_video_1'},
-         {'type': 'pir',
-          'class': 'motion',
-          'platform': 'binary_sensor',
-          'base': {'onvif': ['Device'], 'axis': ['Sensor', 'PIR']},
-          'topic': 'tns1:Device/tnsaxis:Sensor/PIR',
-          'subscribe': 'onvif:Device/axis:Sensor/PIR'},
-         {'type': 'sound',
-          'class': 'sound',
-          'platform': 'binary_sensor',
-          'base': {'onvif': ['AudioSource'], 'axis': ['TriggerLevel']},
-          'topic': 'tns1:AudioSource/tnsaxis:TriggerLevel',
-          'subscribe': 'onvif:AudioSource/axis:TriggerLevel'},
-         {'type': 'daynight',
-          'class': 'light',
-          'platform': 'binary_sensor',
-          'base': {'onvif': ['VideoSource'], 'axis': ['DayNightVision']},
-          'topic': 'tns1:VideoSource/tnsaxis:DayNightVision',
-          'subscribe': 'onvif:VideoSource/axis:DayNightVision'},
-         {'type': 'tampering',
-          'class': 'safety',
-          'platform': 'binary_sensor',
-          'base': {'onvif': ['VideoSource'], 'axis': ['Tampering']},
-          'topic': 'tns1:VideoSource/tnsaxis:Tampering',
-          'subscribe': 'onvif:VideoSource/axis:Tampering'},
-         {'type': 'input',
-          'class': 'input',
-          'platform': 'binary_sensor',
-          'base': {'onvif': ['Device'], 'axis':['IO', 'Port']},
-          'topic': 'tns1:Device/tnsaxis:IO/Port',
-          'subscribe': 'onvif:Device/axis:IO/Port'}
-        ]
+MAP = [
+    {
+        MAP_TYPE: 'motion',
+        MAP_CLASS: 'motion',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'onvif': ['VideoAnalytics'], 'axis': ['MotionDetection']},
+        MAP_TOPIC: 'tns1:VideoAnalytics/tnsaxis:MotionDetection',
+        MAP_SUBSCRIBE: 'onvif:VideoAnalytics/axis:MotionDetection'},
+    {
+        MAP_TYPE: 'vmd3',
+        MAP_CLASS: 'motion',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'onvif': ['RuleEngine'], 'axis': ['VMD3', 'vmd3_video_1']},
+        MAP_TOPIC: 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
+        MAP_SUBSCRIBE: 'onvif:RuleEngine/axis:VMD3/vmd3_video_1'},
+    {
+        MAP_TYPE: 'pir',
+        MAP_CLASS: 'motion',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'onvif': ['Device'], 'axis': ['Sensor', 'PIR']},
+        MAP_TOPIC: 'tns1:Device/tnsaxis:Sensor/PIR',
+        MAP_SUBSCRIBE: 'onvif:Device/axis:Sensor/PIR'},
+    {
+        MAP_TYPE: 'sound',
+        MAP_CLASS: 'sound',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'onvif': ['AudioSource'], 'axis': ['TriggerLevel']},
+        MAP_TOPIC: 'tns1:AudioSource/tnsaxis:TriggerLevel',
+        MAP_SUBSCRIBE: 'onvif:AudioSource/axis:TriggerLevel'},
+    {
+        MAP_TYPE: 'daynight',
+        MAP_CLASS: 'light',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'onvif': ['VideoSource'], 'axis': ['DayNightVision']},
+        MAP_TOPIC: 'tns1:VideoSource/tnsaxis:DayNightVision',
+        MAP_SUBSCRIBE: 'onvif:VideoSource/axis:DayNightVision'},
+    {
+        MAP_TYPE: 'tampering',
+        MAP_CLASS: 'safety',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'onvif': ['VideoSource'], 'axis': ['Tampering']},
+        MAP_TOPIC: 'tns1:VideoSource/tnsaxis:Tampering',
+        MAP_SUBSCRIBE: 'onvif:VideoSource/axis:Tampering'},
+    {
+        MAP_TYPE: 'input',
+        MAP_CLASS: 'input',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'onvif': ['Device'], 'axis':['IO', 'Port']},
+        MAP_TOPIC: 'tns1:Device/tnsaxis:IO/Port',
+        MAP_SUBSCRIBE: 'onvif:Device/axis:IO/Port'
+    }
+]
 
-MAPPING = [{'type': 'vmd4',
-            'class': 'motion',
-            'platform': 'binary_sensor',
-            'base': {'axis': ['CameraApplicationPlatform', 'VMD']},
-            'topic': 'tnsaxis:CameraApplicationPlatform/VMD',
-            'subscribe': 'axis:CameraApplicationPlatform/VMD//.'}]
+METAMAP = [
+    {
+        MAP_TYPE: 'vmd4',
+        MAP_CLASS: 'motion',
+        MAP_PLATFORM: 'binary_sensor',
+        MAP_BASE: {'axis': ['CameraApplicationPlatform', 'VMD']},
+        MAP_TOPIC: 'tnsaxis:CameraApplicationPlatform/VMD',
+        MAP_SUBSCRIBE: 'axis:CameraApplicationPlatform/VMD//.'
+    }
+]
 
 
-device_event_url = '{}://{}:{}/vapix/services'
+device_event_url = '{proto}://{host}:{port}/vapix/services'
 headers = {'Content-Type': 'application/soap+xml',
             'SOAPAction': 'http://www.axis.com/vapix/ws/event1/GetEventInstances'}
 request_xml = ("<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\">"
@@ -246,46 +266,46 @@ def device_events(config):
     """Get a dict of supported events from device."""
     eventinstances = session_request(
         config.session.post, device_event_url.format(
-            config.web_proto, config.host, config.port),
+            proto=config.web_proto, host=config.host, port=config.port),
         auth=config.session.auth, headers=headers, data=request_xml)
 
     raw_event_list = _prepare_event(eventinstances)
 
     event_list = {}
-    for entry in REMAP + MAPPING:
+    for entry in MAP + METAMAP:
         instance = raw_event_list
         try:
-            for item in sum(entry['base'].values(), []):
+            for item in sum(entry[MAP_BASE].values(), []):
                 instance = instance[item]
         except KeyError:
             continue
-        event_list[entry['type']] = instance
+        event_list[entry[MAP_TYPE]] = instance
 
     return event_list
 
 
-def device_map(event_list):
-    """Create a map of device supported events.
+# def device_map(event_list):
+#     """Create a map of device supported events.
 
-    event_list is output from device_events.
-    Event_map can be used to replace event_map in event_manager.
-    """
-    event_map = []
-    for entry in REMAP + MAPPING:
-        if entry['type'] in event_list and entry['type'] == 'vmd4':
-            for profile, instance in event_list['vmd4'].items():
-                if re.search(r'^Camera[0-9]Profile[0-9]$', profile):
-                    from copy import deepcopy
-                    entry_copy = deepcopy(entry)
-                    entry_copy['base']['axis'].append(profile)
-                    entry_copy['name'] = instance['NiceName']
-                    entry_copy['subscribe'] = entry_copy['subscribe'].format(
-                        profile)
-                    entry_copy['topic'] = entry_copy['topic'].format(profile)
-                    event_map.append(entry_copy)
-        elif entry['type'] in event_list:
-            event_map.append(entry)
-    return event_map
+#     event_list is output from device_events.
+#     Event_map can be used to replace event_map in event_manager.
+#     """
+#     event_map = []
+#     for entry in MAP + METAMAP:
+#         if entry[MAP_TYPE] in event_list and entry[MAP_TYPE] == 'vmd4':
+#             for profile, instance in event_list['vmd4'].items():
+#                 if re.search(r'^Camera[0-9]Profile[0-9]$', profile):
+#                     from copy import deepcopy
+#                     entry_copy = deepcopy(entry)
+#                     entry_copy[MAP_BASE]['axis'].append(profile)
+#                     entry_copy['name'] = instance['NiceName']
+#                     entry_copy[MAP_SUBSCRIBE] = entry_copy[MAP_SUBSCRIBE].format(
+#                         profile)
+#                     entry_copy[MAP_TOPIC] = entry_copy[MAP_TOPIC].format(profile)
+#                     event_map.append(entry_copy)
+#         elif entry[MAP_TYPE] in event_list:
+#             event_map.append(entry)
+#     return event_map
 
 
 def create_topics(event_map):
@@ -293,14 +313,14 @@ def create_topics(event_map):
     topics = []
     for entry in event_map:
         topic = []
-        for namespace, item_list in entry['base'].items():
+        for namespace, item_list in entry[MAP_BASE].items():
             topic.append('{}:{}'.format(namespace, '/'.join(item_list)))
         topics.append('/'.join(topic))
     return topics
 
 
 def _prepare_event(eventinstances):
-    """"""
+    """Converts event instances to a relevant dictionary."""
     import xml.etree.ElementTree as ET
 
     def parse_event(events):
