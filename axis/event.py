@@ -183,6 +183,7 @@ class AxisEvent(object):  # pylint: disable=R0904
         cdict = self.__dict__.copy()
         if 'callback' in cdict:
             del cdict['callback']
+        print(cdict)
         return cdict
 
 
@@ -308,15 +309,15 @@ def device_events(config):
 #     return event_map
 
 
-def create_topics(event_map):
-    """"""
-    topics = []
-    for entry in event_map:
-        topic = []
-        for namespace, item_list in entry[MAP_BASE].items():
-            topic.append('{}:{}'.format(namespace, '/'.join(item_list)))
-        topics.append('/'.join(topic))
-    return topics
+# def create_topics(event_map):
+#     """"""
+#     topics = []
+#     for entry in event_map:
+#         topic = []
+#         for namespace, item_list in entry[MAP_BASE].items():
+#             topic.append('{}:{}'.format(namespace, '/'.join(item_list)))
+#         topics.append('/'.join(topic))
+#     return topics
 
 
 def _prepare_event(eventinstances):

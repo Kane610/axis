@@ -3,10 +3,11 @@
 pytest --cov-report term-missing --cov=axis.event tests/test_event.py
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 import pytest
 
-from axis.event import EventManager
+from axis.event import EventManager, device_events
+
 from .event_fixtures import (
     FIRST_MESSAGE, PIR_INIT, PIR_CHANGE, VMD4_ANY_INIT, VMD4_ANY_CHANGE,
     VMD4_C1P1_INIT, VMD4_C1P1_CHANGE, VMD4_C1P2_INIT, VMD4_C1P2_CHANGE,
@@ -24,6 +25,18 @@ def manager() -> EventManager:
 def test_eventmanager(manager):
     """Verify query is set to off if event types is empty."""
     assert manager.query == 'off'
+
+
+def test_create_event_query_single_topic(manager):
+    """Verify that an event query can be created."""
+    assert manager.create_event_query(
+        'pir') == 'on&eventtopic=onvif:Device/axis:Sensor/PIR'
+
+
+def test_create_event_query_multiple_topics(manager):
+    """Verify that an event query can be created with multiple topics."""
+    assert manager.create_event_query(
+        ['pir', 'input']) == 'on&eventtopic=onvif:Device/axis:Sensor/PIR|onvif:Device/axis:IO/Port'
 
 
 def test_parse_event_first_message(manager):
@@ -93,6 +106,13 @@ def test_manage_event_pir_init(manager):
     assert event.event_platform == 'binary_sensor'
     assert not event.state
 
+    event.callback = Mock()
+    event.state = '1'
+    assert event.state == '1'
+    assert event.is_tripped
+    assert event.callback.called
+    assert 'callback' not in event.as_dict()
+
 
 def test_manage_event_pir_change(manager):
     """Verify that a PIR event change can be managed."""
@@ -126,10 +146,19 @@ def test_manage_event_vmd4_change(manager):
     event = manager.events['tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None']
     assert event.state == '1'
 
-from axis.event import _prepare_event
 
+def test_get_device_events():
+    """Verify device events method."""
+    mock_config = Mock()
+    with patch('axis.event.session_request',
+               new=Mock(return_value=EVENT_INSTANCES)):
+        event_list = device_events(mock_config)
 
-def test_prepare_event():
-    from pprint import pprint
-    pprint(_prepare_event(EVENT_INSTANCES))
-    assert False
+    assert 'motion' not in event_list
+    assert 'vmd3' in event_list
+    assert 'pir' in event_list
+    assert 'sound' in event_list
+    assert 'daynight' in event_list
+    assert 'tampering' in event_list
+    assert 'input' not in event_list
+    assert 'vmd4' in event_list
