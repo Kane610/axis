@@ -263,7 +263,7 @@ request_xml = ("<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\">
                 "</s:Envelope>")
 
 
-def device_events(config):
+def get_event_list(config):
     """Get a dict of supported events from device."""
     eventinstances = session_request(
         config.session.post, device_event_url.format(

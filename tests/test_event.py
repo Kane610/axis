@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.event tests/test_event.py
 from unittest.mock import MagicMock, Mock, patch
 import pytest
 
-from axis.event import EventManager, device_events
+from axis.event import EventManager, get_event_list
 
 from .event_fixtures import (
     FIRST_MESSAGE, PIR_INIT, PIR_CHANGE, VMD4_ANY_INIT, VMD4_ANY_CHANGE,
@@ -147,12 +147,12 @@ def test_manage_event_vmd4_change(manager):
     assert event.state == '1'
 
 
-def test_get_device_events():
-    """Verify device events method."""
+def test_get_event_list():
+    """Verify device events list method."""
     mock_config = Mock()
     with patch('axis.event.session_request',
                new=Mock(return_value=EVENT_INSTANCES)):
-        event_list = device_events(mock_config)
+        event_list = get_event_list(mock_config)
 
     assert 'motion' not in event_list
     assert 'vmd3' in event_list
