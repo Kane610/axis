@@ -3,6 +3,7 @@
 import requests
 from requests.auth import HTTPDigestAuth
 
+
 class Configuration(object):
     """Device configuration."""
 
@@ -19,10 +20,8 @@ class Configuration(object):
         self.password = password
 
         self.session = requests.Session()
-        self.session.auth = HTTPDigestAuth(
-            self.username, self.password)
-        if self.web_proto == 'https':
-            self.session.verify_ssl = verify_ssl
+        self.session.auth = HTTPDigestAuth(self.username, self.password)
+        self.session.verify = verify_ssl
 
         self.event_types = event_types
         self.signal = signal
