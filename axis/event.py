@@ -55,67 +55,68 @@ class EventManager(object):
 
     def create_event_query(self, event_types=None):
         """Take a list of event types and return a query string."""
-        if event_types is None:
+        if event_types is None or event_types == 'off':
             return 'off'
-        if not event_types:
+        if not event_types or event_types == 'on':
             return 'on'
         topics = [event['subscribe']
                   for event in self.event_map + METAMAP
                   if event['type'] in event_types]
         return 'on&eventtopic={}'.format('|'.join(topics))
 
-    def _parse_event(self, event_data):
+    def new_event(self, event_data):
+        """New event to process."""
+        event = self.parse_event_xml(event_data)
+        if EVENT_OPERATION in event:
+            self.manage_event(event)
+
+    def parse_event_xml(self, event_data):
         """Parse metadata xml."""
-        output = {}
+        event = {}
 
-        data = event_data.decode()
+        event_xml = event_data.decode()
 
-        message = MESSAGE.search(data)
+        message = MESSAGE.search(event_xml)
         if not message:
             return {}
-        output[EVENT_OPERATION] = message.group(EVENT_OPERATION)
+        event[EVENT_OPERATION] = message.group(EVENT_OPERATION)
 
-        topic = TOPIC.search(data)
+        topic = TOPIC.search(event_xml)
         if topic:
-            output[EVENT_TOPIC] = topic.group(EVENT_TOPIC)
+            event[EVENT_TOPIC] = topic.group(EVENT_TOPIC)
 
-        source = SOURCE.search(data)
+        source = SOURCE.search(event_xml)
         if source:
-            output[EVENT_SOURCE] = source.group(EVENT_SOURCE)
-            output[EVENT_SOURCE_IDX] = source.group(EVENT_SOURCE_IDX)
+            event[EVENT_SOURCE] = source.group(EVENT_SOURCE)
+            event[EVENT_SOURCE_IDX] = source.group(EVENT_SOURCE_IDX)
 
-        data = DATA.search(data)
+        data = DATA.search(event_xml)
         if data:
-            output[EVENT_TYPE] = data.group(EVENT_TYPE)
-            output[EVENT_VALUE] = data.group(EVENT_VALUE)
+            event[EVENT_TYPE] = data.group(EVENT_TYPE)
+            event[EVENT_VALUE] = data.group(EVENT_VALUE)
 
-        _LOGGER.debug(output)
+        _LOGGER.debug(event)
 
-        return output
+        return event
 
-    def manage_event(self, event_data):
+    def manage_event(self, event):
         """Received new metadata.
 
-        Operation missing means this is the first message in stream.
         Operation initialized means new event, also happens if reconnecting.
         Operation changed updates existing events state.
         """
-        data = self._parse_event(event_data)
-        operation = data.get(EVENT_OPERATION)
+        name = EVENT_NAME.format(
+            topic=event[EVENT_TOPIC], source=event.get(EVENT_SOURCE_IDX))
 
-        if operation:
-            event_name = EVENT_NAME.format(
-                topic=data[EVENT_TOPIC], source=data.get(EVENT_SOURCE_IDX))
+        if event[EVENT_OPERATION] == 'Initialized' and supported_event(event):
+            new_event = create_event(event)
 
-        if operation == 'Initialized' and supported_event(data):
-            new_event = create_event(data)
-
-            if event_name not in self.events:
-                self.events[event_name] = new_event
+            if name not in self.events:
+                self.events[name] = new_event
                 self.signal('add', new_event)
 
-        elif operation == 'Changed' and event_name in self.events:
-            self.events[event_name].state = data[EVENT_VALUE]
+        elif event[EVENT_OPERATION] == 'Changed' and name in self.events:
+            self.events[name].state = event[EVENT_VALUE]
 
             # elif operation == 'Deleted':
             #     _LOGGER.debug("Deleted event from stream")
