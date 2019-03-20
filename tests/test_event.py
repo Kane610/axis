@@ -17,7 +17,7 @@ from .event_fixtures import (
 @pytest.fixture
 def manager() -> EventManager:
     """Returns mocked event manager."""
-    event_types = ''
+    event_types = None
     signal = Mock()
     return EventManager(event_types, signal)
 
@@ -25,6 +25,11 @@ def manager() -> EventManager:
 def test_eventmanager(manager):
     """Verify query is set to off if event types is empty."""
     assert manager.query == 'off'
+
+
+def test_create_event_set_to_on(manager):
+    """Verify that an event query can be created."""
+    assert manager.create_event_query('') == 'on'
 
 
 def test_create_event_query_single_topic(manager):
@@ -102,15 +107,15 @@ def test_manage_event_pir_init(manager):
     assert event.source == 'sensor'
     assert event.id == '0'
     assert event.event_class == 'motion'
-    assert event.event_type == 'pir'
-    assert event.event_platform == 'binary_sensor'
+    assert event.event_type == 'PIR'
     assert not event.state
 
-    event.callback = Mock()
+    mock_callback = Mock()
+    event.register_callback(mock_callback)
     event.state = '1'
     assert event.state == '1'
     assert event.is_tripped
-    assert event.callback.called
+    assert mock_callback.called
     assert 'callback' not in event.as_dict()
 
 
@@ -131,10 +136,9 @@ def test_manage_event_vmd4_init(manager):
     event = manager.events['tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None']
     assert event.topic == 'tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY'
     assert not event.source
-    assert event.id == None
+    assert event.id == 'Camera1ProfileANY'
     assert event.event_class == 'motion'
-    assert event.event_type == 'vmd4'
-    assert event.event_platform == 'binary_sensor'
+    assert event.event_type == 'VMD4'
     assert not event.state
 
 

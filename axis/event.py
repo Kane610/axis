@@ -53,11 +53,12 @@ class EventManager(object):
         self.event_map = MAP
         self.query = self.create_event_query(event_types)
 
-    def create_event_query(self, event_types):
+    def create_event_query(self, event_types=None):
         """Take a list of event types and return a query string."""
-        return 'on'
-        if not event_types:
+        if event_types is None:
             return 'off'
+        if not event_types:
+            return 'on'
         topics = [event['subscribe']
                   for event in self.event_map + METAMAP
                   if event['type'] in event_types]
@@ -155,8 +156,8 @@ class AxisBinaryEvent:
     def as_dict(self):
         """Callback for __dict__."""
         cdict = self.__dict__.copy()
-        if 'callback' in cdict:
-            del cdict['callback']
+        if '_callbacks' in cdict:
+            del cdict['_callbacks']
         return cdict
 
 
