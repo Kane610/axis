@@ -9,6 +9,16 @@ from .utils import session_request
 
 _LOGGER = logging.getLogger(__name__)
 
+# Topics
+AUDIO = 'tns1:AudioSource/tnsaxis:TriggerLevel'
+DAYNIGHT = 'tns1:VideoSource/tnsaxis:DayNightVision'
+MOTION = 'tns1:VideoAnalytics/tnsaxis:MotionDetection'
+PIR = 'tns1:Device/tnsaxis:Sensor/PIR'
+VMD3 = 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1'
+VMD4 = 'tnsaxis:CameraApplicationPlatform/VMD'
+
+BINARY_EVENT = [AUDIO, DAYNIGHT, MOTION, PIR, VMD3, VMD4]
+
 MAP_BASE = 'base'
 MAP_CLASS = 'class'
 MAP_PLATFORM = 'platform'
@@ -43,123 +53,84 @@ class EventManager(object):
         self.event_map = MAP
         self.query = self.create_event_query(event_types)
 
-    def translate(self, item, key, to_key=None):
-        """Translate between Axis and HASS syntax.
-
-        If to_key is omitted full entry will be returned.
-        Type: configuration value for event manager.
-        Class: what class should event belong to in HASS.
-        Platform: which HASS platform this event belongs to.
-        Topic: event topic to look for when receiving events.
-        Subscribe: subscription form of event topic.
-        """
-        for entry in self.event_map:
-            if entry[key] == item:
-                if to_key:
-                    return entry[to_key]
-                return entry
-        return None
-
-    def new_map_entry(self, item):
-        """Create new map entry based on item.
-
-        Returns a copy of the entry.
-        """
-        for entry in METAMAP:
-            if entry[EVENT_TOPIC] in item:
-                entry_copy = deepcopy(entry)
-                entry_copy[EVENT_TOPIC] = item
-                self.event_map.append(entry_copy)
-                return entry_copy
-        return
-
-    def create_event_query(self, event_types):
+    def create_event_query(self, event_types=None):
         """Take a list of event types and return a query string."""
-        if not event_types:
+        if event_types is None or event_types == 'off':
             return 'off'
+        if not event_types or event_types == 'on':
+            return 'on'
         topics = [event['subscribe']
                   for event in self.event_map + METAMAP
                   if event['type'] in event_types]
         return 'on&eventtopic={}'.format('|'.join(topics))
 
-    def _parse_event(self, event_data):
+    def new_event(self, event_data):
+        """New event to process."""
+        event = self.parse_event_xml(event_data)
+        if EVENT_OPERATION in event:
+            self.manage_event(event)
+
+    def parse_event_xml(self, event_data):
         """Parse metadata xml."""
-        output = {}
+        event = {}
 
-        data = event_data.decode()
+        event_xml = event_data.decode()
 
-        message = MESSAGE.search(data)
+        message = MESSAGE.search(event_xml)
         if not message:
             return {}
-        output[EVENT_OPERATION] = message.group(EVENT_OPERATION)
+        event[EVENT_OPERATION] = message.group(EVENT_OPERATION)
 
-        topic = TOPIC.search(data)
+        topic = TOPIC.search(event_xml)
         if topic:
-            output[EVENT_TOPIC] = topic.group(EVENT_TOPIC)
+            event[EVENT_TOPIC] = topic.group(EVENT_TOPIC)
 
-        source = SOURCE.search(data)
+        source = SOURCE.search(event_xml)
         if source:
-            output[EVENT_SOURCE] = source.group(EVENT_SOURCE)
-            output[EVENT_SOURCE_IDX] = source.group(EVENT_SOURCE_IDX)
+            event[EVENT_SOURCE] = source.group(EVENT_SOURCE)
+            event[EVENT_SOURCE_IDX] = source.group(EVENT_SOURCE_IDX)
 
-        data = DATA.search(data)
+        data = DATA.search(event_xml)
         if data:
-            output[EVENT_TYPE] = data.group(EVENT_TYPE)
-            output[EVENT_VALUE] = data.group(EVENT_VALUE)
+            event[EVENT_TYPE] = data.group(EVENT_TYPE)
+            event[EVENT_VALUE] = data.group(EVENT_VALUE)
 
-        _LOGGER.debug(output)
+        _LOGGER.debug(event)
 
-        return output
+        return event
 
-    def manage_event(self, event_data):
+    def manage_event(self, event):
         """Received new metadata.
 
-        Operation missing means this is the first message in stream.
         Operation initialized means new event, also happens if reconnecting.
         Operation changed updates existing events state.
         """
-        data = self._parse_event(event_data)
-        operation = data.get(EVENT_OPERATION)
+        name = EVENT_NAME.format(
+            topic=event[EVENT_TOPIC], source=event.get(EVENT_SOURCE_IDX))
 
-        if operation:
-            event_name = EVENT_NAME.format(
-                topic=data[EVENT_TOPIC], source=data.get(EVENT_SOURCE_IDX))
+        if event[EVENT_OPERATION] == 'Initialized' and supported_event(event):
+            new_event = create_event(event)
 
-        if operation == 'Initialized':
-            description = self.translate(data[EVENT_TOPIC], EVENT_TOPIC)
-
-            if not description:
-                description = self.new_map_entry(data[EVENT_TOPIC])
-
-            new_event = AxisEvent(data, description)
-
-            if event_name not in self.events:
-                self.events[event_name] = new_event
+            if name not in self.events:
+                self.events[name] = new_event
                 self.signal('add', new_event)
 
-        elif operation == 'Changed':
-            self.events[event_name].state = data[EVENT_VALUE]
+        elif event[EVENT_OPERATION] == 'Changed' and name in self.events:
+            self.events[name].state = event[EVENT_VALUE]
 
-        elif operation == 'Deleted':
-            _LOGGER.debug("Deleted event from stream")
+            # elif operation == 'Deleted':
+            #     _LOGGER.debug("Deleted event from stream")
 
 
-class AxisEvent(object):  # pylint: disable=R0904
-    """Class to represent each Axis device event."""
+class AxisBinaryEvent:
+    """"""
+    def __init__(self, event):
+        self.topic = event[EVENT_TOPIC]
+        self.source = event.get(EVENT_SOURCE)
+        self.id = event.get(EVENT_SOURCE_IDX)
+        self._state = event[EVENT_VALUE]
 
-    def __init__(self, data, description):
-        """Set up Axis event."""
-        _LOGGER.info("New AxisEvent %s", data)
-        self.topic = data[EVENT_TOPIC]
-        self.source = data.get(EVENT_SOURCE)
-        self.id = data.get(EVENT_SOURCE_IDX)
-
-        self.event_class = description[MAP_CLASS]
-        self.event_type = description[MAP_TYPE]
-        self.event_platform = description[MAP_PLATFORM]
-
-        self._state = None
-        self.callback = None
+        self._callbacks = []
 
     @property
     def state(self):
@@ -170,22 +141,168 @@ class AxisEvent(object):  # pylint: disable=R0904
     def state(self, state):
         """Update state of event."""
         self._state = state
-        if self.callback:
-            self.callback()
+        for callback in self._callbacks:
+            callback()
 
     @property
     def is_tripped(self):
         """Event is tripped now."""
         return self._state == '1'
 
+    def register_callback(self, callback):
+        """"""
+        self._callbacks.append(callback)
+
     def as_dict(self):
         """Callback for __dict__."""
         cdict = self.__dict__.copy()
-        if 'callback' in cdict:
-            del cdict['callback']
-        print(cdict)
+        if '_callbacks' in cdict:
+            del cdict['_callbacks']
         return cdict
 
+
+# {'operation': 'Initialized', 'topic': 'tns1:LightControl/tnsaxis:LightStatusChanged/Status', 'type': 'state', 'value': 'OFF'}
+
+
+class AudioEvent(AxisBinaryEvent):
+    """Audio trigger event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:AudioSource/tnsaxis:TriggerLevel',
+        'source': 'channel',
+        'source_idx': '1',
+        'type': 'triggered',
+        'value': '0'
+    }
+    """
+
+    def __init__(self, event):
+        """"""
+        super().__init__(event)
+
+        self.event_class = 'sound'
+        self.event_type = 'Sound'
+
+
+class DayNightEvent(AxisBinaryEvent):
+    """Day/Night vision trigger event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:VideoSource/tnsaxis:DayNightVision',
+        'source': 'VideoSourceConfigurationToken',
+        'source_idx': '1',
+        'type': 'day',
+        'value': '1'
+    }
+    """
+
+    def __init__(self, event):
+        """"""
+        super().__init__(event)
+
+        self.event_class = 'light'
+        self.event_type = 'DayNight'
+
+
+class MotionEvent(AxisBinaryEvent):
+    """Motion detection event."""
+
+    def __init__(self, event):
+        """"""
+        super().__init__(event)
+
+        self.event_class = 'motion'
+        self.event_type = 'Motion'
+
+
+class PirEvent(AxisBinaryEvent):
+    """Passive IR event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:Device/tnsaxis:Sensor/PIR',
+        'source': 'sensor',
+        'source_idx': '0',
+        'type': 'state',
+        'value': '0'
+    }
+    """
+
+    def __init__(self, event):
+        """"""
+        super().__init__(event)
+
+        self.event_class = 'motion'
+        self.event_type = 'PIR'
+
+
+class Vmd3Event(AxisBinaryEvent):
+    """Visual Motion Detection 3.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
+        'source': 'areaid',
+        'source_idx': '0',
+        'type': 'active',
+        'value': '1'
+    }
+    """
+
+    def __init__(self, event):
+        """"""
+        super().__init__(event)
+
+        self.event_class = 'motion'
+        self.event_type = 'VMD3'
+
+
+
+class Vmd4Event(AxisBinaryEvent):
+    """Visual Motion Detection 4.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile#',
+        'type': 'active',
+        'value': '1'
+    }
+    """
+
+    def __init__(self, event):
+        """"""
+        super().__init__(event)
+        self.id = event[EVENT_TOPIC].split('/')[-1]
+
+        self.event_class = 'motion'
+        self.event_type = 'VMD4'
+
+
+def create_event(event):
+    """Create event based on its topic."""
+    if event[EVENT_TOPIC] in AUDIO:
+        return AudioEvent(event)
+    if event[EVENT_TOPIC] in DAYNIGHT:
+        return DayNightEvent(event)
+    if event[EVENT_TOPIC] in MOTION:
+        return MotionEvent(event)
+    if event[EVENT_TOPIC] in PIR:
+        return PirEvent(event)
+    if event[EVENT_TOPIC] in VMD3:
+        return Vmd3Event(event)
+    if VMD4 in event[EVENT_TOPIC]:
+        return Vmd4Event(event)
+
+
+def supported_event(event):
+    """Check if event is supported by Axis."""
+    for topic in BINARY_EVENT:
+        if topic in event[EVENT_TOPIC]:
+            return True
+    _LOGGER.debug('Unsupported event %s', event[EVENT_TOPIC])
+    return False
 
 MAP = [
     {
