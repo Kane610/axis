@@ -130,7 +130,6 @@ class AxisBinaryEvent:
         self.id = event.get(EVENT_SOURCE_IDX)
         self._state = event[EVENT_VALUE]
 
-        self._state = None
         self._callbacks = []
 
     @property

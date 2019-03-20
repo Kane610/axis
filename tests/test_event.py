@@ -108,7 +108,7 @@ def test_manage_event_pir_init(manager):
     assert event.id == '0'
     assert event.event_class == 'motion'
     assert event.event_type == 'PIR'
-    assert not event.state
+    assert event.state == '0'
 
     mock_callback = Mock()
     event.register_callback(mock_callback)
@@ -139,7 +139,7 @@ def test_manage_event_vmd4_init(manager):
     assert event.id == 'Camera1ProfileANY'
     assert event.event_class == 'motion'
     assert event.event_type == 'VMD4'
-    assert not event.state
+    assert event.state == '0'
 
 
 def test_manage_event_vmd4_change(manager):
