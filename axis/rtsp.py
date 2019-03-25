@@ -11,10 +11,14 @@ import socket
 
 _LOGGER = logging.getLogger(__name__)
 
-STATE_STARTING = 'starting'
 STATE_PLAYING = 'playing'
-STATE_STOPPED = 'stopped'
 STATE_PAUSED = 'paused'
+STATE_STARTING = 'starting'
+STATE_STOPPED = 'stopped'
+
+SIGNAL_DATA = 'data'
+SIGNAL_FAILED = 'failed'
+SIGNAL_PLAYING = 'playing'
 
 TIME_OUT_LIMIT = 5
 
@@ -32,6 +36,7 @@ class RTSPClient(asyncio.Protocol):
         self.session.rtcp_port = self.rtp.rtcp_port
         self.method = RTSPMethods(self.session)
         self.transport = None
+        self.time_out_handle = None
         conn = loop.create_connection(
             lambda: self, self.session.host, self.session.port)
         task = loop.create_task(conn)
@@ -48,7 +53,7 @@ class RTSPClient(asyncio.Protocol):
         except OSError as err:
             _LOGGER.debug('RTSP got exception %s', err)
             self.stop()
-            self.callback('retry')
+            self.callback(SIGNAL_FAILED)
 
     def stop(self):
         """Stop session."""
@@ -82,10 +87,14 @@ class RTSPClient(asyncio.Protocol):
             self.transport.write(self.method.message.encode())
             self.time_out_handle = self.loop.call_later(
                 TIME_OUT_LIMIT, self.time_out)
+
         elif self.session.state == STATE_PLAYING:
+            self.callback(SIGNAL_PLAYING)
+
             if self.session.session_timeout != 0:
                 interval = self.session.session_timeout - 5
                 self.loop.call_later(interval, self.keep_alive)
+
         else:
             self.stop()
 
@@ -102,7 +111,7 @@ class RTSPClient(asyncio.Protocol):
         """
         _LOGGER.warning('Response timed out %s', self.session.host)
         self.stop()
-        self.callback('retry')
+        self.callback(SIGNAL_FAILED)
 
     def connection_lost(self, exc):
         """Happens when device closes connection or stop() has been called."""

@@ -53,24 +53,28 @@ class EventManager(object):
         self.event_map = MAP
         self.query = self.create_event_query(event_types)
 
-    def create_event_query(self, event_types=None):
+    def create_event_query(self, events) -> str:
         """Take a list of event types and return a query string."""
-        if event_types is None or event_types == 'off':
+        if events is False or events == 'off':
             return 'off'
-        if not event_types or event_types == 'on':
+
+        if events is True or events == 'on':
             return 'on'
+
         topics = [event['subscribe']
                   for event in self.event_map + METAMAP
-                  if event['type'] in event_types]
+                  if event['type'] in events]
+
         return 'on&eventtopic={}'.format('|'.join(topics))
 
-    def new_event(self, event_data):
+    def new_event(self, event_data) -> None:
         """New event to process."""
         event = self.parse_event_xml(event_data)
+
         if EVENT_OPERATION in event:
             self.manage_event(event)
 
-    def parse_event_xml(self, event_data):
+    def parse_event_xml(self, event_data) -> dict:
         """Parse metadata xml."""
         event = {}
 
@@ -99,7 +103,7 @@ class EventManager(object):
 
         return event
 
-    def manage_event(self, event):
+    def manage_event(self, event) -> None:
         """Received new metadata.
 
         Operation initialized means new event, also happens if reconnecting.

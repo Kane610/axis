@@ -2,18 +2,14 @@
 
 import logging
 
-from .rtsp import RTSPClient
+from .rtsp import (
+    RTSPClient, SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED)
 from .event import EventManager
 
 _LOGGER = logging.getLogger(__name__)
 
 RTSP_URL = 'rtsp://{host}/axis-media/media.amp'
 RTSP_SOURCE = '?video={video}&audio={audio}&event={event}'
-
-STATE_STARTING = 'starting'
-STATE_PLAYING = 'playing'
-STATE_STOPPED = 'stopped'
-STATE_PAUSED = 'paused'
 
 RETRY_TIMER = 15
 
@@ -26,8 +22,9 @@ class StreamManager(object):
         self.config = config
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
-        self.event = EventManager(self.config.event_types, self.config.signal)
+        self.event = None
         self.stream = None
+        self.connection_status_callback = None
 
     @property
     def stream_url(self):
@@ -53,12 +50,17 @@ class StreamManager(object):
         """Signalling from stream session.
 
         Data - new data available for processing.
+        Playing - Connection is healthy.
         Retry - if there is no connection to device.
         """
-        if signal == 'data':
+        print('session callback', signal)
+        if signal == SIGNAL_DATA:
             self.event.new_event(self.data)
-        elif signal == 'retry':
+        elif signal == SIGNAL_FAILED:
             self.retry()
+        if signal in [SIGNAL_PLAYING, SIGNAL_FAILED] and \
+                self.connection_status_callback:
+            self.connection_status_callback(signal)
 
     @property
     def data(self):
