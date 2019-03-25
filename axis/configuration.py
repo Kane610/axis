@@ -9,8 +9,7 @@ class Configuration(object):
 
     def __init__(self, *,
                  loop, host, username, password,
-                 port=80, web_proto='http', verify_ssl=False,
-                 event_types=None, signal=None):
+                 port=80, web_proto='http', verify_ssl=False):
         """All config params available to the device."""
         self.loop = loop
         self.web_proto = web_proto
@@ -22,6 +21,3 @@ class Configuration(object):
         self.session = requests.Session()
         self.session.auth = HTTPDigestAuth(self.username, self.password)
         self.session.verify = verify_ssl
-
-        self.event_types = event_types
-        self.signal = signal
