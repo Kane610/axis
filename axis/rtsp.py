@@ -11,8 +11,8 @@ import socket
 
 _LOGGER = logging.getLogger(__name__)
 
-STATE_PLAYING = 'playing'
 STATE_PAUSED = 'paused'
+STATE_PLAYING = 'playing'
 STATE_STARTING = 'starting'
 STATE_STOPPED = 'stopped'
 

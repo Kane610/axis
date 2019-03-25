@@ -4,7 +4,6 @@ import logging
 
 from .rtsp import (
     RTSPClient, SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED)
-from .event import EventManager
 
 _LOGGER = logging.getLogger(__name__)
 
