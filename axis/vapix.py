@@ -8,6 +8,7 @@ from .utils import session_request
 _LOGGER = logging.getLogger(__name__)
 
 PARAM_URL = '{}://{}:{}/axis-cgi/{}?action={}&{}'
+PARAM_URL = '{}://{}:{}/axis-cgi/{}?action={}'
 
 # Param.cgi
 VAPIX_FW_VERSION = 'Properties.Firmware.Version'
@@ -50,9 +51,9 @@ class Vapix(object):
         cgi, action, param = vapix_tuple
 
         if cgi == 'param.cgi':
-            group_param = 'group=' + param
+            param = 'group=' + param
 
-        result = self.do_request(cgi, action, group_param)
+        result = self.do_request(cgi, action, param)
 
         parameters = {
             key: value
@@ -69,7 +70,7 @@ class Vapix(object):
         url = PARAM_URL.format(
             self.config.web_proto, self.config.host, self.config.port,
             cgi, action, param)
-
+        print(url)
         result = session_request(self.config.session.get, url)
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
         return result
