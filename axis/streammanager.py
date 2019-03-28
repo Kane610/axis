@@ -52,7 +52,6 @@ class StreamManager(object):
         Playing - Connection is healthy.
         Retry - if there is no connection to device.
         """
-        print('session callback', signal)
         if signal == SIGNAL_DATA:
             self.event.new_event(self.data)
         elif signal == SIGNAL_FAILED:
