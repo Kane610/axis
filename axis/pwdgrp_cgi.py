@@ -12,6 +12,7 @@ sgrp: Colon separated existing secondary group names of the account.
     This argument sets the user access rights for the user account.
 comment: The comment field of the account.
 """
+import re
 
 from .api import APIItems
 
@@ -25,6 +26,8 @@ COMMENT = '&comment={comment}'
 SGRP_VIEWER = 'viewer'
 SGRP_OPERATOR = 'viewer:operator'
 SGRP_ADMIN = 'viewer:operator:admin'
+
+REGEX_STRING = re.compile(r'[A-Z0-9]+', re.IGNORECASE)
 
 
 class Users(APIItems):
@@ -61,6 +64,19 @@ class Users(APIItems):
         url = URL.format(action='remove')
         url += USER.format(user=user)
         self._request('get', url)
+
+    def process_raw(self, raw):
+        """Pre-process raw string.
+
+        Prepare users to work with APIItems.
+        """
+        raw_users = {}
+        for user in REGEX_STRING.findall(raw['users']):
+            for group in ['admin', 'operator', 'viewer']:
+                if user in REGEX_STRING.findall(raw[group]):
+                    raw_users[user] = group
+                    break
+        super().process_raw(raw_users)
 
 
 

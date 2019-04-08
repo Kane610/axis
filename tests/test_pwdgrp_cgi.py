@@ -13,23 +13,23 @@ def test_users():
     """Verify that you can list users."""
     mock_request = Mock()
     users = Users(fixture2, mock_request)
-    print(users.__dict__)
-    assert False
+
+    assert users['view']
+    assert users['oper']
 
 
 fixture2 = {
     'actionengined': '""\r',
+    'admin': 'wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root,wwwav,wwwavp',
     'anonymous': '""\r',
     'bin': '""\r',
-    'operator': '"operator,sdk,wwwo,wwwaovp,wwwaop,wwwao,wwwop,wwwaov,wwwov,wwwovp,root"\r',
+    'operator': '"oper,sdk,wwwo,wwwaovp,wwwaop,wwwao,wwwop,wwwaov,wwwov,wwwovp,root"\r',
     'ptz': '"wwwop,wwwaop,wwwaovp,wwwap,wwwp,wwwovp,root,wwwvp,wwwavp"\r',
     'root': '""\r',
-    'users': '"viewer,operator"\r',
-    'viewer': '"operator,sdk,wwwaovp,wwwaov,wwwov,wwwovp,wwwav,root,viewer,wwwv,wwwavp,wwwvp"\r',
+    'users': '"view,oper"\r',
+    'viewer': '"oper,sdk,wwwaovp,wwwaov,wwwov,wwwovp,wwwav,root,view,wwwv,wwwavp,wwwvp"\r',
     'digusers': '"root,operator,viewer"\r'
 }
-
-
 
 
 fixture = """actionengined=""
