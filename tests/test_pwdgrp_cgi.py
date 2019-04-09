@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 from unittest.mock import MagicMock, Mock, patch
 import pytest
 
-from axis.pwdgrp_cgi import Users, User
+from axis.pwdgrp_cgi import SGRP_ADMIN, Users, User
 
 
 def test_users():
@@ -14,21 +14,75 @@ def test_users():
     mock_request = Mock()
     users = Users(fixture2, mock_request)
 
-    assert users['view']
-    assert users['oper']
+    assert users['userv']
+    assert not users['userv'].admin
+    assert not users['userv'].operator
+    assert users['userv'].viewer
+    assert not users['userv'].ptz
+
+    assert users['usero']
+    assert not users['usero'].admin
+    assert users['usero'].operator
+    assert users['usero'].viewer
+    assert not users['usero'].ptz
+
+    assert users['usera']
+    assert users['usera'].admin
+    assert users['usera'].operator
+    assert users['usera'].viewer
+    assert users['usera'].ptz
+
+
+def test_create():
+    """Verify that you can create users."""
+    mock_request = Mock()
+    users = Users(fixture2, mock_request)
+
+    users.create('joe', pwd='abcd', sgrp=SGRP_ADMIN)
+    mock_request.assert_called_with('get', '/axis-cgi/pwdgrp.cgi?action=add&grp=users&user=joe&pwd=abcd&sgrp=viewer:operator:admin')
+
+    users.create('joe', pwd='abcd', sgrp=SGRP_ADMIN, comment='comment')
+    mock_request.assert_called_with('get', '/axis-cgi/pwdgrp.cgi?action=add&grp=users&user=joe&pwd=abcd&sgrp=viewer:operator:admin&comment=comment')
+
+
+def test_modify():
+    """Verify that you can modify users."""
+    mock_request = Mock()
+    users = Users(fixture2, mock_request)
+
+    users.modify('joe', pwd='abcd')
+    mock_request.assert_called_with('get', '/axis-cgi/pwdgrp.cgi?action=update&user=joe&pwd=abcd')
+
+    users.modify('joe', sgrp=SGRP_ADMIN)
+    mock_request.assert_called_with('get', '/axis-cgi/pwdgrp.cgi?action=update&user=joe&sgrp=viewer:operator:admin')
+
+    users.modify('joe', comment='comment')
+    mock_request.assert_called_with('get', '/axis-cgi/pwdgrp.cgi?action=update&user=joe&comment=comment')
+
+    users.modify('joe', pwd='abcd', sgrp=SGRP_ADMIN, comment='comment')
+    mock_request.assert_called_with('get', '/axis-cgi/pwdgrp.cgi?action=update&user=joe&pwd=abcd&sgrp=viewer:operator:admin&comment=comment')
+
+
+def test_delete():
+    """Verify that you can delete users."""
+    mock_request = Mock()
+    users = Users(fixture2, mock_request)
+    users.delete('joe')
+
+    mock_request.assert_called_with('get', '/axis-cgi/pwdgrp.cgi?action=remove&user=joe')
 
 
 fixture2 = {
     'actionengined': '""\r',
-    'admin': 'wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root,wwwav,wwwavp',
+    'admin': 'usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root,wwwav,wwwavp',
     'anonymous': '""\r',
     'bin': '""\r',
-    'operator': '"oper,sdk,wwwo,wwwaovp,wwwaop,wwwao,wwwop,wwwaov,wwwov,wwwovp,root"\r',
-    'ptz': '"wwwop,wwwaop,wwwaovp,wwwap,wwwp,wwwovp,root,wwwvp,wwwavp"\r',
+    'operator': '"usera,usero,sdk,wwwo,wwwaovp,wwwaop,wwwao,wwwop,wwwaov,wwwov,wwwovp,root"\r',
+    'ptz': '"usera,wwwop,wwwaop,wwwaovp,wwwap,wwwp,wwwovp,root,wwwvp,wwwavp"\r',
     'root': '""\r',
-    'users': '"view,oper"\r',
-    'viewer': '"oper,sdk,wwwaovp,wwwaov,wwwov,wwwovp,wwwav,root,view,wwwv,wwwavp,wwwvp"\r',
-    'digusers': '"root,operator,viewer"\r'
+    'users': '"userv,usero,usera"\r',
+    'viewer': '"sdk,wwwaovp,wwwaov,wwwov,wwwovp,wwwav,root,usera,usero,userv,wwwv,wwwavp,wwwvp"\r',
+    'digusers': '"root,usero,userv"\r'
 }
 
 
