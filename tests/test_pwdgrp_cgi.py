@@ -15,21 +15,21 @@ def test_users():
     users = Users(fixture2, mock_request)
 
     assert users['userv']
-    assert not users['userv'].admin
-    assert not users['userv'].operator
     assert users['userv'].viewer
+    assert not users['userv'].operator
+    assert not users['userv'].admin
     assert not users['userv'].ptz
 
     assert users['usero']
-    assert not users['usero'].admin
-    assert users['usero'].operator
     assert users['usero'].viewer
+    assert users['usero'].operator
+    assert not users['usero'].admin
     assert not users['usero'].ptz
 
     assert users['usera']
-    assert users['usera'].admin
-    assert users['usera'].operator
     assert users['usera'].viewer
+    assert users['usera'].operator
+    assert users['usera'].admin
     assert users['usera'].ptz
 
 

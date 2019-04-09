@@ -36,6 +36,8 @@ SGRP_VIEWER = VIEWER
 SGRP_OPERATOR = '{}:{}'.format(VIEWER, OPERATOR)
 SGRP_ADMIN = '{}:{}:{}'.format(VIEWER, OPERATOR, ADMIN)
 
+REGEX_USER = re.compile(r'^[A-Z0-9]{1,14}$', re.IGNORECASE)
+REGEX_PASS = re.compile(r'^[x20-x7e]{1,64}$')
 REGEX_STRING = re.compile(r'[A-Z0-9]+', re.IGNORECASE)
 
 
