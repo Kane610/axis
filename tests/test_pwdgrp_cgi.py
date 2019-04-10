@@ -3,10 +3,10 @@
 pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 """
 
-from unittest.mock import MagicMock, Mock, patch
 import pytest
+from unittest.mock import Mock
 
-from axis.pwdgrp_cgi import SGRP_ADMIN, Users, User
+from axis.pwdgrp_cgi import SGRP_ADMIN, User, Users
 
 
 def test_users():
@@ -15,18 +15,21 @@ def test_users():
     users = Users(fixture2, mock_request)
 
     assert users['userv']
+    assert users['userv'].name == 'userv'
     assert users['userv'].viewer
     assert not users['userv'].operator
     assert not users['userv'].admin
     assert not users['userv'].ptz
 
     assert users['usero']
+    assert users['usero'].name == 'usero'
     assert users['usero'].viewer
     assert users['usero'].operator
     assert not users['usero'].admin
     assert not users['usero'].ptz
 
     assert users['usera']
+    assert users['usera'].name == 'usera'
     assert users['usera'].viewer
     assert users['usera'].operator
     assert users['usera'].admin

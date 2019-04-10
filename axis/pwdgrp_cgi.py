@@ -48,7 +48,7 @@ class Users(APIItems):
         super().__init__(raw, request, URL.format(action='get'), User)
 
     def create(self, user: str, *,
-            pwd: str, sgrp: str, comment: str=None):
+               pwd: str, sgrp: str, comment: str=None):
         """Create new user."""
         url = URL.format(action=ACTION_ADD) + GRP
         url += USER.format(user=user)
@@ -61,7 +61,7 @@ class Users(APIItems):
         self._request('get', url)
 
     def modify(self, user: str, *,
-            pwd: str=None, sgrp: str=None, comment: str=None):
+               pwd: str=None, sgrp: str=None, comment: str=None):
         """Update user."""
         url = URL.format(action=ACTION_UPDATE)
         url += USER.format(user=user)
@@ -107,6 +107,10 @@ class User:
         self.id = id
         self.raw = raw
         self._request = request
+
+    @property
+    def name(self):
+        return self.id
 
     @property
     def admin(self) -> bool:
