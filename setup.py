@@ -12,7 +12,7 @@ from setuptools import setup
 setup(
   name='axis',
   packages=['axis'],
-  version='19',
+  version='20',
   description='A python library for communicating with devices from Axis Communications',
   author='Robert Svensson',
   author_email='Kane610@users.noreply.github.com',
