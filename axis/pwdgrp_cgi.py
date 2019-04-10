@@ -16,16 +16,10 @@ import re
 
 from .api import APIItems
 
-URL = '/axis-cgi/pwdgrp.cgi?action={action}'
-USER = '&user={user}'
-PWD = '&pwd={pwd}'
-GRP = '&grp=users'
-SGRP = '&sgrp={sgrp}'
-COMMENT = '&comment={comment}'
+PROPERTY = 'Properties.API.HTTP.Version=3'
 
-ACTION_ADD = 'add'
-ACTION_UPDATE = 'update'
-ACTION_REMOVE = 'remove'
+URL = '/axis-cgi/pwdgrp.cgi'
+URL_GET = URL + '?action=get'
 
 ADMIN = 'admin'
 OPERATOR = 'operator'
@@ -45,44 +39,51 @@ class Users(APIItems):
     """Represents all users of a device."""
 
     def __init__(self, raw: str, request: str):
-        super().__init__(raw, request, URL.format(action='get'), User)
+        super().__init__(raw, request, URL_GET, User)
 
     def create(self, user: str, *,
                pwd: str, sgrp: str, comment: str=None):
         """Create new user."""
-        url = URL.format(action=ACTION_ADD) + GRP
-        url += USER.format(user=user)
-        url += PWD.format(pwd=pwd)
-        url += SGRP.format(sgrp=sgrp)
+        data = {
+            'action': 'add',
+            'user': user,
+            'pwd': pwd,
+            'grp': 'users',
+            'sgrp': sgrp
+        }
 
         if comment:
-            url += COMMENT.format(comment=comment)
+            data['comment'] = comment
 
-        self._request('get', url)
+        self._request('post', URL, data=data)
 
     def modify(self, user: str, *,
                pwd: str=None, sgrp: str=None, comment: str=None):
         """Update user."""
-        url = URL.format(action=ACTION_UPDATE)
-        url += USER.format(user=user)
+        data = {
+            'action': 'update',
+            'user': user
+        }
 
         if pwd:
-            url += PWD.format(pwd=pwd)
+            data['pwd'] = pwd
 
         if sgrp:
-            url += SGRP.format(sgrp=sgrp)
+            data['sgrp'] = sgrp
 
         if comment:
-            url += COMMENT.format(comment=comment)
+            data['comment'] = comment
 
-        self._request('get', url)
+        self._request('post', URL, data=data)
 
     def delete(self, user: str):
         """Remove user."""
-        url = URL.format(action=ACTION_REMOVE)
-        url += USER.format(user=user)
+        data = {
+            'action': 'remove',
+            'user': user
+        }
 
-        self._request('get', url)
+        self._request('post', URL, data=data)
 
     def process_raw(self, raw: str):
         """Pre-process raw string.
@@ -90,12 +91,14 @@ class Users(APIItems):
         Prepare users to work with APIItems.
         Create booleans with user levels.
         """
+        raw_dict = dict(group.split('=') for group in raw.splitlines())
+
         raw_users = {
             user: {
-                group: user in REGEX_STRING.findall(raw[group])
+                group: user in REGEX_STRING.findall(raw_dict[group])
                 for group in [ADMIN, OPERATOR, VIEWER, PTZ]
             }
-            for user in REGEX_STRING.findall(raw['users'])
+            for user in REGEX_STRING.findall(raw_dict['users'])
         }
         super().process_raw(raw_users)
 

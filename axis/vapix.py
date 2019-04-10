@@ -2,7 +2,8 @@
 
 import logging
 
-from .errors import RequestError, Unauthorized
+from .errors import AxisException, RequestError, Unauthorized
+from .pwdgrp_cgi import URL_GET as pwdgrp_url, Users
 from .utils import session_request
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,6 +31,13 @@ class Vapix(object):
         """Store local reference to device config."""
         self.config = config
         self.params = {}
+
+        self.user_management = None
+
+    def initialize_user_management(self):
+        """Load device user data and initialize user management."""
+        users = self.request('get', pwdgrp_url)
+        self.user_management = Users(users, self.request)
 
     def load_params(self):
         """"""
@@ -70,7 +78,22 @@ class Vapix(object):
         url = PARAM_URL.format(
             self.config.web_proto, self.config.host, self.config.port,
             cgi, action, param)
-        print(url)
+
         result = session_request(self.config.session.get, url)
+        _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        return result
+
+    def request(self, method, path, **kwargs):
+        """Prepare HTTP request."""
+        if method == 'get':
+            session_method = self.config.session.get
+        elif method == 'post':
+            session_method = self.config.session.post
+        else:
+            raise AxisException
+
+        url = self.config.url + path
+
+        result = session_request(session_method, url, **kwargs)
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
         return result
