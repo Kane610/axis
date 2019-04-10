@@ -17,7 +17,7 @@ from .event_fixtures import (
 @pytest.fixture
 def manager() -> EventManager:
     """Returns mocked event manager."""
-    event_types = None
+    event_types = False
     signal = Mock()
     return EventManager(event_types, signal)
 
@@ -29,7 +29,7 @@ def test_eventmanager(manager):
 
 def test_create_event_set_to_on(manager):
     """Verify that an event query can be created."""
-    assert manager.create_event_query('') == 'on'
+    assert manager.create_event_query(True) == 'on'
 
 
 def test_create_event_query_single_topic(manager):
@@ -117,6 +117,9 @@ def test_manage_event_pir_init(manager):
     assert event.is_tripped
     assert mock_callback.called
     assert 'callback' not in event.as_dict()
+
+    event.remove_callback(mock_callback)
+    assert not event._callbacks
 
 
 def test_manage_event_pir_change(manager):

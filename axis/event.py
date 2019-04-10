@@ -154,8 +154,13 @@ class AxisBinaryEvent:
         return self._state == '1'
 
     def register_callback(self, callback):
-        """"""
+        """Register callback for state updates."""
         self._callbacks.append(callback)
+
+    def remove_callback(self, callback):
+        """Remove callback."""
+        if callback in self._callbacks:
+            self._callbacks.remove(callback)
 
     def as_dict(self):
         """Callback for __dict__."""
