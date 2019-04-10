@@ -3,6 +3,8 @@
 import requests
 from requests.auth import HTTPDigestAuth
 
+URL = '{http}://{host}:{port}'
+
 
 class Configuration(object):
     """Device configuration."""
@@ -21,3 +23,8 @@ class Configuration(object):
         self.session = requests.Session()
         self.session.auth = HTTPDigestAuth(self.username, self.password)
         self.session.verify = verify_ssl
+
+    @property
+    def url(self):
+        """Represent device base url."""
+        return URL.format(http=self.web_proto, host=self.host, port=self.port)
