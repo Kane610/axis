@@ -17,12 +17,36 @@ OPERATOR = 'operator'
 VIEWER = 'viewer'
 ANONYMOUS = 'anonymous'
 
+BRAND = 'root.Brand'
+
 
 class Params(APIItems):
     """Represents all parameters of param.cgi."""
 
     def __init__(self, raw: str, request: str):
-        super().__init__(raw, request, URL_GET, Param)
+        super().__init__(raw, request, URL_GET, select_parameter_group)
+
+    def process_raw(self, raw: str):
+        """Pre-process raw string.
+
+        Prepare parameters to work with APIItems.
+        """
+        raw_dict = dict(group.split('=', 1) for group in raw.splitlines())
+
+        raw_params = {
+            parentgroup: {
+                group.replace(parentgroup + '.', ''): raw_dict[group]
+                for group in raw_dict
+                if group.startswith(parentgroup)
+            }
+            for parentgroup in [BRAND]
+        }
+        super().process_raw(raw_params)
+
+
+def select_parameter_group(id: str, raw: dict, request: str):
+    if id == BRAND:
+        return Brand(id, raw, request)
 
 
 class Param:
@@ -32,3 +56,36 @@ class Param:
         self.id = id
         self.raw = raw
         self._request = request
+
+
+class Brand(Param):
+    """Parameters describing brand."""
+    PARENTGROUP = BRAND
+
+    @property
+    def brand(self):
+        return self.raw['Brand']
+
+    @property
+    def prodfullname(self):
+        return self.raw['ProdFullName']
+
+    @property
+    def prodnbr(self):
+        return self.raw['ProdNbr']
+
+    @property
+    def prodshortname(self):
+        return self.raw['ProdShortName']
+
+    @property
+    def prodtype(self):
+        return self.raw['ProdType']
+
+    @property
+    def prodvariant(self):
+        return self.raw['ProdVariant']
+
+    @property
+    def weburl(self):
+        return self.raw['WebURL']

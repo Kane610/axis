@@ -34,6 +34,11 @@ class Vapix(object):
 
         self.user_management = None
 
+    # def initialize_parameter_management(self):
+    #     """Load device parameters and initialize parameter management."""
+    #     params = self.request('get', param_url)
+    #     self.parameter_management = Params(params, self.request)
+
     def initialize_user_management(self):
         """Load device user data and initialize user management."""
         users = self.request('get', pwdgrp_url)
@@ -80,6 +85,7 @@ class Vapix(object):
             cgi, action, param)
 
         result = session_request(self.config.session.get, url)
+
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
         return result
 
