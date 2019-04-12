@@ -3,6 +3,7 @@
 import logging
 
 from .errors import AxisException, RequestError, Unauthorized
+from .param_cgi import URL_GET as param_url, Params
 from .pwdgrp_cgi import URL_GET as pwdgrp_url, Users
 from .utils import session_request
 
@@ -32,12 +33,15 @@ class Vapix(object):
         self.config = config
         self.params = {}
 
+        self.parameter_management = None
         self.user_management = None
 
-    # def initialize_parameter_management(self):
-    #     """Load device parameters and initialize parameter management."""
-    #     params = self.request('get', param_url)
-    #     self.parameter_management = Params(params, self.request)
+    def initialize_parameter_management(self, preload_data=True):
+        """Load device parameters and initialize parameter management."""
+        params = ''
+        if preload_data:
+            params = self.request('get', param_url)
+        self.parameter_management = Params(params, self.request)
 
     def initialize_user_management(self):
         """Load device user data and initialize user management."""
@@ -99,7 +103,6 @@ class Vapix(object):
             raise AxisException
 
         url = self.config.url + path
-
         result = session_request(session_method, url, **kwargs)
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
         return result

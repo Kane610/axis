@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 import pytest
 from unittest.mock import Mock
 
-from axis.param_cgi import BRAND, Params
+from axis.param_cgi import BRAND, PROPERTIES, Params
 
 
 def test_params():
@@ -22,6 +22,42 @@ def test_params():
     assert params[BRAND].prodtype == 'Network Camera'
     assert params[BRAND].prodvariant == ''
     assert params[BRAND].weburl == 'http://www.axis.com'
+
+    assert params[PROPERTIES]
+    assert params[PROPERTIES].api_http_version == '3'
+    assert params[PROPERTIES].api_metadata == 'yes'
+    assert params[PROPERTIES].api_metadata_version == '1.0'
+    assert params[PROPERTIES].firmware_builddate == 'Feb 15 2019 09:42'
+    assert params[PROPERTIES].firmware_buildnumber == '26'
+    assert params[PROPERTIES].firmware_version == '9.10.1'
+    assert params[PROPERTIES].image_format == 'jpeg,mjpeg,h264'
+    assert params[PROPERTIES].image_nbrofviews == '2'
+    assert params[PROPERTIES].image_resolution == '1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240'
+    assert params[PROPERTIES].image_rotation == '0,180'
+    assert params[PROPERTIES].system_serialnumber == 'ACCC12345678'
+
+
+def test_update_brand():
+    """Verify that update brand works."""
+    mock_request = Mock()
+    mock_request.return_value = ''
+    params = Params(None, mock_request)
+    params.update_brand()
+
+    mock_request.assert_called_with(
+        'get', '/axis-cgi/param.cgi?action=list&group=root.Brand')
+
+
+def test_update_properties():
+    """Verify that update properties works."""
+    mock_request = Mock()
+    mock_request.return_value = ''
+    params = Params(None, mock_request)
+    params.update_properties()
+
+    mock_request.assert_called_with(
+        'get', '/axis-cgi/param.cgi?action=list&group=root.Properties')
+
 
 
 # list group=root
