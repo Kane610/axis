@@ -1,12 +1,11 @@
-"""Test Vapix network.
+"""Test Vapix network API main class.
 
-pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
+pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
 import pytest
 from unittest.mock import Mock, patch
 
-from axis.param_cgi import BRAND, PROPERTIES, Params
 from axis.vapix import Vapix
 
 
