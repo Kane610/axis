@@ -14,34 +14,46 @@ def test_params():
     mock_request = Mock()
     params = Params(fixture, mock_request)
 
-    assert params[BRAND]
-    assert params[BRAND].brand == 'AXIS'
-    assert params[BRAND].prodfullname == 'AXIS M1065-LW Network Camera'
-    assert params[BRAND].prodnbr == 'M1065-LW'
-    assert params[BRAND].prodshortname == 'AXIS M1065-LW'
-    assert params[BRAND].prodtype == 'Network Camera'
-    assert params[BRAND].prodvariant == ''
-    assert params[BRAND].weburl == 'http://www.axis.com'
 
-    assert params[PROPERTIES]
-    assert params[PROPERTIES].api_http_version == '3'
-    assert params[PROPERTIES].api_metadata == 'yes'
-    assert params[PROPERTIES].api_metadata_version == '1.0'
-    assert params[PROPERTIES].firmware_builddate == 'Feb 15 2019 09:42'
-    assert params[PROPERTIES].firmware_buildnumber == '26'
-    assert params[PROPERTIES].firmware_version == '9.10.1'
-    assert params[PROPERTIES].image_format == 'jpeg,mjpeg,h264'
-    assert params[PROPERTIES].image_nbrofviews == '2'
-    assert params[PROPERTIES].image_resolution == '1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240'
-    assert params[PROPERTIES].image_rotation == '0,180'
-    assert params[PROPERTIES].system_serialnumber == 'ACCC12345678'
+    assert params[BRAND + '.Brand'].raw == 'AXIS'
+    assert params[BRAND + '.ProdFullName'].raw == 'AXIS M1065-LW Network Camera'
+    assert params[BRAND + '.ProdNbr'].raw == 'M1065-LW'
+    assert params[BRAND + '.ProdShortName'].raw == 'AXIS M1065-LW'
+    assert params[BRAND + '.ProdType'].raw == 'Network Camera'
+    assert params[BRAND + '.ProdVariant'].raw == ''
+    assert params[BRAND + '.WebURL'].raw == 'http://www.axis.com'
+    assert params.brand == 'AXIS'
+    assert params.prodfullname == 'AXIS M1065-LW Network Camera'
+    assert params.prodnbr == 'M1065-LW'
+    assert params.prodshortname == 'AXIS M1065-LW'
+    assert params.prodtype == 'Network Camera'
+    assert params.prodvariant == ''
+    assert params.weburl == 'http://www.axis.com'
 
+    assert params
+    assert params.api_http_version == '3'
+    assert params.api_metadata == 'yes'
+    assert params.api_metadata_version == '1.0'
+    assert params.firmware_builddate == 'Feb 15 2019 09:42'
+    assert params.firmware_buildnumber == '26'
+    assert params.firmware_version == '9.10.1'
+    assert params.image_format == 'jpeg,mjpeg,h264'
+    assert params.image_nbrofviews == '2'
+    assert params.image_resolution == '1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240'
+    assert params.image_rotation == '0,180'
+    assert params.system_serialnumber == 'ACCC12345678'
+
+
+def test_params_empty_raw():
+    """Verify that params can take an empty raw on creation."""
+    mock_request = Mock()
+    params = Params('', mock_request)
 
 def test_update_brand():
     """Verify that update brand works."""
     mock_request = Mock()
     mock_request.return_value = ''
-    params = Params(None, mock_request)
+    params = Params('', mock_request)
     params.update_brand()
 
     mock_request.assert_called_with(
@@ -52,7 +64,7 @@ def test_update_properties():
     """Verify that update properties works."""
     mock_request = Mock()
     mock_request.return_value = ''
-    params = Params(None, mock_request)
+    params = Params('', mock_request)
     params.update_properties()
 
     mock_request.assert_called_with(

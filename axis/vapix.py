@@ -24,7 +24,8 @@ VAPIX_SERIAL_NUMBER = 'Properties.System.SerialNumber'
 # Pwdgrp.cgi
 VAPIX_USER_LIST = ('pwdgrp.cgi', 'get', '')
 
-
+            # await hass.async_add_executor_job(device.vapix.initialize_parameter_management)
+            # await hass.async_add_executor_job(device.vapix.parameter_management.update_brand)
 class Vapix(object):
     """Vapix parameter request."""
 
