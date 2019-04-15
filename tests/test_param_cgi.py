@@ -14,14 +14,6 @@ def test_params():
     mock_request = Mock()
     params = Params(fixture, mock_request)
 
-
-    assert params[BRAND + '.Brand'].raw == 'AXIS'
-    assert params[BRAND + '.ProdFullName'].raw == 'AXIS M1065-LW Network Camera'
-    assert params[BRAND + '.ProdNbr'].raw == 'M1065-LW'
-    assert params[BRAND + '.ProdShortName'].raw == 'AXIS M1065-LW'
-    assert params[BRAND + '.ProdType'].raw == 'Network Camera'
-    assert params[BRAND + '.ProdVariant'].raw == ''
-    assert params[BRAND + '.WebURL'].raw == 'http://www.axis.com'
     assert params.brand == 'AXIS'
     assert params.prodfullname == 'AXIS M1065-LW Network Camera'
     assert params.prodnbr == 'M1065-LW'
@@ -30,7 +22,6 @@ def test_params():
     assert params.prodvariant == ''
     assert params.weburl == 'http://www.axis.com'
 
-    assert params
     assert params.api_http_version == '3'
     assert params.api_metadata == 'yes'
     assert params.api_metadata_version == '1.0'
@@ -47,32 +38,140 @@ def test_params():
 def test_params_empty_raw():
     """Verify that params can take an empty raw on creation."""
     mock_request = Mock()
-    params = Params('', mock_request)
+    assert Params('', mock_request)
+
 
 def test_update_brand():
     """Verify that update brand works."""
     mock_request = Mock()
-    mock_request.return_value = ''
+    mock_request.return_value = fixture_brand
     params = Params('', mock_request)
     params.update_brand()
 
     mock_request.assert_called_with(
         'get', '/axis-cgi/param.cgi?action=list&group=root.Brand')
 
+    assert params[BRAND + '.Brand'].raw == 'AXIS'
+    assert params[BRAND + '.ProdFullName'].raw == 'AXIS M1065-LW Network Camera'
+    assert params[BRAND + '.ProdNbr'].raw == 'M1065-LW'
+    assert params[BRAND + '.ProdShortName'].raw == 'AXIS M1065-LW'
+    assert params[BRAND + '.ProdType'].raw == 'Network Camera'
+    assert params[BRAND + '.ProdVariant'].raw == ''
+    assert params[BRAND + '.WebURL'].raw == 'http://www.axis.com'
+
 
 def test_update_properties():
     """Verify that update properties works."""
     mock_request = Mock()
-    mock_request.return_value = ''
+    mock_request.return_value = fixture_properties
     params = Params('', mock_request)
     params.update_properties()
 
     mock_request.assert_called_with(
         'get', '/axis-cgi/param.cgi?action=list&group=root.Properties')
 
+    assert params[PROPERTIES + '.AlwaysMulticast.AlwaysMulticast'].raw == 'yes'
+    assert params[PROPERTIES + '.API.Browser.Language'].raw == 'yes'
+    assert params[PROPERTIES + '.API.Browser.RootPwdSetValue'].raw == 'yes'
+    assert params[PROPERTIES + '.API.Browser.UserGroup'].raw == 'yes'
+    assert params[PROPERTIES + '.API.ClientNotes.ClientNotes'].raw == 'yes'
+    assert params[PROPERTIES + '.API.HTTP.AdminPath'].raw == '/'
+    assert params[PROPERTIES + '.API.HTTP.Version'].raw == '3'
+    assert params[PROPERTIES + '.API.Metadata.Metadata'].raw == 'yes'
+    assert params[PROPERTIES + '.API.Metadata.Version'].raw == '1.0'
+    assert params[PROPERTIES + '.API.OnScreenControls.OnScreenControls'].raw == 'yes'
+    assert params[PROPERTIES + '.API.PTZ.Presets.Version'].raw == '2.00'
+    assert params[PROPERTIES + '.API.RTSP.RTSPAuth'].raw == 'yes'
+    assert params[PROPERTIES + '.API.RTSP.Version'].raw == '2.01'
+    assert params[PROPERTIES + '.API.WebService.EntryService'].raw == 'yes'
+    assert params[PROPERTIES + '.API.WebService.WebService'].raw == 'yes'
+    assert params[PROPERTIES + '.API.WebService.ONVIF.ONVIF'].raw == 'yes'
+    assert params[PROPERTIES + '.API.WebService.ONVIF.Version'].raw == '1.02'
+    assert params[PROPERTIES + '.API.WebSocket.RTSP.RTSP'].raw == 'yes'
+    assert params[PROPERTIES + '.ApiDiscovery.ApiDiscovery'].raw == 'yes'
+    assert params[PROPERTIES + '.Audio.Audio'].raw == 'yes'
+    assert params[PROPERTIES + '.Audio.DuplexMode'].raw == 'half,post,get'
+    assert params[PROPERTIES + '.Audio.Format'].raw == 'lpcm,g711,g726,aac,opus'
+    assert params[PROPERTIES + '.Audio.InputType'].raw == 'internal'
+    assert params[PROPERTIES + '.Audio.Decoder.Format'].raw == 'g711,g726,axis-mulaw-128'
+    assert params[PROPERTIES + '.Audio.Source.A0.Input'].raw == 'yes'
+    assert params[PROPERTIES + '.Audio.Source.A0.Output'].raw == 'yes'
+    assert params[PROPERTIES + '.EmbeddedDevelopment.CacheSize'].raw == '76546048'
+    assert params[PROPERTIES + '.EmbeddedDevelopment.DefaultCacheSize'].raw == '92274688'
+    assert params[PROPERTIES + '.EmbeddedDevelopment.EmbeddedDevelopment'].raw == 'yes'
+    assert params[PROPERTIES + '.EmbeddedDevelopment.Version'].raw == '2.16'
+    assert params[PROPERTIES + '.EmbeddedDevelopment.RuleEngine.MultiConfiguration'].raw == 'yes'
+    assert params[PROPERTIES + '.Firmware.BuildDate'].raw == 'Feb 15 2019 09:42'
+    assert params[PROPERTIES + '.Firmware.BuildNumber'].raw == '26'
+    assert params[PROPERTIES + '.Firmware.Version'].raw == '9.10.1'
+    assert params[PROPERTIES + '.FirmwareManagement.Version'].raw == '1.0'
+    assert params[PROPERTIES + '.GuardTour.GuardTour'].raw == 'yes'
+    assert params[PROPERTIES + '.GuardTour.MaxGuardTours'].raw == '100'
+    assert params[PROPERTIES + '.GuardTour.MinGuardTourWaitTime'].raw == '10'
+    assert params[PROPERTIES + '.GuardTour.RecordedTour'].raw == 'no'
+    assert params[PROPERTIES + '.HTTPS.HTTPS'].raw == 'yes'
+    assert params[PROPERTIES + '.Image.Format'].raw == 'jpeg,mjpeg,h264'
+    assert params[PROPERTIES + '.Image.NbrOfViews'].raw == '2'
+    assert params[PROPERTIES + '.Image.Resolution'].raw == '1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240'
+    assert params[PROPERTIES + '.Image.Rotation'].raw == '0,180'
+    assert params[PROPERTIES + '.Image.ShowSuboptimalResolutions'].raw == 'false'
+    assert params[PROPERTIES + '.Image.H264.Profiles'].raw == 'Baseline,Main,High'
+    assert params[PROPERTIES + '.ImageSource.DayNight'].raw == 'yes'
+    assert params[PROPERTIES + '.IO.ManualTriggerNbr'].raw == '6'
+    assert params[PROPERTIES + '.LEDControl.LEDControl'].raw == 'yes'
+    assert params[PROPERTIES + '.LightControl.LightControl2'].raw == 'yes'
+    assert params[PROPERTIES + '.LightControl.LightControlAvailable'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.AutoRepair'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.ContinuousRecording'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.DiskEncryption'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.DiskHealth'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.ExportRecording'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.FailOverRecording'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.LocalStorage'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.NbrOfContinuousRecordingProfiles'].raw == '1'
+    assert params[PROPERTIES + '.LocalStorage.RequiredFileSystem'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.SDCard'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.StorageLimit'].raw == 'yes'
+    assert params[PROPERTIES + '.LocalStorage.Version'].raw == '1.00'
+    assert params[PROPERTIES + '.Motion.MaxNbrOfWindows'].raw == '10'
+    assert params[PROPERTIES + '.Motion.Motion'].raw == 'yes'
+    assert params[PROPERTIES + '.Network.WLAN.WLANScan2'].raw == 'yes'
+    assert params[PROPERTIES + '.NetworkShare.CIFS'].raw == 'yes'
+    assert params[PROPERTIES + '.NetworkShare.IPV6'].raw == 'yes'
+    assert params[PROPERTIES + '.NetworkShare.NameLookup'].raw == 'yes'
+    assert params[PROPERTIES + '.NetworkShare.NetworkShare'].raw == 'yes'
+    assert params[PROPERTIES + '.PackageManager.FormatListing'].raw == 'yes'
+    assert params[PROPERTIES + '.PackageManager.LicenseKeyManagement'].raw == 'yes'
+    assert params[PROPERTIES + '.PackageManager.PackageManager'].raw == 'yes'
+    assert params[PROPERTIES + '.PrivacyMask.MaxNbrOfPrivacyMasks'].raw == '10'
+    assert params[PROPERTIES + '.PrivacyMask.Polygon'].raw == 'no'
+    assert params[PROPERTIES + '.PrivacyMask.PrivacyMask'].raw == 'no'
+    assert params[PROPERTIES + '.PrivacyMask.Query'].raw == 'list,position,listpxjson,positionpxjson'
+    assert params[PROPERTIES + '.PTZ.DigitalPTZ'].raw == 'yes'
+    assert params[PROPERTIES + '.PTZ.DriverManagement'].raw == 'no'
+    assert params[PROPERTIES + '.PTZ.DriverModeList'].raw == 'none'
+    assert params[PROPERTIES + '.PTZ.PTZ'].raw == 'yes'
+    assert params[PROPERTIES + '.PTZ.PTZOnQuadView'].raw == 'no'
+    assert params[PROPERTIES + '.PTZ.SelectableDriverMode'].raw == 'no'
+    assert params[PROPERTIES + '.RemoteService.RemoteService'].raw == 'no'
+    assert params[PROPERTIES + '.RTC.RTC'].raw == 'yes'
+    assert params[PROPERTIES + '.Sensor.PIR'].raw == 'yes'
+    assert params[PROPERTIES + '.Serial.Serial'].raw == 'no'
+    assert params[PROPERTIES + '.System.Architecture'].raw == 'armv7hf'
+    assert params[PROPERTIES + '.System.HardwareID'].raw == '70E'
+    assert params[PROPERTIES + '.System.Language'].raw == 'English'
+    assert params[PROPERTIES + '.System.LanguageType'].raw == 'default'
+    assert params[PROPERTIES + '.System.SerialNumber'].raw == 'ACCC12345678'
+    assert params[PROPERTIES + '.System.Soc'].raw == 'Ambarella S2L (Flattened Device Tree)'
+    assert params[PROPERTIES + '.Tampering.Tampering'].raw == 'yes'
+    assert params[PROPERTIES + '.TemperatureSensor.Fan'].raw == 'no'
+    assert params[PROPERTIES + '.TemperatureSensor.Heater'].raw == 'no'
+    assert params[PROPERTIES + '.TemperatureSensor.TemperatureControl'].raw == 'yes'
+    assert params[PROPERTIES + '.TemperatureSensor.TemperatureSensor'].raw == 'yes'
+    assert params[PROPERTIES + '.VirtualInput.VirtualInput'].raw == 'yes'
+    assert params[PROPERTIES + '.ZipStream.ZipStream'].raw == 'yes'
 
 
-# list group=root
 fixture = """root.Audio.DSCP=0
 root.Audio.DuplexMode=half
 root.Audio.MaxListeners=20
@@ -866,3 +965,114 @@ root.Time.DST.Enabled=no
 root.Time.NTP.Server=0.0.0.0
 root.Time.NTP.VolatileServer=0.0.0.0
 root.WebService.UsernameToken.ReplayAttackProtection=yes"""
+
+
+fixture_brand = """root.Brand.Brand=AXIS
+root.Brand.ProdFullName=AXIS M1065-LW Network Camera
+root.Brand.ProdNbr=M1065-LW
+root.Brand.ProdShortName=AXIS M1065-LW
+root.Brand.ProdType=Network Camera
+root.Brand.ProdVariant=
+root.Brand.WebURL=http://www.axis.com"""
+
+
+fixture_properties = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
+root.Properties.API.Browser.Language=yes
+root.Properties.API.Browser.RootPwdSetValue=yes
+root.Properties.API.Browser.UserGroup=yes
+root.Properties.API.ClientNotes.ClientNotes=yes
+root.Properties.API.HTTP.AdminPath=/
+root.Properties.API.HTTP.Version=3
+root.Properties.API.Metadata.Metadata=yes
+root.Properties.API.Metadata.Version=1.0
+root.Properties.API.OnScreenControls.OnScreenControls=yes
+root.Properties.API.PTZ.Presets.Version=2.00
+root.Properties.API.RTSP.RTSPAuth=yes
+root.Properties.API.RTSP.Version=2.01
+root.Properties.API.WebService.EntryService=yes
+root.Properties.API.WebService.WebService=yes
+root.Properties.API.WebService.ONVIF.ONVIF=yes
+root.Properties.API.WebService.ONVIF.Version=1.02
+root.Properties.API.WebSocket.RTSP.RTSP=yes
+root.Properties.ApiDiscovery.ApiDiscovery=yes
+root.Properties.Audio.Audio=yes
+root.Properties.Audio.DuplexMode=half,post,get
+root.Properties.Audio.Format=lpcm,g711,g726,aac,opus
+root.Properties.Audio.InputType=internal
+root.Properties.Audio.Decoder.Format=g711,g726,axis-mulaw-128
+root.Properties.Audio.Source.A0.Input=yes
+root.Properties.Audio.Source.A0.Output=yes
+root.Properties.EmbeddedDevelopment.CacheSize=76546048
+root.Properties.EmbeddedDevelopment.DefaultCacheSize=92274688
+root.Properties.EmbeddedDevelopment.EmbeddedDevelopment=yes
+root.Properties.EmbeddedDevelopment.Version=2.16
+root.Properties.EmbeddedDevelopment.RuleEngine.MultiConfiguration=yes
+root.Properties.Firmware.BuildDate=Feb 15 2019 09:42
+root.Properties.Firmware.BuildNumber=26
+root.Properties.Firmware.Version=9.10.1
+root.Properties.FirmwareManagement.Version=1.0
+root.Properties.GuardTour.GuardTour=yes
+root.Properties.GuardTour.MaxGuardTours=100
+root.Properties.GuardTour.MinGuardTourWaitTime=10
+root.Properties.GuardTour.RecordedTour=no
+root.Properties.HTTPS.HTTPS=yes
+root.Properties.Image.Format=jpeg,mjpeg,h264
+root.Properties.Image.NbrOfViews=2
+root.Properties.Image.Resolution=1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240
+root.Properties.Image.Rotation=0,180
+root.Properties.Image.ShowSuboptimalResolutions=false
+root.Properties.Image.H264.Profiles=Baseline,Main,High
+root.Properties.ImageSource.DayNight=yes
+root.Properties.IO.ManualTriggerNbr=6
+root.Properties.LEDControl.LEDControl=yes
+root.Properties.LightControl.LightControl2=yes
+root.Properties.LightControl.LightControlAvailable=yes
+root.Properties.LocalStorage.AutoRepair=yes
+root.Properties.LocalStorage.ContinuousRecording=yes
+root.Properties.LocalStorage.DiskEncryption=yes
+root.Properties.LocalStorage.DiskHealth=yes
+root.Properties.LocalStorage.ExportRecording=yes
+root.Properties.LocalStorage.FailOverRecording=yes
+root.Properties.LocalStorage.LocalStorage=yes
+root.Properties.LocalStorage.NbrOfContinuousRecordingProfiles=1
+root.Properties.LocalStorage.RequiredFileSystem=yes
+root.Properties.LocalStorage.SDCard=yes
+root.Properties.LocalStorage.StorageLimit=yes
+root.Properties.LocalStorage.Version=1.00
+root.Properties.Motion.MaxNbrOfWindows=10
+root.Properties.Motion.Motion=yes
+root.Properties.Network.WLAN.WLANScan2=yes
+root.Properties.NetworkShare.CIFS=yes
+root.Properties.NetworkShare.IPV6=yes
+root.Properties.NetworkShare.NameLookup=yes
+root.Properties.NetworkShare.NetworkShare=yes
+root.Properties.PackageManager.FormatListing=yes
+root.Properties.PackageManager.LicenseKeyManagement=yes
+root.Properties.PackageManager.PackageManager=yes
+root.Properties.PrivacyMask.MaxNbrOfPrivacyMasks=10
+root.Properties.PrivacyMask.Polygon=no
+root.Properties.PrivacyMask.PrivacyMask=no
+root.Properties.PrivacyMask.Query=list,position,listpxjson,positionpxjson
+root.Properties.PTZ.DigitalPTZ=yes
+root.Properties.PTZ.DriverManagement=no
+root.Properties.PTZ.DriverModeList=none
+root.Properties.PTZ.PTZ=yes
+root.Properties.PTZ.PTZOnQuadView=no
+root.Properties.PTZ.SelectableDriverMode=no
+root.Properties.RemoteService.RemoteService=no
+root.Properties.RTC.RTC=yes
+root.Properties.Sensor.PIR=yes
+root.Properties.Serial.Serial=no
+root.Properties.System.Architecture=armv7hf
+root.Properties.System.HardwareID=70E
+root.Properties.System.Language=English
+root.Properties.System.LanguageType=default
+root.Properties.System.SerialNumber=ACCC12345678
+root.Properties.System.Soc=Ambarella S2L (Flattened Device Tree)
+root.Properties.Tampering.Tampering=yes
+root.Properties.TemperatureSensor.Fan=no
+root.Properties.TemperatureSensor.Heater=no
+root.Properties.TemperatureSensor.TemperatureControl=yes
+root.Properties.TemperatureSensor.TemperatureSensor=yes
+root.Properties.VirtualInput.VirtualInput=yes
+root.Properties.ZipStream.ZipStream=yes"""
