@@ -17,8 +17,7 @@ class APIItems:
         LOGGER.debug(pformat(raw))
 
     def update(self, path=None):
-        if path is None:
-            path = self._path
+        path = path or self._path
         raw = self._request('get', path)
         self.process_raw(raw)
 

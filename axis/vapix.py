@@ -2,7 +2,7 @@
 
 import logging
 
-from .errors import AxisException, RequestError, Unauthorized
+from .errors import AxisException
 from .param_cgi import URL_GET as param_url, Params
 from .pwdgrp_cgi import URL_GET as pwdgrp_url, Users
 from .utils import session_request
@@ -16,13 +16,15 @@ class Vapix(object):
     def __init__(self, config):
         """Store local reference to device config."""
         self.config = config
-        self.params = {}
 
         self.params = None
         self.users = None
 
     def initialize_params(self, preload_data=True):
-        """Load device parameters and initialize parameter management."""
+        """Load device parameters and initialize parameter management.
+
+        Preload data can be disabled to selectively load params afterwards.
+        """
         params = ''
         if preload_data:
             params = self.request('get', param_url)
