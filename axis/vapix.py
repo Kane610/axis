@@ -28,6 +28,7 @@ class Vapix(object):
         params = ''
         if preload_data:
             params = self.request('get', param_url)
+
         self.params = Params(params, self.request)
 
     def initialize_users(self):
@@ -39,12 +40,16 @@ class Vapix(object):
         """Prepare HTTP request."""
         if method == 'get':
             session_method = self.config.session.get
+
         elif method == 'post':
             session_method = self.config.session.post
+
         else:
             raise AxisException
 
         url = self.config.url + path
         result = session_request(session_method, url, **kwargs)
+
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
+
         return result
