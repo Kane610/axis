@@ -13,11 +13,6 @@ URL = '/axis-cgi/param.cgi'
 URL_GET = URL + '?action=list'
 URL_GET_GROUP = URL_GET + '&group={group}'
 
-ADMIN = 'admin'
-OPERATOR = 'operator'
-VIEWER = 'viewer'
-ANONYMOUS = 'anonymous'
-
 BRAND = 'root.Brand'
 PROPERTIES = 'root.Properties'
 
