@@ -44,7 +44,7 @@ def test_initialize_users():
     mock_config.url = 'mock_url'
     mock_config.session.get = 'mock_get'
 
-    with patch('axis.vapix.session_request',return_value="""users="userv"
+    with patch('axis.vapix.session_request', return_value="""users="userv"
 viewer="userv"
 operator="usera"
 admin="usera"
