@@ -1,17 +1,16 @@
-"""Test Axis events.
+"""Test Axis event stream.
 
-pytest --cov-report term-missing --cov=axis.event tests/test_event.py
+pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
 """
 
 from unittest.mock import MagicMock, Mock, patch
 import pytest
 
-from axis.event import EventManager, get_event_list
+from axis.event_stream import EventManager
 
 from .event_fixtures import (
     FIRST_MESSAGE, PIR_INIT, PIR_CHANGE, VMD4_ANY_INIT, VMD4_ANY_CHANGE,
-    VMD4_C1P1_INIT, VMD4_C1P1_CHANGE, VMD4_C1P2_INIT, VMD4_C1P2_CHANGE,
-    EVENT_INSTANCES)
+    VMD4_C1P1_INIT, VMD4_C1P1_CHANGE, VMD4_C1P2_INIT, VMD4_C1P2_CHANGE)
 
 
 @pytest.fixture
@@ -32,16 +31,16 @@ def test_create_event_set_to_on(manager):
     assert manager.create_event_query(True) == 'on'
 
 
-def test_create_event_query_single_topic(manager):
-    """Verify that an event query can be created."""
-    assert manager.create_event_query(
-        'pir') == 'on&eventtopic=onvif:Device/axis:Sensor/PIR'
+# def test_create_event_query_single_topic(manager):
+#     """Verify that an event query can be created."""
+#     assert manager.create_event_query(
+#         'pir') == 'on&eventtopic=onvif:Device/axis:Sensor/PIR'
 
 
-def test_create_event_query_multiple_topics(manager):
-    """Verify that an event query can be created with multiple topics."""
-    assert manager.create_event_query(
-        ['pir', 'input']) == 'on&eventtopic=onvif:Device/axis:Sensor/PIR|onvif:Device/axis:IO/Port'
+# def test_create_event_query_multiple_topics(manager):
+#     """Verify that an event query can be created with multiple topics."""
+#     assert manager.create_event_query(
+#         ['pir', 'input']) == 'on&eventtopic=onvif:Device/axis:Sensor/PIR|onvif:Device/axis:IO/Port'
 
 
 def test_parse_event_first_message(manager):
@@ -152,20 +151,3 @@ def test_manage_event_vmd4_change(manager):
 
     event = manager.events['tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None']
     assert event.state == '1'
-
-
-def test_get_event_list():
-    """Verify device events list method."""
-    mock_config = Mock()
-    with patch('axis.event.session_request',
-               new=Mock(return_value=EVENT_INSTANCES)):
-        event_list = get_event_list(mock_config)
-
-    assert 'motion' not in event_list
-    assert 'vmd3' in event_list
-    assert 'pir' in event_list
-    assert 'sound' in event_list
-    assert 'daynight' in event_list
-    assert 'tampering' in event_list
-    assert 'input' not in event_list
-    assert 'vmd4' in event_list

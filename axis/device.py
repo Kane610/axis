@@ -5,7 +5,7 @@ import logging
 from .configuration import Configuration
 from .vapix import Vapix
 from .streammanager import StreamManager
-from .event import EventManager
+from .event_stream import EventManager
 
 _LOGGER = logging.getLogger(__name__)
 
