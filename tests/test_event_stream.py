@@ -31,18 +31,6 @@ def test_create_event_set_to_on(manager):
     assert manager.create_event_query(True) == 'on'
 
 
-# def test_create_event_query_single_topic(manager):
-#     """Verify that an event query can be created."""
-#     assert manager.create_event_query(
-#         'pir') == 'on&eventtopic=onvif:Device/axis:Sensor/PIR'
-
-
-# def test_create_event_query_multiple_topics(manager):
-#     """Verify that an event query can be created with multiple topics."""
-#     assert manager.create_event_query(
-#         ['pir', 'input']) == 'on&eventtopic=onvif:Device/axis:Sensor/PIR|onvif:Device/axis:IO/Port'
-
-
 def test_parse_event_first_message(manager):
     """Verify that first message doesn't do anything."""
     assert not manager.parse_event_xml(FIRST_MESSAGE)
@@ -105,8 +93,8 @@ def test_manage_event_pir_init(manager):
     assert event.topic == 'tns1:Device/tnsaxis:Sensor/PIR'
     assert event.source == 'sensor'
     assert event.id == '0'
-    assert event.event_class == 'motion'
-    assert event.event_type == 'PIR'
+    assert event.CLASS == 'motion'
+    assert event.TYPE == 'PIR'
     assert event.state == '0'
 
     mock_callback = Mock()
@@ -115,7 +103,6 @@ def test_manage_event_pir_init(manager):
     assert event.state == '1'
     assert event.is_tripped
     assert mock_callback.called
-    assert 'callback' not in event.as_dict()
 
     event.remove_callback(mock_callback)
     assert not event._callbacks
@@ -139,8 +126,8 @@ def test_manage_event_vmd4_init(manager):
     assert event.topic == 'tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY'
     assert not event.source
     assert event.id == 'Camera1ProfileANY'
-    assert event.event_class == 'motion'
-    assert event.event_type == 'VMD4'
+    assert event.CLASS == 'motion'
+    assert event.TYPE == 'VMD4'
     assert event.state == '0'
 
 
