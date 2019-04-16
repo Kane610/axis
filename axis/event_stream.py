@@ -7,6 +7,8 @@ from .utils import session_request
 
 _LOGGER = logging.getLogger(__name__)
 
+EVENT_NAME = '{topic}_{source}'
+
 EVENT_OPERATION = 'operation'
 EVENT_SOURCE = 'source'
 EVENT_SOURCE_IDX = 'source_idx'
@@ -21,25 +23,14 @@ SOURCE = re.compile(r'(?<=<tt:Source>).*Name="(?P<source>\w+)"' +
 DATA = re.compile(r'(?<=<tt:Data>).*Name="(?P<type>\w*)"' +
                   r'.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
 
-EVENT_NAME = '{topic}_{source}'
 
-
-class EventManager(object):
+class EventManager:
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, event_types, signal) -> None:
+    def __init__(self, signal) -> None:
         """Ready information about events."""
         self.signal = signal
         self.events = {}
-        self.query = self.create_event_query(event_types)
-
-    def create_event_query(self, events) -> str:
-        """Take a list of event types and return a query string."""
-        if events is False or events == 'off':
-            return 'off'
-
-        if events is True or events == 'on':
-            return 'on'
 
     def new_event(self, event_data: str) -> None:
         """New event to process."""
@@ -95,7 +86,8 @@ class EventManager(object):
 
             if name not in self.events:
                 self.events[name] = new_event
-                self.signal('add', new_event)
+                self.signal('add', name)
+                # self.signal('add', new_event)
 
         elif event[EVENT_OPERATION] == 'Changed' and name in self.events:
             self.events[name].state = event[EVENT_VALUE]

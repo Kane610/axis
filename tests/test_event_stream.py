@@ -16,19 +16,8 @@ from .event_fixtures import (
 @pytest.fixture
 def manager() -> EventManager:
     """Returns mocked event manager."""
-    event_types = False
     signal = Mock()
-    return EventManager(event_types, signal)
-
-
-def test_eventmanager(manager):
-    """Verify query is set to off if event types is empty."""
-    assert manager.query == 'off'
-
-
-def test_create_event_set_to_on(manager):
-    """Verify that an event query can be created."""
-    assert manager.create_event_query(True) == 'on'
+    return EventManager(signal)
 
 
 def test_parse_event_first_message(manager):

@@ -31,7 +31,7 @@ class StreamManager(object):
         rtsp = RTSP_URL.format(host=self.config.host)
         source = RTSP_SOURCE.format(video=self.video_query,
                                     audio=self.audio_query,
-                                    event=self.event.query)
+                                    event=self.event_query)
         _LOGGER.debug(rtsp + source)
         return rtsp + source
 
@@ -44,6 +44,11 @@ class StreamManager(object):
     def audio_query(self):
         """Generate audio query, not supported."""
         return 0
+
+    @property
+    def event_query(self):
+        """Generate event query."""
+        return 'on' if bool(self.event) else 'off'
 
     def session_callback(self, signal):
         """Signalling from stream session.
