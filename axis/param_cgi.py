@@ -14,6 +14,9 @@ URL_GET = URL + '?action=list'
 URL_GET_GROUP = URL_GET + '&group={group}'
 
 BRAND = 'root.Brand'
+INPUT = 'root.Input'
+IOPORT = 'root.IOPort'
+OUTPUT = 'root.Output'
 PROPERTIES = 'root.Properties'
 
 
@@ -51,6 +54,24 @@ class Brand:
     @property
     def weburl(self):
         return self[BRAND + '.WebURL'].raw
+
+
+class Port:
+    """Parameters describing device inputs and outputs."""
+
+    def update_ports(self):
+        """Update port groups of parameters."""
+        self.update(path=URL_GET_GROUP.format(group=INPUT))
+        self.update(path=URL_GET_GROUP.format(group=IOPORT))
+        self.update(path=URL_GET_GROUP.format(group=OUTPUT))
+
+    @property
+    def nbrofinput(self) -> int:
+        return self[INPUT + '.NbrOfInputs'].raw
+
+    @property
+    def output(self) -> int:
+        return self[OUTPUT + '.NbrOfOutputs'].raw
 
 
 class Properties:
