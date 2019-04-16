@@ -7,8 +7,8 @@ from .rtsp import (
 
 _LOGGER = logging.getLogger(__name__)
 
-RTSP_URL = 'rtsp://{host}/axis-media/media.amp'
-RTSP_SOURCE = '?video={video}&audio={audio}&event={event}'
+RTSP_URL = 'rtsp://{host}/axis-media/media.amp' \
+           '?video={video}&audio={audio}&event={event}'
 
 RETRY_TIMER = 15
 
@@ -28,12 +28,11 @@ class StreamManager(object):
     @property
     def stream_url(self):
         """Build url for stream."""
-        rtsp = RTSP_URL.format(host=self.config.host)
-        source = RTSP_SOURCE.format(video=self.video_query,
-                                    audio=self.audio_query,
-                                    event=self.event_query)
-        _LOGGER.debug(rtsp + source)
-        return rtsp + source
+        rtsp_url = RTSP_URL.format(
+            host=self.config.host, video=self.video_query,
+            audio=self.audio_query, event=self.event_query)
+        _LOGGER.debug(rtsp_url)
+        return rtsp_url
 
     @property
     def video_query(self):
