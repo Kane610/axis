@@ -58,8 +58,10 @@ class StreamManager(object):
         """
         if signal == SIGNAL_DATA:
             self.event.new_event(self.data)
+
         elif signal == SIGNAL_FAILED:
             self.retry()
+
         if signal in [SIGNAL_PLAYING, SIGNAL_FAILED] and \
                 self.connection_status_callback:
             self.connection_status_callback(signal)
