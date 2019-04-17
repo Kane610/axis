@@ -367,7 +367,7 @@ class RTSPSession(object):
             state = STATE_PLAYING
         else:
             state = STATE_STOPPED
-        _LOGGER.debug('RTSP session state %s', state)
+        _LOGGER.debug('RTSP session (%s) state %s', self.host, state)
         return state
 
     def update(self, response):
@@ -377,7 +377,7 @@ class RTSPSession(object):
         If device requires authentication resend previous message with auth.
         """
         data = response.splitlines()
-        _LOGGER.debug('Received data %s', data)
+        _LOGGER.debug('Received data %s from %s', data, self.host)
         while data:
             line = data.pop(0)
             if 'RTSP/1.0' in line:
