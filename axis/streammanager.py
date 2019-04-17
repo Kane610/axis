@@ -78,6 +78,7 @@ class StreamManager(object):
                 self.config.loop, self.stream_url, self.config.host,
                 self.config.username, self.config.password,
                 self.session_callback)
+            self.stream.start()
 
     def stop(self):
         """Stop stream."""

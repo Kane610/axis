@@ -11,6 +11,8 @@ import socket
 
 _LOGGER = logging.getLogger(__name__)
 
+RTSP_PORT = 554
+
 STATE_PAUSED = 'paused'
 STATE_PLAYING = 'playing'
 STATE_STARTING = 'starting'
@@ -37,9 +39,12 @@ class RTSPClient(asyncio.Protocol):
         self.method = RTSPMethods(self.session)
         self.transport = None
         self.time_out_handle = None
-        conn = loop.create_connection(
+
+    def start(self):
+        """Start session."""
+        conn = self.loop.create_connection(
             lambda: self, self.session.host, self.session.port)
-        task = loop.create_task(conn)
+        task = self.loop.create_task(conn)
         task.add_done_callback(self.init_done)
 
     def init_done(self, fut):
@@ -299,7 +304,7 @@ class RTSPSession(object):
         """Session parameters."""
         self.url = url
         self.host = host
-        self.port = 554
+        self.port = RTSP_PORT
         self.username = username
         self.password = password
         self.sequence = 0
