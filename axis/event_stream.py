@@ -77,17 +77,15 @@ class EventManager:
         name = EVENT_NAME.format(
             topic=event[EVENT_TOPIC], source=event.get(EVENT_SOURCE_IDX))
 
-        if event[EVENT_OPERATION] == 'Initialized':
-            new_event = create_event(event)
+        if event[EVENT_OPERATION] == 'Initialized' and name not in self.events:
 
-            if not new_event:
-                _LOGGER.debug('Unsupported event %s', event[EVENT_TOPIC])
-                return
+            for event_class in EVENT_CLASSES:
+                if event_class.TOPIC in event[EVENT_TOPIC]:
+                    self.events[name] = event_class(event)
+                    self.signal('add', name)
+                    return
 
-            if name not in self.events:
-                self.events[name] = new_event
-                self.signal('add', name)
-                # self.signal('add', new_event)
+            _LOGGER.debug('Unsupported event %s', event[EVENT_TOPIC])
 
         elif event[EVENT_OPERATION] == 'Changed' and name in self.events:
             self.events[name].state = event[EVENT_VALUE]
@@ -256,10 +254,3 @@ class Vmd4(AxisBinaryEvent):
 
 
 EVENT_CLASSES = (Audio, DayNight, Motion, Pir, Vmd3, Vmd4)
-
-
-def create_event(event: dict):
-    """Create event based on its topic."""
-    for event_class in EVENT_CLASSES:
-        if event_class.TOPIC in event[EVENT_TOPIC]:
-            return event_class(event)

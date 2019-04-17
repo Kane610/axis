@@ -3,14 +3,15 @@
 pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 import pytest
 
 from axis.event_stream import EventManager
 
 from .event_fixtures import (
-    FIRST_MESSAGE, PIR_INIT, PIR_CHANGE, VMD4_ANY_INIT, VMD4_ANY_CHANGE,
-    VMD4_C1P1_INIT, VMD4_C1P1_CHANGE, VMD4_C1P2_INIT, VMD4_C1P2_CHANGE)
+    FIRST_MESSAGE, AUDIO_INIT, DAYNIGHT_INIT, PIR_INIT, PIR_CHANGE, VMD3_INIT,
+    VMD4_ANY_INIT, VMD4_ANY_CHANGE, VMD4_C1P1_INIT, VMD4_C1P1_CHANGE,
+    VMD4_C1P2_INIT, VMD4_C1P2_CHANGE)
 
 
 @pytest.fixture
@@ -73,6 +74,32 @@ def test_parse_event_vmd4_change(manager):
     }
 
 
+def test_manage_event_audio_init(manager):
+    """Verify that a new audio event can be managed."""
+    manager.new_event(AUDIO_INIT)
+
+    event = manager.events['tns1:AudioSource/tnsaxis:TriggerLevel_1']
+    assert event.topic == 'tns1:AudioSource/tnsaxis:TriggerLevel'
+    assert event.source == 'channel'
+    assert event.id == '1'
+    assert event.CLASS == 'sound'
+    assert event.TYPE == 'Sound'
+    assert event.state == '0'
+
+
+def test_manage_event_daynight_init(manager):
+    """Verify that a new day/night event can be managed."""
+    manager.new_event(DAYNIGHT_INIT)
+
+    event = manager.events['tns1:VideoSource/tnsaxis:DayNightVision_1']
+    assert event.topic == 'tns1:VideoSource/tnsaxis:DayNightVision'
+    assert event.source == 'VideoSourceConfigurationToken'
+    assert event.id == '1'
+    assert event.CLASS == 'light'
+    assert event.TYPE == 'DayNight'
+    assert event.state == '1'
+
+
 def test_manage_event_pir_init(manager):
     """Verify that a new PIR event can be managed."""
     manager.new_event(PIR_INIT)
@@ -106,10 +133,22 @@ def test_manage_event_pir_change(manager):
     assert event.state == '1'
 
 
+def test_manage_event_vmd3_init(manager):
+    """Verify that a new VMD3 event can be managed."""
+    manager.new_event(VMD3_INIT)
+
+    event = manager.events['tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1_0']
+    assert event.topic == 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1'
+    assert event.source == 'areaid'
+    assert event.id == '0'
+    assert event.CLASS == 'motion'
+    assert event.TYPE == 'VMD3'
+    assert event.state == '0'
+
+
 def test_manage_event_vmd4_init(manager):
     """Verify that a new VMD4 event can be managed."""
     manager.new_event(VMD4_ANY_INIT)
-    assert manager.events
 
     event = manager.events['tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None']
     assert event.topic == 'tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY'
@@ -127,3 +166,22 @@ def test_manage_event_vmd4_change(manager):
 
     event = manager.events['tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None']
     assert event.state == '1'
+
+
+def test_manage_event_unsupported_event(manager):
+    """Verify that unsupported events aren't created."""
+    event = {
+        'operation': 'Initialized',
+        'topic': 'unsupported_topic'
+    }
+    manager.manage_event(event)
+    assert not manager.events
+
+
+def test_manage_event_initialize_event_already_exist(manager):
+    """Verify that initialize with an already existing event doesn't create."""
+    manager.new_event(VMD4_ANY_INIT)
+    assert manager.events
+
+    manager.new_event(VMD4_ANY_INIT)
+    assert len(manager.events) == 1
