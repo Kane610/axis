@@ -7,8 +7,8 @@ from .rtsp import (
 
 _LOGGER = logging.getLogger(__name__)
 
-RTSP_URL = 'rtsp://{host}/axis-media/media.amp'
-RTSP_SOURCE = '?video={video}&audio={audio}&event={event}'
+RTSP_URL = 'rtsp://{host}/axis-media/media.amp' \
+           '?video={video}&audio={audio}&event={event}'
 
 RETRY_TIMER = 15
 
@@ -17,7 +17,7 @@ class StreamManager(object):
     """Setup, start, stop and retry stream."""
 
     def __init__(self, config):
-        """Start stream if any event type is specified."""
+        """Setup stream manager."""
         self.config = config
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
@@ -28,12 +28,11 @@ class StreamManager(object):
     @property
     def stream_url(self):
         """Build url for stream."""
-        rtsp = RTSP_URL.format(host=self.config.host)
-        source = RTSP_SOURCE.format(video=self.video_query,
-                                    audio=self.audio_query,
-                                    event=self.event.query)
-        _LOGGER.debug(rtsp + source)
-        return rtsp + source
+        rtsp_url = RTSP_URL.format(
+            host=self.config.host, video=self.video_query,
+            audio=self.audio_query, event=self.event_query)
+        _LOGGER.debug(rtsp_url)
+        return rtsp_url
 
     @property
     def video_query(self):
@@ -45,6 +44,11 @@ class StreamManager(object):
         """Generate audio query, not supported."""
         return 0
 
+    @property
+    def event_query(self):
+        """Generate event query."""
+        return 'on' if bool(self.event) else 'off'
+
     def session_callback(self, signal):
         """Signalling from stream session.
 
@@ -54,8 +58,10 @@ class StreamManager(object):
         """
         if signal == SIGNAL_DATA:
             self.event.new_event(self.data)
+
         elif signal == SIGNAL_FAILED:
             self.retry()
+
         if signal in [SIGNAL_PLAYING, SIGNAL_FAILED] and \
                 self.connection_status_callback:
             self.connection_status_callback(signal)
@@ -72,6 +78,7 @@ class StreamManager(object):
                 self.config.loop, self.stream_url, self.config.host,
                 self.config.username, self.config.password,
                 self.session_callback)
+            self.stream.start()
 
     def stop(self):
         """Stop stream."""

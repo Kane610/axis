@@ -11,6 +11,8 @@ import socket
 
 _LOGGER = logging.getLogger(__name__)
 
+RTSP_PORT = 554
+
 STATE_PAUSED = 'paused'
 STATE_PLAYING = 'playing'
 STATE_STARTING = 'starting'
@@ -37,9 +39,12 @@ class RTSPClient(asyncio.Protocol):
         self.method = RTSPMethods(self.session)
         self.transport = None
         self.time_out_handle = None
-        conn = loop.create_connection(
+
+    def start(self):
+        """Start session."""
+        conn = self.loop.create_connection(
             lambda: self, self.session.host, self.session.port)
-        task = loop.create_task(conn)
+        task = self.loop.create_task(conn)
         task.add_done_callback(self.init_done)
 
     def init_done(self, fut):
@@ -299,7 +304,7 @@ class RTSPSession(object):
         """Session parameters."""
         self.url = url
         self.host = host
-        self.port = 554
+        self.port = RTSP_PORT
         self.username = username
         self.password = password
         self.sequence = 0
@@ -362,7 +367,7 @@ class RTSPSession(object):
             state = STATE_PLAYING
         else:
             state = STATE_STOPPED
-        _LOGGER.debug('RTSP session state %s', state)
+        _LOGGER.debug('RTSP session (%s) state %s', self.host, state)
         return state
 
     def update(self, response):
@@ -372,7 +377,7 @@ class RTSPSession(object):
         If device requires authentication resend previous message with auth.
         """
         data = response.splitlines()
-        _LOGGER.debug('Received data %s', data)
+        _LOGGER.debug('Received data %s from %s', data, self.host)
         while data:
             line = data.pop(0)
             if 'RTSP/1.0' in line:

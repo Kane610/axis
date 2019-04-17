@@ -1,47 +1,24 @@
-"""Test Axis events.
+"""Test Axis event stream.
 
-pytest --cov-report term-missing --cov=axis.event tests/test_event.py
+pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 import pytest
 
-from axis.event import EventManager, get_event_list
+from axis.event_stream import EventManager
 
 from .event_fixtures import (
-    FIRST_MESSAGE, PIR_INIT, PIR_CHANGE, VMD4_ANY_INIT, VMD4_ANY_CHANGE,
-    VMD4_C1P1_INIT, VMD4_C1P1_CHANGE, VMD4_C1P2_INIT, VMD4_C1P2_CHANGE,
-    EVENT_INSTANCES)
+    FIRST_MESSAGE, AUDIO_INIT, DAYNIGHT_INIT, PIR_INIT, PIR_CHANGE, VMD3_INIT,
+    VMD4_ANY_INIT, VMD4_ANY_CHANGE, VMD4_C1P1_INIT, VMD4_C1P1_CHANGE,
+    VMD4_C1P2_INIT, VMD4_C1P2_CHANGE)
 
 
 @pytest.fixture
 def manager() -> EventManager:
     """Returns mocked event manager."""
-    event_types = False
     signal = Mock()
-    return EventManager(event_types, signal)
-
-
-def test_eventmanager(manager):
-    """Verify query is set to off if event types is empty."""
-    assert manager.query == 'off'
-
-
-def test_create_event_set_to_on(manager):
-    """Verify that an event query can be created."""
-    assert manager.create_event_query(True) == 'on'
-
-
-def test_create_event_query_single_topic(manager):
-    """Verify that an event query can be created."""
-    assert manager.create_event_query(
-        'pir') == 'on&eventtopic=onvif:Device/axis:Sensor/PIR'
-
-
-def test_create_event_query_multiple_topics(manager):
-    """Verify that an event query can be created with multiple topics."""
-    assert manager.create_event_query(
-        ['pir', 'input']) == 'on&eventtopic=onvif:Device/axis:Sensor/PIR|onvif:Device/axis:IO/Port'
+    return EventManager(signal)
 
 
 def test_parse_event_first_message(manager):
@@ -97,6 +74,32 @@ def test_parse_event_vmd4_change(manager):
     }
 
 
+def test_manage_event_audio_init(manager):
+    """Verify that a new audio event can be managed."""
+    manager.new_event(AUDIO_INIT)
+
+    event = manager.events['tns1:AudioSource/tnsaxis:TriggerLevel_1']
+    assert event.topic == 'tns1:AudioSource/tnsaxis:TriggerLevel'
+    assert event.source == 'channel'
+    assert event.id == '1'
+    assert event.CLASS == 'sound'
+    assert event.TYPE == 'Sound'
+    assert event.state == '0'
+
+
+def test_manage_event_daynight_init(manager):
+    """Verify that a new day/night event can be managed."""
+    manager.new_event(DAYNIGHT_INIT)
+
+    event = manager.events['tns1:VideoSource/tnsaxis:DayNightVision_1']
+    assert event.topic == 'tns1:VideoSource/tnsaxis:DayNightVision'
+    assert event.source == 'VideoSourceConfigurationToken'
+    assert event.id == '1'
+    assert event.CLASS == 'light'
+    assert event.TYPE == 'DayNight'
+    assert event.state == '1'
+
+
 def test_manage_event_pir_init(manager):
     """Verify that a new PIR event can be managed."""
     manager.new_event(PIR_INIT)
@@ -106,8 +109,8 @@ def test_manage_event_pir_init(manager):
     assert event.topic == 'tns1:Device/tnsaxis:Sensor/PIR'
     assert event.source == 'sensor'
     assert event.id == '0'
-    assert event.event_class == 'motion'
-    assert event.event_type == 'PIR'
+    assert event.CLASS == 'motion'
+    assert event.TYPE == 'PIR'
     assert event.state == '0'
 
     mock_callback = Mock()
@@ -116,7 +119,6 @@ def test_manage_event_pir_init(manager):
     assert event.state == '1'
     assert event.is_tripped
     assert mock_callback.called
-    assert 'callback' not in event.as_dict()
 
     event.remove_callback(mock_callback)
     assert not event._callbacks
@@ -131,17 +133,29 @@ def test_manage_event_pir_change(manager):
     assert event.state == '1'
 
 
+def test_manage_event_vmd3_init(manager):
+    """Verify that a new VMD3 event can be managed."""
+    manager.new_event(VMD3_INIT)
+
+    event = manager.events['tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1_0']
+    assert event.topic == 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1'
+    assert event.source == 'areaid'
+    assert event.id == '0'
+    assert event.CLASS == 'motion'
+    assert event.TYPE == 'VMD3'
+    assert event.state == '0'
+
+
 def test_manage_event_vmd4_init(manager):
     """Verify that a new VMD4 event can be managed."""
     manager.new_event(VMD4_ANY_INIT)
-    assert manager.events
 
     event = manager.events['tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None']
     assert event.topic == 'tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY'
     assert not event.source
     assert event.id == 'Camera1ProfileANY'
-    assert event.event_class == 'motion'
-    assert event.event_type == 'VMD4'
+    assert event.CLASS == 'motion'
+    assert event.TYPE == 'VMD4'
     assert event.state == '0'
 
 
@@ -154,18 +168,20 @@ def test_manage_event_vmd4_change(manager):
     assert event.state == '1'
 
 
-def test_get_event_list():
-    """Verify device events list method."""
-    mock_config = Mock()
-    with patch('axis.event.session_request',
-               new=Mock(return_value=EVENT_INSTANCES)):
-        event_list = get_event_list(mock_config)
+def test_manage_event_unsupported_event(manager):
+    """Verify that unsupported events aren't created."""
+    event = {
+        'operation': 'Initialized',
+        'topic': 'unsupported_topic'
+    }
+    manager.manage_event(event)
+    assert not manager.events
 
-    assert 'motion' not in event_list
-    assert 'vmd3' in event_list
-    assert 'pir' in event_list
-    assert 'sound' in event_list
-    assert 'daynight' in event_list
-    assert 'tampering' in event_list
-    assert 'input' not in event_list
-    assert 'vmd4' in event_list
+
+def test_manage_event_initialize_event_already_exist(manager):
+    """Verify that initialize with an already existing event doesn't create."""
+    manager.new_event(VMD4_ANY_INIT)
+    assert manager.events
+
+    manager.new_event(VMD4_ANY_INIT)
+    assert len(manager.events) == 1
