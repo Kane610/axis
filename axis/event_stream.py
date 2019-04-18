@@ -7,6 +7,12 @@ from .utils import session_request
 
 _LOGGER = logging.getLogger(__name__)
 
+CLASS_INPUT = 'input'
+CLASS_LIGHT = 'light'
+CLASS_MOTION = 'motion'
+CLASS_OUTPUT = 'output'
+CLASS_SOUND = 'sound'
+
 EVENT_NAME = '{topic}_{source}'
 
 EVENT_OPERATION = 'operation'
@@ -157,7 +163,7 @@ class Audio(AxisBinaryEvent):
     }
     """
     TOPIC = 'tns1:AudioSource/tnsaxis:TriggerLevel'
-    CLASS = 'sound'
+    CLASS = CLASS_SOUND
     TYPE = 'Sound'
 
     def __init__(self, event: dict) -> None:
@@ -177,8 +183,28 @@ class DayNight(AxisBinaryEvent):
     }
     """
     TOPIC = 'tns1:VideoSource/tnsaxis:DayNightVision'
-    CLASS = 'light'
+    CLASS = CLASS_LIGHT
     TYPE = 'DayNight'
+
+    def __init__(self, event: dict) -> None:
+        super().__init__(event)
+
+
+class Input(AxisBinaryEvent):
+    """Digital input event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:Device/tnsaxis:IO/Port',
+        'source': 'port',
+        'source_idx': '0',
+        'type': 'state',
+        'value': '0'
+    }
+    """
+    TOPIC = 'tns1:Device/tnsaxis:IO/Port'
+    CLASS = CLASS_INPUT
+    TYPE = 'Input'
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -187,7 +213,7 @@ class DayNight(AxisBinaryEvent):
 class Motion(AxisBinaryEvent):
     """Motion detection event."""
     TOPIC = 'tns1:VideoAnalytics/tnsaxis:MotionDetection'
-    CLASS = 'motion'
+    CLASS = CLASS_MOTION
     TYPE = 'Motion'
 
     def __init__(self, event: dict) -> None:
@@ -207,8 +233,28 @@ class Pir(AxisBinaryEvent):
     }
     """
     TOPIC = 'tns1:Device/tnsaxis:Sensor/PIR'
-    CLASS = 'motion'
+    CLASS = CLASS_MOTION
     TYPE = 'PIR'
+
+    def __init__(self, event: dict) -> None:
+        super().__init__(event)
+
+
+class Relay(AxisBinaryEvent):
+    """Relay event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:Device/Trigger/Relay',
+        'source': 'RelayToken',
+        'source_idx': '0',
+        'type': 'LogicalState',
+        'value': 'inactive'
+    }
+    """
+    TOPIC = 'tns1:Device/Trigger/Relay'
+    CLASS = CLASS_OUTPUT
+    TYPE = 'Relay'
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -227,7 +273,7 @@ class Vmd3(AxisBinaryEvent):
     }
     """
     TOPIC = 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1'
-    CLASS = 'motion'
+    CLASS = CLASS_MOTION
     TYPE = 'VMD3'
 
     def __init__(self, event: dict) -> None:
@@ -245,7 +291,7 @@ class Vmd4(AxisBinaryEvent):
     }
     """
     TOPIC = 'tnsaxis:CameraApplicationPlatform/VMD'
-    CLASS = 'motion'
+    CLASS = CLASS_MOTION
     TYPE = 'VMD4'
 
     def __init__(self, event: dict) -> None:
@@ -253,4 +299,13 @@ class Vmd4(AxisBinaryEvent):
         self.id = event[EVENT_TOPIC].split('/')[-1]
 
 
-EVENT_CLASSES = (Audio, DayNight, Motion, Pir, Vmd3, Vmd4)
+EVENT_CLASSES = (Audio, DayNight, Input, Motion, Pir, Relay, Vmd3, Vmd4)
+
+
+# Future events
+# {'operation': 'Initialized', 'topic': 'tnsaxis:Storage/Recording', 'type': 'recording', 'value': '0'}
+# {'operation': 'Initialized', 'topic': 'tns1:Device/tnsaxis:HardwareFailure/StorageFailure', 'source': 'disk_id', 'source_idx': 'SD_DISK', 'type': 'disruption', 'value': '1'}
+# {'operation': 'Initialized', 'topic': 'tns1:VideoSource/tnsaxis:LiveStreamAccessed', 'type': 'accessed', 'value': '1'}
+# {'operation': 'Initialized', 'topic': 'tns1:Device/Trigger/DigitalInput', 'source': 'InputToken', 'source_idx': '0', 'type': 'LogicalState', 'value': 'false'}
+# {'operation': 'Initialized', 'topic': 'tns1:RuleEngine/MotionRegionDetector/Motion', 'source': 'VideoSource', 'source_idx': '0', 'type': 'State', 'value': '0'}
+# {'operation': 'Initialized', 'topic': 'tnsaxis:Storage/Disruption', 'source': 'disk_id', 'source_idx': 'NetworkShare', 'type': 'disruption', 'value': '1'}

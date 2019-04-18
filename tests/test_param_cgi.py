@@ -4,9 +4,9 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
-from axis.param_cgi import BRAND, PROPERTIES, Params
+from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
 
 
 def test_params():
@@ -14,6 +14,7 @@ def test_params():
     mock_request = Mock()
     params = Params(fixture, mock_request)
 
+    # Brand
     assert params.brand == 'AXIS'
     assert params.prodfullname == 'AXIS M1065-LW Network Camera'
     assert params.prodnbr == 'M1065-LW'
@@ -22,6 +23,17 @@ def test_params():
     assert params.prodvariant == ''
     assert params.weburl == 'http://www.axis.com'
 
+    # Ports
+    assert params.nbrofinput == '1'
+    assert params.nbrofoutput == '0'
+    assert params.ports == {
+        'root.IOPort.I0.Configurable': 'no',
+        'root.IOPort.I0.Direction': 'input',
+        'root.IOPort.I0.Input.Name': 'PIR sensor',
+        'root.IOPort.I0.Input.Trig': 'closed'
+    }
+
+    # Properties
     assert params.api_http_version == '3'
     assert params.api_metadata == 'yes'
     assert params.api_metadata_version == '1.0'
@@ -58,6 +70,27 @@ def test_update_brand():
     assert params[BRAND + '.ProdType'].raw == 'Network Camera'
     assert params[BRAND + '.ProdVariant'].raw == ''
     assert params[BRAND + '.WebURL'].raw == 'http://www.axis.com'
+
+
+def test_update_ports():
+    """Verify that update brand works."""
+    mock_request = Mock()
+    mock_request.return_value = fixture_ports
+    params = Params('', mock_request)
+    params.update_ports()
+
+    mock_request.assert_has_calls([
+        call('get', '/axis-cgi/param.cgi?action=list&group=root.Input'),
+        call('get', '/axis-cgi/param.cgi?action=list&group=root.IOPort'),
+        call('get', '/axis-cgi/param.cgi?action=list&group=root.Output')
+    ])
+
+    assert params[INPUT + '.NbrOfInputs'].raw == '1'
+    assert params[IOPORT + '.I0.Configurable'].raw == 'no'
+    assert params[IOPORT + '.I0.Direction'].raw == 'input'
+    assert params[IOPORT + '.I0.Input.Name'].raw == 'PIR sensor'
+    assert params[IOPORT + '.I0.Input.Trig'].raw == 'closed'
+    assert params[OUTPUT + '.NbrOfOutputs'].raw == '0'
 
 
 def test_update_properties():
@@ -974,6 +1007,15 @@ root.Brand.ProdShortName=AXIS M1065-LW
 root.Brand.ProdType=Network Camera
 root.Brand.ProdVariant=
 root.Brand.WebURL=http://www.axis.com"""
+
+
+fixture_ports = """root.Input.NbrOfInputs=1
+root.IOPort.I0.Configurable=no
+root.IOPort.I0.Direction=input
+root.IOPort.I0.Input.Name=PIR sensor
+root.IOPort.I0.Input.Trig=closed
+root.Output.NbrOfOutputs=0
+"""
 
 
 fixture_properties = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
