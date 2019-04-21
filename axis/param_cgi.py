@@ -141,7 +141,7 @@ class Properties:
 class Params(APIItems, Brand, Ports, Properties):
     """Represents all parameters of param.cgi."""
 
-    def __init__(self, raw: str, request: str) -> None:
+    def __init__(self, raw: str, request: object) -> None:
         super().__init__(raw, request, URL_GET, Param)
 
     def process_raw(self, raw: str) -> None:

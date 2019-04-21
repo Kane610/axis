@@ -9,16 +9,25 @@ Virtual input API.
 """
 import re
 
+from urllib.parse import quote
+
 from .api import APIItems
 from .param_cgi import IOPORT
 
 PROPERTY = 'Properties.API.HTTP.Version=3'
 
 URL = '/axis-cgi/io/port.cgi'
-URL_GET = URL + '?action=list'
-URL_GET_GROUP = URL_GET + '&group={group}'
+ACTION = '?action={action}'
+
+DIRECTION_IN = 'input'
+DIRECTION_OUT = 'output'
 
 REGEX_PORT_INDEX = re.compile(r'\d+')
+
+# Check status of port 1 and 2.
+# http://myserver/axis-cgi/io/port.cgi?check=1,2
+# Check if port 3 is active.
+# http://myserver/axis-cgi/io/port.cgi?checkactive=3
 
 
 class Ports(APIItems):
@@ -27,7 +36,7 @@ class Ports(APIItems):
     def __init__(self, param_cgi: object, request: str) -> None:
         self.param_cgi = param_cgi
         raw = self.param_cgi.ports
-        super().__init__(raw, request, URL_GET, Port)
+        super().__init__(raw, request, None, Port)
 
     def update(self) -> None:
         self.param_cgi.update_ports()
@@ -56,7 +65,7 @@ class Ports(APIItems):
 class Port:
     """Represents a port."""
 
-    def __init__(self, id: str, raw: dict, request: str) -> None:
+    def __init__(self, id: str, raw: dict, request: object) -> None:
         self.id = id
         self.raw = raw
         self._request = request
@@ -101,3 +110,28 @@ class Port:
         open=The output port is active when the circuit is open.
         """
         return self.raw['Output.Active']
+
+    def action(self, action):
+        r"""Activate or deactivate an output.
+
+        Use the <wait> option to activate/deactivate the port for a
+            limited period of time.
+        <Port ID> = Port name. Default: Name from Output.Name
+        <a> = Action character. /=active, \=inactive
+        <wait> = Delay before the next action. Unit: milliseconds
+        Note: The :, / and \ characters must be percent-encoded in the URI.
+            See Percent encoding.
+        Example:
+            To set output 1 to active, use 1:/.
+            In the URI, the action argument becomes action=1%3A%2F
+        """
+        if not self.direction == DIRECTION_OUT:
+            return
+
+        port_action = quote(
+            '{port}:{action}'.format(port=int(self.id)+1, action=action),
+            safe=''
+        )
+        url = URL + ACTION.format(action=port_action)
+
+        self._request('get', url)
