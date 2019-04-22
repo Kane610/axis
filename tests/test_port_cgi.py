@@ -11,7 +11,15 @@ from axis.port_cgi import Port
 
 def test_port():
     mock_request = Mock()
-    port = Port('0', 'raw', mock_request)
+    raw = {
+            'Direction': 'output'
+    }
+    port = Port('0', raw, mock_request)
     port.action('/')
     mock_request.assert_called_with(
         'get', '/axis-cgi/io/port.cgi?action=1%3A%2F')
+
+
+        #     await hass.async_add_executor_job(
+        #         device.vapix.params.update_ports)
+        # print(device.vapix.params.ports)

@@ -24,11 +24,6 @@ DIRECTION_OUT = 'output'
 
 REGEX_PORT_INDEX = re.compile(r'\d+')
 
-# Check status of port 1 and 2.
-# http://myserver/axis-cgi/io/port.cgi?check=1,2
-# Check if port 3 is active.
-# http://myserver/axis-cgi/io/port.cgi?checkactive=3
-
 
 class Ports(APIItems):
     """Represents all ports of io/port.cgi."""
@@ -51,13 +46,13 @@ class Ports(APIItems):
         raw_ports = {}
 
         for param in raw:
-            idx = REGEX_PORT_INDEX.search(param).group(0)
+            port_index = REGEX_PORT_INDEX.search(param).group(0)
 
-            if idx not in raw_ports:
-                raw_ports[idx] = {}
+            if port_index not in raw_ports:
+                raw_ports[port_index] = {}
 
-            name = param.replace(IOPORT + '.I' + idx + '.', '')
-            raw_ports[idx][name] = raw[param]
+            name = param.replace(IOPORT + '.I' + port_index + '.', '')
+            raw_ports[port_index][name] = raw[param]
 
         super().process_raw(raw_ports)
 
@@ -96,6 +91,16 @@ class Port:
         open=The input port triggers when the circuit is open.
         """
         return self.raw['Input.Trig']
+
+    @property
+    def name(self) -> str:
+        """Return name relevant to direction."""
+        try:
+            if self.direction == DIRECTION_IN:
+                return self.input_name
+            return self.output_name
+        except KeyError:
+            return None
 
     @property
     def output_name(self) -> str:

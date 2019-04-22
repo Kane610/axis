@@ -303,9 +303,47 @@ EVENT_CLASSES = (Audio, DayNight, Input, Motion, Pir, Relay, Vmd3, Vmd4)
 
 
 # Future events
-# {'operation': 'Initialized', 'topic': 'tnsaxis:Storage/Recording', 'type': 'recording', 'value': '0'}
-# {'operation': 'Initialized', 'topic': 'tns1:Device/tnsaxis:HardwareFailure/StorageFailure', 'source': 'disk_id', 'source_idx': 'SD_DISK', 'type': 'disruption', 'value': '1'}
-# {'operation': 'Initialized', 'topic': 'tns1:VideoSource/tnsaxis:LiveStreamAccessed', 'type': 'accessed', 'value': '1'}
-# {'operation': 'Initialized', 'topic': 'tns1:Device/Trigger/DigitalInput', 'source': 'InputToken', 'source_idx': '0', 'type': 'LogicalState', 'value': 'false'}
-# {'operation': 'Initialized', 'topic': 'tns1:RuleEngine/MotionRegionDetector/Motion', 'source': 'VideoSource', 'source_idx': '0', 'type': 'State', 'value': '0'}
-# {'operation': 'Initialized', 'topic': 'tnsaxis:Storage/Disruption', 'source': 'disk_id', 'source_idx': 'NetworkShare', 'type': 'disruption', 'value': '1'}
+# {
+#   'operation': 'Initialized',
+#   'topic': 'tnsaxis:Storage/Recording',
+#   'type': 'recording',
+#   'value': '0'
+# }
+# {
+#   'operation': 'Initialized',
+#   'topic': 'tnsaxis:Storage/Disruption',
+#   'source': 'disk_id',
+#   'source_idx': 'NetworkShare',
+#   'type': 'disruption',
+#   'value': '1'
+# }
+# {
+#   'operation': 'Initialized',
+#   'topic': 'tns1:Device/tnsaxis:HardwareFailure/StorageFailure',
+#   'source': 'disk_id',
+#   'source_idx': 'SD_DISK',
+#   'type': 'disruption',
+#   'value': '1'
+# }
+# {
+#   'operation': 'Initialized',
+#   'topic': 'tns1:VideoSource/tnsaxis:LiveStreamAccessed',
+#   'type': 'accessed',
+#   'value': '1'
+# }
+# {
+#   'operation': 'Initialized',
+#   'topic': 'tns1:Device/Trigger/DigitalInput',
+#   'source': 'InputToken',
+#   'source_idx': '0',
+#   'type': 'LogicalState',
+#   'value': 'false'
+# }
+# {
+#   'operation': 'Initialized',
+#   'topic': 'tns1:RuleEngine/MotionRegionDetector/Motion',
+#   'source': 'VideoSource',
+#   'source_idx': '0',
+#   'type': 'State',
+#   'value': '0'
+# }
