@@ -9,9 +9,10 @@ import pytest
 from axis.event_stream import EventManager
 
 from .event_fixtures import (
-    FIRST_MESSAGE, AUDIO_INIT, DAYNIGHT_INIT, PIR_INIT, PIR_CHANGE, VMD3_INIT,
-    VMD4_ANY_INIT, VMD4_ANY_CHANGE, VMD4_C1P1_INIT, VMD4_C1P1_CHANGE,
-    VMD4_C1P2_INIT, VMD4_C1P2_CHANGE)
+    FIRST_MESSAGE, AUDIO_INIT, DAYNIGHT_INIT, PIR_INIT, PIR_CHANGE,
+    PORT_0_INIT, PORT_ANY_INIT, RELAY_INIT,VMD3_INIT, VMD4_ANY_INIT,
+    VMD4_ANY_CHANGE, VMD4_C1P1_INIT, VMD4_C1P1_CHANGE, VMD4_C1P2_INIT,
+    VMD4_C1P2_CHANGE)
 
 
 @pytest.fixture
@@ -100,6 +101,30 @@ def test_manage_event_daynight_init(manager):
     assert event.state == '1'
 
 
+def test_manage_event_port_0_init(manager):
+    """Verify that a new day/night event can be managed."""
+    manager.new_event(PORT_0_INIT)
+
+    event = manager.events['tns1:Device/tnsaxis:IO/Port_1']
+    assert event.topic == 'tns1:Device/tnsaxis:IO/Port'
+    assert event.source == 'port'
+    assert event.id == '1'
+    assert event.CLASS == 'input'
+    assert event.TYPE == 'Input'
+    assert event.state == '0'
+
+
+def test_manage_event_port_any_init(manager):
+    """Verify that a new day/night event can be managed."""
+    manager.new_event(PORT_ANY_INIT)
+
+    event = manager.events['tns1:Device/tnsaxis:IO/Port_None']
+    assert event.topic == 'tns1:Device/tnsaxis:IO/Port'
+    assert event.CLASS == 'input'
+    assert event.TYPE == 'Input'
+    assert event.state == '0'
+
+
 def test_manage_event_pir_init(manager):
     """Verify that a new PIR event can be managed."""
     manager.new_event(PIR_INIT)
@@ -131,6 +156,19 @@ def test_manage_event_pir_change(manager):
 
     event = manager.events['tns1:Device/tnsaxis:Sensor/PIR_0']
     assert event.state == '1'
+
+
+def test_manage_event_port_any_init(manager):
+    """Verify that a new day/night event can be managed."""
+    manager.new_event(RELAY_INIT)
+
+    event = manager.events['tns1:Device/Trigger/Relay_3']
+    assert event.topic == 'tns1:Device/Trigger/Relay'
+    assert event.source == 'RelayToken'
+    assert event.id == '3'
+    assert event.CLASS == 'output'
+    assert event.TYPE == 'Relay'
+    assert event.state == 'inactive'
 
 
 def test_manage_event_vmd3_init(manager):
