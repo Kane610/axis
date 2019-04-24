@@ -68,7 +68,7 @@ class Port:
     @property
     def configurable(self) -> str:
         """The port is configurable or not."""
-        return self.raw['Configurable']
+        return self.raw.get('Configurable', 'no')
 
     @property
     def direction(self) -> str:
@@ -76,12 +76,7 @@ class Port:
 
         Read-only for non-configurable ports.
         """
-        return self.raw['Direction']
-
-    @property
-    def input_name(self) -> str:
-        """User-friendly name for the input."""
-        return self.raw['Input.Name']
+        return self.raw.get('Direction', DIRECTION_IN)
 
     @property
     def input_trig(self) -> str:
@@ -90,22 +85,14 @@ class Port:
         closed=The input port triggers when the circuit is closed.
         open=The input port triggers when the circuit is open.
         """
-        return self.raw['Input.Trig']
+        return self.raw.get('Input.Trig', '')
 
     @property
     def name(self) -> str:
         """Return name relevant to direction."""
-        try:
-            if self.direction == DIRECTION_IN:
-                return self.input_name
-            return self.output_name
-        except KeyError:
-            return None
-
-    @property
-    def output_name(self) -> str:
-        """User-friendly name for the output."""
-        return self.raw['Output.Name']
+        if self.direction == DIRECTION_IN:
+            return self.raw.get('Input.Name', '')
+        return self.raw.get('Output.Name', '')
 
     @property
     def output_active(self) -> str:
@@ -114,7 +101,7 @@ class Port:
         closed=The output port is active when the circuit is closed.
         open=The output port is active when the circuit is open.
         """
-        return self.raw['Output.Active']
+        return self.raw.get('Output.Active', '')
 
     def action(self, action):
         r"""Activate or deactivate an output.

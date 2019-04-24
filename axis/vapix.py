@@ -11,7 +11,7 @@ from .utils import session_request
 _LOGGER = logging.getLogger(__name__)
 
 
-class Vapix(object):
+class Vapix:
     """Vapix parameter request."""
 
     def __init__(self, config) -> None:
@@ -34,8 +34,10 @@ class Vapix(object):
         self.params = Params(params, self.request)
 
     def initialize_ports(self) -> None:
+        """Load IO port parameters for device."""
         if not self.params:
-            self.initialize_params()
+            self.initialize_params(preload_data=False)
+            self.params.update_ports()
 
         self.ports = Ports(self.params, self.request)
 
