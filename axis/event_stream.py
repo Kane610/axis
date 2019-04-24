@@ -260,6 +260,26 @@ class Relay(AxisBinaryEvent):
         super().__init__(event)
 
 
+class SupervisedInput(AxisBinaryEvent):
+    """Supervised input event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:Device/tnsaxis:IO/SupervisedPort',
+        'source': 'port',
+        'source_idx': '0',
+        'type': 'state',
+        'value': '0'
+    }
+    """
+    TOPIC = 'tns1:Device/tnsaxis:IO/SupervisedPort'
+    CLASS = CLASS_INPUT
+    TYPE = 'Input'
+
+    def __init__(self, event: dict) -> None:
+        super().__init__(event)
+
+
 class Vmd3(AxisBinaryEvent):
     """Visual Motion Detection 3.
 
@@ -299,7 +319,8 @@ class Vmd4(AxisBinaryEvent):
         self.id = event[EVENT_TOPIC].split('/')[-1]
 
 
-EVENT_CLASSES = (Audio, DayNight, Input, Motion, Pir, Relay, Vmd3, Vmd4)
+EVENT_CLASSES = (
+    Audio, DayNight, Input, Motion, Pir, Relay, SupervisedInput, Vmd3, Vmd4)
 
 
 # Future events
