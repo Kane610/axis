@@ -100,6 +100,7 @@ class Users(APIItems):
             }
             for user in REGEX_STRING.findall(raw_dict['users'])
         }
+
         super().process_raw(raw_users)
 
 

@@ -119,7 +119,9 @@ class Properties:
 
     @property
     def image_format(self) -> str:
-        return self[PROPERTIES + '.Image.Format'].raw
+        if PROPERTIES + '.Image.Format' in self:
+            return self[PROPERTIES + '.Image.Format'].raw
+        return None
 
     @property
     def image_nbrofviews(self) -> str:
@@ -150,6 +152,7 @@ class Params(APIItems, Brand, Ports, Properties):
         Prepare parameters to work with APIItems.
         """
         raw_params = dict(group.split('=', 1) for group in raw.splitlines())
+
         super().process_raw(raw_params)
 
 

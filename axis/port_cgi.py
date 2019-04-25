@@ -31,6 +31,7 @@ class Ports(APIItems):
     def __init__(self, param_cgi: object, request: str) -> None:
         self.param_cgi = param_cgi
         raw = self.param_cgi.ports
+
         super().__init__(raw, request, None, Port)
 
     def update(self) -> None:

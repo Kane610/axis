@@ -130,7 +130,7 @@ class AxisBinaryEvent:
     @property
     def is_tripped(self) -> bool:
         """Event is tripped now."""
-        return self._state == '1'
+        return self.state == '1'
 
     def register_callback(self, callback) -> None:
         """Register callback for state updates."""
@@ -259,6 +259,11 @@ class Relay(AxisBinaryEvent):
     def __init__(self, event: dict) -> None:
         super().__init__(event)
 
+    @property
+    def is_tripped(self) -> bool:
+        """Event is tripped now."""
+        return self.state == 'active'
+
 
 class SupervisedInput(AxisBinaryEvent):
     """Supervised input event.
@@ -274,7 +279,7 @@ class SupervisedInput(AxisBinaryEvent):
     """
     TOPIC = 'tns1:Device/tnsaxis:IO/SupervisedPort'
     CLASS = CLASS_INPUT
-    TYPE = 'Input'
+    TYPE = 'Supervised Input'
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
