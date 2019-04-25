@@ -8,7 +8,7 @@ LOGGER = logging.getLogger(__name__)
 class APIItems:
     """Base class for a map of API Items."""
 
-    def __init__(self, raw, request, path, item_cls):
+    def __init__(self, raw, request, path, item_cls) -> None:
         self._request = request
         self._path = path
         self._item_cls = item_cls
@@ -16,12 +16,12 @@ class APIItems:
         self.process_raw(raw)
         LOGGER.debug(pformat(raw))
 
-    def update(self, path=None):
+    def update(self, path=None) -> None:
         path = path or self._path
         raw = self._request('get', path)
         self.process_raw(raw)
 
-    def process_raw(self, raw):
+    def process_raw(self, raw: dict) -> None:
         for id, raw_item in raw.items():
             obj = self._items.get(id)
 
@@ -33,7 +33,7 @@ class APIItems:
     def values(self):
         return self._items.values()
 
-    def __getitem__(self, obj_id):
+    def __getitem__(self, obj_id: str):
         return self._items[obj_id]
 
     def __iter__(self):

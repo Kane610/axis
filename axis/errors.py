@@ -24,12 +24,17 @@ class LoginRequired(AxisException):
     """User is logged out."""
 
 
+class MethodNotAllowed(AxisException):
+    """Invalid request."""
+
+
 class NoPermission(AxisException):
     """Users permissions are not high enough."""
 
 
 ERRORS = {
-    401: Unauthorized
+    401: Unauthorized,
+    405: MethodNotAllowed
 }
 
 
