@@ -51,6 +51,19 @@ def test_ports():
         'get', '/axis-cgi/io/port.cgi?action=4%3A%2F')
 
 
+def test_no_ports():
+    """Test that no ports also work."""
+    mock_request = Mock()
+    mock_request.return_value = ''
+    params = Params('', mock_request)
+    ports = Ports(params, mock_request)
+    ports.update()
+
+    mock_request.assert_called_once
+
+    assert len(ports.values()) == 0
+
+
 fixture_ports = """root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
 root.IOPort.I1.Configurable=no
