@@ -61,5 +61,8 @@ class Vapix:
         result = session_request(session_method, url, **kwargs)
 
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        if result.startswith('# Error:'):
+            _LOGGER.error("%s from %s", result, self.config.host)
+            result = ''
 
         return result
