@@ -23,6 +23,10 @@ async def main(args):
             return
 
     if args.events:
+        def event_handler(action, event):
+            print(action, event)
+
+        device.enable_events(event_callback=event_handler)
         device.start()
 
     try:
