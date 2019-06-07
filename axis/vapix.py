@@ -62,7 +62,6 @@ class Vapix:
 
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
         if result.startswith('# Error:'):
-            _LOGGER.error("%s from %s", result, self.config.host)
             result = ''
 
         return result
