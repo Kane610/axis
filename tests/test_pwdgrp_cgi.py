@@ -3,7 +3,7 @@
 pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 """
 
-from unittest.mock import Mock
+from asynctest import Mock
 
 from axis.pwdgrp_cgi import SGRP_ADMIN, Users
 

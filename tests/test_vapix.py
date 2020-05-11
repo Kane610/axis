@@ -3,7 +3,7 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
-from unittest.mock import Mock, patch
+from asynctest import Mock, patch
 
 from axis.vapix import Vapix
 

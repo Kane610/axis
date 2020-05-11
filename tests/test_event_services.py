@@ -3,8 +3,7 @@
 pytest --cov-report term-missing --cov=axis.event_services tests/test_event_services.py
 """
 
-from unittest.mock import MagicMock, Mock, patch
-import pytest
+from asynctest import Mock, patch
 
 from axis.event_services import get_event_list
 
