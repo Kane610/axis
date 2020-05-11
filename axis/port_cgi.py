@@ -14,15 +14,15 @@ from urllib.parse import quote
 from .api import APIItems
 from .param_cgi import IOPORT
 
-PROPERTY = 'Properties.API.HTTP.Version=3'
+PROPERTY = "Properties.API.HTTP.Version=3"
 
-URL = '/axis-cgi/io/port.cgi'
-ACTION = '?action={action}'
+URL = "/axis-cgi/io/port.cgi"
+ACTION = "?action={action}"
 
-DIRECTION_IN = 'input'
-DIRECTION_OUT = 'output'
+DIRECTION_IN = "input"
+DIRECTION_OUT = "output"
 
-REGEX_PORT_INDEX = re.compile(r'\d+')
+REGEX_PORT_INDEX = re.compile(r"\d+")
 
 
 class Ports(APIItems):
@@ -52,7 +52,7 @@ class Ports(APIItems):
             if port_index not in raw_ports:
                 raw_ports[port_index] = {}
 
-            name = param.replace(IOPORT + '.I' + port_index + '.', '')
+            name = param.replace(IOPORT + ".I" + port_index + ".", "")
             raw_ports[port_index][name] = raw[param]
 
         super().process_raw(raw_ports)
@@ -69,7 +69,7 @@ class Port:
     @property
     def configurable(self) -> str:
         """The port is configurable or not."""
-        return self.raw.get('Configurable', 'no')
+        return self.raw.get("Configurable", "no")
 
     @property
     def direction(self) -> str:
@@ -77,7 +77,7 @@ class Port:
 
         Read-only for non-configurable ports.
         """
-        return self.raw.get('Direction', DIRECTION_IN)
+        return self.raw.get("Direction", DIRECTION_IN)
 
     @property
     def input_trig(self) -> str:
@@ -86,14 +86,14 @@ class Port:
         closed=The input port triggers when the circuit is closed.
         open=The input port triggers when the circuit is open.
         """
-        return self.raw.get('Input.Trig', '')
+        return self.raw.get("Input.Trig", "")
 
     @property
     def name(self) -> str:
         """Return name relevant to direction."""
         if self.direction == DIRECTION_IN:
-            return self.raw.get('Input.Name', '')
-        return self.raw.get('Output.Name', '')
+            return self.raw.get("Input.Name", "")
+        return self.raw.get("Output.Name", "")
 
     @property
     def output_active(self) -> str:
@@ -102,7 +102,7 @@ class Port:
         closed=The output port is active when the circuit is closed.
         open=The output port is active when the circuit is open.
         """
-        return self.raw.get('Output.Active', '')
+        return self.raw.get("Output.Active", "")
 
     def action(self, action):
         r"""Activate or deactivate an output.
@@ -122,9 +122,8 @@ class Port:
             return
 
         port_action = quote(
-            '{port}:{action}'.format(port=int(self.id)+1, action=action),
-            safe=''
+            "{port}:{action}".format(port=int(self.id) + 1, action=action), safe=""
         )
         url = URL + ACTION.format(action=port_action)
 
-        self._request('get', url)
+        self._request("get", url)

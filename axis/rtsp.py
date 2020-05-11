@@ -13,14 +13,14 @@ _LOGGER = logging.getLogger(__name__)
 
 RTSP_PORT = 554
 
-STATE_PAUSED = 'paused'
-STATE_PLAYING = 'playing'
-STATE_STARTING = 'starting'
-STATE_STOPPED = 'stopped'
+STATE_PAUSED = "paused"
+STATE_PLAYING = "playing"
+STATE_STARTING = "starting"
+STATE_STOPPED = "stopped"
 
-SIGNAL_DATA = 'data'
-SIGNAL_FAILED = 'failed'
-SIGNAL_PLAYING = 'playing'
+SIGNAL_DATA = "data"
+SIGNAL_FAILED = "failed"
+SIGNAL_PLAYING = "playing"
 
 TIME_OUT_LIMIT = 5
 
@@ -37,13 +37,15 @@ class RTSPClient(asyncio.Protocol):
         self.session.rtp_port = self.rtp.port
         self.session.rtcp_port = self.rtp.rtcp_port
         self.method = RTSPMethods(self.session)
+
         self.transport = None
         self.time_out_handle = None
 
     def start(self):
         """Start session."""
         conn = self.loop.create_connection(
-            lambda: self, self.session.host, self.session.port)
+            lambda: self, self.session.host, self.session.port
+        )
         task = self.loop.create_task(conn)
         task.add_done_callback(self.init_done)
 
@@ -56,7 +58,7 @@ class RTSPClient(asyncio.Protocol):
             if fut.exception():
                 fut.result()
         except OSError as err:
-            _LOGGER.debug('RTSP got exception %s', err)
+            _LOGGER.debug("RTSP got exception %s", err)
             self.stop()
             self.callback(SIGNAL_FAILED)
 
@@ -75,8 +77,7 @@ class RTSPClient(asyncio.Protocol):
         """
         self.transport = transport
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(
-            TIME_OUT_LIMIT, self.time_out)
+        self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
     def data_received(self, data):
         """Got response on RTSP session.
@@ -90,8 +91,7 @@ class RTSPClient(asyncio.Protocol):
 
         if self.session.state == STATE_STARTING:
             self.transport.write(self.method.message.encode())
-            self.time_out_handle = self.loop.call_later(
-                TIME_OUT_LIMIT, self.time_out)
+            self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
         elif self.session.state == STATE_PLAYING:
             self.callback(SIGNAL_PLAYING)
@@ -106,21 +106,20 @@ class RTSPClient(asyncio.Protocol):
     def keep_alive(self):
         """Keep RTSP session alive per negotiated time interval."""
         self.transport.write(self.method.message.encode())
-        self.time_out_handle = self.loop.call_later(
-            TIME_OUT_LIMIT, self.time_out)
+        self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
     def time_out(self):
         """If we don't get a response within time the RTSP request time out.
 
         This usually happens if device isn't available on specified IP.
         """
-        _LOGGER.warning('Response timed out %s', self.session.host)
+        _LOGGER.warning("Response timed out %s", self.session.host)
         self.stop()
         self.callback(SIGNAL_FAILED)
 
     def connection_lost(self, exc):
         """Happens when device closes connection or stop() has been called."""
-        _LOGGER.debug('RTSP session lost connection')
+        _LOGGER.debug("RTSP session lost connection")
 
 
 class RTPClient(object):
@@ -135,13 +134,14 @@ class RTPClient(object):
         Store port for RTSP session setup.
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(('', 0))
+        sock.bind(("", 0))
         self.port = sock.getsockname()[1]
         self.client = self.UDPClient(callback)
         # conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
         # conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
         conn = loop.create_datagram_endpoint(
-            lambda: self.client, local_addr=('0.0.0.0', self.port))
+            lambda: self.client, local_addr=("0.0.0.0", self.port)
+        )
         loop.create_task(conn)
         # self.port = self.client.transport.get_extra_info('sockname')[1]
         self.rtcp_port = self.port + 1
@@ -170,18 +170,18 @@ class RTPClient(object):
 
             Save reference to transport for future control.
             """
-            _LOGGER.debug('Stream listener online')
+            _LOGGER.debug("Stream listener online")
             self.transport = transport
 
         def connection_lost(self, exc):
             """Signal retry if RTSP session fails to get a response."""
-            _LOGGER.debug('Stream recepient offline')
+            _LOGGER.debug("Stream recepient offline")
 
         def datagram_received(self, data, addr):
             """Signals when new data is available."""
             if self.callback:
                 self.data = data[12:]
-                self.callback('data')
+                self.callback("data")
 
 
 class RTSPMethods(object):
@@ -190,12 +190,14 @@ class RTSPMethods(object):
     def __init__(self, session):
         """Define message methods."""
         self.session = session
-        self.message_methods = {'OPTIONS': self.OPTIONS,
-                                'DESCRIBE': self.DESCRIBE,
-                                'SETUP': self.SETUP,
-                                'PLAY': self.PLAY,
-                                'KEEP-ALIVE': self.KEEP_ALIVE,
-                                'TEARDOWN': self.TEARDOWN}
+        self.message_methods = {
+            "OPTIONS": self.OPTIONS,
+            "DESCRIBE": self.DESCRIBE,
+            "SETUP": self.SETUP,
+            "PLAY": self.PLAY,
+            "KEEP-ALIVE": self.KEEP_ALIVE,
+            "TEARDOWN": self.TEARDOWN,
+        }
 
     @property
     def message(self):
@@ -212,10 +214,10 @@ class RTSPMethods(object):
         """Request options device supports."""
         message = "OPTIONS " + self.session.url + " RTSP/1.0\r\n"
         message += self.sequence
-        message += self.authentication if authenticate else ''
+        message += self.authentication if authenticate else ""
         message += self.user_agent
         message += self.session_id
-        message += '\r\n'
+        message += "\r\n"
         return message
 
     def DESCRIBE(self):
@@ -225,7 +227,7 @@ class RTSPMethods(object):
         message += self.authentication
         message += self.user_agent
         message += "Accept: application/sdp\r\n"
-        message += '\r\n'
+        message += "\r\n"
         return message
 
     def SETUP(self):
@@ -235,7 +237,7 @@ class RTSPMethods(object):
         message += self.authentication
         message += self.user_agent
         message += self.transport
-        message += '\r\n'
+        message += "\r\n"
         return message
 
     def PLAY(self):
@@ -245,7 +247,7 @@ class RTSPMethods(object):
         message += self.authentication
         message += self.user_agent
         message += self.session_id
-        message += '\r\n'
+        message += "\r\n"
         return message
 
     def TEARDOWN(self):
@@ -255,13 +257,13 @@ class RTSPMethods(object):
         message += self.authentication
         message += self.user_agent
         message += self.session_id
-        message += '\r\n'
+        message += "\r\n"
         return message
 
     @property
     def sequence(self):
         """Generate sequence string."""
-        return "CSeq: " + str(self.session.sequence) + '\r\n'
+        return "CSeq: " + str(self.session.sequence) + "\r\n"
 
     @property
     def authentication(self):
@@ -271,27 +273,26 @@ class RTSPMethods(object):
         elif self.session.basic:
             authentication = self.session.generate_basic()
         else:
-            return ''
-        return "Authorization: " + authentication + '\r\n'
+            return ""
+        return "Authorization: " + authentication + "\r\n"
 
     @property
     def user_agent(self):
         """Generate user-agent string."""
-        return "User-Agent: " + self.session.user_agent + '\r\n'
+        return "User-Agent: " + self.session.user_agent + "\r\n"
 
     @property
     def session_id(self):
         """Generate session string."""
         if self.session.session_id:
-            return "Session: " + self.session.session_id + '\r\n'
-        return ''
+            return "Session: " + self.session.session_id + "\r\n"
+        return ""
 
     @property
     def transport(self):
         """Generate transport string."""
         transport = "Transport: RTP/AVP;unicast;client_port={}-{}\r\n"
-        return transport.format(
-            str(self.session.rtp_port), str(self.session.rtcp_port))
+        return transport.format(str(self.session.rtp_port), str(self.session.rtcp_port))
 
 
 class RTSPSession(object):
@@ -312,12 +313,14 @@ class RTSPSession(object):
         self.rtp_port = None
         self.rtcp_port = None
         self.basic_auth = None
-        self.methods = ['OPTIONS',
-                        'DESCRIBE',
-                        'SETUP',
-                        'PLAY',
-                        'KEEP-ALIVE',
-                        'TEARDOWN']
+        self.methods = [
+            "OPTIONS",
+            "DESCRIBE",
+            "SETUP",
+            "PLAY",
+            "KEEP-ALIVE",
+            "TEARDOWN",
+        ]
         # Information as part of ack from device
         self.rtsp_version = None
         self.status_code = None
@@ -361,13 +364,13 @@ class RTSPSession(object):
         Starting - all messages needed to get stream started.
         Playing - keep-alive messages every self.session_timeout.
         """
-        if self.method in ['OPTIONS', 'DESCRIBE', 'SETUP', 'PLAY']:
+        if self.method in ["OPTIONS", "DESCRIBE", "SETUP", "PLAY"]:
             state = STATE_STARTING
-        elif self.method in ['KEEP-ALIVE']:
+        elif self.method in ["KEEP-ALIVE"]:
             state = STATE_PLAYING
         else:
             state = STATE_STOPPED
-        _LOGGER.debug('RTSP session (%s) state %s', self.host, state)
+        _LOGGER.debug("RTSP session (%s) state %s", self.host, state)
         return state
 
     def update(self, response):
@@ -377,19 +380,19 @@ class RTSPSession(object):
         If device requires authentication resend previous message with auth.
         """
         data = response.splitlines()
-        _LOGGER.debug('Received data %s from %s', data, self.host)
+        _LOGGER.debug("Received data %s from %s", data, self.host)
         while data:
             line = data.pop(0)
-            if 'RTSP/1.0' in line:
-                self.rtsp_version = int(line.split(' ')[0][5])
-                self.status_code = int(line.split(' ')[1])
-                self.status_text = line.split(' ')[2]
-            elif 'CSeq' in line:
-                self.sequence_ack = int(line.split(': ')[1])
-            elif 'Date' in line:
-                self.date = line.split(': ')[1]
-            elif 'Public' in line:
-                self.methods_ack = line.split(': ')[1].split(', ')
+            if "RTSP/1.0" in line:
+                self.rtsp_version = int(line.split(" ")[0][5])
+                self.status_code = int(line.split(" ")[1])
+                self.status_text = line.split(" ")[2]
+            elif "CSeq" in line:
+                self.sequence_ack = int(line.split(": ")[1])
+            elif "Date" in line:
+                self.date = line.split(": ")[1]
+            elif "Public" in line:
+                self.methods_ack = line.split(": ")[1].split(", ")
             elif "WWW-Authenticate: Basic" in line:
                 self.basic = True
                 self.realm = line.split('"')[1]
@@ -397,23 +400,23 @@ class RTSPSession(object):
                 self.digest = True
                 self.realm = line.split('"')[1]
                 self.nonce = line.split('"')[3]
-                self.stale = (line.split('stale=')[1] == 'TRUE')
-            elif 'Content-Type' in line:
-                self.content_type = line.split(': ')[1]
-            elif 'Content-Base' in line:
-                self.content_base = line.split(': ')[1]
-            elif 'Content-Length' in line:
-                self.content_length = int(line.split(': ')[1])
-            elif 'Session' in line:
-                self.session_id = line.split(': ')[1].split(";")[0]
-                if '=' in line:
-                    self.session_timeout = int(line.split(': ')[1].split('=')[1])
-            elif 'Transport' in line:
-                self.transport_ack = line.split(': ')[1]
-            elif 'Range' in line:
-                self.range = line.split(': ')[1]
-            elif 'RTP-Info' in line:
-                self.rtp_info = line.split(': ')[1]
+                self.stale = line.split("stale=")[1] == "TRUE"
+            elif "Content-Type" in line:
+                self.content_type = line.split(": ")[1]
+            elif "Content-Base" in line:
+                self.content_base = line.split(": ")[1]
+            elif "Content-Length" in line:
+                self.content_length = int(line.split(": ")[1])
+            elif "Session" in line:
+                self.session_id = line.split(": ")[1].split(";")[0]
+                if "=" in line:
+                    self.session_timeout = int(line.split(": ")[1].split("=")[1])
+            elif "Transport" in line:
+                self.transport_ack = line.split(": ")[1]
+            elif "Range" in line:
+                self.range = line.split(": ")[1]
+            elif "RTP-Info" in line:
+                self.rtp_info = line.split(": ")[1]
             elif not line:
                 if data:
                     self.sdp = data
@@ -421,10 +424,10 @@ class RTSPSession(object):
         if self.sdp:
             stream_found = False
             for param in self.sdp:
-                if not stream_found and 'm=application' in param:
+                if not stream_found and "m=application" in param:
                     stream_found = True
-                elif stream_found and 'a=control:rtsp' in param:
-                    self.control_url = param.split(':', 1)[1]
+                elif stream_found and "a=control:rtsp" in param:
+                    self.control_url = param.split(":", 1)[1]
                     break
 
         if self.status_code == 200:
@@ -436,32 +439,35 @@ class RTSPSession(object):
         else:
             # If device configuration is correct we should never get here
             _LOGGER.debug(
-                "%s RTSP %s %s", self.host, self.status_code, self.status_text)
+                "%s RTSP %s %s", self.host, self.status_code, self.status_text
+            )
 
     def generate_digest(self):
         """RFC 2617."""
         from hashlib import md5
-        ha1 = self.username + ':' + self.realm + ':' + self.password
-        HA1 = md5(ha1.encode('UTF-8')).hexdigest()
-        ha2 = self.method + ':' + self.url
-        HA2 = md5(ha2.encode('UTF-8')).hexdigest()
-        encrypt_response = HA1 + ':' + self.nonce + ':' + HA2
-        response = md5(encrypt_response.encode('UTF-8')).hexdigest()
 
-        digest_auth = 'Digest '
-        digest_auth += 'username=\"' + self.username + "\", "
-        digest_auth += 'realm=\"' + self.realm + "\", "
-        digest_auth += "algorithm=\"MD5\", "
-        digest_auth += 'nonce=\"' + self.nonce + "\", "
-        digest_auth += 'uri=\"' + self.url + "\", "
-        digest_auth += 'response=\"' + response + '\"'
+        ha1 = self.username + ":" + self.realm + ":" + self.password
+        HA1 = md5(ha1.encode("UTF-8")).hexdigest()
+        ha2 = self.method + ":" + self.url
+        HA2 = md5(ha2.encode("UTF-8")).hexdigest()
+        encrypt_response = HA1 + ":" + self.nonce + ":" + HA2
+        response = md5(encrypt_response.encode("UTF-8")).hexdigest()
+
+        digest_auth = "Digest "
+        digest_auth += 'username="' + self.username + '", '
+        digest_auth += 'realm="' + self.realm + '", '
+        digest_auth += 'algorithm="MD5", '
+        digest_auth += 'nonce="' + self.nonce + '", '
+        digest_auth += 'uri="' + self.url + '", '
+        digest_auth += 'response="' + response + '"'
         return digest_auth
 
     def generate_basic(self):
         """RFC 2617."""
         from base64 import b64encode
+
         if not self.basic_auth:
-            creds = self.username + ':' + self.password
-            self.basic_auth = 'Basic '
-            self.basic_auth += b64encode(creds.encode('UTF-8')).decode('UTF-8')
+            creds = self.username + ":" + self.password
+            self.basic_auth = "Basic "
+            self.basic_auth += b64encode(creds.encode("UTF-8")).decode("UTF-8")
         return self.basic_auth

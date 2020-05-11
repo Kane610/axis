@@ -7,27 +7,31 @@ from .utils import session_request
 
 _LOGGER = logging.getLogger(__name__)
 
-CLASS_INPUT = 'input'
-CLASS_LIGHT = 'light'
-CLASS_MOTION = 'motion'
-CLASS_OUTPUT = 'output'
-CLASS_SOUND = 'sound'
+CLASS_INPUT = "input"
+CLASS_LIGHT = "light"
+CLASS_MOTION = "motion"
+CLASS_OUTPUT = "output"
+CLASS_SOUND = "sound"
 
-EVENT_NAME = '{topic}_{source}'
+EVENT_NAME = "{topic}_{source}"
 
-EVENT_OPERATION = 'operation'
-EVENT_SOURCE = 'source'
-EVENT_SOURCE_IDX = 'source_idx'
-EVENT_TOPIC = 'topic'
-EVENT_TYPE = 'type'
-EVENT_VALUE = 'value'
+EVENT_OPERATION = "operation"
+EVENT_SOURCE = "source"
+EVENT_SOURCE_IDX = "source_idx"
+EVENT_TOPIC = "topic"
+EVENT_TYPE = "type"
+EVENT_VALUE = "value"
 
 MESSAGE = re.compile(r'(?<=PropertyOperation)="(?P<operation>\w+)"')
-TOPIC = re.compile(r'(?<=<wsnt:Topic).*>(?P<topic>.*)(?=<\/wsnt:Topic>)')
-SOURCE = re.compile(r'(?<=<tt:Source>).*Name="(?P<source>\w+)"' +
-                    r'.*Value="(?P<source_idx>\w+)".*(?=<\/tt:Source>)')
-DATA = re.compile(r'(?<=<tt:Data>).*Name="(?P<type>\w*)"' +
-                  r'.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)')
+TOPIC = re.compile(r"(?<=<wsnt:Topic).*>(?P<topic>.*)(?=<\/wsnt:Topic>)")
+SOURCE = re.compile(
+    r'(?<=<tt:Source>).*Name="(?P<source>\w+)"'
+    + r'.*Value="(?P<source_idx>\w+)".*(?=<\/tt:Source>)'
+)
+DATA = re.compile(
+    r'(?<=<tt:Data>).*Name="(?P<type>\w*)"'
+    + r'.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)'
+)
 
 
 class EventManager:
@@ -81,19 +85,20 @@ class EventManager:
         Operation changed updates existing events state.
         """
         name = EVENT_NAME.format(
-            topic=event[EVENT_TOPIC], source=event.get(EVENT_SOURCE_IDX))
+            topic=event[EVENT_TOPIC], source=event.get(EVENT_SOURCE_IDX)
+        )
 
-        if event[EVENT_OPERATION] == 'Initialized' and name not in self.events:
+        if event[EVENT_OPERATION] == "Initialized" and name not in self.events:
 
             for event_class in EVENT_CLASSES:
                 if event_class.TOPIC in event[EVENT_TOPIC]:
                     self.events[name] = event_class(event)
-                    self.signal('add', name)
+                    self.signal("add", name)
                     return
 
-            _LOGGER.debug('Unsupported event %s', event[EVENT_TOPIC])
+            _LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
 
-        elif event[EVENT_OPERATION] == 'Changed' and name in self.events:
+        elif event[EVENT_OPERATION] == "Changed" and name in self.events:
             self.events[name].state = event[EVENT_VALUE]
 
             # elif operation == 'Deleted':
@@ -102,6 +107,7 @@ class EventManager:
 
 class AxisBinaryEvent:
     """"""
+
     BINARY = True
     TOPIC = None
     CLASS = None
@@ -130,7 +136,7 @@ class AxisBinaryEvent:
     @property
     def is_tripped(self) -> bool:
         """Event is tripped now."""
-        return self.state == '1'
+        return self.state == "1"
 
     def register_callback(self, callback) -> None:
         """Register callback for state updates."""
@@ -162,9 +168,10 @@ class Audio(AxisBinaryEvent):
         'value': '0'
     }
     """
-    TOPIC = 'tns1:AudioSource/tnsaxis:TriggerLevel'
+
+    TOPIC = "tns1:AudioSource/tnsaxis:TriggerLevel"
     CLASS = CLASS_SOUND
-    TYPE = 'Sound'
+    TYPE = "Sound"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -182,9 +189,10 @@ class DayNight(AxisBinaryEvent):
         'value': '1'
     }
     """
-    TOPIC = 'tns1:VideoSource/tnsaxis:DayNightVision'
+
+    TOPIC = "tns1:VideoSource/tnsaxis:DayNightVision"
     CLASS = CLASS_LIGHT
-    TYPE = 'DayNight'
+    TYPE = "DayNight"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -202,9 +210,10 @@ class Input(AxisBinaryEvent):
         'value': '0'
     }
     """
-    TOPIC = 'tns1:Device/tnsaxis:IO/Port'
+
+    TOPIC = "tns1:Device/tnsaxis:IO/Port"
     CLASS = CLASS_INPUT
-    TYPE = 'Input'
+    TYPE = "Input"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -212,9 +221,10 @@ class Input(AxisBinaryEvent):
 
 class Motion(AxisBinaryEvent):
     """Motion detection event."""
-    TOPIC = 'tns1:VideoAnalytics/tnsaxis:MotionDetection'
+
+    TOPIC = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
     CLASS = CLASS_MOTION
-    TYPE = 'Motion'
+    TYPE = "Motion"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -232,9 +242,10 @@ class Pir(AxisBinaryEvent):
         'value': '0'
     }
     """
-    TOPIC = 'tns1:Device/tnsaxis:Sensor/PIR'
+
+    TOPIC = "tns1:Device/tnsaxis:Sensor/PIR"
     CLASS = CLASS_MOTION
-    TYPE = 'PIR'
+    TYPE = "PIR"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -252,9 +263,10 @@ class Relay(AxisBinaryEvent):
         'value': 'inactive'
     }
     """
-    TOPIC = 'tns1:Device/Trigger/Relay'
+
+    TOPIC = "tns1:Device/Trigger/Relay"
     CLASS = CLASS_OUTPUT
-    TYPE = 'Relay'
+    TYPE = "Relay"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -262,7 +274,7 @@ class Relay(AxisBinaryEvent):
     @property
     def is_tripped(self) -> bool:
         """Event is tripped now."""
-        return self.state == 'active'
+        return self.state == "active"
 
 
 class SupervisedInput(AxisBinaryEvent):
@@ -277,9 +289,10 @@ class SupervisedInput(AxisBinaryEvent):
         'value': '0'
     }
     """
-    TOPIC = 'tns1:Device/tnsaxis:IO/SupervisedPort'
+
+    TOPIC = "tns1:Device/tnsaxis:IO/SupervisedPort"
     CLASS = CLASS_INPUT
-    TYPE = 'Supervised Input'
+    TYPE = "Supervised Input"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -297,9 +310,10 @@ class Vmd3(AxisBinaryEvent):
         'value': '1'
     }
     """
-    TOPIC = 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1'
+
+    TOPIC = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
     CLASS = CLASS_MOTION
-    TYPE = 'VMD3'
+    TYPE = "VMD3"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
@@ -315,17 +329,27 @@ class Vmd4(AxisBinaryEvent):
         'value': '1'
     }
     """
-    TOPIC = 'tnsaxis:CameraApplicationPlatform/VMD'
+
+    TOPIC = "tnsaxis:CameraApplicationPlatform/VMD"
     CLASS = CLASS_MOTION
-    TYPE = 'VMD4'
+    TYPE = "VMD4"
 
     def __init__(self, event: dict) -> None:
         super().__init__(event)
-        self.id = event[EVENT_TOPIC].split('/')[-1]
+        self.id = event[EVENT_TOPIC].split("/")[-1]
 
 
 EVENT_CLASSES = (
-    Audio, DayNight, Input, Motion, Pir, Relay, SupervisedInput, Vmd3, Vmd4)
+    Audio,
+    DayNight,
+    Input,
+    Motion,
+    Pir,
+    Relay,
+    SupervisedInput,
+    Vmd3,
+    Vmd4,
+)
 
 
 # Future events

@@ -7,95 +7,110 @@ from .utils import session_request
 
 _LOGGER = logging.getLogger(__name__)
 
-MAP_BASE = 'base'
-MAP_CLASS = 'class'
-MAP_PLATFORM = 'platform'
-MAP_SUBSCRIBE = 'subscribe'
-MAP_TOPIC = 'topic'
-MAP_TYPE = 'type'
+MAP_BASE = "base"
+MAP_CLASS = "class"
+MAP_PLATFORM = "platform"
+MAP_SUBSCRIBE = "subscribe"
+MAP_TOPIC = "topic"
+MAP_TYPE = "type"
 
 MAP = [
     {
-        MAP_TYPE: 'motion',
-        MAP_CLASS: 'motion',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'onvif': ['VideoAnalytics'], 'axis': ['MotionDetection']},
-        MAP_TOPIC: 'tns1:VideoAnalytics/tnsaxis:MotionDetection',
-        MAP_SUBSCRIBE: 'onvif:VideoAnalytics/axis:MotionDetection'},
+        MAP_TYPE: "motion",
+        MAP_CLASS: "motion",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"onvif": ["VideoAnalytics"], "axis": ["MotionDetection"]},
+        MAP_TOPIC: "tns1:VideoAnalytics/tnsaxis:MotionDetection",
+        MAP_SUBSCRIBE: "onvif:VideoAnalytics/axis:MotionDetection",
+    },
     {
-        MAP_TYPE: 'vmd3',
-        MAP_CLASS: 'motion',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'onvif': ['RuleEngine'], 'axis': ['VMD3', 'vmd3_video_1']},
-        MAP_TOPIC: 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
-        MAP_SUBSCRIBE: 'onvif:RuleEngine/axis:VMD3/vmd3_video_1'},
+        MAP_TYPE: "vmd3",
+        MAP_CLASS: "motion",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"onvif": ["RuleEngine"], "axis": ["VMD3", "vmd3_video_1"]},
+        MAP_TOPIC: "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1",
+        MAP_SUBSCRIBE: "onvif:RuleEngine/axis:VMD3/vmd3_video_1",
+    },
     {
-        MAP_TYPE: 'pir',
-        MAP_CLASS: 'motion',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'onvif': ['Device'], 'axis': ['Sensor', 'PIR']},
-        MAP_TOPIC: 'tns1:Device/tnsaxis:Sensor/PIR',
-        MAP_SUBSCRIBE: 'onvif:Device/axis:Sensor/PIR'},
+        MAP_TYPE: "pir",
+        MAP_CLASS: "motion",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"onvif": ["Device"], "axis": ["Sensor", "PIR"]},
+        MAP_TOPIC: "tns1:Device/tnsaxis:Sensor/PIR",
+        MAP_SUBSCRIBE: "onvif:Device/axis:Sensor/PIR",
+    },
     {
-        MAP_TYPE: 'sound',
-        MAP_CLASS: 'sound',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'onvif': ['AudioSource'], 'axis': ['TriggerLevel']},
-        MAP_TOPIC: 'tns1:AudioSource/tnsaxis:TriggerLevel',
-        MAP_SUBSCRIBE: 'onvif:AudioSource/axis:TriggerLevel'},
+        MAP_TYPE: "sound",
+        MAP_CLASS: "sound",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"onvif": ["AudioSource"], "axis": ["TriggerLevel"]},
+        MAP_TOPIC: "tns1:AudioSource/tnsaxis:TriggerLevel",
+        MAP_SUBSCRIBE: "onvif:AudioSource/axis:TriggerLevel",
+    },
     {
-        MAP_TYPE: 'daynight',
-        MAP_CLASS: 'light',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'onvif': ['VideoSource'], 'axis': ['DayNightVision']},
-        MAP_TOPIC: 'tns1:VideoSource/tnsaxis:DayNightVision',
-        MAP_SUBSCRIBE: 'onvif:VideoSource/axis:DayNightVision'},
+        MAP_TYPE: "daynight",
+        MAP_CLASS: "light",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"onvif": ["VideoSource"], "axis": ["DayNightVision"]},
+        MAP_TOPIC: "tns1:VideoSource/tnsaxis:DayNightVision",
+        MAP_SUBSCRIBE: "onvif:VideoSource/axis:DayNightVision",
+    },
     {
-        MAP_TYPE: 'tampering',
-        MAP_CLASS: 'safety',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'onvif': ['VideoSource'], 'axis': ['Tampering']},
-        MAP_TOPIC: 'tns1:VideoSource/tnsaxis:Tampering',
-        MAP_SUBSCRIBE: 'onvif:VideoSource/axis:Tampering'},
+        MAP_TYPE: "tampering",
+        MAP_CLASS: "safety",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"onvif": ["VideoSource"], "axis": ["Tampering"]},
+        MAP_TOPIC: "tns1:VideoSource/tnsaxis:Tampering",
+        MAP_SUBSCRIBE: "onvif:VideoSource/axis:Tampering",
+    },
     {
-        MAP_TYPE: 'input',
-        MAP_CLASS: 'input',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'onvif': ['Device'], 'axis':['IO', 'Port']},
-        MAP_TOPIC: 'tns1:Device/tnsaxis:IO/Port',
-        MAP_SUBSCRIBE: 'onvif:Device/axis:IO/Port'
-    }
+        MAP_TYPE: "input",
+        MAP_CLASS: "input",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"onvif": ["Device"], "axis": ["IO", "Port"]},
+        MAP_TOPIC: "tns1:Device/tnsaxis:IO/Port",
+        MAP_SUBSCRIBE: "onvif:Device/axis:IO/Port",
+    },
 ]
 
 METAMAP = [
     {
-        MAP_TYPE: 'vmd4',
-        MAP_CLASS: 'motion',
-        MAP_PLATFORM: 'binary_sensor',
-        MAP_BASE: {'axis': ['CameraApplicationPlatform', 'VMD']},
-        MAP_TOPIC: 'tnsaxis:CameraApplicationPlatform/VMD',
-        MAP_SUBSCRIBE: 'axis:CameraApplicationPlatform/VMD//.'
+        MAP_TYPE: "vmd4",
+        MAP_CLASS: "motion",
+        MAP_PLATFORM: "binary_sensor",
+        MAP_BASE: {"axis": ["CameraApplicationPlatform", "VMD"]},
+        MAP_TOPIC: "tnsaxis:CameraApplicationPlatform/VMD",
+        MAP_SUBSCRIBE: "axis:CameraApplicationPlatform/VMD//.",
     }
 ]
 
 
-device_event_url = '{proto}://{host}:{port}/vapix/services'
-headers = {'Content-Type': 'application/soap+xml',
-            'SOAPAction': 'http://www.axis.com/vapix/ws/event1/GetEventInstances'}
-request_xml = ("<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\">"
-                "<s:Body xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
-                "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">"
-                "<GetEventInstances xmlns=\"http://www.axis.com/vapix/ws/event1\"/>"
-                "</s:Body>"
-                "</s:Envelope>")
+device_event_url = "{proto}://{host}:{port}/vapix/services"
+headers = {
+    "Content-Type": "application/soap+xml",
+    "SOAPAction": "http://www.axis.com/vapix/ws/event1/GetEventInstances",
+}
+request_xml = (
+    '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">'
+    '<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+    'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
+    '<GetEventInstances xmlns="http://www.axis.com/vapix/ws/event1"/>'
+    "</s:Body>"
+    "</s:Envelope>"
+)
 
 
 def get_event_list(config):
     """Get a dict of supported events from device."""
     eventinstances = session_request(
-        config.session.post, device_event_url.format(
-            proto=config.web_proto, host=config.host, port=config.port),
-        auth=config.session.auth, headers=headers, data=request_xml)
+        config.session.post,
+        device_event_url.format(
+            proto=config.web_proto, host=config.host, port=config.port
+        ),
+        auth=config.session.auth,
+        headers=headers,
+        data=request_xml,
+    )
 
     raw_event_list = _prepare_event(eventinstances)
 
@@ -162,20 +177,19 @@ def _prepare_event(eventinstances):
             """Clean up child attributes by removing XML namespace."""
             attributes = {}
             for key, value in attrib.items():
-                attributes[key.split('}')[-1]] = value
+                attributes[key.split("}")[-1]] = value
             return attributes
 
         description = {}
         for child in events:
-            child_tag = child.tag.split('}')[-1]
+            child_tag = child.tag.split("}")[-1]
             child_attrib = clean_attrib(child.attrib)
-            if child_tag != 'MessageInstance':
-                description[child_tag] = {
-                    **child_attrib, **parse_event(child)}
-            elif child_tag == 'MessageInstance':
+            if child_tag != "MessageInstance":
+                description[child_tag] = {**child_attrib, **parse_event(child)}
+            elif child_tag == "MessageInstance":
                 description = {}
                 for item in child:
-                    tag = item.tag.split('}')[-1]
+                    tag = item.tag.split("}")[-1]
                     description[tag] = clean_attrib(item[0].attrib)
         return description
 
