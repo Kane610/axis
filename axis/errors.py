@@ -32,10 +32,7 @@ class NoPermission(AxisException):
     """Users permissions are not high enough."""
 
 
-ERRORS = {
-    401: Unauthorized,
-    405: MethodNotAllowed
-}
+ERRORS = {401: Unauthorized, 405: MethodNotAllowed}
 
 
 def raise_error(error):

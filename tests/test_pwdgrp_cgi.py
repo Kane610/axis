@@ -3,10 +3,9 @@
 pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 """
 
-import pytest
 from unittest.mock import Mock
 
-from axis.pwdgrp_cgi import SGRP_ADMIN, User, Users
+from axis.pwdgrp_cgi import SGRP_ADMIN, Users
 
 
 def test_users():
@@ -14,26 +13,26 @@ def test_users():
     mock_request = Mock()
     users = Users(fixture, mock_request)
 
-    assert users['userv']
-    assert users['userv'].name == 'userv'
-    assert users['userv'].viewer
-    assert not users['userv'].operator
-    assert not users['userv'].admin
-    assert not users['userv'].ptz
+    assert users["userv"]
+    assert users["userv"].name == "userv"
+    assert users["userv"].viewer
+    assert not users["userv"].operator
+    assert not users["userv"].admin
+    assert not users["userv"].ptz
 
-    assert users['usero']
-    assert users['usero'].name == 'usero'
-    assert users['usero'].viewer
-    assert users['usero'].operator
-    assert not users['usero'].admin
-    assert not users['usero'].ptz
+    assert users["usero"]
+    assert users["usero"].name == "usero"
+    assert users["usero"].viewer
+    assert users["usero"].operator
+    assert not users["usero"].admin
+    assert not users["usero"].ptz
 
-    assert users['usera']
-    assert users['usera'].name == 'usera'
-    assert users['usera'].viewer
-    assert users['usera'].operator
-    assert users['usera'].admin
-    assert users['usera'].ptz
+    assert users["usera"]
+    assert users["usera"].name == "usera"
+    assert users["usera"].viewer
+    assert users["usera"].operator
+    assert users["usera"].admin
+    assert users["usera"].ptz
 
 
 def test_create():
@@ -41,28 +40,32 @@ def test_create():
     mock_request = Mock()
     users = Users(fixture, mock_request)
 
-    users.create('joe', pwd='abcd', sgrp=SGRP_ADMIN)
+    users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN)
     mock_request.assert_called_with(
-        'post', '/axis-cgi/pwdgrp.cgi',
+        "post",
+        "/axis-cgi/pwdgrp.cgi",
         data={
-            'action': 'add',
-            'user': 'joe',
-            'pwd': 'abcd',
-            'grp': 'users',
-            'sgrp': 'viewer:operator:admin'
-    })
+            "action": "add",
+            "user": "joe",
+            "pwd": "abcd",
+            "grp": "users",
+            "sgrp": "viewer:operator:admin",
+        },
+    )
 
-    users.create('joe', pwd='abcd', sgrp=SGRP_ADMIN, comment='comment')
+    users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
     mock_request.assert_called_with(
-        'post', '/axis-cgi/pwdgrp.cgi',
+        "post",
+        "/axis-cgi/pwdgrp.cgi",
         data={
-            'action': 'add',
-            'user': 'joe',
-            'pwd': 'abcd',
-            'grp': 'users',
-            'sgrp': 'viewer:operator:admin',
-            'comment': 'comment'
-    })
+            "action": "add",
+            "user": "joe",
+            "pwd": "abcd",
+            "grp": "users",
+            "sgrp": "viewer:operator:admin",
+            "comment": "comment",
+        },
+    )
 
 
 def test_modify():
@@ -70,57 +73,50 @@ def test_modify():
     mock_request = Mock()
     users = Users(fixture, mock_request)
 
-    users.modify('joe', pwd='abcd')
+    users.modify("joe", pwd="abcd")
     mock_request.assert_called_with(
-        'post', '/axis-cgi/pwdgrp.cgi',
-        data={
-            'action': 'update',
-            'user': 'joe',
-            'pwd': 'abcd'
-    })
+        "post",
+        "/axis-cgi/pwdgrp.cgi",
+        data={"action": "update", "user": "joe", "pwd": "abcd"},
+    )
 
-    users.modify('joe', sgrp=SGRP_ADMIN)
+    users.modify("joe", sgrp=SGRP_ADMIN)
     mock_request.assert_called_with(
-        'post', '/axis-cgi/pwdgrp.cgi',
-        data={
-            'action': 'update',
-            'user': 'joe',
-            'sgrp': 'viewer:operator:admin'
-    })
+        "post",
+        "/axis-cgi/pwdgrp.cgi",
+        data={"action": "update", "user": "joe", "sgrp": "viewer:operator:admin"},
+    )
 
-    users.modify('joe', comment='comment')
+    users.modify("joe", comment="comment")
     mock_request.assert_called_with(
-        'post', '/axis-cgi/pwdgrp.cgi',
-        data={
-            'action': 'update',
-            'user': 'joe',
-            'comment': 'comment'
-    })
+        "post",
+        "/axis-cgi/pwdgrp.cgi",
+        data={"action": "update", "user": "joe", "comment": "comment"},
+    )
 
-    users.modify('joe', pwd='abcd', sgrp=SGRP_ADMIN, comment='comment')
+    users.modify("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
     mock_request.assert_called_with(
-        'post', '/axis-cgi/pwdgrp.cgi',
+        "post",
+        "/axis-cgi/pwdgrp.cgi",
         data={
-            'action': 'update',
-            'user': 'joe',
-            'pwd': 'abcd',
-            'sgrp': 'viewer:operator:admin',
-            'comment': 'comment'
-    })
+            "action": "update",
+            "user": "joe",
+            "pwd": "abcd",
+            "sgrp": "viewer:operator:admin",
+            "comment": "comment",
+        },
+    )
 
 
 def test_delete():
     """Verify that you can delete users."""
     mock_request = Mock()
     users = Users(fixture, mock_request)
-    users.delete('joe')
+    users.delete("joe")
 
     mock_request.assert_called_with(
-        'post', '/axis-cgi/pwdgrp.cgi',
-        data={
-            'action': 'remove',
-            'user': 'joe'
-    })
+        "post", "/axis-cgi/pwdgrp.cgi", data={"action": "remove", "user": "joe"}
+    )
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

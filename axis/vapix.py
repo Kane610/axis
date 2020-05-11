@@ -27,9 +27,9 @@ class Vapix:
 
         Preload data can be disabled to selectively load params afterwards.
         """
-        params = ''
+        params = ""
         if preload_data:
-            params = self.request('get', param_url)
+            params = self.request("get", param_url)
 
         self.params = Params(params, self.request)
 
@@ -43,15 +43,15 @@ class Vapix:
 
     def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        users = self.request('get', pwdgrp_url)
+        users = self.request("get", pwdgrp_url)
         self.users = Users(users, self.request)
 
     def request(self, method, path, **kwargs):
         """Prepare HTTP request."""
-        if method == 'get':
+        if method == "get":
             session_method = self.config.session.get
 
-        elif method == 'post':
+        elif method == "post":
             session_method = self.config.session.post
 
         else:
@@ -61,7 +61,7 @@ class Vapix:
         result = session_request(session_method, url, **kwargs)
 
         _LOGGER.debug("Response: %s from %s", result, self.config.host)
-        if result.startswith('# Error:'):
-            result = ''
+        if result.startswith("# Error:"):
+            result = ""
 
         return result

@@ -16,23 +16,23 @@ import re
 
 from .api import APIItems
 
-PROPERTY = 'Properties.API.HTTP.Version=3'
+PROPERTY = "Properties.API.HTTP.Version=3"
 
-URL = '/axis-cgi/pwdgrp.cgi'
-URL_GET = URL + '?action=get'
+URL = "/axis-cgi/pwdgrp.cgi"
+URL_GET = URL + "?action=get"
 
-ADMIN = 'admin'
-OPERATOR = 'operator'
-VIEWER = 'viewer'
-PTZ = 'ptz'
+ADMIN = "admin"
+OPERATOR = "operator"
+VIEWER = "viewer"
+PTZ = "ptz"
 
 SGRP_VIEWER = VIEWER
-SGRP_OPERATOR = '{}:{}'.format(VIEWER, OPERATOR)
-SGRP_ADMIN = '{}:{}:{}'.format(VIEWER, OPERATOR, ADMIN)
+SGRP_OPERATOR = "{}:{}".format(VIEWER, OPERATOR)
+SGRP_ADMIN = "{}:{}:{}".format(VIEWER, OPERATOR, ADMIN)
 
-REGEX_USER = re.compile(r'^[A-Z0-9]{1,14}$', re.IGNORECASE)
-REGEX_PASS = re.compile(r'^[x20-x7e]{1,64}$')
-REGEX_STRING = re.compile(r'[A-Z0-9]+', re.IGNORECASE)
+REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
+REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
+REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
 
 
 class Users(APIItems):
@@ -41,49 +41,37 @@ class Users(APIItems):
     def __init__(self, raw: str, request: str) -> None:
         super().__init__(raw, request, URL_GET, User)
 
-    def create(self, user: str, *,
-               pwd: str, sgrp: str, comment: str=None) -> None:
+    def create(self, user: str, *, pwd: str, sgrp: str, comment: str = None) -> None:
         """Create new user."""
-        data = {
-            'action': 'add',
-            'user': user,
-            'pwd': pwd,
-            'grp': 'users',
-            'sgrp': sgrp
-        }
+        data = {"action": "add", "user": user, "pwd": pwd, "grp": "users", "sgrp": sgrp}
 
         if comment:
-            data['comment'] = comment
+            data["comment"] = comment
 
-        self._request('post', URL, data=data)
+        self._request("post", URL, data=data)
 
-    def modify(self, user: str, *,
-               pwd: str=None, sgrp: str=None, comment: str=None) -> None:
+    def modify(
+        self, user: str, *, pwd: str = None, sgrp: str = None, comment: str = None
+    ) -> None:
         """Update user."""
-        data = {
-            'action': 'update',
-            'user': user
-        }
+        data = {"action": "update", "user": user}
 
         if pwd:
-            data['pwd'] = pwd
+            data["pwd"] = pwd
 
         if sgrp:
-            data['sgrp'] = sgrp
+            data["sgrp"] = sgrp
 
         if comment:
-            data['comment'] = comment
+            data["comment"] = comment
 
-        self._request('post', URL, data=data)
+        self._request("post", URL, data=data)
 
     def delete(self, user: str) -> None:
         """Remove user."""
-        data = {
-            'action': 'remove',
-            'user': user
-        }
+        data = {"action": "remove", "user": user}
 
-        self._request('post', URL, data=data)
+        self._request("post", URL, data=data)
 
     def process_raw(self, raw: str) -> None:
         """Pre-process raw string.
@@ -91,14 +79,14 @@ class Users(APIItems):
         Prepare users to work with APIItems.
         Create booleans with user levels.
         """
-        raw_dict = dict(group.split('=') for group in raw.splitlines())
+        raw_dict = dict(group.split("=") for group in raw.splitlines())
 
         raw_users = {
             user: {
                 group: user in REGEX_STRING.findall(raw_dict[group])
                 for group in [ADMIN, OPERATOR, VIEWER, PTZ]
             }
-            for user in REGEX_STRING.findall(raw_dict['users'])
+            for user in REGEX_STRING.findall(raw_dict["users"])
         }
 
         super().process_raw(raw_users)

@@ -18,7 +18,7 @@ class APIItems:
 
     def update(self, path=None) -> None:
         path = path or self._path
-        raw = self._request('get', path)
+        raw = self._request("get", path)
         self.process_raw(raw)
 
     def process_raw(self, raw: dict) -> None:
