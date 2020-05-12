@@ -57,7 +57,7 @@ class APIItem:
         self._raw = raw
         self._request = request
 
-        self.observers = set()
+        self.observers = []
 
     @property
     def id(self) -> str:
@@ -79,7 +79,7 @@ class APIItem:
 
     def register_callback(self, callback) -> None:
         """Register callback for state updates."""
-        self.observers.add(callback)
+        self.observers.append(callback)
 
     def remove_callback(self, observer) -> None:
         """Remove observer."""
