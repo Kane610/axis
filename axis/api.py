@@ -1,3 +1,6 @@
+"""API management class and base class for the different end points."""
+
+from abc import ABC, abstractmethod
 import logging
 
 from pprint import pformat
@@ -17,7 +20,8 @@ class APIItems:
         LOGGER.debug(pformat(raw))
 
     def update(self, path=None) -> None:
-        path = path or self._path
+        if not path:
+            path = self._path
         raw = self._request("get", path)
         self.process_raw(raw)
 
@@ -38,3 +42,34 @@ class APIItems:
 
     def __iter__(self):
         return iter(self._items)
+
+
+class APIItem:
+    """Base class for all end points using APIItems class."""
+
+    def __init__(self, raw: dict, request) -> None:
+        self._raw = raw
+        self._request = request
+
+        self.observers = set()
+
+    @property
+    def raw(self) -> dict:
+        """Read only raw data."""
+        return self._raw
+
+    def update(self, raw: dict) -> None:
+        """Update raw data and signal new data is available."""
+        self._raw = raw
+
+        for observer in self.observers:
+            # observer.update()
+            observer()
+
+
+class APIItemObserver(ABC):
+    """To register observer to an APIItem."""
+
+    @abstractmethod
+    def update(self):
+        raise NotImplementedError

@@ -152,13 +152,14 @@ def test_manage_event_pir_init(manager):
 
     mock_callback = Mock()
     event.register_callback(mock_callback)
-    event.state = "1"
+
+    manager.new_event(PIR_CHANGE)
     assert event.state == "1"
     assert event.is_tripped
     assert mock_callback.called
 
     event.remove_callback(mock_callback)
-    assert not event._callbacks
+    assert not event.observers
 
 
 def test_manage_event_pir_change(manager):

@@ -3,6 +3,8 @@
 import logging
 import re
 
+from .api import APIItem
+
 LOGGER = logging.getLogger(__name__)
 
 CLASS_INPUT = "input"
@@ -87,20 +89,20 @@ class EventManager:
 
             for event_class in EVENT_CLASSES:
                 if event_class.TOPIC in event[EVENT_TOPIC]:
-                    self.events[name] = event_class(event)
+                    self.events[name] = event_class(event, request=None)
                     self.signal("add", name)
                     return
 
             LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
 
         elif event[EVENT_OPERATION] == "Changed" and name in self.events:
-            self.events[name].state = event[EVENT_VALUE]
+            self.events[name].update(event)
 
             # elif operation == 'Deleted':
             #     LOGGER.debug("Deleted event from stream")
 
 
-class AxisBinaryEvent:
+class AxisBinaryEvent(APIItem):
     """"""
 
     BINARY = True
@@ -108,25 +110,25 @@ class AxisBinaryEvent:
     CLASS = None
     TYPE = None
 
-    def __init__(self, event: dict) -> None:
-        self.topic = event[EVENT_TOPIC]
-        self.source = event.get(EVENT_SOURCE)
-        self.id = event.get(EVENT_SOURCE_IDX)
-        self._state = event[EVENT_VALUE]
+    @property
+    def topic(self) -> str:
+        """Topic of the event."""
+        return self._raw[EVENT_TOPIC]
 
-        self._callbacks = []
+    @property
+    def source(self) -> str:
+        """Source of the event."""
+        return self._raw.get(EVENT_SOURCE, "")
+
+    @property
+    def id(self) -> str:
+        """Id of the event."""
+        return self._raw.get(EVENT_SOURCE_IDX, "")
 
     @property
     def state(self) -> str:
         """State of the event."""
-        return self._state
-
-    @state.setter
-    def state(self, state: str) -> None:
-        """Update state of event."""
-        self._state = state
-        for callback in self._callbacks:
-            callback()
+        return self._raw[EVENT_VALUE]
 
     @property
     def is_tripped(self) -> bool:
@@ -135,12 +137,12 @@ class AxisBinaryEvent:
 
     def register_callback(self, callback) -> None:
         """Register callback for state updates."""
-        self._callbacks.append(callback)
+        self.observers.add(callback)
 
-    def remove_callback(self, callback) -> None:
-        """Remove callback."""
-        if callback in self._callbacks:
-            self._callbacks.remove(callback)
+    def remove_callback(self, observer) -> None:
+        """Remove observer."""
+        if observer in self.observers:
+            self.observers.remove(observer)
 
 
 # {
@@ -305,9 +307,10 @@ class Vmd4(AxisBinaryEvent):
     CLASS = CLASS_MOTION
     TYPE = "VMD4"
 
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
-        self.id = event[EVENT_TOPIC].split("/")[-1]
+    @property
+    def id(self) -> str:
+        """Id of the event."""
+        return self.topic.split("/")[-1]
 
 
 EVENT_CLASSES = (
