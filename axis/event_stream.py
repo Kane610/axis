@@ -20,6 +20,10 @@ EVENT_TOPIC = "topic"
 EVENT_TYPE = "type"
 EVENT_VALUE = "value"
 
+OPERATION_INITIALIZED = "Initialized"
+OPERATION_CHANGED = "Changed"
+OPERATION_DELETED = "Deleted"
+
 MESSAGE = re.compile(r'(?<=PropertyOperation)="(?P<operation>\w+)"')
 TOPIC = re.compile(r"(?<=<wsnt:Topic).*>(?P<topic>.*)(?=<\/wsnt:Topic>)")
 SOURCE = re.compile(
@@ -44,11 +48,18 @@ class EventManager(APIItems):
         """New event to process."""
         event = self.parse_event_xml(event_data)
 
-        if event.get(EVENT_OPERATION, "") in ("Initialized", "Changed"):
+        if not event:
+            return
+
+        if event[EVENT_OPERATION] in (OPERATION_INITIALIZED, OPERATION_CHANGED):
             id = f"{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX)}"
             new_events = self.process_raw({id: event})
-            if new_events:
-                self.signal("add", next(iter(new_events)))
+            for new_event in new_events:
+                if self[new_event].TOPIC:
+                    self.signal("add", new_event)
+
+        elif event[EVENT_OPERATION] == OPERATION_DELETED:
+            LOGGER.debug("Deleted event from stream")
 
     def parse_event_xml(self, event_data) -> dict:
         """Parse metadata xml."""
@@ -92,22 +103,22 @@ class AxisEvent(APIItem):
     @property
     def topic(self) -> str:
         """Topic of the event."""
-        return self._raw[EVENT_TOPIC]
+        return self.raw[EVENT_TOPIC]
 
     @property
     def source(self) -> str:
         """Source of the event."""
-        return self._raw.get(EVENT_SOURCE, "")
+        return self.raw.get(EVENT_SOURCE, "")
 
     @property
     def id(self) -> str:
         """Id of the event."""
-        return self._raw.get(EVENT_SOURCE_IDX, "")
+        return self.raw.get(EVENT_SOURCE_IDX, "")
 
     @property
     def state(self) -> str:
         """State of the event."""
-        return self._raw[EVENT_VALUE]
+        return self.raw[EVENT_VALUE]
 
 
 class AxisBinaryEvent(AxisEvent):
