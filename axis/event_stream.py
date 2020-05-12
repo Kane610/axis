@@ -3,7 +3,7 @@
 import logging
 import re
 
-from .api import APIItem
+from .api import APIItem, APIItems
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,20 +32,23 @@ DATA = re.compile(
 )
 
 
-class EventManager:
+class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
     def __init__(self, signal) -> None:
         """Ready information about events."""
+        super().__init__(raw={}, request=None, path="", item_cls=create_event)
         self.signal = signal
-        self.events = {}
 
-    def new_event(self, event_data: str) -> None:
+    def update(self, event_data: str) -> None:
         """New event to process."""
         event = self.parse_event_xml(event_data)
 
-        if EVENT_OPERATION in event:
-            self.manage_event(event)
+        if event.get(EVENT_OPERATION, "") in ("Initialized", "Changed"):
+            id = f"{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX)}"
+            new_events = self.process_raw({id: event})
+            if new_events:
+                self.signal("add", next(iter(new_events)))
 
     def parse_event_xml(self, event_data) -> dict:
         """Parse metadata xml."""
@@ -77,35 +80,11 @@ class EventManager:
 
         return event
 
-    def manage_event(self, event) -> None:
-        """Received new metadata.
 
-        Operation initialized means new event, also happens if reconnecting.
-        Operation changed updates existing events state.
-        """
-        name = f"{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX)}"
+class AxisEvent(APIItem):
+    """Axis base event."""
 
-        if event[EVENT_OPERATION] == "Initialized" and name not in self.events:
-
-            for event_class in EVENT_CLASSES:
-                if event_class.TOPIC in event[EVENT_TOPIC]:
-                    self.events[name] = event_class(event, request=None)
-                    self.signal("add", name)
-                    return
-
-            LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
-
-        elif event[EVENT_OPERATION] == "Changed" and name in self.events:
-            self.events[name].update(event)
-
-            # elif operation == 'Deleted':
-            #     LOGGER.debug("Deleted event from stream")
-
-
-class AxisBinaryEvent(APIItem):
-    """"""
-
-    BINARY = True
+    BINARY = False
     TOPIC = None
     CLASS = None
     TYPE = None
@@ -130,19 +109,16 @@ class AxisBinaryEvent(APIItem):
         """State of the event."""
         return self._raw[EVENT_VALUE]
 
+
+class AxisBinaryEvent(AxisEvent):
+    """Axis binary event."""
+
+    BINARY = True
+
     @property
     def is_tripped(self) -> bool:
         """Event is tripped now."""
         return self.state == "1"
-
-    def register_callback(self, callback) -> None:
-        """Register callback for state updates."""
-        self.observers.add(callback)
-
-    def remove_callback(self, observer) -> None:
-        """Remove observer."""
-        if observer in self.observers:
-            self.observers.remove(observer)
 
 
 # {
@@ -324,6 +300,16 @@ EVENT_CLASSES = (
     Vmd3,
     Vmd4,
 )
+
+
+def create_event(event_id: str, event: dict, request) -> AxisEvent:
+    """Simplify creating event by not needing to know type."""
+    for event_class in EVENT_CLASSES:
+        if event_class.TOPIC in event[EVENT_TOPIC]:
+            return event_class(event_id, event, request)
+
+    LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
+    return AxisEvent(event_id, event, request)
 
 
 # Future events

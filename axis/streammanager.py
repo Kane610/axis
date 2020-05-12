@@ -13,7 +13,7 @@ RTSP_URL = (
 RETRY_TIMER = 15
 
 
-class StreamManager(object):
+class StreamManager:
     """Setup, start, stop and retry stream."""
 
     def __init__(self, config):

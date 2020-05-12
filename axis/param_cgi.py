@@ -6,7 +6,7 @@ action: Add, remove, update or list parameters.
 usergroup: Get a certain user access level.
 """
 
-from .api import APIItems
+from .api import APIItem, APIItems
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
@@ -152,10 +152,5 @@ class Params(APIItems, Brand, Ports, Properties):
         super().process_raw(raw_params)
 
 
-class Param:
+class Param(APIItem):
     """Represents a parameter group."""
-
-    def __init__(self, id: str, raw: dict, request: str) -> None:
-        self.id = id
-        self.raw = raw
-        self._request = request
