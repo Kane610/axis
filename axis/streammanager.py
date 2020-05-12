@@ -1,5 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+import asyncio
 import logging
 
 from .rtsp import RTSPClient, SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED
@@ -80,7 +81,6 @@ class StreamManager:
         """Start stream."""
         if not self.stream or self.stream.session.state == STATE_STOPPED:
             self.stream = RTSPClient(
-                self.config.loop,
                 self.stream_url,
                 self.config.host,
                 self.config.username,
@@ -96,6 +96,7 @@ class StreamManager:
 
     def retry(self):
         """No connection to device, retry connection after 15 seconds."""
+        loop = asyncio.get_running_loop()
         self.stream = None
-        self.config.loop.call_later(RETRY_TIMER, self.start)
+        loop.call_later(RETRY_TIMER, self.start)
         _LOGGER.debug("Reconnecting to %s", self.config.host)

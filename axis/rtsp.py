@@ -28,11 +28,11 @@ TIME_OUT_LIMIT = 5
 class RTSPClient(asyncio.Protocol):
     """RTSP transport, session handling, message generation."""
 
-    def __init__(self, loop, url, host, username, password, callback):
+    def __init__(self, url, host, username, password, callback):
         """RTSP."""
-        self.loop = loop
+        self.loop = asyncio.get_running_loop()
         self.callback = callback
-        self.rtp = RTPClient(loop, callback)
+        self.rtp = RTPClient(self.loop, callback)
         self.session = RTSPSession(url, host, username, password)
         self.session.rtp_port = self.rtp.port
         self.session.rtcp_port = self.rtp.rtcp_port
@@ -212,7 +212,7 @@ class RTSPMethods(object):
 
     def OPTIONS(self, authenticate=True):
         """Request options device supports."""
-        message = "OPTIONS " + self.session.url + " RTSP/1.0\r\n"
+        message = f"OPTIONS {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication if authenticate else ""
         message += self.user_agent
@@ -222,7 +222,7 @@ class RTSPMethods(object):
 
     def DESCRIBE(self):
         """Request description of what services RTSP server make available."""
-        message = "DESCRIBE " + self.session.url + " RTSP/1.0\r\n"
+        message = f"DESCRIBE {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
         message += self.user_agent
@@ -232,7 +232,7 @@ class RTSPMethods(object):
 
     def SETUP(self):
         """Set up stream transport."""
-        message = "SETUP " + self.session.control_url + " RTSP/1.0\r\n"
+        message = f"SETUP {self.session.control_url} RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
         message += self.user_agent
@@ -242,7 +242,7 @@ class RTSPMethods(object):
 
     def PLAY(self):
         """RTSP session is ready to send data."""
-        message = "PLAY " + self.session.url + " RTSP/1.0\r\n"
+        message = f"PLAY {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
         message += self.user_agent
@@ -252,7 +252,7 @@ class RTSPMethods(object):
 
     def TEARDOWN(self):
         """Tell device to tear down session."""
-        message = "TEARDOWN " + self.session.url + " RTSP/1.0\r\n"
+        message = f"TEARDOWN {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
         message += self.user_agent
@@ -263,7 +263,7 @@ class RTSPMethods(object):
     @property
     def sequence(self):
         """Generate sequence string."""
-        return "CSeq: " + str(self.session.sequence) + "\r\n"
+        return f"CSeq: {str(self.session.sequence)}\r\n"
 
     @property
     def authentication(self):
@@ -274,25 +274,24 @@ class RTSPMethods(object):
             authentication = self.session.generate_basic()
         else:
             return ""
-        return "Authorization: " + authentication + "\r\n"
+        return f"Authorization: {authentication}\r\n"
 
     @property
     def user_agent(self):
         """Generate user-agent string."""
-        return "User-Agent: " + self.session.user_agent + "\r\n"
+        return f"User-Agent: {self.session.user_agent}\r\n"
 
     @property
     def session_id(self):
         """Generate session string."""
         if self.session.session_id:
-            return "Session: " + self.session.session_id + "\r\n"
+            return f"Session: {self.session.session_id}\r\n"
         return ""
 
     @property
     def transport(self):
         """Generate transport string."""
-        transport = "Transport: RTP/AVP;unicast;client_port={}-{}\r\n"
-        return transport.format(str(self.session.rtp_port), str(self.session.rtcp_port))
+        return f"Transport: RTP/AVP;unicast;client_port={self.session.rtp_port}-{self.session.rtcp_port}\r\n"
 
 
 class RTSPSession(object):
@@ -446,20 +445,20 @@ class RTSPSession(object):
         """RFC 2617."""
         from hashlib import md5
 
-        ha1 = self.username + ":" + self.realm + ":" + self.password
+        ha1 = f"{self.username}:{self.realm}:{self.password}"
         HA1 = md5(ha1.encode("UTF-8")).hexdigest()
-        ha2 = self.method + ":" + self.url
+        ha2 = f"{self.method}:{self.url}"
         HA2 = md5(ha2.encode("UTF-8")).hexdigest()
-        encrypt_response = HA1 + ":" + self.nonce + ":" + HA2
+        encrypt_response = f"{HA1}:{self.nonce}:{HA2}"
         response = md5(encrypt_response.encode("UTF-8")).hexdigest()
 
         digest_auth = "Digest "
-        digest_auth += 'username="' + self.username + '", '
-        digest_auth += 'realm="' + self.realm + '", '
+        digest_auth += f'username="{self.username}", '
+        digest_auth += f'realm="{self.realm}", '
         digest_auth += 'algorithm="MD5", '
-        digest_auth += 'nonce="' + self.nonce + '", '
-        digest_auth += 'uri="' + self.url + '", '
-        digest_auth += 'response="' + response + '"'
+        digest_auth += f'nonce="{self.nonce}", '
+        digest_auth += f'uri="{self.url}", '
+        digest_auth += f'response="{response}"'
         return digest_auth
 
     def generate_basic(self):
@@ -467,7 +466,7 @@ class RTSPSession(object):
         from base64 import b64encode
 
         if not self.basic_auth:
-            creds = self.username + ":" + self.password
+            creds = f"{self.username}:{self.password}"
             self.basic_auth = "Basic "
             self.basic_auth += b64encode(creds.encode("UTF-8")).decode("UTF-8")
         return self.basic_auth

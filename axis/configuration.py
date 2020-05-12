@@ -1,6 +1,5 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
-import asyncio
 import requests
 from requests.auth import HTTPDigestAuth
 
@@ -19,8 +18,6 @@ class Configuration(object):
         self.port = port
         self.username = username
         self.password = password
-
-        self.loop = asyncio.get_running_loop()
 
         self.session = requests.Session()
         self.session.auth = HTTPDigestAuth(self.username, self.password)
