@@ -3,17 +3,13 @@
 import logging
 import re
 
-from .utils import session_request
-
-_LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 CLASS_INPUT = "input"
 CLASS_LIGHT = "light"
 CLASS_MOTION = "motion"
 CLASS_OUTPUT = "output"
 CLASS_SOUND = "sound"
-
-EVENT_NAME = "{topic}_{source}"
 
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
@@ -54,10 +50,11 @@ class EventManager:
         event = {}
 
         event_xml = event_data.decode()
-
         message = MESSAGE.search(event_xml)
+
         if not message:
-            return {}
+            return event
+
         event[EVENT_OPERATION] = message.group(EVENT_OPERATION)
 
         topic = TOPIC.search(event_xml)
@@ -74,7 +71,7 @@ class EventManager:
             event[EVENT_TYPE] = data.group(EVENT_TYPE)
             event[EVENT_VALUE] = data.group(EVENT_VALUE)
 
-        _LOGGER.debug(event)
+        LOGGER.debug(event)
 
         return event
 
@@ -84,9 +81,7 @@ class EventManager:
         Operation initialized means new event, also happens if reconnecting.
         Operation changed updates existing events state.
         """
-        name = EVENT_NAME.format(
-            topic=event[EVENT_TOPIC], source=event.get(EVENT_SOURCE_IDX)
-        )
+        name = f"{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX)}"
 
         if event[EVENT_OPERATION] == "Initialized" and name not in self.events:
 
@@ -96,13 +91,13 @@ class EventManager:
                     self.signal("add", name)
                     return
 
-            _LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
+            LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
 
         elif event[EVENT_OPERATION] == "Changed" and name in self.events:
             self.events[name].state = event[EVENT_VALUE]
 
             # elif operation == 'Deleted':
-            #     _LOGGER.debug("Deleted event from stream")
+            #     LOGGER.debug("Deleted event from stream")
 
 
 class AxisBinaryEvent:
@@ -173,9 +168,6 @@ class Audio(AxisBinaryEvent):
     CLASS = CLASS_SOUND
     TYPE = "Sound"
 
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
-
 
 class DayNight(AxisBinaryEvent):
     """Day/Night vision trigger event.
@@ -193,9 +185,6 @@ class DayNight(AxisBinaryEvent):
     TOPIC = "tns1:VideoSource/tnsaxis:DayNightVision"
     CLASS = CLASS_LIGHT
     TYPE = "DayNight"
-
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
 
 
 class Input(AxisBinaryEvent):
@@ -215,9 +204,6 @@ class Input(AxisBinaryEvent):
     CLASS = CLASS_INPUT
     TYPE = "Input"
 
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
-
 
 class Motion(AxisBinaryEvent):
     """Motion detection event."""
@@ -225,9 +211,6 @@ class Motion(AxisBinaryEvent):
     TOPIC = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
     CLASS = CLASS_MOTION
     TYPE = "Motion"
-
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
 
 
 class Pir(AxisBinaryEvent):
@@ -247,9 +230,6 @@ class Pir(AxisBinaryEvent):
     CLASS = CLASS_MOTION
     TYPE = "PIR"
 
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
-
 
 class Relay(AxisBinaryEvent):
     """Relay event.
@@ -267,9 +247,6 @@ class Relay(AxisBinaryEvent):
     TOPIC = "tns1:Device/Trigger/Relay"
     CLASS = CLASS_OUTPUT
     TYPE = "Relay"
-
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
 
     @property
     def is_tripped(self) -> bool:
@@ -294,9 +271,6 @@ class SupervisedInput(AxisBinaryEvent):
     CLASS = CLASS_INPUT
     TYPE = "Supervised Input"
 
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
-
 
 class Vmd3(AxisBinaryEvent):
     """Visual Motion Detection 3.
@@ -314,9 +288,6 @@ class Vmd3(AxisBinaryEvent):
     TOPIC = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
     CLASS = CLASS_MOTION
     TYPE = "VMD3"
-
-    def __init__(self, event: dict) -> None:
-        super().__init__(event)
 
 
 class Vmd4(AxisBinaryEvent):
