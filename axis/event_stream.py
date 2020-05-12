@@ -45,12 +45,16 @@ class EventManager(APIItems):
         self.signal = signal
 
     def update(self, event_data: str) -> None:
-        """New event to process."""
+        """Prepare event."""
         event = self.parse_event_xml(event_data)
 
         if not event:
             return
 
+        self.process_event(event)
+
+    def process_event(self, event: dict) -> None:
+        """New event to process."""
         if event[EVENT_OPERATION] in (OPERATION_INITIALIZED, OPERATION_CHANGED):
             id = f"{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX)}"
             new_events = self.process_raw({id: event})
@@ -130,14 +134,6 @@ class AxisBinaryEvent(AxisEvent):
     def is_tripped(self) -> bool:
         """Event is tripped now."""
         return self.state == "1"
-
-
-# {
-#     'operation': 'Initialized',
-#     'topic': 'tns1:LightControl/tnsaxis:LightStatusChanged/Status',
-#     'type': 'state',
-#     'value': 'OFF'
-# }
 
 
 class Audio(AxisBinaryEvent):
@@ -321,50 +317,3 @@ def create_event(event_id: str, event: dict, request) -> AxisEvent:
 
     LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
     return AxisEvent(event_id, event, request)
-
-
-# Future events
-# {
-#   'operation': 'Initialized',
-#   'topic': 'tnsaxis:Storage/Recording',
-#   'type': 'recording',
-#   'value': '0'
-# }
-# {
-#   'operation': 'Initialized',
-#   'topic': 'tnsaxis:Storage/Disruption',
-#   'source': 'disk_id',
-#   'source_idx': 'NetworkShare',
-#   'type': 'disruption',
-#   'value': '1'
-# }
-# {
-#   'operation': 'Initialized',
-#   'topic': 'tns1:Device/tnsaxis:HardwareFailure/StorageFailure',
-#   'source': 'disk_id',
-#   'source_idx': 'SD_DISK',
-#   'type': 'disruption',
-#   'value': '1'
-# }
-# {
-#   'operation': 'Initialized',
-#   'topic': 'tns1:VideoSource/tnsaxis:LiveStreamAccessed',
-#   'type': 'accessed',
-#   'value': '1'
-# }
-# {
-#   'operation': 'Initialized',
-#   'topic': 'tns1:Device/Trigger/DigitalInput',
-#   'source': 'InputToken',
-#   'source_idx': '0',
-#   'type': 'LogicalState',
-#   'value': 'false'
-# }
-# {
-#   'operation': 'Initialized',
-#   'topic': 'tns1:RuleEngine/MotionRegionDetector/Motion',
-#   'source': 'VideoSource',
-#   'source_idx': '0',
-#   'type': 'State',
-#   'value': '0'
-# }
