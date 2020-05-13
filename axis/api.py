@@ -74,7 +74,7 @@ class APIItem:
         self._raw = raw
 
         for observer in self.observers:
-            # observer.update()
+            # observer.observer_update()
             observer()
 
     def register_callback(self, callback) -> None:
@@ -91,5 +91,5 @@ class APIItemObserver(ABC):
     """To register observer to an APIItem."""
 
     @abstractmethod
-    def update(self):
+    def observer_update(self):
         raise NotImplementedError

@@ -60,7 +60,7 @@ class EventManager(APIItems):
             new_events = self.process_raw({id: event})
             for new_event in new_events:
                 if self[new_event].TOPIC:
-                    self.signal("add", new_event)
+                    self.signal(OPERATION_INITIALIZED, new_event)
 
         elif event[EVENT_OPERATION] == OPERATION_DELETED:
             LOGGER.debug("Deleted event from stream")
