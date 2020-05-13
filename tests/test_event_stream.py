@@ -28,20 +28,20 @@ from .event_fixtures import (
 
 
 @pytest.fixture
-def manager() -> EventManager:
+def event_manager() -> EventManager:
     """Returns mocked event manager."""
     signal = Mock()
     return EventManager(signal)
 
 
-def test_parse_event_first_message(manager):
+def test_parse_event_first_message(event_manager):
     """Verify that first message doesn't do anything."""
-    assert not manager.parse_event_xml(FIRST_MESSAGE)
+    assert not event_manager.parse_event_xml(FIRST_MESSAGE)
 
 
-def test_parse_event_pir_init(manager):
+def test_parse_event_pir_init(event_manager):
     """Verify that PIR init can be parsed correctly."""
-    pir = manager.parse_event_xml(PIR_INIT)
+    pir = event_manager.parse_event_xml(PIR_INIT)
     assert pir == {
         "operation": "Initialized",
         "topic": "tns1:Device/tnsaxis:Sensor/PIR",
@@ -52,9 +52,9 @@ def test_parse_event_pir_init(manager):
     }
 
 
-def test_parse_event_pir_change(manager):
+def test_parse_event_pir_change(event_manager):
     """Verify that PIR change can be parsed correctly"""
-    pir = manager.parse_event_xml(PIR_CHANGE)
+    pir = event_manager.parse_event_xml(PIR_CHANGE)
     assert pir == {
         "operation": "Changed",
         "topic": "tns1:Device/tnsaxis:Sensor/PIR",
@@ -65,9 +65,9 @@ def test_parse_event_pir_change(manager):
     }
 
 
-def test_parse_event_vmd4_init(manager):
+def test_parse_event_vmd4_init(event_manager):
     """Verify that VMD4 init can be parsed correctly."""
-    vmd = manager.parse_event_xml(VMD4_ANY_INIT)
+    vmd = event_manager.parse_event_xml(VMD4_ANY_INIT)
     assert vmd == {
         "operation": "Initialized",
         "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
@@ -76,9 +76,9 @@ def test_parse_event_vmd4_init(manager):
     }
 
 
-def test_parse_event_vmd4_change(manager):
+def test_parse_event_vmd4_change(event_manager):
     """Verify that VMD4 change can be parsed correctly."""
-    vmd = manager.parse_event_xml(VMD4_ANY_CHANGE)
+    vmd = event_manager.parse_event_xml(VMD4_ANY_CHANGE)
     assert vmd == {
         "operation": "Changed",
         "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
@@ -87,11 +87,11 @@ def test_parse_event_vmd4_change(manager):
     }
 
 
-def test_manage_event_audio_init(manager):
+def test_manage_event_audio_init(event_manager):
     """Verify that a new audio event can be managed."""
-    manager.new_event(AUDIO_INIT)
+    event_manager.update(AUDIO_INIT)
 
-    event = manager.events["tns1:AudioSource/tnsaxis:TriggerLevel_1"]
+    event = event_manager["tns1:AudioSource/tnsaxis:TriggerLevel_1"]
     assert event.topic == "tns1:AudioSource/tnsaxis:TriggerLevel"
     assert event.source == "channel"
     assert event.id == "1"
@@ -100,11 +100,11 @@ def test_manage_event_audio_init(manager):
     assert event.state == "0"
 
 
-def test_manage_event_daynight_init(manager):
+def test_manage_event_daynight_init(event_manager):
     """Verify that a new day/night event can be managed."""
-    manager.new_event(DAYNIGHT_INIT)
+    event_manager.update(DAYNIGHT_INIT)
 
-    event = manager.events["tns1:VideoSource/tnsaxis:DayNightVision_1"]
+    event = event_manager["tns1:VideoSource/tnsaxis:DayNightVision_1"]
     assert event.topic == "tns1:VideoSource/tnsaxis:DayNightVision"
     assert event.source == "VideoSourceConfigurationToken"
     assert event.id == "1"
@@ -113,11 +113,11 @@ def test_manage_event_daynight_init(manager):
     assert event.state == "1"
 
 
-def test_manage_event_port_0_init(manager):
+def test_manage_event_port_0_init(event_manager):
     """Verify that a new day/night event can be managed."""
-    manager.new_event(PORT_0_INIT)
+    event_manager.update(PORT_0_INIT)
 
-    event = manager.events["tns1:Device/tnsaxis:IO/Port_1"]
+    event = event_manager["tns1:Device/tnsaxis:IO/Port_1"]
     assert event.topic == "tns1:Device/tnsaxis:IO/Port"
     assert event.source == "port"
     assert event.id == "1"
@@ -126,23 +126,23 @@ def test_manage_event_port_0_init(manager):
     assert event.state == "0"
 
 
-def test_manage_event_port_any_init(manager):
+def test_manage_event_port_any_init(event_manager):
     """Verify that a new day/night event can be managed."""
-    manager.new_event(PORT_ANY_INIT)
+    event_manager.update(PORT_ANY_INIT)
 
-    event = manager.events["tns1:Device/tnsaxis:IO/Port_None"]
+    event = event_manager.events["tns1:Device/tnsaxis:IO/Port_None"]
     assert event.topic == "tns1:Device/tnsaxis:IO/Port"
     assert event.CLASS == "input"
     assert event.TYPE == "Input"
     assert event.state == "0"
 
 
-def test_manage_event_pir_init(manager):
+def test_manage_event_pir_init(event_manager):
     """Verify that a new PIR event can be managed."""
-    manager.new_event(PIR_INIT)
-    assert manager.events
+    event_manager.update(PIR_INIT)
+    assert event_manager.values()
 
-    event = manager.events["tns1:Device/tnsaxis:Sensor/PIR_0"]
+    event = event_manager["tns1:Device/tnsaxis:Sensor/PIR_0"]
     assert event.topic == "tns1:Device/tnsaxis:Sensor/PIR"
     assert event.source == "sensor"
     assert event.id == "0"
@@ -152,29 +152,30 @@ def test_manage_event_pir_init(manager):
 
     mock_callback = Mock()
     event.register_callback(mock_callback)
-    event.state = "1"
+
+    event_manager.update(PIR_CHANGE)
     assert event.state == "1"
     assert event.is_tripped
     assert mock_callback.called
 
     event.remove_callback(mock_callback)
-    assert not event._callbacks
+    assert not event.observers
 
 
-def test_manage_event_pir_change(manager):
+def test_manage_event_pir_change(event_manager):
     """Verify that a PIR event change can be managed."""
-    manager.new_event(PIR_INIT)
-    manager.new_event(PIR_CHANGE)
+    event_manager.update(PIR_INIT)
+    event_manager.update(PIR_CHANGE)
 
-    event = manager.events["tns1:Device/tnsaxis:Sensor/PIR_0"]
+    event = event_manager["tns1:Device/tnsaxis:Sensor/PIR_0"]
     assert event.state == "1"
 
 
-def test_manage_event_port_any_init(manager):
+def test_manage_event_port_any_init(event_manager):
     """Verify that a new day/night event can be managed."""
-    manager.new_event(RELAY_INIT)
+    event_manager.update(RELAY_INIT)
 
-    event = manager.events["tns1:Device/Trigger/Relay_3"]
+    event = event_manager["tns1:Device/Trigger/Relay_3"]
     assert event.topic == "tns1:Device/Trigger/Relay"
     assert event.source == "RelayToken"
     assert event.id == "3"
@@ -183,11 +184,11 @@ def test_manage_event_port_any_init(manager):
     assert event.state == "inactive"
 
 
-def test_manage_event_vmd3_init(manager):
+def test_manage_event_vmd3_init(event_manager):
     """Verify that a new VMD3 event can be managed."""
-    manager.new_event(VMD3_INIT)
+    event_manager.update(VMD3_INIT)
 
-    event = manager.events["tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1_0"]
+    event = event_manager["tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1_0"]
     assert event.topic == "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
     assert event.source == "areaid"
     assert event.id == "0"
@@ -196,11 +197,11 @@ def test_manage_event_vmd3_init(manager):
     assert event.state == "0"
 
 
-def test_manage_event_vmd4_init(manager):
+def test_manage_event_vmd4_init(event_manager):
     """Verify that a new VMD4 event can be managed."""
-    manager.new_event(VMD4_ANY_INIT)
+    event_manager.update(VMD4_ANY_INIT)
 
-    event = manager.events[
+    event = event_manager[
         "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None"
     ]
     assert event.topic == "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY"
@@ -211,28 +212,28 @@ def test_manage_event_vmd4_init(manager):
     assert event.state == "0"
 
 
-def test_manage_event_vmd4_change(manager):
+def test_manage_event_vmd4_change(event_manager):
     """Verify that a VMD4 event change can be managed."""
-    manager.new_event(VMD4_ANY_INIT)
-    manager.new_event(VMD4_ANY_CHANGE)
+    event_manager.update(VMD4_ANY_INIT)
+    event_manager.update(VMD4_ANY_CHANGE)
 
-    event = manager.events[
+    event = event_manager[
         "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None"
     ]
     assert event.state == "1"
 
 
-def test_manage_event_unsupported_event(manager):
-    """Verify that unsupported events aren't created."""
-    event = {"operation": "Initialized", "topic": "unsupported_topic"}
-    manager.manage_event(event)
-    assert not manager.events
+# def test_manage_event_unsupported_event(manager):
+#     """Verify that unsupported events aren't created."""
+#     event = {"operation": "Initialized", "topic": "unsupported_topic"}
+#     manager.update(event)
+#     assert not manager.events
 
 
-def test_manage_event_initialize_event_already_exist(manager):
+def test_manage_event_initialize_event_already_exist(event_manager):
     """Verify that initialize with an already existing event doesn't create."""
-    manager.new_event(VMD4_ANY_INIT)
-    assert manager.events
+    event_manager.update(VMD4_ANY_INIT)
+    assert event_manager.values()
 
-    manager.new_event(VMD4_ANY_INIT)
-    assert len(manager.events) == 1
+    event_manager.update(VMD4_ANY_INIT)
+    assert len(event_manager.values()) == 1

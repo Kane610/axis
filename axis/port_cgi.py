@@ -19,6 +19,9 @@ PROPERTY = "Properties.API.HTTP.Version=3"
 URL = "/axis-cgi/io/port.cgi"
 ACTION = "?action={action}"
 
+ACTION_HIGH = "/"
+ACTION_LOW = "\\"
+
 DIRECTION_IN = "input"
 DIRECTION_OUT = "output"
 
