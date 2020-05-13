@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 from asynctest import Mock
 
 from axis.param_cgi import Params
-from axis.port_cgi import Ports
+from axis.port_cgi import ACTION_HIGH, ACTION_LOW, Ports
 
 
 def test_ports():
@@ -24,7 +24,7 @@ def test_ports():
     assert ports["0"].direction == "input"
     assert not ports["0"].name
 
-    ports["0"].action(action="\\")
+    ports["0"].action(action=ACTION_LOW)
     mock_request.assert_called_once
 
     assert ports["1"].id == "1"
@@ -45,7 +45,7 @@ def test_ports():
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"
 
-    ports["3"].action(action="/")
+    ports["3"].action(action=ACTION_HIGH)
     mock_request.assert_called_with("get", "/axis-cgi/io/port.cgi?action=4%3A%2F")
 
 
