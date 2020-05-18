@@ -1,7 +1,5 @@
 """MQTT Client api."""
 
-from dataclasses import asdict, dataclass, field
-
 import attr
 
 from .api import APIItem, APIItems
@@ -9,6 +7,8 @@ from .api import APIItem, APIItems
 URL = "/axis-cgi/mqtt"
 URL_CLIENT = f"{URL}/client.cgi"
 URL_EVENT = f"{URL}/event.cgi"
+
+API_DISCOVERY_ID = "mqtt-client"
 
 APIVERSION = "1.0"
 CONTEXT = "Axis library"
@@ -83,40 +83,28 @@ class MqttClient(APIItems):
         self._request(
             "post",
             URL_CLIENT,
-            data=attr.asdict(body("configureClient", params=client_config)),
+            data=attr.asdict(
+                body("configureClient", params=client_config),
+                filter=lambda attr, value: value is not None,
+            ),
         )
 
     def activate(self) -> None:
         """Activate MQTT Client."""
         self._request(
-            "post",
-            URL_CLIENT,
-            data=attr.asdict(
-                body("activateClient"),
-                filter=attr.filters.exclude(attr.fields(body).params),
-            ),
+            "post", URL_CLIENT, data=attr.asdict(body("activateClient")),
         )
 
     def deactivate(self) -> None:
         """Deactivate MQTT Client."""
         self._request(
-            "post",
-            URL_CLIENT,
-            data=attr.asdict(
-                body("deactivateClient"),
-                filter=attr.filters.exclude(attr.fields(body).params),
-            ),
+            "post", URL_CLIENT, data=attr.asdict(body("deactivateClient")),
         )
 
     def get_client_status(self) -> dict:
         """Get MQTT Client status."""
         return self._request(
-            "post",
-            URL_CLIENT,
-            data=attr.asdict(
-                body("getClientStatus"),
-                filter=attr.filters.exclude(attr.fields(body).params),
-            ),
+            "post", URL_CLIENT, data=attr.asdict(body("getClientStatus")),
         )
 
     def get_event_publication_config(self) -> dict:

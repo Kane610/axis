@@ -32,31 +32,11 @@ def test_mqtt():
             "context": "Axis library",
             "params": {
                 "server": {"host": "192.168.0.1", "port": 1883, "protocol": "tcp"},
-                "lastWillTestament": {
-                    "useDefault": True,
-                    "topic": None,
-                    "message": None,
-                    "retain": None,
-                    "qos": None,
-                },
-                "connectMessage": {
-                    "useDefault": True,
-                    "topic": None,
-                    "message": None,
-                    "retain": None,
-                    "qos": None,
-                },
-                "disconnectMessage": {
-                    "useDefault": True,
-                    "topic": None,
-                    "message": None,
-                    "retain": None,
-                    "qos": None,
-                },
+                "lastWillTestament": {"useDefault": True},
+                "connectMessage": {"useDefault": True},
+                "disconnectMessage": {"useDefault": True},
                 "ssl": {"validateServerCert": False},
                 "activateOnReboot": True,
-                "username": None,
-                "password": None,
                 "clientId": "",
                 "keepAliveInterval": 60,
                 "connectTimeout": 60,
@@ -74,6 +54,7 @@ def test_mqtt():
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "activateClient",
+            "params": {},
         },
     )
 
@@ -85,6 +66,7 @@ def test_mqtt():
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "deactivateClient",
+            "params": {},
         },
     )
 
@@ -96,6 +78,7 @@ def test_mqtt():
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getClientStatus",
+            "params": {},
         },
     )
 
@@ -146,103 +129,58 @@ def test_mqtt():
     )
 
 
-client_status_response = {
+response_get_client_status = {
     "apiVersion": "1.0",
-    "context": "Axis library",
+    "context": "some context",
     "method": "getClientStatus",
     "data": {
-        "status": {"state": "inactive", "connectionStatus": "Not connected"},
+        "status": {"state": "active", "connectionStatus": "Connected"},
         "config": {
             "activateOnReboot": True,
-            "server": {"protocol": "tcp", "host": "192.168.0.1", "port": 1883},
+            "server": {"protocol": "tcp", "host": "192.168.0.90", "port": 1883},
             "clientId": "client_1",
             "keepAliveInterval": 60,
             "connectTimeout": 60,
             "cleanSession": True,
             "autoReconnect": True,
-            "lastWillTestament": {"useDefault": True},
-            "connectMessage": {"useDefault": True},
-            "disconnectMessage": {"useDefault": True},
+            "lastWillTestament": {
+                "useDefault": False,
+                "topic": "LWT/client_1",
+                "message": "client_1 LWT",
+                "retain": True,
+                "qos": 1,
+            },
+            "connectMessage": {
+                "useDefault": False,
+                "topic": "connected/client_1",
+                "message": "client_1 connected",
+                "retain": False,
+                "qos": 1,
+            },
+            "disconnectMessage": {
+                "useDefault": False,
+                "topic": "disconnected/client_1",
+                "message": "client_1 disconnected",
+                "retain": False,
+                "qos": 1,
+            },
             "ssl": {"validateServerCert": False},
         },
     },
 }
 
-
-event_publication_config_response = {
+response_get_event_publication_config = {
     "apiVersion": "1.0",
-    "context": "Axis library",
+    "context": "Axis lib",
     "method": "getEventPublicationConfig",
     "data": {
         "eventPublicationConfig": {
-            "topicPrefix": "",
+            "topicPrefix": "default",
             "customTopicPrefix": "",
             "appendEventTopic": True,
             "includeTopicNamespaces": True,
             "includeSerialNumberInPayload": False,
-            "eventFilterList": [],
+            "eventFilterList": [{"topicFilter": "//.", "qos": 0, "retain": "none"}],
         }
-    },
-}
-
-
-{
-    "apiVersion": "1.0",
-    "context": "some context",
-    "method": "configureClient",
-    "params": {
-        "activateOnReboot": True,
-        "server": {"protocol": "tcp", "host": "192.168.0.1", "port": 1883},
-        "clientId": "client_1",
-        "cleanSession": True,
-        "lastWillTestament": {"useDefault": True},
-        "connectMessage": {"useDefault": True},
-        "disconnectMessage": {"useDefault": True},
-        "ssl": {"validateServerCert": False},
-    },
-}
-
-
-{
-    "apiVersion": "1.0",
-    "context": "some context",
-    "method": "configureClient",
-    "params": {
-        "activateOnReboot": True,
-        "server": {
-            "protocol": "wss",
-            "host": "broker-address",
-            "port": 443,
-            "basepath": "url-extension",
-        },
-        "username": "username",
-        "password": "password",
-        "clientId": "client_1",
-        "keepAliveInterval": 60,
-        "connectTimeout": 60,
-        "cleanSession": True,
-        "autoReconnect": True,
-        "lastWillTestament": {
-            "useDefault": False,
-            "topic": "LWT/client_1",
-            "message": "client_1 LWT",
-            "retain": True,
-            "qos": 1,
-        },
-        "connectMessage": {
-            "useDefault": False,
-            "topic": "connected/client_1",
-            "message": "client_1 connected",
-            "retain": False,
-            "qos": 1,
-        },
-        "disconnectMessage": {
-            "useDefault": False,
-            "topic": "disconnected/client_1",
-            "message": "client_1 disconnected",
-            "retain": False,
-            "qos": 1,
-        },
-        "ssl": {"validateServerCert": True},
     },
 }
