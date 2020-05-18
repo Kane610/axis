@@ -42,11 +42,11 @@ class ApiDiscovery(APIItems):
 
         super().process_raw(raw_apis)
 
-    def get_api_list(self) -> None:
+    def get_api_list(self) -> dict:
         """List all APIs registered on API Discovery service."""
         return self._request("post", URL, json=attr.asdict(body(METHOD_GET_API_LIST)))
 
-    def get_supported_versions(self) -> None:
+    def get_supported_versions(self) -> dict:
         """Supported versions of API Discovery API."""
         return self._request(
             "post",

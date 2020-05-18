@@ -74,7 +74,6 @@ def test_mqtt():
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "activateClient",
-            "params": {},
         },
     )
 
@@ -86,11 +85,10 @@ def test_mqtt():
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "deactivateClient",
-            "params": {},
         },
     )
 
-    mqtt_client.status()
+    mqtt_client.get_client_status()
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
@@ -98,11 +96,10 @@ def test_mqtt():
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getClientStatus",
-            "params": {},
         },
     )
 
-    mqtt_client.event_publication_config()
+    mqtt_client.get_event_publication_config()
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
@@ -110,7 +107,6 @@ def test_mqtt():
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getEventPublicationConfig",
-            "params": {},
         },
     )
 
