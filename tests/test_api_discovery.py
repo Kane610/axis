@@ -5,31 +5,40 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 
 from asynctest import Mock
 
-from axis.api_discovery import ApiDiscovery
+from axis.api_discovery import ApiDiscovery, API_DISCOVERY_ID
 
 
-def test_mqtt():
-    """Test MQTT Client API works."""
+def test_api_discovery():
+    """Test API Discovery API works."""
     mock_request = Mock()
     mock_request.return_value = ""
     api_discovery = ApiDiscovery({}, mock_request)
 
-    api_discovery.api_list()
+    api_discovery.get_api_list()
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/apidiscovery.cgi",
-        data={"method": "getApiList", "apiVersion": "1.0"},
+        json={"method": "getApiList", "apiVersion": "1.0"},
     )
 
-    api_discovery.supported_versions()
+    mock_request.return_value = response_getSupportedVersions
+    response = api_discovery.get_supported_versions()
     mock_request.assert_called_with(
-        "post",
-        "/axis-cgi/apidiscovery.cgi",
-        data={"method": "getSupportedVersions", "apiVersion": "1.0"},
+        "post", "/axis-cgi/apidiscovery.cgi", json={"method": "getSupportedVersions"},
     )
+    assert response["data"] == {"apiVersions": ["1.0"]}
+
+    mock_request.return_value = response_getApiList
+    api_discovery.update()
+    assert len(api_discovery.values()) == 14
+
+    item = api_discovery[API_DISCOVERY_ID]
+    assert item.id == "api-discovery"
+    assert item.name == "API Discovery Service"
+    assert item.version == "1.0"
 
 
-getApiListResponse = {
+response_getApiList = {
     "method": "getApiList",
     "apiVersion": "1.0",
     "data": {
@@ -122,7 +131,15 @@ getApiListResponse = {
     },
 }
 
-getSupportedVersionsResponse = {
+response_getSupportedVersions = {
     "method": "getSupportedVersions",
     "data": {"apiVersions": ["1.0"]},
+}
+
+{
+    "apiVersion": "1.0",
+    "error": {
+        "code": 4002,
+        "message": "'apiVersion' must not be provided for method 'getSupportedVersions'",
+    },
 }
