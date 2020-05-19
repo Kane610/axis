@@ -1,5 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+import json
 import logging
 
 from .api_discovery import ApiDiscovery
