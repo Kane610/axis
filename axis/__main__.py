@@ -17,7 +17,11 @@ def event_handler(action, event):
 async def axis_device(host, port, username, password):
     """Create a Axis device."""
 
-    device = axis.AxisDevice(host=host, port=port, username=username, password=password)
+    device = axis.AxisDevice(
+        axis.configuration.Configuration(
+            host, port=port, username=username, password=password
+        )
+    )
 
     try:
         with async_timeout.timeout(5):
@@ -40,9 +44,7 @@ async def main(host, port, username, password, params, events):
     """Main function."""
     LOGGER.info("Connecting to Axis device")
 
-    device = await axis_device(
-        host=host, username=username, password=password, port=port
-    )
+    device = await axis_device(host, port, username, password)
 
     if not device:
         LOGGER.error("Couldn't connect to Axis device")

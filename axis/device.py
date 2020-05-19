@@ -13,9 +13,9 @@ _LOGGER = logging.getLogger(__name__)
 class AxisDevice:
     """Creates a new Axis device.self."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, configuration: Configuration) -> None:
         """Initialize device functionality."""
-        self.config = Configuration(**kwargs)
+        self.config = configuration
         self.vapix = Vapix(self.config)
         self.stream = StreamManager(self.config)
         self.event = None
