@@ -39,7 +39,7 @@ DATA = re.compile(
 class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, signal) -> None:
+    def __init__(self, signal: object) -> None:
         """Ready information about events."""
         super().__init__(raw={}, request=None, path="", item_cls=create_event)
         self.signal = signal

@@ -5,7 +5,14 @@ pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 
 from asynctest import Mock
 
-from axis.mqtt import ClientConfig, DEFAULT_TOPICS, Server, Message, Ssl, MqttClient
+from axis.mqtt import (
+    ClientConfig,
+    Server,
+    Message,
+    Ssl,
+    MqttClient,
+    json_message_to_event,
+)
 
 
 def test_mqtt():
@@ -26,7 +33,7 @@ def test_mqtt():
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
-        data={
+        json={
             "method": "configureClient",
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -50,7 +57,7 @@ def test_mqtt():
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
-        data={
+        json={
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "activateClient",
@@ -62,7 +69,7 @@ def test_mqtt():
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
-        data={
+        json={
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "deactivateClient",
@@ -74,7 +81,7 @@ def test_mqtt():
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
-        data={
+        json={
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getClientStatus",
@@ -86,7 +93,7 @@ def test_mqtt():
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
-        data={
+        json={
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getEventPublicationConfig",
@@ -97,7 +104,7 @@ def test_mqtt():
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
-        data={
+        json={
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "configureEventPublication",
@@ -114,7 +121,7 @@ def test_mqtt():
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
-        data={
+        json={
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "configureEventPublication",
@@ -127,6 +134,19 @@ def test_mqtt():
             },
         },
     )
+
+
+def test_convert_json_to_event():
+    event = json_message_to_event(
+        b'{"timestamp": 1590045190230, "topic": "onvif:Device/axis:Sensor/PIR", "message": {"source": {"sensor": "0"}, "key": {}, "data": {"state": "0"}}}'
+    )
+
+    assert event["operation"] == "Changed"
+    assert event["topic"] == "tns1:Device/tnsaxis:Sensor/PIR"
+    assert event["source"] == "sensor"
+    assert event["source_idx"] == "0"
+    assert event["type"] == "state"
+    assert event["value"] == "0"
 
 
 response_get_client_status = {

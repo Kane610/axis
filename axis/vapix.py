@@ -5,6 +5,7 @@ import logging
 
 from .api_discovery import ApiDiscovery
 from .errors import AxisException, PathNotFound
+from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import URL_GET as PARAM_URL, Params
 from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
@@ -21,6 +22,7 @@ class Vapix:
         self.config = config
 
         self.api_discovery = None
+        self.mqtt = None
         self.params = None
         self.ports = None
         self.users = None
@@ -29,6 +31,9 @@ class Vapix:
         """Load API list from API Discovery."""
         self.api_discovery = ApiDiscovery({}, self.json_request)
         self.api_discovery.update()
+
+        if MQTT_ID in self.api_discovery:
+            self.mqtt = MqttClient({}, self.json_request)
 
     def initialize_params(self, preload_data=True) -> None:
         """Load device parameters and initialize parameter management.

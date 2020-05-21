@@ -24,7 +24,8 @@ class StreamManager:
         self.audio = None  # Unsupported
         self.event = None
         self.stream = None
-        self.connection_status_callback = None
+
+        self.connection_status_callback = []
 
     @property
     def stream_url(self):
@@ -66,11 +67,9 @@ class StreamManager:
         elif signal == SIGNAL_FAILED:
             self.retry()
 
-        if (
-            signal in [SIGNAL_PLAYING, SIGNAL_FAILED]
-            and self.connection_status_callback
-        ):
-            self.connection_status_callback(signal)
+        if signal in [SIGNAL_PLAYING, SIGNAL_FAILED]:
+            for callback in self.connection_status_callback:
+                callback(signal)
 
     @property
     def data(self):
