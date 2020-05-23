@@ -76,6 +76,13 @@ class StreamManager:
         """Get stream data."""
         return self.stream.rtp.data
 
+    @property
+    def state(self):
+        """State of stream."""
+        if not self.stream:
+            return STATE_STOPPED
+        return self.stream.session.state
+
     def start(self):
         """Start stream."""
         if not self.stream or self.stream.session.state == STATE_STOPPED:
