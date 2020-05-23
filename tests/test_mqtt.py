@@ -2,7 +2,7 @@
 
 pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
-
+import pytest
 from asynctest import Mock
 
 from axis.mqtt import (
@@ -15,16 +15,20 @@ from axis.mqtt import (
 )
 
 
-def test_mqtt():
-    """Test MQTT Client API works."""
+@pytest.fixture
+def mqtt_client() -> MqttClient:
+    """Returns the mqtt_client mock object."""
     mock_request = Mock()
     mock_request.return_value = ""
-    mqtt_client = MqttClient({}, mock_request)
+    return MqttClient({}, mock_request)
 
-    client_config = ClientConfig(Server("192.168.0.1"),)
+
+def test_client_config_simple(mqtt_client):
+    """Test simple MQTT client configuration."""
+    client_config = ClientConfig(Server("192.168.0.1"))
 
     mqtt_client.configure_client(client_config)
-    mock_request.assert_called_with(
+    mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
         json={
@@ -47,8 +51,92 @@ def test_mqtt():
         },
     )
 
+
+def test_client_config_advanced(mqtt_client):
+    """Test advanced MQTT client configuration."""
+    client_config = ClientConfig(
+        Server("192.168.0.1"),
+        lastWillTestament=Message(
+            useDefault=False,
+            topic="LWT/client_1",
+            message="client_1 LWT",
+            retain=True,
+            qos=1,
+        ),
+        connectMessage=Message(
+            useDefault=False,
+            topic="connected/client_1",
+            message="client_1 connected",
+            retain=False,
+            qos=1,
+        ),
+        disconnectMessage=Message(
+            useDefault=False,
+            topic="disconnected/client_1",
+            message="client_1 disconnected",
+            retain=False,
+            qos=1,
+        ),
+        ssl=Ssl(validateServerCert=True),
+        activateOnReboot=False,
+        username="root",
+        password="pass",
+        clientId="client_1",
+        keepAliveInterval=90,
+        connectTimeout=90,
+        cleanSession=False,
+        autoReconnect=False,
+    )
+
+    mqtt_client.configure_client(client_config)
+    mqtt_client._request.assert_called_with(
+        "post",
+        "/axis-cgi/mqtt/client.cgi",
+        json={
+            "method": "configureClient",
+            "apiVersion": "1.0",
+            "context": "Axis library",
+            "params": {
+                "server": {"host": "192.168.0.1", "port": 1883, "protocol": "tcp"},
+                "lastWillTestament": {
+                    "useDefault": False,
+                    "topic": "LWT/client_1",
+                    "message": "client_1 LWT",
+                    "retain": True,
+                    "qos": 1,
+                },
+                "connectMessage": {
+                    "useDefault": False,
+                    "topic": "connected/client_1",
+                    "message": "client_1 connected",
+                    "retain": False,
+                    "qos": 1,
+                },
+                "disconnectMessage": {
+                    "useDefault": False,
+                    "topic": "disconnected/client_1",
+                    "message": "client_1 disconnected",
+                    "retain": False,
+                    "qos": 1,
+                },
+                "ssl": {"validateServerCert": True},
+                "activateOnReboot": False,
+                "clientId": "client_1",
+                "keepAliveInterval": 90,
+                "connectTimeout": 90,
+                "cleanSession": False,
+                "autoReconnect": False,
+                "username": "root",
+                "password": "pass",
+            },
+        },
+    )
+
+
+def test_activate_client(mqtt_client):
+    """Test activate client method."""
     mqtt_client.activate()
-    mock_request.assert_called_with(
+    mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
         json={
@@ -59,8 +147,11 @@ def test_mqtt():
         },
     )
 
+
+def test_deactivate_client(mqtt_client):
+    """Test deactivate client method."""
     mqtt_client.deactivate()
-    mock_request.assert_called_with(
+    mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
         json={
@@ -71,8 +162,11 @@ def test_mqtt():
         },
     )
 
+
+def test_get_client_status(mqtt_client):
+    """Test get client status method."""
     mqtt_client.get_client_status()
-    mock_request.assert_called_with(
+    mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
         json={
@@ -83,8 +177,11 @@ def test_mqtt():
         },
     )
 
+
+def test_get_event_publication_config(mqtt_client):
+    """Test get event publication config method."""
     mqtt_client.get_event_publication_config()
-    mock_request.assert_called_with(
+    mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
         json={
@@ -94,8 +191,11 @@ def test_mqtt():
         },
     )
 
+
+def test_configure_event_publication_all_topics(mqtt_client):
+    """Test configure event publication method with all topics."""
     mqtt_client.configure_event_publication()
-    mock_request.assert_called_with(
+    mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
         json={
@@ -106,13 +206,16 @@ def test_mqtt():
         },
     )
 
+
+def test_configure_event_publication_specific_topics(mqtt_client):
+    """Test configure event publication method with specific topics."""
     topics = [
         "onvif:Device/axis:IO/VirtualPort",
         "onvif:Device/axis:Status/SystemReady",
         "axis:Storage//.",
     ]
     mqtt_client.configure_event_publication(topics)
-    mock_request.assert_called_with(
+    mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
         json={
