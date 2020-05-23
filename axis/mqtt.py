@@ -74,7 +74,7 @@ class body:
     params: dict = attr.ib(factory=dict)
 
 
-def json_message_to_event(msg: str) -> dict:
+def mqtt_json_to_event(msg: str) -> dict:
     """Convert JSON message from MQTT to event format."""
     message = json.loads(msg)
     topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")

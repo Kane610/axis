@@ -60,7 +60,7 @@ async def main(host, port, username, password, params, events):
 
     if events:
         device.enable_events(event_callback=event_handler)
-        device.start()
+        device.stream.start()
 
     try:
         while True:
@@ -70,7 +70,7 @@ async def main(host, port, username, password, params, events):
         pass
 
     finally:
-        device.stop()
+        device.stream.stop()
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ from axis.mqtt import (
     Message,
     Ssl,
     MqttClient,
-    json_message_to_event,
+    mqtt_json_to_event,
 )
 
 
@@ -234,7 +234,7 @@ def test_configure_event_publication_specific_topics(mqtt_client):
 
 
 def test_convert_json_to_event():
-    event = json_message_to_event(
+    event = mqtt_json_to_event(
         b'{"timestamp": 1590045190230, "topic": "onvif:Device/axis:Sensor/PIR", "message": {"source": {"sensor": "0"}, "key": {}, "data": {"state": "0"}}}'
     )
 
