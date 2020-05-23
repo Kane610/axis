@@ -78,13 +78,14 @@ def json_message_to_event(msg: str) -> dict:
     """Convert JSON message from MQTT to event format."""
     message = json.loads(msg)
     topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")
+
     source = ""
     source_idx = ""
-    data_type = ""
-    data_value = ""
-
     if message["message"]["source"]:
         source, source_idx = next(iter(message["message"]["source"].items()))
+
+    data_type = ""
+    data_value = ""
     if message["message"]["data"]:
         data_type, data_value = next(iter(message["message"]["data"].items()))
 
