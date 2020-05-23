@@ -21,13 +21,7 @@ def test_mqtt():
     mock_request.return_value = ""
     mqtt_client = MqttClient({}, mock_request)
 
-    client_config = ClientConfig(
-        Server("192.168.0.1"),
-        lastWillTestament=Message(),
-        connectMessage=Message(),
-        disconnectMessage=Message(),
-        ssl=Ssl(),
-    )
+    client_config = ClientConfig(Server("192.168.0.1"),)
 
     mqtt_client.configure_client(client_config)
     mock_request.assert_called_with(

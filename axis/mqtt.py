@@ -50,10 +50,10 @@ class ClientConfig:
     """Represent client config."""
 
     server: Server = attr.ib()
-    lastWillTestament: Message = attr.ib()
-    connectMessage: Message = attr.ib()
-    disconnectMessage: Message = attr.ib()
-    ssl: Ssl = attr.ib()
+    lastWillTestament: Message = attr.ib(default=Message())
+    connectMessage: Message = attr.ib(default=Message())
+    disconnectMessage: Message = attr.ib(default=Message())
+    ssl: Ssl = attr.ib(default=Ssl())
     activateOnReboot: bool = attr.ib(default=True)
     username: str = attr.ib(default=None)
     password: str = attr.ib(default=None)
