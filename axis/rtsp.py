@@ -77,8 +77,6 @@ class RTSPClient(asyncio.Protocol):
         if self.time_out_handle is not None:
             self.time_out_handle.cancel()
 
-        print(self.session.sequence)
-
     def connection_made(self, transport):
         """Connect to device is successful.
 
