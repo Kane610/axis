@@ -4,6 +4,7 @@ import json
 import logging
 
 from .api_discovery import ApiDiscovery
+from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .errors import AxisException, PathNotFound
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import URL_GET as PARAM_URL, Params
@@ -22,6 +23,7 @@ class Vapix:
         self.config = config
 
         self.api_discovery = None
+        self.basic_device_info = None
         self.mqtt = None
         self.params = None
         self.ports = None
@@ -31,6 +33,9 @@ class Vapix:
         """Load API list from API Discovery."""
         self.api_discovery = ApiDiscovery({}, self.json_request)
         self.api_discovery.update()
+
+        if BASIC_DEVICE_INFO_ID in self.api_discovery:
+            self.basic_device_info = BasicDeviceInfo({}, self.json_request)
 
         if MQTT_ID in self.api_discovery:
             self.mqtt = MqttClient({}, self.json_request)
