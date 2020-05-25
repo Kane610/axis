@@ -20,14 +20,6 @@ class AxisDevice:
         self.stream = StreamManager(self.config)
         self.event = None
 
-    def start(self) -> None:
-        """Start functionality of device."""
-        self.stream.start()
-
-    def stop(self) -> None:
-        """Stop functionality of device."""
-        self.stream.stop()
-
     def enable_events(self, event_callback=None) -> None:
         """Enable events for stream."""
         self.event = EventManager(event_callback)

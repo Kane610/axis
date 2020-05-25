@@ -11,9 +11,6 @@ API_DISCOVERY_ID = "api-discovery"
 APIVERSION = "1.0"
 CONTEXT = "Axis library"
 
-METHOD_GET_API_LIST = "getApiList"
-METHOD_GET_SUPPORTED_VERSIONS = "getSupportedVersions"
-
 
 @attr.s
 class body:
@@ -42,17 +39,17 @@ class ApiDiscovery(APIItems):
 
         super().process_raw(raw_apis)
 
-    def get_api_list(self) -> None:
+    def get_api_list(self) -> dict:
         """List all APIs registered on API Discovery service."""
-        return self._request("post", URL, json=attr.asdict(body(METHOD_GET_API_LIST)))
+        return self._request("post", URL, json=attr.asdict(body("getApiList")))
 
-    def get_supported_versions(self) -> None:
+    def get_supported_versions(self) -> dict:
         """Supported versions of API Discovery API."""
         return self._request(
             "post",
             URL,
             json=attr.asdict(
-                body(METHOD_GET_SUPPORTED_VERSIONS),
+                body("getSupportedVersions"),
                 filter=attr.filters.include(attr.fields(body).method),
             ),
         )

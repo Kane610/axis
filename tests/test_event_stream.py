@@ -201,9 +201,7 @@ def test_manage_event_vmd4_init(event_manager):
     """Verify that a new VMD4 event can be managed."""
     event_manager.update(VMD4_ANY_INIT)
 
-    event = event_manager[
-        "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None"
-    ]
+    event = event_manager["tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_"]
     assert event.topic == "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY"
     assert not event.source
     assert event.id == "Camera1ProfileANY"
@@ -217,9 +215,7 @@ def test_manage_event_vmd4_change(event_manager):
     event_manager.update(VMD4_ANY_INIT)
     event_manager.update(VMD4_ANY_CHANGE)
 
-    event = event_manager[
-        "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_None"
-    ]
+    event = event_manager["tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_"]
     assert event.state == "1"
 
 

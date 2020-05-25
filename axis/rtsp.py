@@ -39,6 +39,7 @@ class RTSPClient(asyncio.Protocol):
         self.method = RTSPMethods(self.session)
 
         self.transport = None
+        self.keep_alive_handle = None
         self.time_out_handle = None
 
     def start(self):
@@ -64,10 +65,17 @@ class RTSPClient(asyncio.Protocol):
 
     def stop(self):
         """Stop session."""
+        self.session.stop()
         if self.transport:
-            self.transport.write(self.method.TEARDOWN().encode())
+            self.transport.write(self.method.message.encode())
             self.transport.close()
         self.rtp.stop()
+
+        if self.keep_alive_handle is not None:
+            self.keep_alive_handle.cancel()
+
+        if self.time_out_handle is not None:
+            self.time_out_handle.cancel()
 
     def connection_made(self, transport):
         """Connect to device is successful.
@@ -98,13 +106,14 @@ class RTSPClient(asyncio.Protocol):
 
             if self.session.session_timeout != 0:
                 interval = self.session.session_timeout - 5
-                self.loop.call_later(interval, self.keep_alive)
+                self.keep_alive_handle = self.loop.call_later(interval, self.keep_alive)
 
         else:
             self.stop()
 
     def keep_alive(self):
         """Keep RTSP session alive per negotiated time interval."""
+        self.keep_alive_handle = None
         self.transport.write(self.method.message.encode())
         self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
@@ -114,6 +123,7 @@ class RTSPClient(asyncio.Protocol):
         This usually happens if device isn't available on specified IP.
         """
         _LOGGER.warning("Response timed out %s", self.session.host)
+        self.time_out_handle = None
         self.stop()
         self.callback(SIGNAL_FAILED)
 
@@ -470,3 +480,7 @@ class RTSPSession(object):
             self.basic_auth = "Basic "
             self.basic_auth += b64encode(creds.encode("UTF-8")).decode("UTF-8")
         return self.basic_auth
+
+    def stop(self):
+        """Set session to stopped."""
+        self.sequence = 5

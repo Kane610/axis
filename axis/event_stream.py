@@ -39,7 +39,7 @@ DATA = re.compile(
 class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, signal) -> None:
+    def __init__(self, signal: object) -> None:
         """Ready information about events."""
         super().__init__(raw={}, request=None, path="", item_cls=create_event)
         self.signal = signal
@@ -56,7 +56,8 @@ class EventManager(APIItems):
     def process_event(self, event: dict) -> None:
         """New event to process."""
         if event[EVENT_OPERATION] in (OPERATION_INITIALIZED, OPERATION_CHANGED):
-            id = f"{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX)}"
+            id = f'{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX, "")}'
+
             new_events = self.process_raw({id: event})
             for new_event in new_events:
                 if self[new_event].TOPIC:
@@ -308,10 +309,14 @@ EVENT_CLASSES = (
     Vmd4,
 )
 
+BLACK_LISTED_TOPICS = "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"
+
 
 def create_event(event_id: str, event: dict, request) -> AxisEvent:
     """Simplify creating event by not needing to know type."""
     for event_class in EVENT_CLASSES:
+        if event[EVENT_TOPIC] in BLACK_LISTED_TOPICS:
+            break
         if event_class.TOPIC in event[EVENT_TOPIC]:
             return event_class(event_id, event, request)
 
