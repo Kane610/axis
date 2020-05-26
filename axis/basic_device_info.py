@@ -14,7 +14,7 @@ CONTEXT = "Axis library"
 
 @attr.s
 class body:
-    """Create API Discovery request body."""
+    """Create basic device info request body."""
 
     method: str = attr.ib()
     apiVersion: str = attr.ib(default=API_VERSION)
