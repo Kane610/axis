@@ -4,6 +4,7 @@ import json
 import logging
 
 from .api_discovery import ApiDiscovery
+from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .errors import AxisException, PathNotFound
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import URL_GET as PARAM_URL, Params
@@ -22,15 +23,48 @@ class Vapix:
         self.config = config
 
         self.api_discovery = None
+        self.basic_device_info = None
         self.mqtt = None
         self.params = None
         self.ports = None
         self.users = None
 
+    @property
+    def firmware_version(self):
+        """Firmware version of device."""
+        if self.basic_device_info:
+            return self.basic_device_info.version
+        return self.params.firmware_version
+
+    @property
+    def product_number(self):
+        """Product number of device."""
+        if self.basic_device_info:
+            return self.basic_device_info.prodnbr
+        return self.params.prodnbr
+
+    @property
+    def product_type(self):
+        """Product type of device."""
+        if self.basic_device_info:
+            return self.basic_device_info.prodtype
+        return self.params.prodtype
+
+    @property
+    def serial_number(self):
+        """Serial number of device."""
+        if self.basic_device_info:
+            return self.basic_device_info.serialnumber
+        return self.params.system_serialnumber
+
     def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
         self.api_discovery = ApiDiscovery({}, self.json_request)
         self.api_discovery.update()
+
+        if BASIC_DEVICE_INFO_ID in self.api_discovery:
+            self.basic_device_info = BasicDeviceInfo({}, self.json_request)
+            self.basic_device_info.update()
 
         if MQTT_ID in self.api_discovery:
             self.mqtt = MqttClient({}, self.json_request)

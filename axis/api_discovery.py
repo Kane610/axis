@@ -1,4 +1,7 @@
-"""API Discovery api."""
+"""API Discovery api.
+
+The AXIS API Discovery service makes it possible to retrieve information about APIs supported on their products.
+"""
 
 import attr
 
