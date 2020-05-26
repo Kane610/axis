@@ -8,6 +8,7 @@ from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE
 from .errors import AxisException, PathNotFound
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import URL_GET as PARAM_URL, Params
+from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
 from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .utils import session_request
@@ -65,6 +66,10 @@ class Vapix:
         if BASIC_DEVICE_INFO_ID in self.api_discovery:
             self.basic_device_info = BasicDeviceInfo({}, self.json_request)
             self.basic_device_info.update()
+
+        if IO_PORT_MANAGEMENT_ID in self.api_discovery:
+            self.ports = IoPortManagement({}, self.json_request)
+            self.ports.update()
 
         if MQTT_ID in self.api_discovery:
             self.mqtt = MqttClient({}, self.json_request)
