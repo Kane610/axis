@@ -11,7 +11,7 @@ from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
 def test_params():
     """Verify that you can list parameters."""
     mock_request = Mock()
-    params = Params(fixture, mock_request)
+    params = Params(response_param_cgi, mock_request)
 
     # Brand
     assert params.brand == "AXIS"
@@ -58,7 +58,7 @@ def test_params_empty_raw():
 def test_update_brand():
     """Verify that update brand works."""
     mock_request = Mock()
-    mock_request.return_value = fixture_brand
+    mock_request.return_value = response_param_cgi_brand
     params = Params("", mock_request)
     params.update_brand()
 
@@ -78,7 +78,7 @@ def test_update_brand():
 def test_update_ports():
     """Verify that update brand works."""
     mock_request = Mock()
-    mock_request.return_value = fixture_ports
+    mock_request.return_value = response_param_cgi_ports
     params = Params("", mock_request)
     params.update_ports()
 
@@ -101,7 +101,7 @@ def test_update_ports():
 def test_update_properties():
     """Verify that update properties works."""
     mock_request = Mock()
-    mock_request.return_value = fixture_properties
+    mock_request.return_value = response_param_cgi_properties
     params = Params("", mock_request)
     params.update_properties()
 
@@ -229,7 +229,7 @@ def test_update_properties():
     assert params[PROPERTIES + ".ZipStream.ZipStream"].raw == "yes"
 
 
-fixture = """root.Audio.DSCP=0
+response_param_cgi = """root.Audio.DSCP=0
 root.Audio.DuplexMode=half
 root.Audio.MaxListeners=20
 root.Audio.NbrOfConfigs=2
@@ -1024,7 +1024,7 @@ root.Time.NTP.VolatileServer=0.0.0.0
 root.WebService.UsernameToken.ReplayAttackProtection=yes"""
 
 
-fixture_brand = """root.Brand.Brand=AXIS
+response_param_cgi_brand = """root.Brand.Brand=AXIS
 root.Brand.ProdFullName=AXIS M1065-LW Network Camera
 root.Brand.ProdNbr=M1065-LW
 root.Brand.ProdShortName=AXIS M1065-LW
@@ -1033,7 +1033,7 @@ root.Brand.ProdVariant=
 root.Brand.WebURL=http://www.axis.com"""
 
 
-fixture_ports = """root.Input.NbrOfInputs=1
+response_param_cgi_ports = """root.Input.NbrOfInputs=1
 root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Input.Name=PIR sensor
@@ -1042,7 +1042,7 @@ root.Output.NbrOfOutputs=0
 """
 
 
-fixture_properties = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
+response_param_cgi_properties = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
 root.Properties.API.Browser.Language=yes
 root.Properties.API.Browser.RootPwdSetValue=yes
 root.Properties.API.Browser.UserGroup=yes

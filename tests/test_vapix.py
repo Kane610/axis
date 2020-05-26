@@ -3,9 +3,55 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
+from unittest.mock import call
 from asynctest import Mock, patch
+import json
 
 from axis.vapix import Vapix
+from .test_api_discovery import response_getApiList as api_discovery_response
+from .test_basic_device_info import (
+    response_getAllProperties as basic_device_info_response,
+)
+from .test_param_cgi import response_param_cgi
+
+
+def test_initialize_api_discovery():
+    """Verify that you can initialize API Discovery and that devicelist parameters."""
+    mock_config = Mock()
+    mock_config.host = "mock_host"
+    mock_config.url = "mock_url"
+    mock_config.session.post = "mock_post"
+
+    with patch(
+        "axis.vapix.session_request",
+        side_effect=[
+            json.dumps(api_discovery_response),
+            json.dumps(basic_device_info_response),
+        ],
+    ) as mock_request:
+        vapix = Vapix(mock_config)
+        vapix.initialize_api_discovery()
+
+    assert len(mock_request.mock_calls) == 2
+    mock_request.assert_has_calls(
+        [
+            call(
+                "mock_post",
+                "mock_url/axis-cgi/apidiscovery.cgi",
+                json={"method": "getApiList", "apiVersion": "1.0"},
+            ),
+            call(
+                "mock_post",
+                "mock_url/axis-cgi/basicdeviceinfo.cgi",
+                json={"method": "getAllProperties", "apiVersion": "1.1"},
+            ),
+        ]
+    )
+
+    assert vapix.firmware_version == "9.80.1"
+    assert vapix.product_number == "M1065-LW"
+    assert vapix.product_type == "Network Camera"
+    assert vapix.serial_number == "ACCC12345678"
 
 
 def test_initialize_params():
@@ -15,14 +61,20 @@ def test_initialize_params():
     mock_config.url = "mock_url"
     mock_config.session.get = "mock_get"
 
-    with patch("axis.vapix.session_request", return_value="key=value") as mock_request:
+    with patch(
+        "axis.vapix.session_request", return_value=response_param_cgi
+    ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_params()
 
     mock_request.assert_called_with(
         "mock_get", "mock_url/axis-cgi/param.cgi?action=list"
     )
-    assert vapix.params["key"].raw == "value"
+    assert vapix.params["root.Brand.Brand"].raw == "AXIS"
+    assert vapix.firmware_version == "9.10.1"
+    assert vapix.product_number == "M1065-LW"
+    assert vapix.product_type == "Network Camera"
+    assert vapix.serial_number == "ACCC12345678"
 
 
 def test_initialize_params_no_data():

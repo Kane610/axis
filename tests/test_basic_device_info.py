@@ -32,7 +32,6 @@ def test_get_all_properties(basic_device_info):
     assert basic_device_info.brand == "AXIS"
     assert basic_device_info.builddate == "Apr 29 2020 06:50"
     assert basic_device_info.hardwareid == "70E"
-    assert basic_device_info.version == "9.80.1"
     assert basic_device_info.prodfullname == "AXIS M1065-LW Network Camera"
     assert basic_device_info.prodnbr == "M1065-LW"
     assert basic_device_info.prodshortname == "AXIS M1065-LW"
@@ -41,6 +40,7 @@ def test_get_all_properties(basic_device_info):
     assert basic_device_info.serialnumber == "ACCC12345678"
     assert basic_device_info.soc == "Ambarella S2L (Flattened Device Tree)"
     assert basic_device_info.socserialnumber == ""
+    assert basic_device_info.version == "9.80.1"
     assert basic_device_info.weburl == "http://www.axis.com"
 
 
