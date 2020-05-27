@@ -167,16 +167,8 @@ class Port(APIItem):
         """Usage of port."""
         return self.raw["usage"]
 
-    def open(self):
-        """"""
-        self.set_state(SetPort(self.port, state="open"))
-
-    def close(self):
-        """"""
-        self.set_state(SetPort(self.port, state="close"))
-
     def set_state(self, call: SetPort):
-        """"""
+        """Set port state."""
         self._request(
             "post",
             URL,
@@ -185,3 +177,11 @@ class Port(APIItem):
                 filter=lambda attr, value: value is not None,
             ),
         )
+
+    def open(self):
+        """Open port."""
+        self.set_state(SetPort(self.port, state="open"))
+
+    def close(self):
+        """Close port."""
+        self.set_state(SetPort(self.port, state="closed"))

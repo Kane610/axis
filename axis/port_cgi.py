@@ -130,3 +130,11 @@ class Port:
         url = URL + ACTION.format(action=port_action)
 
         self._request("get", url)
+
+    def open(self):
+        """Open port."""
+        self.action(ACTION_LOW)
+
+    def close(self):
+        """Close port."""
+        self.action(ACTION_HIGH)

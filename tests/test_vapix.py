@@ -12,6 +12,7 @@ from .test_api_discovery import response_getApiList as api_discovery_response
 from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
+from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi
 
 
@@ -27,12 +28,13 @@ def test_initialize_api_discovery():
         side_effect=[
             json.dumps(api_discovery_response),
             json.dumps(basic_device_info_response),
+            json.dumps(io_port_management_response),
         ],
     ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_api_discovery()
 
-    assert len(mock_request.mock_calls) == 2
+    assert len(mock_request.mock_calls) == 3
     mock_request.assert_has_calls(
         [
             call(
@@ -44,6 +46,15 @@ def test_initialize_api_discovery():
                 "mock_post",
                 "mock_url/axis-cgi/basicdeviceinfo.cgi",
                 json={"method": "getAllProperties", "apiVersion": "1.1"},
+            ),
+            call(
+                "mock_post",
+                "mock_url/axis-cgi/io/portmanagement.cgi",
+                json={
+                    "method": "getPorts",
+                    "apiVersion": "1.0",
+                    "context": "Axis library",
+                },
             ),
         ]
     )

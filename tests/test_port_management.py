@@ -45,6 +45,30 @@ def test_get_ports(io_port_management):
     assert item.state == "open"
     assert item.normalState == "open"
 
+    item.open()
+    item._request.assert_called_with(
+        "post",
+        "/axis-cgi/io/portmanagement.cgi",
+        json={
+            "method": "setPorts",
+            "apiVersion": "1.0",
+            "context": "Axis library",
+            "params": [{"port": "0", "state": "open"}],
+        },
+    )
+
+    item.close()
+    item._request.assert_called_with(
+        "post",
+        "/axis-cgi/io/portmanagement.cgi",
+        json={
+            "method": "setPorts",
+            "apiVersion": "1.0",
+            "context": "Axis library",
+            "params": [{"port": "0", "state": "closed"}],
+        },
+    )
+
 
 def test_set_ports(io_port_management):
     """Test set_ports call."""

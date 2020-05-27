@@ -13,7 +13,7 @@ from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .utils import session_request
 
-_LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class Vapix:
@@ -87,6 +87,9 @@ class Vapix:
 
     def initialize_ports(self) -> None:
         """Load IO port parameters for device."""
+        if self.ports:
+            return
+
         if not self.params:
             self.initialize_params(preload_data=False)
             self.params.update_ports()
@@ -100,6 +103,7 @@ class Vapix:
 
     def request(self, method, path, **kwargs):
         """Prepare HTTP request."""
+        LOGGER.debug("%s", path)
         if method == "get":
             session_method = self.config.session.get
 
@@ -112,7 +116,7 @@ class Vapix:
         url = self.config.url + path
         result = session_request(session_method, url, **kwargs)
 
-        _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        LOGGER.debug("Response: %s from %s", result, self.config.host)
 
         if result.startswith("# Error:"):
             result = ""
@@ -121,6 +125,7 @@ class Vapix:
 
     def json_request(self, method, path: str, **kwargs) -> dict:
         """Prepare JSON request."""
+        LOGGER.debug("%s", path)
         if method == "get":
             session_method = self.config.session.get
 
@@ -136,7 +141,7 @@ class Vapix:
         except PathNotFound:
             return {}
 
-        _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        LOGGER.debug("Response: %s from %s", result, self.config.host)
 
         json_result = json.loads(result)
         if "error" in json_result:
