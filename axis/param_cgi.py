@@ -30,31 +30,31 @@ class Brand:
 
     @property
     def brand(self) -> str:
-        return self[BRAND + ".Brand"].raw
+        return self[f"{BRAND}.Brand"].raw
 
     @property
     def prodfullname(self) -> str:
-        return self[BRAND + ".ProdFullName"].raw
+        return self[f"{BRAND}.ProdFullName"].raw
 
     @property
     def prodnbr(self) -> str:
-        return self[BRAND + ".ProdNbr"].raw
+        return self[f"{BRAND}.ProdNbr"].raw
 
     @property
     def prodshortname(self) -> str:
-        return self[BRAND + ".ProdShortName"].raw
+        return self[f"{BRAND}.ProdShortName"].raw
 
     @property
     def prodtype(self) -> str:
-        return self[BRAND + ".ProdType"].raw
+        return self[f"{BRAND}.ProdType"].raw
 
     @property
     def prodvariant(self) -> str:
-        return self[BRAND + ".ProdVariant"].raw
+        return self[f"{BRAND}.ProdVariant"].raw
 
     @property
     def weburl(self) -> str:
-        return self[BRAND + ".WebURL"].raw
+        return self[f"{BRAND}.WebURL"].raw
 
 
 class Ports:
@@ -69,12 +69,12 @@ class Ports:
     @property
     def nbrofinput(self) -> int:
         """Match the number of configured inputs."""
-        return self[INPUT + ".NbrOfInputs"].raw
+        return self[f"{INPUT}.NbrOfInputs"].raw
 
     @property
     def nbrofoutput(self) -> int:
         """Match the number of configured outputs."""
-        return self[OUTPUT + ".NbrOfOutputs"].raw
+        return self[f"{OUTPUT}.NbrOfOutputs"].raw
 
     @property
     def ports(self) -> dict:
@@ -91,49 +91,49 @@ class Properties:
 
     @property
     def api_http_version(self) -> str:
-        return self[PROPERTIES + ".API.HTTP.Version"].raw
+        return self[f"{PROPERTIES}.API.HTTP.Version"].raw
 
     @property
     def api_metadata(self) -> str:
-        return self[PROPERTIES + ".API.Metadata.Metadata"].raw
+        return self[f"{PROPERTIES}.API.Metadata.Metadata"].raw
 
     @property
     def api_metadata_version(self) -> str:
-        return self[PROPERTIES + ".API.Metadata.Version"].raw
+        return self[f"{PROPERTIES}.API.Metadata.Version"].raw
 
     @property
     def firmware_builddate(self) -> str:
-        return self[PROPERTIES + ".Firmware.BuildDate"].raw
+        return self[f"{PROPERTIES}.Firmware.BuildDate"].raw
 
     @property
     def firmware_buildnumber(self) -> str:
-        return self[PROPERTIES + ".Firmware.BuildNumber"].raw
+        return self[f"{PROPERTIES}.Firmware.BuildNumber"].raw
 
     @property
     def firmware_version(self) -> str:
-        return self[PROPERTIES + ".Firmware.Version"].raw
+        return self[f"{PROPERTIES}.Firmware.Version"].raw
 
     @property
     def image_format(self) -> str:
-        if PROPERTIES + ".Image.Format" in self:
-            return self[PROPERTIES + ".Image.Format"].raw
+        if f"{PROPERTIES}.Image.Format" in self:
+            return self[f"{PROPERTIES}.Image.Format"].raw
         return None
 
     @property
     def image_nbrofviews(self) -> str:
-        return self[PROPERTIES + ".Image.NbrOfViews"].raw
+        return self[f"{PROPERTIES}.Image.NbrOfViews"].raw
 
     @property
     def image_resolution(self) -> str:
-        return self[PROPERTIES + ".Image.Resolution"].raw
+        return self[f"{PROPERTIES}.Image.Resolution"].raw
 
     @property
     def image_rotation(self) -> str:
-        return self[PROPERTIES + ".Image.Rotation"].raw
+        return self[f"{PROPERTIES}.Image.Rotation"].raw
 
     @property
     def system_serialnumber(self) -> str:
-        return self[PROPERTIES + ".System.SerialNumber"].raw
+        return self[f"{PROPERTIES}.System.SerialNumber"].raw
 
 
 class Params(APIItems, Brand, Ports, Properties):

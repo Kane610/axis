@@ -6,22 +6,12 @@ This information is used to identify basic properties of the product.
 
 import attr
 
-from .api import APIItem, APIItems
+from .api import APIItem, APIItems, Body
 
 URL = "/axis-cgi/basicdeviceinfo.cgi"
 
 API_DISCOVERY_ID = "basic-device-info"
-
 API_VERSION = "1.1"
-CONTEXT = "Axis library"
-
-
-@attr.s
-class body:
-    """Create basic device info request body."""
-
-    method: str = attr.ib()
-    apiVersion: str = attr.ib(default=API_VERSION)
 
 
 class BasicDeviceInfo(APIItems):
@@ -36,7 +26,14 @@ class BasicDeviceInfo(APIItems):
 
     def get_all_properties(self) -> dict:
         """List all properties of basic device info."""
-        return self._request("post", URL, json=attr.asdict(body("getAllProperties")))
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("getAllProperties", API_VERSION),
+                filter=attr.filters.exclude(attr.fields(Body).params),
+            ),
+        )
 
     def get_supported_versions(self) -> dict:
         """Supported versions of basic device info."""
@@ -44,8 +41,8 @@ class BasicDeviceInfo(APIItems):
             "post",
             URL,
             json=attr.asdict(
-                body("getSupportedVersions"),
-                filter=attr.filters.include(attr.fields(body).method),
+                Body("getSupportedVersions", API_VERSION),
+                filter=attr.filters.include(attr.fields(Body).method),
             ),
         )
 

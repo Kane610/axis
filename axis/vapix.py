@@ -8,11 +8,12 @@ from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE
 from .errors import AxisException, PathNotFound
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import URL_GET as PARAM_URL, Params
+from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
 from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .utils import session_request
 
-_LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class Vapix:
@@ -66,6 +67,10 @@ class Vapix:
             self.basic_device_info = BasicDeviceInfo({}, self.json_request)
             self.basic_device_info.update()
 
+        if IO_PORT_MANAGEMENT_ID in self.api_discovery:
+            self.ports = IoPortManagement({}, self.json_request)
+            self.ports.update()
+
         if MQTT_ID in self.api_discovery:
             self.mqtt = MqttClient({}, self.json_request)
 
@@ -82,6 +87,9 @@ class Vapix:
 
     def initialize_ports(self) -> None:
         """Load IO port parameters for device."""
+        if self.ports:
+            return
+
         if not self.params:
             self.initialize_params(preload_data=False)
             self.params.update_ports()
@@ -107,7 +115,7 @@ class Vapix:
         url = self.config.url + path
         result = session_request(session_method, url, **kwargs)
 
-        _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        LOGGER.debug("Response: %s from %s", result, self.config.host)
 
         if result.startswith("# Error:"):
             result = ""
@@ -131,7 +139,7 @@ class Vapix:
         except PathNotFound:
             return {}
 
-        _LOGGER.debug("Response: %s from %s", result, self.config.host)
+        LOGGER.debug("Response: %s from %s", result, self.config.host)
 
         json_result = json.loads(result)
         if "error" in json_result:

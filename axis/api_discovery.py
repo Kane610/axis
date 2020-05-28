@@ -5,22 +5,12 @@ The AXIS API Discovery service makes it possible to retrieve information about A
 
 import attr
 
-from .api import APIItem, APIItems
+from .api import APIItem, APIItems, Body
 
 URL = "/axis-cgi/apidiscovery.cgi"
 
 API_DISCOVERY_ID = "api-discovery"
-
-APIVERSION = "1.0"
-CONTEXT = "Axis library"
-
-
-@attr.s
-class body:
-    """Create API Discovery request body."""
-
-    method: str = attr.ib()
-    apiVersion: str = attr.ib(default=APIVERSION)
+API_VERSION = "1.0"
 
 
 class ApiDiscovery(APIItems):
@@ -44,7 +34,14 @@ class ApiDiscovery(APIItems):
 
     def get_api_list(self) -> dict:
         """List all APIs registered on API Discovery service."""
-        return self._request("post", URL, json=attr.asdict(body("getApiList")))
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("getApiList", API_VERSION),
+                filter=attr.filters.exclude(attr.fields(Body).params),
+            ),
+        )
 
     def get_supported_versions(self) -> dict:
         """Supported versions of API Discovery API."""
@@ -52,8 +49,8 @@ class ApiDiscovery(APIItems):
             "post",
             URL,
             json=attr.asdict(
-                body("getSupportedVersions"),
-                filter=attr.filters.include(attr.fields(body).method),
+                Body("getSupportedVersions", API_VERSION),
+                filter=attr.filters.include(attr.fields(Body).method),
             ),
         )
 

@@ -24,7 +24,7 @@ def test_get_api_list(api_discovery):
     api_discovery._request.assert_called_with(
         "post",
         "/axis-cgi/apidiscovery.cgi",
-        json={"method": "getApiList", "apiVersion": "1.0"},
+        json={"method": "getApiList", "apiVersion": "1.0", "context": "Axis library"},
     )
 
     assert len(api_discovery.values()) == 14
