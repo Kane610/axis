@@ -158,13 +158,13 @@ class Port(APIItem):
         """Usage of port."""
         return self.raw["usage"]
 
-    def set_state(self, call: SetPort):
+    def set_state(self, set_port: SetPort):
         """Set port state."""
         self._request(
             "post",
             URL,
             json=attr.asdict(
-                Body("setPorts", API_VERSION, params=[call]),
+                Body("setPorts", API_VERSION, params=[set_port]),
                 filter=lambda attr, value: value is not None,
             ),
         )

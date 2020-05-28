@@ -103,7 +103,6 @@ class Vapix:
 
     def request(self, method, path, **kwargs):
         """Prepare HTTP request."""
-        LOGGER.debug("%s", path)
         if method == "get":
             session_method = self.config.session.get
 
@@ -125,7 +124,6 @@ class Vapix:
 
     def json_request(self, method, path: str, **kwargs) -> dict:
         """Prepare JSON request."""
-        LOGGER.debug("%s", path)
         if method == "get":
             session_method = self.config.session.get
 
