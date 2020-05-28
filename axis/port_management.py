@@ -5,14 +5,12 @@ The I/O port management API makes it possible to retrieve information about the 
 
 import attr
 
-from .api import APIItem, APIItems
+from .api import APIItem, APIItems, Body
 
 URL = "/axis-cgi/io/portmanagement.cgi"
 
 API_DISCOVERY_ID = "io-port-management"
-
 API_VERSION = "1.0"
-CONTEXT = "Axis library"
 
 
 @attr.s
@@ -43,16 +41,6 @@ class Sequence:
     time: int = attr.ib()
 
 
-@attr.s
-class body:
-    """Create io port management request body."""
-
-    method: str = attr.ib()
-    apiVersion: str = attr.ib(default=API_VERSION)
-    context: str = attr.ib(default=CONTEXT)
-    params: dict = attr.ib(factory=dict)
-
-
 class IoPortManagement(APIItems):
     """I/O port management for Axis devices."""
 
@@ -79,7 +67,8 @@ class IoPortManagement(APIItems):
             "post",
             URL,
             json=attr.asdict(
-                body("getPorts"), filter=attr.filters.exclude(attr.fields(body).params),
+                Body("getPorts", API_VERSION),
+                filter=attr.filters.exclude(attr.fields(Body).params),
             ),
         )
 
@@ -97,7 +86,7 @@ class IoPortManagement(APIItems):
             "post",
             URL,
             json=attr.asdict(
-                body("setPorts", params=ports),
+                Body("setPorts", API_VERSION, params=ports),
                 filter=lambda attr, value: value is not None,
             ),
         )
@@ -105,7 +94,9 @@ class IoPortManagement(APIItems):
     def set_state_sequence(self, sequence: PortSequence) -> None:
         """Applies a sequence of state changes with a delay in milliseconds between states."""
         self._request(
-            "post", URL, json=attr.asdict(body("setStateSequence", params=sequence)),
+            "post",
+            URL,
+            json=attr.asdict(Body("setStateSequence", API_VERSION, params=sequence)),
         )
 
     def get_supported_versions(self) -> dict:
@@ -114,8 +105,8 @@ class IoPortManagement(APIItems):
             "post",
             URL,
             json=attr.asdict(
-                body("getSupportedVersions"),
-                filter=attr.filters.include(attr.fields(body).method),
+                Body("getSupportedVersions", API_VERSION),
+                filter=attr.filters.include(attr.fields(Body).method),
             ),
         )
 
@@ -173,7 +164,7 @@ class Port(APIItem):
             "post",
             URL,
             json=attr.asdict(
-                body("setPorts", params=[call]),
+                Body("setPorts", API_VERSION, params=[call]),
                 filter=lambda attr, value: value is not None,
             ),
         )

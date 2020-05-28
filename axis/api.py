@@ -3,9 +3,23 @@
 from abc import ABC, abstractmethod
 import logging
 
+import attr
+
 from pprint import pformat
 
 LOGGER = logging.getLogger(__name__)
+
+CONTEXT = "Axis library"
+
+
+@attr.s
+class Body:
+    """Create API request body."""
+
+    method: str = attr.ib()
+    apiVersion: str = attr.ib()
+    context: str = attr.ib(default=CONTEXT)
+    params: dict = attr.ib(factory=dict)
 
 
 class APIItems:

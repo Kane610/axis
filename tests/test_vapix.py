@@ -40,12 +40,20 @@ def test_initialize_api_discovery():
             call(
                 "mock_post",
                 "mock_url/axis-cgi/apidiscovery.cgi",
-                json={"method": "getApiList", "apiVersion": "1.0"},
+                json={
+                    "method": "getApiList",
+                    "apiVersion": "1.0",
+                    "context": "Axis library",
+                },
             ),
             call(
                 "mock_post",
                 "mock_url/axis-cgi/basicdeviceinfo.cgi",
-                json={"method": "getAllProperties", "apiVersion": "1.1"},
+                json={
+                    "method": "getAllProperties",
+                    "apiVersion": "1.1",
+                    "context": "Axis library",
+                },
             ),
             call(
                 "mock_post",

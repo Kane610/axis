@@ -25,7 +25,11 @@ def test_get_all_properties(basic_device_info):
     basic_device_info._request.assert_called_with(
         "post",
         "/axis-cgi/basicdeviceinfo.cgi",
-        json={"method": "getAllProperties", "apiVersion": "1.1"},
+        json={
+            "method": "getAllProperties",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+        },
     )
 
     assert basic_device_info.architecture == "armv7hf"
