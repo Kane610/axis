@@ -82,11 +82,10 @@ class Vapix:
 
     def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
-        params = ""
-        if preload_data:
-            params = self.request("get", PARAM_URL)
+        self.params = Params("", self.request)
 
-        self.params = Params(params, self.request)
+        if preload_data:
+            self.params.update()
 
         if not preload_data:
             self.params.update_properties()
