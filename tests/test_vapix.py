@@ -107,13 +107,8 @@ def test_initialize_params_no_data(mock_config):
     mock_request.assert_not_called
 
 
-def test_initialize_users():
+def test_initialize_users(mock_config):
     """Verify that you can list parameters."""
-    mock_config = Mock()
-    mock_config.host = "mock_host"
-    mock_config.url = "mock_url"
-    mock_config.session.get = "mock_get"
-
     with patch(
         "axis.vapix.session_request",
         return_value="""users="userv"
