@@ -8,10 +8,11 @@ from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
-from .param_cgi import URL_GET as PARAM_URL, Params
+from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
 from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
+from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
 from .utils import session_request
 
 LOGGER = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class Vapix:
         self.mqtt = None
         self.params = None
         self.ports = None
+        self.stream_profiles = None
         self.users = None
 
     @property
@@ -79,6 +81,10 @@ class Vapix:
 
         if MQTT_ID in self.api_discovery:
             self.mqtt = MqttClient({}, self.json_request)
+
+        if STREAM_PROFILES_ID in self.api_discovery:
+            self.stream_profiles = StreamProfiles({}, self.json_request)
+            self.stream_profiles.update()
 
     def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""

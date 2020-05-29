@@ -52,10 +52,7 @@ async def main(host, port, username, password, params, events):
 
     if params:
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, device.vapix.initialize_api_discovery)
-        await loop.run_in_executor(None, device.vapix.initialize_params)
-        await loop.run_in_executor(None, device.vapix.initialize_ports)
-        await loop.run_in_executor(None, device.vapix.initialize_users)
+        await loop.run_in_executor(None, device.vapix.initialize)
 
         if not events:
             return
