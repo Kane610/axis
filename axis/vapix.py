@@ -61,6 +61,13 @@ class Vapix:
             return self.basic_device_info.serialnumber
         return self.params.system_serialnumber
 
+    @property
+    def streaming_profiles(self) -> list:
+        """List streaming profiles."""
+        if self.stream_profiles:
+            return list(self.stream_profiles.values())
+        return self.params.stream_profiles()
+
     def initialize(self) -> None:
         """Initialize Vapix functions."""
         self.initialize_api_discovery()

@@ -1,4 +1,4 @@
-"""Basic Device Info api.
+"""Stream profiles API.
 
  The Stream profile API makes it possible to create and manage stream profiles suitable
 for different applications and devices when recording a video or requesting a live video.

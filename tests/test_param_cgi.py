@@ -3,15 +3,24 @@
 pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
+import pytest
+
 from asynctest import Mock, call
 
 from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
 
 
-def test_params():
-    """Verify that you can list parameters."""
+@pytest.fixture
+def params() -> Params:
+    """Returns the param cgi mock object."""
     mock_request = Mock()
-    params = Params(response_param_cgi, mock_request)
+    return Params("", mock_request)
+
+
+def test_params(params):
+    """Verify that you can list parameters."""
+    params._request.return_value = response_param_cgi
+    params.update()
 
     # Brand
     assert params.brand == "AXIS"
@@ -49,20 +58,17 @@ def test_params():
     assert params.system_serialnumber == "ACCC12345678"
 
 
-def test_params_empty_raw():
+def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
-    mock_request = Mock()
-    assert Params("", mock_request)
+    assert params
 
 
-def test_update_brand():
+def test_update_brand(params):
     """Verify that update brand works."""
-    mock_request = Mock()
-    mock_request.return_value = response_param_cgi_brand
-    params = Params("", mock_request)
+    params._request.return_value = response_param_cgi_brand
     params.update_brand()
 
-    mock_request.assert_called_with(
+    params._request.assert_called_with(
         "get", "/axis-cgi/param.cgi?action=list&group=root.Brand"
     )
 
@@ -75,14 +81,12 @@ def test_update_brand():
     assert params[f"{BRAND}.WebURL"].raw == "http://www.axis.com"
 
 
-def test_update_ports():
+def test_update_ports(params):
     """Verify that update brand works."""
-    mock_request = Mock()
-    mock_request.return_value = response_param_cgi_ports
-    params = Params("", mock_request)
+    params._request.return_value = response_param_cgi_ports
     params.update_ports()
 
-    mock_request.assert_has_calls(
+    params._request.assert_has_calls(
         [
             call("get", "/axis-cgi/param.cgi?action=list&group=root.Input"),
             call("get", "/axis-cgi/param.cgi?action=list&group=root.IOPort"),
@@ -98,14 +102,12 @@ def test_update_ports():
     assert params[f"{OUTPUT}.NbrOfOutputs"].raw == "0"
 
 
-def test_update_properties():
+def test_update_properties(params):
     """Verify that update properties works."""
-    mock_request = Mock()
-    mock_request.return_value = response_param_cgi_properties
-    params = Params("", mock_request)
+    params._request.return_value = response_param_cgi_properties
     params.update_properties()
 
-    mock_request.assert_called_with(
+    params._request.assert_called_with(
         "get", "/axis-cgi/param.cgi?action=list&group=root.Properties"
     )
 
@@ -227,6 +229,25 @@ def test_update_properties():
     assert params[f"{PROPERTIES}.TemperatureSensor.TemperatureSensor"].raw == "yes"
     assert params[f"{PROPERTIES}.VirtualInput.VirtualInput"].raw == "yes"
     assert params[f"{PROPERTIES}.ZipStream.ZipStream"].raw == "yes"
+
+
+def test_update_stream_profiles(params):
+    """Verify that update properties works."""
+    params._request.return_value = response_param_cgi
+    params.update_stream_profiles()
+
+    params._request.assert_called_with(
+        "get", "/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+    )
+    profiles = params.stream_profiles()
+
+    assert len(profiles) == 2
+    assert profiles[0].name == "profile_1"
+    assert profiles[0].description == "profile_1_description"
+    assert profiles[0].parameters == "videocodec=h264"
+    assert profiles[1].name == "profile_2"
+    assert profiles[1].description == "profile_2_description"
+    assert profiles[1].parameters == "videocodec=h265"
 
 
 response_param_cgi = """root.Audio.DSCP=0
@@ -982,6 +1003,12 @@ root.StreamCache.S0.Enabled=no
 root.StreamCache.S0.Options=
 root.StreamCache.S0.RequestedLengthTime=30
 root.StreamProfile.MaxGroups=26
+root.StreamProfile.S0.Description=profile_1_description
+root.StreamProfile.S0.Name=profile_1
+root.StreamProfile.S0.Parameters=videocodec=h264
+root.StreamProfile.S1.Description=profile_2_description
+root.StreamProfile.S1.Name=profile_2
+root.StreamProfile.S1.Parameters=videocodec=h265
 root.System.AccessLog=Off
 root.System.AlternateBoaPort=0
 root.System.BoaDSCP=0
