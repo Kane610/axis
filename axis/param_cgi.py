@@ -171,7 +171,7 @@ class Params(APIItems, Brand, Ports, Properties):
                     "description": self[f"{STREAM_PROFILES}.S{nbr}.Description"].raw,
                     "parameters": self[f"{STREAM_PROFILES}.S{nbr}.Parameters"].raw,
                 }
-                profiles.append(StreamProfile(raw["name"], raw, object))
+                profiles.append(StreamProfile(raw["name"], raw, self._request))
         except KeyError:
             pass
 
