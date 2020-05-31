@@ -7,6 +7,7 @@ usergroup: Get a certain user access level.
 """
 
 from .api import APIItem, APIItems
+from .stream_profiles import StreamProfile
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
@@ -19,6 +20,7 @@ INPUT = "root.Input"
 IOPORT = "root.IOPort"
 OUTPUT = "root.Output"
 PROPERTIES = "root.Properties"
+STREAM_PROFILES = "root.StreamProfile"
 
 
 class Brand:
@@ -150,6 +152,30 @@ class Params(APIItems, Brand, Ports, Properties):
         raw_params = dict(group.split("=", 1) for group in raw.splitlines())
 
         super().process_raw(raw_params)
+
+    def update_stream_profiles(self) -> None:
+        """Update properties group of parameters."""
+        self.update(path=URL_GET + GROUP.format(group=STREAM_PROFILES))
+
+    def stream_profiles(self) -> list:
+        """Return a list of stream profiles."""
+        profiles = []
+        length = 0
+        if f"{STREAM_PROFILES}.MaxGroups" in self:
+            length = int(self[f"{STREAM_PROFILES}.MaxGroups"].raw)
+
+        try:
+            for nbr in range(length):
+                raw = {
+                    "name": self[f"{STREAM_PROFILES}.S{nbr}.Name"].raw,
+                    "description": self[f"{STREAM_PROFILES}.S{nbr}.Description"].raw,
+                    "parameters": self[f"{STREAM_PROFILES}.S{nbr}.Parameters"].raw,
+                }
+                profiles.append(StreamProfile(raw["name"], raw, self._request))
+        except KeyError:
+            pass
+
+        return profiles
 
 
 class Param(APIItem):
