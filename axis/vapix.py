@@ -109,6 +109,9 @@ class Vapix:
             if not self.ports:
                 self.params.update_ports
 
+            if not self.stream_profiles:
+                self.params.update_stream_profiles()
+
         if not self.ports:
             self.ports = Ports(self.params, self.request)
 

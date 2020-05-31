@@ -137,3 +137,19 @@ ptz=
         "mock_get", "mock_url/axis-cgi/pwdgrp.cgi?action=get"
     )
     assert vapix.users["userv"].viewer
+
+
+def test_streaming_profiles_api_discovery(mock_config):
+    """"""
+    with patch(
+        "axis.vapix.session_request",
+        side_effect=[
+            json.dumps(api_discovery_response),
+            json.dumps(basic_device_info_response),
+            json.dumps(io_port_management_response),
+            json.dumps(stream_profiles_response),
+            response_param_cgi,
+        ],
+    ) as mock_request:
+        vapix = Vapix(mock_config)
+        vapix.initialize()
