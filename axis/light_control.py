@@ -184,6 +184,89 @@ class LightControl(APIItems):
             ),
         )
 
+    def set_automatic_angle_of_illumination_mode(
+        self, light_id: str, enabled: bool
+    ) -> None:
+        """Automatically control the angle of illumination.
+
+        Using this mode means that the angle of illumination is the same as the camera’s angle of view.
+        """
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body(
+                    "setAutomaticAngleOfIlluminationMode",
+                    API_VERSION,
+                    params={"lightID": light_id, "enabled": enabled},
+                ),
+            ),
+        )
+
+    def get_valid_angle_of_illumination(self, light_id: str) -> dict:
+        """List the valid angle of illumination values."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body(
+                    "getValidAngleOfIllumination",
+                    API_VERSION,
+                    params={"lightID": light_id},
+                ),
+            ),
+        )
+
+    def set_manual_angle_of_illumination(
+        self, light_id: str, angle_of_illumination: int
+    ) -> None:
+        """Set the manual angle of illumination.
+
+        This is useful when the angle of illumination needs to be different from the camera’s view angle.
+        """
+        self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body(
+                    "setManualAngleOfIllumination",
+                    API_VERSION,
+                    params={
+                        "lightID": light_id,
+                        "angleOfIllumination": angle_of_illumination,
+                    },
+                ),
+            ),
+        )
+
+    def get_manual_angle_of_illumination(self, light_id: str) -> dict:
+        """Receive the angle of illumination from the setManualAngleOfIllumination request."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body(
+                    "getManualAngleOfIllumination",
+                    API_VERSION,
+                    params={"lightID": light_id},
+                ),
+            ),
+        )
+
+    def get_current_angle_of_illumination(self, light_id: str) -> dict:
+        """Receive the current angle of illumination."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body(
+                    "getCurrentAngleOfIllumination",
+                    API_VERSION,
+                    params={"lightID": light_id},
+                ),
+            ),
+        )
+
     def set_light_synchronization_day_night_mode(
         self, light_id: str, enabled: bool
     ) -> None:

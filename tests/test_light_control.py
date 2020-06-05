@@ -209,7 +209,7 @@ def test_set_individual_intensity(light_control):
 
 def test_get_individual_intensity(light_control):
     """Test get individual intensity API."""
-    light_control._request.return_value = response_getIndividualIntensith
+    light_control._request.return_value = response_getIndividualIntensity
     response = light_control.get_individual_intensity("led0", 1)
     light_control._request.assert_called_with(
         "post",
@@ -227,7 +227,7 @@ def test_get_individual_intensity(light_control):
 
 def test_get_current_intensity(light_control):
     """Test get current intensity API."""
-    light_control._request.return_value = response_getCurrentIntensith
+    light_control._request.return_value = response_getCurrentIntensity
     response = light_control.get_current_intensity("led0")
     light_control._request.assert_called_with(
         "post",
@@ -241,6 +241,92 @@ def test_get_current_intensity(light_control):
     )
 
     assert response["data"] == {"intensity": 1000}
+
+
+def test_set_automatic_angle_of_illumination_mode(light_control):
+    """Test set automatic angle of illumination mode API."""
+    light_control.set_automatic_angle_of_illumination_mode("led0", True)
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "setAutomaticAngleOfIlluminationMode",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0", "enabled": True},
+        },
+    )
+
+
+def test_get_valid_angle_of_illumination(light_control):
+    """Test get valid angle of illumination API."""
+    light_control._request.return_value = response_getValidAngleOfIllumination
+    response = light_control.get_valid_angle_of_illumination("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getValidAngleOfIllumination",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {
+        "ranges": [{"low": 10, "high": 30}, {"low": 20, "high": 50}]
+    }
+
+
+def test_set_manual_angle_of_illumination(light_control):
+    """Test set manual angle of illumination API."""
+    light_control.set_manual_angle_of_illumination("led0", 30)
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "setManualAngleOfIllumination",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0", "angleOfIllumination": 30},
+        },
+    )
+
+
+def test_get_manual_angle_of_illumination(light_control):
+    """Test get manual angle of illumination API."""
+    light_control._request.return_value = response_getManualAngleOfIllumination
+    response = light_control.get_manual_angle_of_illumination("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getManualAngleOfIllumination",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {"angleOfIllumination": 30}
+
+
+def test_get_current_angle_of_illumination(light_control):
+    """Test get current angle of illumination API."""
+    light_control._request.return_value = response_getCurrentAngleOfIllumination
+    response = light_control.get_current_angle_of_illumination("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getCurrentAngleOfIllumination",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {"angleOfIllumination": 20}
 
 
 def test_set_light_synchronization_day_night_mode(light_control):
@@ -328,7 +414,6 @@ response_getValidIntensity = {
     "data": {"ranges": [{"low": 0, "high": 1000}]},
 }
 
-
 response_getLightStatus = {
     "apiVersion": "1.1",
     "method": "getLightStatus",
@@ -341,16 +426,37 @@ response_getManualIntensity = {
     "data": {"intensity": 1000},
 }
 
-response_getIndividualIntensith = {
+response_getIndividualIntensity = {
     "apiVersion": "1.1",
     "method": "getIndividualIntensity",
     "data": {"intensity": 1000},
 }
 
-response_getCurrentIntensith = {
+response_getCurrentIntensity = {
     "apiVersion": "1.1",
     "method": "getCurrentIntensity",
     "data": {"intensity": 1000},
+}
+
+response_getValidAngleOfIllumination = {
+    "apiVersion": "1.0",
+    "context": "my context",
+    "method": "getValidAngleOfIllumination",
+    "data": {"ranges": [{"low": 10, "high": 30}, {"low": 20, "high": 50}]},
+}
+
+response_getManualAngleOfIllumination = {
+    "apiVersion": "1.0",
+    "context": "my context",
+    "method": "getManualAngleOfIllumination",
+    "data": {"angleOfIllumination": 30},
+}
+
+response_getCurrentAngleOfIllumination = {
+    "apiVersion": "1.0",
+    "context": "my context",
+    "method": "getCurrentAngleOfIllumination",
+    "data": {"angleOfIllumination": 20},
 }
 
 response_getLightSynchronizationDayNightMode = {
