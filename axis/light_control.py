@@ -62,6 +62,26 @@ class LightControl(APIItems):
             ),
         )
 
+    def enable_light(self, light_id: str) -> dict:
+        """Enable the light functionality."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("enableLight", API_VERSION, params={"lightID": light_id})
+            ),
+        )
+
+    def disable_light(self, light_id: str) -> dict:
+        """Disable the light functionality."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("disableLight", API_VERSION, params={"lightID": light_id})
+            ),
+        )
+
     def get_supported_versions(self) -> dict:
         """Supported versions of light control."""
         return self._request(

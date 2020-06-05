@@ -78,6 +78,36 @@ def test_deactivate_light(light_control):
     )
 
 
+def test_enable_light(light_control):
+    """Test enabling light API."""
+    light_control.enable_light("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "enableLight",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+
+def test_disable_light(light_control):
+    """Test enabling light API."""
+    light_control.disable_light("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "disableLight",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+
 def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     light_control._request.return_value = response_getSupportedVersions
