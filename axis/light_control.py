@@ -32,13 +32,33 @@ class LightControl(APIItems):
         )
 
     def get_light_information(self) -> dict:
-        """List the capabilities of the light controller."""
+        """List the light control information."""
         return self._request(
             "post",
             URL,
             json=attr.asdict(
                 Body("getLightInformation", API_VERSION),
                 filter=attr.filters.exclude(attr.fields(Body).params),
+            ),
+        )
+
+    def activate_light(self, light_id: str) -> dict:
+        """Activate the light."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("activateLight", API_VERSION, params={"lightID": light_id})
+            ),
+        )
+
+    def deactivate_light(self, light_id: str) -> dict:
+        """Deactivate the light."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("deactivateLight", API_VERSION, params={"lightID": light_id})
             ),
         )
 
