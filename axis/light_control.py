@@ -31,6 +31,17 @@ class LightControl(APIItems):
             ),
         )
 
+    def get_light_information(self) -> dict:
+        """List the capabilities of the light controller."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("getLightInformation", API_VERSION),
+                filter=attr.filters.exclude(attr.fields(Body).params),
+            ),
+        )
+
     def get_supported_versions(self) -> dict:
         """Supported versions of light control."""
         return self._request(

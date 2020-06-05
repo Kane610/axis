@@ -33,6 +33,21 @@ def test_get_service_capabilities(light_control):
     )
 
 
+def test_get_light_information(light_control):
+    """Test get light information API."""
+    light_control._request.return_value = response_getLightInformation
+    light_control.get_light_information()
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getLightInformation",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+        },
+    )
+
+
 def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     light_control._request.return_value = response_getSupportedVersions
@@ -55,6 +70,27 @@ response_getServiceCapabilities = {
         "manualAngleOfIlluminationSupport": False,
         "automaticAngleOfIlluminationSupport": False,
         "dayNightSynchronizeSupport": True,
+    },
+}
+
+response_getLightInformation = {
+    "apiVersion": "1.1",
+    "method": "getLightInformation",
+    "data": {
+        "items": [
+            {
+                "lightID": "led0",
+                "lightType": "IR",
+                "enabled": True,
+                "synchronizeDayNightMode": True,
+                "lightState": False,
+                "automaticIntensityMode": False,
+                "automaticAngleOfIlluminationMode": False,
+                "nrOfLEDs": 1,
+                "error": False,
+                "errorInfo": "",
+            }
+        ]
     },
 }
 
