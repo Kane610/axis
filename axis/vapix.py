@@ -7,6 +7,7 @@ from .api_discovery import ApiDiscovery
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
+from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
@@ -27,6 +28,7 @@ class Vapix:
 
         self.api_discovery = None
         self.basic_device_info = None
+        self.light_control = None
         self.mqtt = None
         self.params = None
         self.ports = None
@@ -80,6 +82,7 @@ class Vapix:
 
         for api_attr, api_id, api_class in (
             ("basic_device_info", BASIC_DEVICE_INFO_ID, BasicDeviceInfo),
+            ("light_control", LIGHT_CONTROL_ID, LightControl),
             ("ports", IO_PORT_MANAGEMENT_ID, IoPortManagement),
             ("mqtt", MQTT_ID, MqttClient),
             ("stream_profiles", STREAM_PROFILES_ID, StreamProfiles),

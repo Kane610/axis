@@ -43,6 +43,12 @@ def test_initialize_api_discovery(mock_config):
         vapix = Vapix(mock_config)
         vapix.initialize_api_discovery()
 
+    assert vapix.api_discovery
+    assert vapix.basic_device_info
+    assert vapix.light_control
+    assert vapix.mqtt
+    assert vapix.stream_profiles
+
     assert len(mock_request.mock_calls) == 4
     mock_request.assert_has_calls(
         [
