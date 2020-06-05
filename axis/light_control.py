@@ -20,6 +20,17 @@ class LightControl(APIItems):
     def __init__(self, raw: dict, request: object) -> None:
         super().__init__(raw, request, URL, APIItem)
 
+    def get_service_capabilities(self) -> dict:
+        """List the capabilities of the light controller."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body("getServiceCapabilities", API_VERSION),
+                filter=attr.filters.exclude(attr.fields(Body).params),
+            ),
+        )
+
     def get_supported_versions(self) -> dict:
         """Supported versions of light control."""
         return self._request(

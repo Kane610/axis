@@ -18,6 +18,21 @@ def light_control() -> LightControl:
     return LightControl({}, mock_request)
 
 
+def test_get_service_capabilities(light_control):
+    """Test get service capabilities API."""
+    light_control._request.return_value = response_getServiceCapabilities
+    light_control.get_service_capabilities()
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getServiceCapabilities",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+        },
+    )
+
+
 def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     light_control._request.return_value = response_getSupportedVersions
@@ -27,6 +42,21 @@ def test_get_supported_versions(light_control):
     )
 
     assert response["data"] == {"apiVersions": ["1.1"]}
+
+
+response_getServiceCapabilities = {
+    "apiVersion": "1.1",
+    "method": "getServiceCapabilities",
+    "data": {
+        "automaticIntensitySupport": True,
+        "manualIntensitySupport": True,
+        "individualIntensitySupport": False,
+        "getCurrentIntensitySupport": True,
+        "manualAngleOfIlluminationSupport": False,
+        "automaticAngleOfIlluminationSupport": False,
+        "dayNightSynchronizeSupport": True,
+    },
+}
 
 
 response_getSupportedVersions = {
