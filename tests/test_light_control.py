@@ -94,7 +94,7 @@ def test_enable_light(light_control):
 
 
 def test_disable_light(light_control):
-    """Test enabling light API."""
+    """Test disabling light API."""
     light_control.disable_light("led0")
     light_control._request.assert_called_with(
         "post",
@@ -106,6 +106,141 @@ def test_disable_light(light_control):
             "params": {"lightID": "led0"},
         },
     )
+
+
+def test_get_light_status(light_control):
+    """Test get light status API."""
+    light_control._request.return_value = response_getLightStatus
+    response = light_control.get_light_status("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getLightStatus",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {"status": False}
+
+
+def test_set_automatic_intensity_mode(light_control):
+    """Test set automatic intensity mode API."""
+    light_control.set_automatic_intensity_mode("led0", True)
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "setAutomaticIntensityMode",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0", "enabled": True},
+        },
+    )
+
+
+def test_get_valid_intensity(light_control):
+    """Test get valid intensity API."""
+    light_control._request.return_value = response_getManualIntensity
+    response = light_control.get_manual_intensity("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getManualIntensity",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {"intensity": 1000}
+
+
+def test_set_manual_intensity(light_control):
+    """Test set manual intensity API."""
+    light_control.set_manual_intensity("led0", 1000)
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "setManualIntensity",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0", "intensity": 1000},
+        },
+    )
+
+
+def test_get_manual_intensity(light_control):
+    """Test get manual intensity API."""
+    light_control._request.return_value = response_getValidIntensity
+    response = light_control.get_valid_intensity("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getValidIntensity",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {"ranges": [{"low": 0, "high": 1000}]}
+
+
+def test_set_individual_intensity(light_control):
+    """Test set individual intensity API."""
+    light_control.set_individual_intensity("led0", 1, 1000)
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "setIndividualIntensity",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0", "LEDID": 1, "intensity": 1000},
+        },
+    )
+
+
+def test_get_individual_intensity(light_control):
+    """Test get individual intensity API."""
+    light_control._request.return_value = response_getIndividualIntensith
+    response = light_control.get_individual_intensity("led0", 1)
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getIndividualIntensity",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0", "LEDID": 1},
+        },
+    )
+
+    assert response["data"] == {"intensity": 1000}
+
+
+def test_get_current_intensity(light_control):
+    """Test get current intensity API."""
+    light_control._request.return_value = response_getCurrentIntensith
+    response = light_control.get_current_intensity("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getCurrentIntensity",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {"intensity": 1000}
 
 
 def test_get_supported_versions(light_control):
@@ -152,6 +287,37 @@ response_getLightInformation = {
             }
         ]
     },
+}
+
+response_getValidIntensity = {
+    "apiVersion": "1.1",
+    "method": "getValidIntensity",
+    "data": {"ranges": [{"low": 0, "high": 1000}]},
+}
+
+
+response_getLightStatus = {
+    "apiVersion": "1.1",
+    "method": "getLightStatus",
+    "data": {"status": False},
+}
+
+response_getManualIntensity = {
+    "apiVersion": "1.1",
+    "method": "getManualIntensity",
+    "data": {"intensity": 1000},
+}
+
+response_getIndividualIntensith = {
+    "apiVersion": "1.1",
+    "method": "getIndividualIntensity",
+    "data": {"intensity": 1000},
+}
+
+response_getCurrentIntensith = {
+    "apiVersion": "1.1",
+    "method": "getCurrentIntensity",
+    "data": {"intensity": 1000},
 }
 
 
