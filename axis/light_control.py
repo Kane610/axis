@@ -184,6 +184,36 @@ class LightControl(APIItems):
             ),
         )
 
+    def set_light_synchronization_day_night_mode(
+        self, light_id: str, enabled: bool
+    ) -> None:
+        """Enable automatic synchronization with the day/night mode."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body(
+                    "setLightSynchronizationDayNightMode",
+                    API_VERSION,
+                    params={"lightID": light_id, "enabled": enabled},
+                ),
+            ),
+        )
+
+    def get_light_synchronization_day_night_mode(self, light_id: str) -> dict:
+        """Check if the automatic synchronization is enabled with the day/night mode."""
+        return self._request(
+            "post",
+            URL,
+            json=attr.asdict(
+                Body(
+                    "getLightSynchronizationDayNightMode",
+                    API_VERSION,
+                    params={"lightID": light_id},
+                ),
+            ),
+        )
+
     def get_supported_versions(self) -> dict:
         """Supported versions of light control."""
         return self._request(

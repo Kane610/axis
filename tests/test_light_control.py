@@ -243,6 +243,39 @@ def test_get_current_intensity(light_control):
     assert response["data"] == {"intensity": 1000}
 
 
+def test_set_light_synchronization_day_night_mode(light_control):
+    """Test set light synchronization day night mode API."""
+    light_control.set_light_synchronization_day_night_mode("led0", True)
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "setLightSynchronizationDayNightMode",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0", "enabled": True},
+        },
+    )
+
+
+def test_get_light_synchronization_day_night_mode(light_control):
+    """Test get light synchronization day night mode API."""
+    light_control._request.return_value = response_getLightSynchronizationDayNightMode
+    response = light_control.get_light_synchronization_day_night_mode("led0")
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getLightSynchronizationDayNightMode",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "params": {"lightID": "led0"},
+        },
+    )
+
+    assert response["data"] == {"enabled": True}
+
+
 def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     light_control._request.return_value = response_getSupportedVersions
@@ -320,6 +353,12 @@ response_getCurrentIntensith = {
     "data": {"intensity": 1000},
 }
 
+response_getLightSynchronizationDayNightMode = {
+    "apiVersion": "1.1",
+    "context": "my context",
+    "method": "getLightSynchronizeDayNightMode",
+    "data": {"enabled": True},
+}
 
 response_getSupportedVersions = {
     "method": "getSupportedVersions",
