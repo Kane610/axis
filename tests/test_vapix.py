@@ -13,6 +13,7 @@ from .test_api_discovery import response_getApiList as api_discovery_response
 from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
+from .test_light_control import response_getLightInformation as light_control_response
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi
 from .test_stream_profiles import response_list as stream_profiles_response
@@ -37,6 +38,7 @@ def test_initialize_api_discovery(mock_config):
             json.dumps(api_discovery_response),
             json.dumps(basic_device_info_response),
             json.dumps(io_port_management_response),
+            json.dumps(light_control_response),
             json.dumps(stream_profiles_response),
         ],
     ) as mock_request:
@@ -49,7 +51,7 @@ def test_initialize_api_discovery(mock_config):
     assert vapix.mqtt
     assert vapix.stream_profiles
 
-    assert len(mock_request.mock_calls) == 4
+    assert len(mock_request.mock_calls) == 5
     mock_request.assert_has_calls(
         [
             call(
@@ -76,6 +78,15 @@ def test_initialize_api_discovery(mock_config):
                 json={
                     "method": "getPorts",
                     "apiVersion": "1.0",
+                    "context": "Axis library",
+                },
+            ),
+            call(
+                "mock_post",
+                "mock_url/axis-cgi/lightcontrol.cgi",
+                json={
+                    "method": "getLightInformation",
+                    "apiVersion": "1.1",
                     "context": "Axis library",
                 },
             ),
@@ -153,6 +164,7 @@ def test_streaming_profiles_api_discovery(mock_config):
             json.dumps(api_discovery_response),
             json.dumps(basic_device_info_response),
             json.dumps(io_port_management_response),
+            json.dumps(light_control_response),
             json.dumps(stream_profiles_response),
             response_param_cgi,
         ],

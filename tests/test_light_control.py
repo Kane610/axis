@@ -18,6 +18,35 @@ def light_control() -> LightControl:
     return LightControl({}, mock_request)
 
 
+def test_update(light_control):
+    """Test update method."""
+    light_control._request.return_value = response_getLightInformation
+    light_control.update()
+    light_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={
+            "method": "getLightInformation",
+            "apiVersion": "1.1",
+            "context": "Axis library",
+        },
+    )
+
+    assert len(light_control.values()) == 1
+
+    item = light_control["led0"]
+    assert item.id == "led0"
+    assert item.light_id == "led0"
+    assert item.light_type == "IR"
+    assert item.enabled is True
+    assert item.synchronize_day_night_mode is True
+    assert item.light_state is False
+    assert item.automatic_intensity_mode is False
+    assert item.number_of_leds == 1
+    assert item.error is False
+    assert item.error_info == ""
+
+
 def test_get_service_capabilities(light_control):
     """Test get service capabilities API."""
     light_control._request.return_value = response_getServiceCapabilities

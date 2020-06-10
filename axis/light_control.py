@@ -18,7 +18,20 @@ class LightControl(APIItems):
     """Light control for Axis devices."""
 
     def __init__(self, raw: dict, request: object) -> None:
-        super().__init__(raw, request, URL, APIItem)
+        super().__init__(raw, request, URL, Light)
+
+    def update(self, path=None) -> None:
+        raw = self.get_light_information()
+        self.process_raw(raw.get("data", {}).get("items", []))
+
+    def process_raw(self, raw: list) -> None:
+        """Pre-process raw json dict.
+
+        Prepare parameters to work with APIItems.
+        """
+        raw_dict = {api["lightID"]: api for api in raw}
+
+        super().process_raw(raw_dict)
 
     def get_service_capabilities(self) -> dict:
         """List the capabilities of the light controller."""
@@ -307,3 +320,57 @@ class LightControl(APIItems):
                 filter=attr.filters.include(attr.fields(Body).method),
             ),
         )
+
+
+class Light(APIItem):
+    """API Discovery item."""
+
+    @property
+    def light_id(self) -> str:
+        """Id of light."""
+        return self.raw["lightID"]
+
+    @property
+    def light_type(self) -> str:
+        """Type of light."""
+        return self.raw["lightType"]
+
+    @property
+    def enabled(self) -> bool:
+        """Is light enabled."""
+        return self.raw["enabled"]
+
+    @property
+    def synchronize_day_night_mode(self) -> bool:
+        """Synchronized with day night mode."""
+        return self.raw["synchronizeDayNightMode"]
+
+    @property
+    def light_state(self) -> bool:
+        """State of light."""
+        return self.raw["lightState"]
+
+    @property
+    def automatic_intensity_mode(self) -> bool:
+        """Automatic intensity mode."""
+        return self.raw["automaticIntensityMode"]
+
+    @property
+    def automatic_angle_of_illumination_mode(self) -> bool:
+        """Automatic angle of illumination mode."""
+        return self.raw["automaticAngleOfIlluminationMode"]
+
+    @property
+    def number_of_leds(self) -> int:
+        """Number of LEDs."""
+        return self.raw["nrOfLEDs"]
+
+    @property
+    def error(self) -> bool:
+        """Error."""
+        return self.raw["error"]
+
+    @property
+    def error_info(self) -> str:
+        """Error info."""
+        return self.raw["errorInfo"]
