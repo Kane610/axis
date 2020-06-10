@@ -195,7 +195,7 @@ class Light(AxisBinaryEvent):
     """Light status event.
 
     {
-        'operation': 'Changed',
+        'operation': 'Initialized',
         'topic': 'tns1:Device/tnsaxis:Light/Status',
         'source': 'id',
         'source_idx': '0',
@@ -207,6 +207,11 @@ class Light(AxisBinaryEvent):
     TOPIC = "tns1:Device/tnsaxis:Light/Status"
     CLASS = CLASS_LIGHT
     TYPE = "Light"
+
+    @property
+    def is_tripped(self) -> bool:
+        """Event is tripped now."""
+        return self.state == "ON"
 
 
 class Motion(AxisBinaryEvent):
