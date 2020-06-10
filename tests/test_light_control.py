@@ -15,7 +15,7 @@ def light_control() -> LightControl:
     """Returns the light_control mock object."""
     mock_request = Mock()
     mock_request.return_value = ""
-    return LightControl({}, mock_request)
+    return LightControl(mock_request)
 
 
 def test_update(light_control):

@@ -17,8 +17,8 @@ API_VERSION = "1.1"
 class LightControl(APIItems):
     """Light control for Axis devices."""
 
-    def __init__(self, raw: dict, request: object) -> None:
-        super().__init__(raw, request, URL, Light)
+    def __init__(self, request: object) -> None:
+        super().__init__({}, request, URL, Light)
 
     def update(self, path=None) -> None:
         raw = self.get_light_information()
