@@ -112,14 +112,27 @@ def test_initialize_api_discovery(mock_config):
 def test_initialize_param_cgi(mock_config):
     """Verify that you can list parameters."""
     with patch(
-        "axis.vapix.session_request", return_value=response_param_cgi
+        "axis.vapix.session_request",
+        side_effect=[response_param_cgi, json.dumps(light_control_response)],
     ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi()
 
-    mock_request.assert_called_with(
-        "mock_get", "mock_url/axis-cgi/param.cgi?action=list"
+    mock_request.assert_has_calls(
+        [
+            call("mock_get", "mock_url/axis-cgi/param.cgi?action=list"),
+            call(
+                "mock_post",
+                "mock_url/axis-cgi/lightcontrol.cgi",
+                json={
+                    "method": "getLightInformation",
+                    "apiVersion": "1.1",
+                    "context": "Axis library",
+                },
+            ),
+        ]
     )
+
     assert vapix.params["root.Brand.Brand"].raw == "AXIS"
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"

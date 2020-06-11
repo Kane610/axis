@@ -55,12 +55,15 @@ def test_params(params):
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
     )
     assert params.image_rotation == "0,180"
+    assert params.light_control is True
     assert params.system_serialnumber == "ACCC12345678"
 
 
 def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
     assert params
+
+    assert params.light_control is False
 
 
 def test_update_brand(params):

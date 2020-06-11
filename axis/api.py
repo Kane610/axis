@@ -62,6 +62,9 @@ class APIItems:
     def __iter__(self):
         return iter(self._items)
 
+    def __contains__(self, item):
+        return item in self._items
+
 
 class APIItem:
     """Base class for all end points using APIItems class."""

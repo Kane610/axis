@@ -115,6 +115,10 @@ class Vapix:
             if not self.stream_profiles:
                 self.params.update_stream_profiles()
 
+        if not self.light_control and self.params.light_control:
+            self.light_control = LightControl(self.json_request)
+            self.light_control.update()
+
         if not self.ports:
             self.ports = Ports(self.params, self.request)
 
