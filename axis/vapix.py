@@ -6,7 +6,7 @@ import logging
 from .api_discovery import ApiDiscovery
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
-from .errors import AxisException, PathNotFound
+from .errors import AxisException, PathNotFound, Unauthorized
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
@@ -78,20 +78,20 @@ class Vapix:
         self.api_discovery = ApiDiscovery({}, self.json_request)
         self.api_discovery.update()
 
-        if BASIC_DEVICE_INFO_ID in self.api_discovery:
-            self.basic_device_info = BasicDeviceInfo({}, self.json_request)
-            self.basic_device_info.update()
-
-        if IO_PORT_MANAGEMENT_ID in self.api_discovery:
-            self.ports = IoPortManagement({}, self.json_request)
-            self.ports.update()
-
-        if MQTT_ID in self.api_discovery:
-            self.mqtt = MqttClient({}, self.json_request)
-
-        if STREAM_PROFILES_ID in self.api_discovery:
-            self.stream_profiles = StreamProfiles({}, self.json_request)
-            self.stream_profiles.update()
+        for api_attr, api_id, api_class in (
+            ("basic_device_info", BASIC_DEVICE_INFO_ID, BasicDeviceInfo),
+            ("ports", IO_PORT_MANAGEMENT_ID, IoPortManagement),
+            ("mqtt", MQTT_ID, MqttClient),
+            ("stream_profiles", STREAM_PROFILES_ID, StreamProfiles),
+        ):
+            if api_id in self.api_discovery:
+                try:
+                    api_item = api_class({}, self.json_request)
+                    api_item.update()
+                    setattr(self, api_attr, api_item)
+                except Unauthorized:
+                    # Probably a viewer account
+                    pass
 
     def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
