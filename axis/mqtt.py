@@ -93,6 +93,9 @@ class MqttClient(APIItems):
     def __init__(self, raw: dict, request: object) -> None:
         super().__init__(raw, request, URL_CLIENT, Client)
 
+    def update(self) -> None:
+        """No update method"""
+
     def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""
         self._request(
