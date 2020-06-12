@@ -90,8 +90,8 @@ def mqtt_json_to_event(msg: str) -> dict:
 class MqttClient(APIItems):
     """MQTT Client for Axis devices."""
 
-    def __init__(self, raw: dict, request: object) -> None:
-        super().__init__(raw, request, URL_CLIENT, Client)
+    def __init__(self, request: object) -> None:
+        super().__init__({}, request, URL_CLIENT, Client)
 
     def update(self) -> None:
         """No update method"""

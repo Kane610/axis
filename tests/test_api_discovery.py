@@ -14,7 +14,7 @@ def api_discovery() -> ApiDiscovery:
     """Returns the api_discovery mock object."""
     mock_request = Mock()
     mock_request.return_value = ""
-    return ApiDiscovery({}, mock_request)
+    return ApiDiscovery(mock_request)
 
 
 def test_get_api_list(api_discovery):

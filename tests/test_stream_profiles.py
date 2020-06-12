@@ -14,7 +14,7 @@ def stream_profiles() -> StreamProfiles:
     """Returns the stream_profiles mock object."""
     mock_request = Mock()
     mock_request.return_value = ""
-    return StreamProfiles({}, mock_request)
+    return StreamProfiles(mock_request)
 
 
 def test_list_stream_profiles(stream_profiles):

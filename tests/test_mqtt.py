@@ -20,7 +20,7 @@ def mqtt_client() -> MqttClient:
     """Returns the mqtt_client mock object."""
     mock_request = Mock()
     mock_request.return_value = ""
-    return MqttClient({}, mock_request)
+    return MqttClient(mock_request)
 
 
 def test_client_config_simple(mqtt_client):

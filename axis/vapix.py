@@ -77,19 +77,19 @@ class Vapix:
 
     def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        self.api_discovery = ApiDiscovery({}, self.json_request)
+        self.api_discovery = ApiDiscovery(self.json_request)
         self.api_discovery.update()
 
         for api_attr, api_id, api_class in (
             ("basic_device_info", BASIC_DEVICE_INFO_ID, BasicDeviceInfo),
-            ("light_control", LIGHT_CONTROL_ID, LightControl),
             ("ports", IO_PORT_MANAGEMENT_ID, IoPortManagement),
+            ("light_control", LIGHT_CONTROL_ID, LightControl),
             ("mqtt", MQTT_ID, MqttClient),
             ("stream_profiles", STREAM_PROFILES_ID, StreamProfiles),
         ):
             if api_id in self.api_discovery:
                 try:
-                    api_item = api_class({}, self.json_request)
+                    api_item = api_class(self.json_request)
                     api_item.update()
                     setattr(self, api_attr, api_item)
                 except Unauthorized:

@@ -17,8 +17,8 @@ API_VERSION = "1.1"
 class BasicDeviceInfo(APIItems):
     """Basic device information for Axis devices."""
 
-    def __init__(self, raw: dict, request: object) -> None:
-        super().__init__(raw, request, URL, APIItem)
+    def __init__(self, request: object) -> None:
+        super().__init__({}, request, URL, APIItem)
 
     def update(self, path=None) -> None:
         raw = self.get_all_properties()

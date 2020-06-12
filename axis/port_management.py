@@ -44,8 +44,8 @@ class Sequence:
 class IoPortManagement(APIItems):
     """I/O port management for Axis devices."""
 
-    def __init__(self, raw: dict, request: object) -> None:
-        super().__init__(raw, request, URL, Port)
+    def __init__(self, request: object) -> None:
+        super().__init__({}, request, URL, Port)
 
     def update(self, path=None) -> None:
         raw = self.get_ports()
