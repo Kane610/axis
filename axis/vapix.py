@@ -107,7 +107,7 @@ class Vapix:
                 self.params.update_brand()
 
             if not self.ports:
-                self.params.update_ports
+                self.params.update_ports()
 
             if not self.stream_profiles:
                 self.params.update_stream_profiles()
