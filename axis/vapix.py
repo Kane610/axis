@@ -80,12 +80,12 @@ class Vapix:
         self.api_discovery = ApiDiscovery(self.json_request)
         self.api_discovery.update()
 
-        for api_attr, api_id, api_class in (
-            ("basic_device_info", BASIC_DEVICE_INFO_ID, BasicDeviceInfo),
-            ("ports", IO_PORT_MANAGEMENT_ID, IoPortManagement),
-            ("light_control", LIGHT_CONTROL_ID, LightControl),
-            ("mqtt", MQTT_ID, MqttClient),
-            ("stream_profiles", STREAM_PROFILES_ID, StreamProfiles),
+        for api_id, api_class, api_attr in (
+            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
+            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
+            (LIGHT_CONTROL_ID, LightControl, "light_control"),
+            (MQTT_ID, MqttClient, "mqtt"),
+            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
         ):
             if api_id in self.api_discovery:
                 try:
@@ -116,8 +116,12 @@ class Vapix:
                 self.params.update_stream_profiles()
 
         if not self.light_control and self.params.light_control:
-            self.light_control = LightControl(self.json_request)
-            self.light_control.update()
+            try:
+                light_control = LightControl(self.json_request)
+                light_control.update()
+                self.light_control = light_control
+            except Unauthorized:
+                pass
 
         if not self.ports:
             self.ports = Ports(self.params, self.request)
