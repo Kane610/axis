@@ -2,8 +2,7 @@
 
 https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 
-action: Add, remove, update or list parameters.
-usergroup: Get a certain user access level.
+Lists Brand, Ports, Properties, Stream profiles.
 """
 
 from .api import APIItem, APIItems
@@ -23,8 +22,22 @@ PROPERTIES = "root.Properties"
 STREAM_PROFILES = "root.StreamProfile"
 
 
-class Brand:
-    """Parameters describing device brand."""
+class Params(APIItems):
+    """Represents all parameters of param.cgi."""
+
+    def __init__(self, request: object) -> None:
+        super().__init__("", request, URL_GET, APIItem)
+
+    def process_raw(self, raw: str) -> None:
+        """Pre-process raw string.
+
+        Prepare parameters to work with APIItems.
+        """
+        raw_params = dict(group.split("=", 1) for group in raw.splitlines())
+
+        super().process_raw(raw_params)
+
+    # Brand
 
     def update_brand(self) -> None:
         """Update brand group of parameters."""
@@ -58,9 +71,7 @@ class Brand:
     def weburl(self) -> str:
         return self[f"{BRAND}.WebURL"].raw
 
-
-class Ports:
-    """Parameters describing device inputs and outputs."""
+    # Ports
 
     def update_ports(self) -> None:
         """Update port groups of parameters."""
@@ -83,9 +94,7 @@ class Ports:
         """Create a smaller dictionary containing all ports."""
         return {param: self[param].raw for param in self if param.startswith(IOPORT)}
 
-
-class Properties:
-    """Parameters describing device properties."""
+    # Properties
 
     def update_properties(self) -> None:
         """Update properties group of parameters."""
@@ -144,21 +153,7 @@ class Properties:
     def system_serialnumber(self) -> str:
         return self[f"{PROPERTIES}.System.SerialNumber"].raw
 
-
-class Params(APIItems, Brand, Ports, Properties):
-    """Represents all parameters of param.cgi."""
-
-    def __init__(self, raw: str, request: object) -> None:
-        super().__init__(raw, request, URL_GET, Param)
-
-    def process_raw(self, raw: str) -> None:
-        """Pre-process raw string.
-
-        Prepare parameters to work with APIItems.
-        """
-        raw_params = dict(group.split("=", 1) for group in raw.splitlines())
-
-        super().process_raw(raw_params)
+    # Stream profiles
 
     def update_stream_profiles(self) -> None:
         """Update properties group of parameters."""
@@ -183,7 +178,3 @@ class Params(APIItems, Brand, Ports, Properties):
             pass
 
         return profiles
-
-
-class Param(APIItem):
-    """Represents a parameter group."""

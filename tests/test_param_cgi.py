@@ -14,7 +14,7 @@ from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
 def params() -> Params:
     """Returns the param cgi mock object."""
     mock_request = Mock()
-    return Params("", mock_request)
+    return Params(mock_request)
 
 
 def test_params(params):

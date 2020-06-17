@@ -13,7 +13,7 @@ def test_ports():
     """Test that different types of ports work."""
     mock_request = Mock()
     mock_request.return_value = fixture_ports
-    params = Params("", mock_request)
+    params = Params(mock_request)
     ports = Ports(params, mock_request)
     ports.update()
 
@@ -56,7 +56,7 @@ def test_no_ports():
     """Test that no ports also work."""
     mock_request = Mock()
     mock_request.return_value = ""
-    params = Params("", mock_request)
+    params = Params(mock_request)
     ports = Ports(params, mock_request)
     ports.update()
 
