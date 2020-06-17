@@ -191,6 +191,29 @@ class Input(AxisBinaryEvent):
     TYPE = "Input"
 
 
+class Light(AxisBinaryEvent):
+    """Light status event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:Device/tnsaxis:Light/Status',
+        'source': 'id',
+        'source_idx': '0',
+        'type': 'state',
+        'value': 'OFF'
+    }
+    """
+
+    TOPIC = "tns1:Device/tnsaxis:Light/Status"
+    CLASS = CLASS_LIGHT
+    TYPE = "Light"
+
+    @property
+    def is_tripped(self) -> bool:
+        """Event is tripped now."""
+        return self.state == "ON"
+
+
 class Motion(AxisBinaryEvent):
     """Motion detection event."""
 
@@ -301,6 +324,7 @@ EVENT_CLASSES = (
     Audio,
     DayNight,
     Input,
+    Light,
     Motion,
     Pir,
     Relay,

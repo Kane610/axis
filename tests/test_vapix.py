@@ -8,11 +8,15 @@ from asynctest import Mock, patch
 import json
 import pytest
 
+from axis.errors import Unauthorized
+from axis.stream_profiles import StreamProfile
 from axis.vapix import Vapix
+
 from .test_api_discovery import response_getApiList as api_discovery_response
 from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
+from .test_light_control import response_getLightInformation as light_control_response
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi
 from .test_stream_profiles import response_list as stream_profiles_response
@@ -37,13 +41,20 @@ def test_initialize_api_discovery(mock_config):
             json.dumps(api_discovery_response),
             json.dumps(basic_device_info_response),
             json.dumps(io_port_management_response),
+            json.dumps(light_control_response),
             json.dumps(stream_profiles_response),
         ],
     ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_api_discovery()
 
-    assert len(mock_request.mock_calls) == 4
+    assert vapix.api_discovery
+    assert vapix.basic_device_info
+    assert vapix.light_control
+    assert vapix.mqtt
+    assert vapix.stream_profiles
+
+    assert len(mock_request.mock_calls) == 5
     mock_request.assert_has_calls(
         [
             call(
@@ -75,6 +86,15 @@ def test_initialize_api_discovery(mock_config):
             ),
             call(
                 "mock_post",
+                "mock_url/axis-cgi/lightcontrol.cgi",
+                json={
+                    "method": "getLightInformation",
+                    "apiVersion": "1.1",
+                    "context": "Axis library",
+                },
+            ),
+            call(
+                "mock_post",
                 "mock_url/axis-cgi/streamprofile.cgi",
                 json={
                     "method": "list",
@@ -90,24 +110,51 @@ def test_initialize_api_discovery(mock_config):
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
+    assert isinstance(vapix.streaming_profiles[0], StreamProfile)
+
+    assert len(vapix.basic_device_info.values()) == 14
+    assert len(vapix.ports.values()) == 1
+    assert len(vapix.light_control.values()) == 1
+    assert vapix.mqtt is not None
+    assert len(vapix.stream_profiles.values()) == 1
 
 
 def test_initialize_param_cgi(mock_config):
     """Verify that you can list parameters."""
     with patch(
-        "axis.vapix.session_request", return_value=response_param_cgi
+        "axis.vapix.session_request",
+        side_effect=[response_param_cgi, json.dumps(light_control_response)],
     ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi()
 
-    mock_request.assert_called_with(
-        "mock_get", "mock_url/axis-cgi/param.cgi?action=list"
+    mock_request.assert_has_calls(
+        [
+            call("mock_get", "mock_url/axis-cgi/param.cgi?action=list"),
+            call(
+                "mock_post",
+                "mock_url/axis-cgi/lightcontrol.cgi",
+                json={
+                    "method": "getLightInformation",
+                    "apiVersion": "1.1",
+                    "context": "Axis library",
+                },
+            ),
+        ]
     )
+
     assert vapix.params["root.Brand.Brand"].raw == "AXIS"
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
+    # assert isinstance(vapix.streaming_profiles[0], StreamProfile)
+
+    assert vapix.basic_device_info is None
+    assert len(vapix.ports.values()) == 1
+    assert len(vapix.light_control.values()) == 1
+    assert vapix.mqtt is None
+    assert vapix.stream_profiles is None
 
 
 def test_initialize_params_no_data(mock_config):
@@ -139,17 +186,45 @@ ptz=
     assert vapix.users["userv"].viewer
 
 
-def test_streaming_profiles_api_discovery(mock_config):
-    """"""
+def test_initialize_api_discovery_unauthorized(mock_config):
+    """Test initialize api discovery doesnt break due to exception."""
     with patch(
         "axis.vapix.session_request",
         side_effect=[
             json.dumps(api_discovery_response),
-            json.dumps(basic_device_info_response),
-            json.dumps(io_port_management_response),
-            json.dumps(stream_profiles_response),
-            response_param_cgi,
+            Unauthorized,
+            Unauthorized,
+            Unauthorized,
+            Unauthorized,
         ],
-    ) as mock_request:
+    ):
         vapix = Vapix(mock_config)
-        vapix.initialize()
+        vapix.initialize_api_discovery()
+
+    assert vapix.basic_device_info is None
+    assert vapix.ports is None
+    assert vapix.light_control is None
+    assert vapix.mqtt is not None
+    assert vapix.stream_profiles is None
+
+
+# def test_initialize_param_cgi(mock_config):
+#     """Test initialize api discovery doesnt break due to exception."""
+#     with patch(
+#         "axis.vapix.session_request",
+#         side_effect=[
+#             json.dumps(api_discovery_response),
+#             Unauthorized,
+#             Unauthorized,
+#             Unauthorized,
+#             Unauthorized,
+#         ],
+#     ):
+#         vapix = Vapix(mock_config)
+#         vapix.initialize_api_discovery()
+
+#     assert vapix.basic_device_info is None
+#     assert vapix.ports is None
+#     assert vapix.light_control is None
+#     assert vapix.mqtt is not None
+#     assert vapix.stream_profiles is None

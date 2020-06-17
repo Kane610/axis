@@ -10,7 +10,7 @@ LOGGER = logging.getLogger(__name__)
 
 def session_request(session, url, **kwargs):
     """Do HTTP/S request and return response as a string."""
-    LOGGER.debug("%s", url)
+    LOGGER.debug("%s %s", url, kwargs)
     try:
         response = session(url, **kwargs)
 

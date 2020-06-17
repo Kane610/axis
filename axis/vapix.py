@@ -7,6 +7,7 @@ from .api_discovery import ApiDiscovery
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
+from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
@@ -27,6 +28,7 @@ class Vapix:
 
         self.api_discovery = None
         self.basic_device_info = None
+        self.light_control = None
         self.mqtt = None
         self.params = None
         self.ports = None
@@ -75,18 +77,19 @@ class Vapix:
 
     def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        self.api_discovery = ApiDiscovery({}, self.json_request)
+        self.api_discovery = ApiDiscovery(self.json_request)
         self.api_discovery.update()
 
-        for api_attr, api_id, api_class in (
-            ("basic_device_info", BASIC_DEVICE_INFO_ID, BasicDeviceInfo),
-            ("ports", IO_PORT_MANAGEMENT_ID, IoPortManagement),
-            ("mqtt", MQTT_ID, MqttClient),
-            ("stream_profiles", STREAM_PROFILES_ID, StreamProfiles),
+        for api_id, api_class, api_attr in (
+            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
+            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
+            (LIGHT_CONTROL_ID, LightControl, "light_control"),
+            (MQTT_ID, MqttClient, "mqtt"),
+            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
         ):
             if api_id in self.api_discovery:
                 try:
-                    api_item = api_class({}, self.json_request)
+                    api_item = api_class(self.json_request)
                     api_item.update()
                     setattr(self, api_attr, api_item)
                 except Unauthorized:
@@ -111,6 +114,14 @@ class Vapix:
 
             if not self.stream_profiles:
                 self.params.update_stream_profiles()
+
+        if not self.light_control and self.params.light_control:
+            try:
+                light_control = LightControl(self.json_request)
+                light_control.update()
+                self.light_control = light_control
+            except Unauthorized:
+                pass
 
         if not self.ports:
             self.ports = Ports(self.params, self.request)

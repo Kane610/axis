@@ -16,8 +16,8 @@ API_VERSION = "1.0"
 class ApiDiscovery(APIItems):
     """API Discovery for Axis devices."""
 
-    def __init__(self, raw: dict, request: object) -> None:
-        super().__init__(raw, request, URL, Api)
+    def __init__(self, request: object) -> None:
+        super().__init__({}, request, URL, Api)
 
     def update(self, path=None) -> None:
         raw = self.get_api_list()

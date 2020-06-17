@@ -15,7 +15,7 @@ def basic_device_info() -> BasicDeviceInfo:
     """Returns the basic_device_info mock object."""
     mock_request = Mock()
     mock_request.return_value = ""
-    return BasicDeviceInfo({}, mock_request)
+    return BasicDeviceInfo(mock_request)
 
 
 def test_get_all_properties(basic_device_info):

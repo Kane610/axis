@@ -134,6 +134,13 @@ class Properties:
         return self[f"{PROPERTIES}.Image.Rotation"].raw
 
     @property
+    def light_control(self) -> bool:
+        light_control = f"{PROPERTIES}.LightControl.LightControl2"
+        if light_control not in self:
+            return False
+        return self[light_control].raw == "yes"
+
+    @property
     def system_serialnumber(self) -> str:
         return self[f"{PROPERTIES}.System.SerialNumber"].raw
 

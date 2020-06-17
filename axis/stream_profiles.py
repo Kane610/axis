@@ -21,8 +21,8 @@ API_VERSION = "1.0"
 class StreamProfiles(APIItems):
     """Stream profiles for Axis devices."""
 
-    def __init__(self, raw: dict, request: object) -> None:
-        super().__init__(raw, request, URL, StreamProfile)
+    def __init__(self, request: object) -> None:
+        super().__init__({}, request, URL, StreamProfile)
 
     def update(self, path=None) -> None:
         raw = self.list()

@@ -20,7 +20,7 @@ def io_port_management() -> IoPortManagement:
     """Returns the io_port_management mock object."""
     mock_request = Mock()
     mock_request.return_value = ""
-    return IoPortManagement({}, mock_request)
+    return IoPortManagement(mock_request)
 
 
 def test_get_ports(io_port_management):
