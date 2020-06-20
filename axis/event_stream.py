@@ -173,6 +173,22 @@ class DayNight(AxisBinaryEvent):
     TYPE = "DayNight"
 
 
+class FenceGuard(AxisBinaryEvent):
+    """Fence Guard trigger event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile#',
+        'type': 'active',
+        'value': '1'
+    }
+    """
+
+    TOPIC = "tnsaxis:CameraApplicationPlatform/FenceGuard"
+    CLASS = CLASS_MOTION
+    TYPE = "Fence Guard"
+
+
 class Input(AxisBinaryEvent):
     """Digital input event.
 
@@ -323,6 +339,7 @@ class Vmd4(AxisBinaryEvent):
 EVENT_CLASSES = (
     Audio,
     DayNight,
+    FenceGuard,
     Input,
     Light,
     Motion,
