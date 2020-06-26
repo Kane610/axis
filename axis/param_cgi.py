@@ -113,6 +113,14 @@ class Params(APIItems):
         return self[f"{PROPERTIES}.API.Metadata.Version"].raw
 
     @property
+    def embedded_development(self) -> str:
+        """VAPIX® Application API is supported.
+
+        Application list.cgi supported if => 1.20.
+        """
+        return self[f"{PROPERTIES}.EmbeddedDevelopment.Version"].raw
+
+    @property
     def firmware_builddate(self) -> str:
         return self[f"{PROPERTIES}.Firmware.BuildDate"].raw
 
