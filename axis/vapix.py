@@ -125,6 +125,7 @@ class Vapix:
                 light_control.update()
                 self.light_control = light_control
             except Unauthorized:
+                # Probably a viewer account
                 pass
 
         if not self.ports:
@@ -136,7 +137,11 @@ class Vapix:
         if self.params and version.parse(
             self.params.embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
-            self.applications.update()
+            try:
+                self.applications.update()
+            except Unauthorized:
+                # Probably a viewer account
+                pass
 
     def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
