@@ -2,8 +2,10 @@
 
 import json
 import logging
+from packaging import version
 
 from .api_discovery import ApiDiscovery
+from .applications import Applications, PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
@@ -27,6 +29,7 @@ class Vapix:
         self.config = config
 
         self.api_discovery = None
+        self.applications = None
         self.basic_device_info = None
         self.light_control = None
         self.mqtt = None
@@ -74,6 +77,7 @@ class Vapix:
         """Initialize Vapix functions."""
         self.initialize_api_discovery()
         self.initialize_param_cgi(preload_data=False)
+        self.initialize_applications()
 
     def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
@@ -121,10 +125,23 @@ class Vapix:
                 light_control.update()
                 self.light_control = light_control
             except Unauthorized:
+                # Probably a viewer account
                 pass
 
         if not self.ports:
             self.ports = Ports(self.params, self.request)
+
+    def initialize_applications(self):
+        """Load data for applications on device."""
+        self.applications = Applications(self.request)
+        if self.params and version.parse(
+            self.params.embedded_development
+        ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
+            try:
+                self.applications.update()
+            except Unauthorized:
+                # Probably a viewer account
+                pass
 
     def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
