@@ -17,6 +17,7 @@ from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
 from .utils import session_request
+from .vmd4 import APPLICATION_NAME as VMD4_APPLICATION_NAME, Vmd4
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class Vapix:
         self.ports = None
         self.stream_profiles = None
         self.users = None
+        self.vmd4 = None
 
     @property
     def firmware_version(self) -> str:
@@ -142,6 +144,10 @@ class Vapix:
             except Unauthorized:
                 # Probably a viewer account
                 pass
+
+        if VMD4_APPLICATION_NAME in self.applications:
+            self.vmd4 = Vmd4(self.json_request)
+            self.vmd4.update()
 
     def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

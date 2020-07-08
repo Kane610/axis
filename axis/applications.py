@@ -3,8 +3,6 @@
 Use VAPIX® Application API to upload, control and manage applications and their license keys.
 """
 
-import attr
-
 import xmltodict
 
 from .api import APIItem, APIItems
