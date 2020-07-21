@@ -119,6 +119,13 @@ def test_delete():
     )
 
 
+def test_equals_in_value():
+    """Verify that values containing `=` are parsed correctly."""
+    mock_request = Mock()
+    fixture_with_equals = fixture + "equals-in-value=\"xyz==\""
+    Users(fixture_with_equals, mock_request)
+
+
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"
 anonymous=""
 api-discovery=""

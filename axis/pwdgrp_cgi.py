@@ -79,7 +79,7 @@ class Users(APIItems):
         Prepare users to work with APIItems.
         Create booleans with user levels.
         """
-        raw_dict = dict(group.split("=") for group in raw.splitlines())
+        raw_dict = dict(group.split("=", 1) for group in raw.splitlines())
 
         raw_users = {
             user: {
