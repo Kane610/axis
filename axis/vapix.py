@@ -5,7 +5,11 @@ import logging
 from packaging import version
 
 from .api_discovery import ApiDiscovery
-from .applications import Applications, PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION
+from .applications import (
+    Applications,
+    PARAM_CGI_KEY as APPLICATIONS_PARAM,
+    PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
+)
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
@@ -136,9 +140,12 @@ class Vapix:
     def initialize_applications(self):
         """Load data for applications on device."""
         self.applications = Applications(self.request)
-        if self.params and version.parse(
-            self.params.embedded_development
-        ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
+        if (
+            self.params
+            and f"root.{APPLICATIONS_PARAM}" in self.params
+            and version.parse(self.params.embedded_development)
+            >= version.parse(APPLICATIONS_MINIMUM_VERSION)
+        ):
             try:
                 self.applications.update()
             except Unauthorized:

@@ -204,6 +204,16 @@ def test_initialize_applications(mock_config):
     assert "Camera1Profile1" in vapix.vmd4
 
 
+def test_applications_dont_load_without_params(mock_config):
+    """Verify that you can list parameters."""
+    with patch("axis.vapix.session_request", return_value="key=value") as mock_request:
+        vapix = Vapix(mock_config)
+        vapix.initialize_param_cgi(preload_data=False)
+        vapix.initialize_applications()
+
+    mock_request.assert_not_called
+
+
 def test_initialize_users(mock_config):
     """Verify that you can list parameters."""
     with patch(
