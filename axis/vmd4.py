@@ -6,7 +6,7 @@ from .api import APIItem, APIItems, Body
 
 URL = "/local/vmd/control.cgi"
 
-API_VERSION = "1.3"
+API_VERSION = "1.4"
 
 APPLICATION_NAME = "vmd"
 
@@ -18,14 +18,23 @@ class Vmd4(APIItems):
     """VMD4 on Axis devices."""
 
     def __init__(self, request: object) -> None:
-        super().__init__({}, request, URL, APIItem)
+        super().__init__({}, request, URL, Vmd4Profile)
 
     def update(self) -> None:
+        """No update method."""
         raw = self.get_configuration()
-        print(raw)
+
+        profiles = {}
+
+        for profile in raw["data"]["profiles"]:
+            camera = profile["camera"]
+            uid = profile["uid"]
+            profiles[f"Camera{camera}Profile{uid}"] = profile
+
+        self.process_raw(profiles)
 
     def get_configuration(self) -> dict:
-        """"""
+        """Current configuration of application."""
         return self._request(
             "post",
             URL,
@@ -40,61 +49,26 @@ class Vmd4Profile(APIItem):
     """VMD4 profile."""
 
     @property
-    def camera(self):
-        """"""
+    def camera(self) -> int:
+        """Camera ID."""
         return self.raw["camera"]
 
     @property
-    def filters(self):
-        """"""
+    def filters(self) -> list:
+        """An array of exclude filters."""
         return self.raw["filters"]
 
     @property
-    def name(self):
-        """"""
+    def name(self) -> str:
+        """Nice name of profile."""
         return self.raw["name"]
 
     @property
-    def triggers(self):
-        """"""
+    def triggers(self) -> list:
+        """An array of triggers."""
         return self.raw["triggers"]
 
     @property
-    def uid(self):
-        """"""
+    def uid(self) -> int:
+        """Unique ID of profile."""
         return self.raw["uid"]
-
-
-{
-    "apiVersion": "1.4",
-    "method": "getConfiguration",
-    "context": "Axis library",
-    "data": {
-        "cameras": [{"id": 1, "rotation": 0, "active": True}],
-        "configurationStatus": 2,
-        "profiles": [
-            {
-                "filters": [
-                    {"data": 1, "active": True, "type": "timeShortLivedLimit"},
-                    {"data": 5, "active": True, "type": "distanceSwayingObject"},
-                    {"data": [5, 5], "active": True, "type": "sizePercentage"},
-                ],
-                "camera": 1,
-                "triggers": [
-                    {
-                        "type": "includeArea",
-                        "data": [
-                            [-0.97, -0.97],
-                            [-0.97, 0.97],
-                            [0.97, 0.97],
-                            [0.97, -0.97],
-                        ],
-                    }
-                ],
-                "name": "Profile 1",
-                "uid": 1,
-            }
-        ],
-    },
-}
-

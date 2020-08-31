@@ -13,6 +13,7 @@ from axis.stream_profiles import StreamProfile
 from axis.vapix import Vapix
 
 from .test_api_discovery import response_getApiList as api_discovery_response
+from .test_applications import list_applications_response as applications_response
 from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
@@ -20,6 +21,7 @@ from .test_light_control import response_getLightInformation as light_control_re
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi
 from .test_stream_profiles import response_list as stream_profiles_response
+from .test_vmd4 import response_get_configuration as vmd4_response
 
 
 @pytest.fixture
@@ -164,6 +166,42 @@ def test_initialize_params_no_data(mock_config):
         vapix.initialize_param_cgi(preload_data=False)
 
     mock_request.assert_not_called
+
+
+def test_initialize_applications(mock_config):
+    """Verify you can list and retrieve descriptions of applications."""
+    with patch(
+        "axis.vapix.session_request",
+        side_effect=[
+            response_param_cgi,
+            json.dumps(light_control_response),
+            applications_response,
+            json.dumps(vmd4_response),
+        ],
+    ) as mock_request:
+        vapix = Vapix(mock_config)
+        vapix.initialize_param_cgi()
+        vapix.initialize_applications()
+
+    mock_request.assert_has_calls(
+        [
+            call("mock_post", "mock_url/axis-cgi/applications/list.cgi"),
+            call(
+                "mock_post",
+                "mock_url/local/vmd/control.cgi",
+                json={
+                    "method": "getConfiguration",
+                    "apiVersion": "1.4",
+                    "context": "Axis library",
+                },
+            ),
+        ]
+    )
+
+    assert len(vapix.applications.values()) == 4
+
+    assert len(vapix.vmd4.values()) == 1
+    assert "Camera1Profile1" in vapix.vmd4
 
 
 def test_initialize_users(mock_config):
