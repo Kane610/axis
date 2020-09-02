@@ -5,7 +5,11 @@ import logging
 from packaging import version
 
 from .api_discovery import ApiDiscovery
-from .applications import Applications, PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION
+from .applications import (
+    Applications,
+    PARAM_CGI_KEY as APPLICATIONS_PARAM,
+    PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
+)
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
@@ -17,6 +21,7 @@ from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
 from .utils import session_request
+from .vmd4 import APPLICATION_NAME as VMD4_APPLICATION_NAME, Vmd4
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +42,7 @@ class Vapix:
         self.ports = None
         self.stream_profiles = None
         self.users = None
+        self.vmd4 = None
 
     @property
     def firmware_version(self) -> str:
@@ -134,14 +140,21 @@ class Vapix:
     def initialize_applications(self):
         """Load data for applications on device."""
         self.applications = Applications(self.request)
-        if self.params and version.parse(
-            self.params.embedded_development
-        ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
+        if (
+            self.params
+            and f"root.{APPLICATIONS_PARAM}" in self.params
+            and version.parse(self.params.embedded_development)
+            >= version.parse(APPLICATIONS_MINIMUM_VERSION)
+        ):
             try:
                 self.applications.update()
             except Unauthorized:
                 # Probably a viewer account
                 pass
+
+        if VMD4_APPLICATION_NAME in self.applications:
+            self.vmd4 = Vmd4(self.json_request)
+            self.vmd4.update()
 
     def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
