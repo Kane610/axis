@@ -16,6 +16,9 @@ URL_UPLOAD = f"{URL}/upload.cgi"
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 PARAM_CGI_VALUE = "1.20"
 
+APPLICATION_STATE_RUNNING = "Running"
+APPLICATION_STATE_STOPPED = "Stopped"
+
 
 class Applications(APIItems):
     """Applications on Axis devices."""
