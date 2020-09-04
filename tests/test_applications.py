@@ -46,7 +46,7 @@ def test_update_multiple_applications(applications):
     applications.update()
     applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
-    assert len(applications.values()) == 6
+    assert len(applications.values()) == 7
 
     apps = iter(applications.values())
 
@@ -121,6 +121,20 @@ def test_update_multiple_applications(applications):
     assert app.version == "2.2-6"
 
     app = next(apps)
+    assert app.application_id == "46775"
+    assert app.configuration_page == "local/loiteringguard/config.html"
+    assert app.license_name == "Proprietary"
+    assert app.license_status == "None"
+    assert app.license_expiration_date == ""
+    assert app.name == "loiteringguard"
+    assert app.nice_name == "AXIS Loitering Guard"
+    assert app.status == "Running"
+    assert app.validation_result_page == ""
+    assert app.vendor == "Axis Communications"
+    assert app.vendor_page == "http://www.axis.com"
+    assert app.version == "2.2-6"
+
+    app = next(apps)
     assert app.application_id == "48170"
     assert app.configuration_page == "local/motionguard/config.html"
     assert app.license_name == "Proprietary"
@@ -159,7 +173,8 @@ def test_list_multiple_applications(applications):
     assert raw["reply"]["application"][2]["@NiceName"] == "AXIS Door Station Notifier"
     assert raw["reply"]["application"][3]["@NiceName"] == "AXIS Video Motion Detection"
     assert raw["reply"]["application"][4]["@NiceName"] == "AXIS Fence Guard"
-    assert raw["reply"]["application"][5]["@NiceName"] == "AXIS Motion Guard"
+    assert raw["reply"]["application"][5]["@NiceName"] == "AXIS Loitering Guard"
+    assert raw["reply"]["application"][6]["@NiceName"] == "AXIS Motion Guard"
 
 
 list_application_response = """<reply result="ok">
@@ -172,5 +187,6 @@ list_applications_response = """<reply result="ok">
  <application Name="drstn_notifier" NiceName="AXIS Door Station Notifier" Vendor="Axis Communications" Version="1.0" ApplicationID="1234" License="Custom" Status="Running" ConfigurationPage="local/drstn_notifier/about.inc" VendorHomePage="http://www.axis.com" />
  <application Name="vmd" NiceName="AXIS Video Motion Detection" Vendor="Axis Communications" Version="4.2-0" ApplicationID="143440" License="None" Status="Running" ConfigurationPage="local/vmd/config.html" VendorHomePage="http://www.axis.com" />
  <application Name="fenceguard" NiceName="AXIS Fence Guard" Vendor="Axis Communications" Version="2.2-6" ApplicationID="47775" License="None" Status="Running" ConfigurationPage="local/fenceguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
+ <application Name="loiteringguard" NiceName="AXIS Loitering Guard" Vendor="Axis Communications" Version="2.2-6" ApplicationID="46775" License="None" Status="Running" ConfigurationPage="local/loiteringguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
  <application Name="motionguard" NiceName="AXIS Motion Guard" Vendor="Axis Communications" Version="2.2-6" ApplicationID="48170" License="None" Status="Running" ConfigurationPage="local/motionguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
 </reply>"""

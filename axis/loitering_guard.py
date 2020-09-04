@@ -1,30 +1,28 @@
-"""Fence Guard API.
+"""Loitering Guard API.
 
-AXIS Fence Guard allows you to set up virtual fences in a camera's field of view
-to protect an area from intrusion. The application automatically triggers an alarm
-when it detects a moving object, such as a person or vehicle, crossing a user-defined
-virtual line.
+AXIS Loitering Guard tracks moving objects such as people and vehicles,
+and triggers an alarm if they have been in a predefined area for too long.
 """
 
 import attr
 
 from .api import APIItem, APIItems, Body
 
-URL = "/local/fenceguard/control.cgi"
+URL = "/local/loiteringguard/control.cgi"
 
 API_VERSION = "1.3"
 
-APPLICATION_NAME = "fenceguard"
+APPLICATION_NAME = "loiteringguard"
 
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 PARAM_CGI_VALUE = "2.13"
 
 
-class FenceGuard(APIItems):
-    """Fence Guard application on Axis devices"""
+class LoiteringGuard(APIItems):
+    """Loitering Guard application on Axis devices"""
 
     def __init__(self, request: object) -> None:
-        super().__init__({}, request, URL, FenceGuardProfile)
+        super().__init__({}, request, URL, LoiteringGuardProfile)
 
     def update(self) -> None:
         """No update method."""
@@ -51,8 +49,8 @@ class FenceGuard(APIItems):
         )
 
 
-class FenceGuardProfile(APIItem):
-    """Fence Guard profile."""
+class LoiteringGuardProfile(APIItem):
+    """Loitering Guard profile."""
 
     @property
     def camera(self) -> int:
