@@ -18,6 +18,7 @@ from .test_applications import list_applications_response as applications_respon
 from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
+from .test_fence_guard import response_get_configuration as fence_guard_response
 from .test_light_control import response_getLightInformation as light_control_response
 from .test_motion_guard import response_get_configuration as motion_guard_response
 from .test_port_management import response_getPorts as io_port_management_response
@@ -178,8 +179,9 @@ def test_initialize_applications(mock_config):
             response_param_cgi,
             json.dumps(light_control_response),
             applications_response,
-            json.dumps(vmd4_response),
+            json.dumps(fence_guard_response),
             json.dumps(motion_guard_response),
+            json.dumps(vmd4_response),
         ],
     ) as mock_request:
         vapix = Vapix(mock_config)
@@ -194,10 +196,10 @@ def test_initialize_applications(mock_config):
             call("mock_post", "mock_url/axis-cgi/applications/list.cgi"),
             call(
                 "mock_post",
-                "mock_url/local/vmd/control.cgi",
+                "mock_url/local/fenceguard/control.cgi",
                 json={
                     "method": "getConfiguration",
-                    "apiVersion": "1.4",
+                    "apiVersion": "1.3",
                     "context": "Axis library",
                 },
             ),
@@ -210,16 +212,28 @@ def test_initialize_applications(mock_config):
                     "context": "Axis library",
                 },
             ),
+            call(
+                "mock_post",
+                "mock_url/local/vmd/control.cgi",
+                json={
+                    "method": "getConfiguration",
+                    "apiVersion": "1.4",
+                    "context": "Axis library",
+                },
+            ),
         ]
     )
 
-    assert len(vapix.applications.values()) == 5
+    assert len(vapix.applications.values()) == 6
 
-    assert len(vapix.vmd4.values()) == 1
-    assert "Camera1Profile1" in vapix.vmd4
+    assert len(vapix.fence_guard.values()) == 1
+    assert "Camera1Profile1" in vapix.fence_guard
 
     assert len(vapix.motion_guard.values()) == 1
     assert "Camera1Profile1" in vapix.motion_guard
+
+    assert len(vapix.vmd4.values()) == 1
+    assert "Camera1Profile1" in vapix.vmd4
 
 
 def test_initialize_applications_not_running(mock_config):
@@ -238,8 +252,9 @@ def test_initialize_applications_not_running(mock_config):
         vapix.initialize_param_cgi()
         vapix.initialize_applications()
 
-    assert vapix.vmd4 is None
+    assert vapix.fence_guard is None
     assert vapix.motion_guard is None
+    assert vapix.vmd4 is None
 
 
 def test_applications_dont_load_without_params(mock_config):
