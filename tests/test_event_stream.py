@@ -12,6 +12,11 @@ from .event_fixtures import (
     FIRST_MESSAGE,
     AUDIO_INIT,
     DAYNIGHT_INIT,
+    FENCE_GUARD_INIT,
+    LIGHT_STATUS_CHANGED_INIT,
+    LOITERING_GUARD_INIT,
+    MOTION_GUARD_INIT,
+    OBJECT_ANALYTICS_INIT,
     PIR_INIT,
     PIR_CHANGE,
     PORT_0_INIT,
@@ -20,10 +25,6 @@ from .event_fixtures import (
     VMD3_INIT,
     VMD4_ANY_INIT,
     VMD4_ANY_CHANGE,
-    VMD4_C1P1_INIT,
-    VMD4_C1P1_CHANGE,
-    VMD4_C1P2_INIT,
-    VMD4_C1P2_CHANGE,
 )
 
 
@@ -111,6 +112,74 @@ def test_manage_event_daynight_init(event_manager):
     assert event.CLASS == "light"
     assert event.TYPE == "DayNight"
     assert event.state == "1"
+
+
+def test_manage_fence_guard_init(event_manager):
+    """Verify that a new fence guard event can be managed."""
+    event_manager.update(FENCE_GUARD_INIT)
+
+    event = event_manager[
+        "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1_"
+    ]
+    assert event.topic == "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1"
+    assert event.source == ""
+    assert event.id == "Camera1Profile1"
+    assert event.CLASS == "motion"
+    assert event.TYPE == "Fence Guard"
+    assert event.state == "0"
+
+
+def test_manage_loitering_guard_init(event_manager):
+    """Verify that a new loitering guard event can be managed."""
+    event_manager.update(LOITERING_GUARD_INIT)
+
+    event = event_manager[
+        "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1_"
+    ]
+    assert (
+        event.topic
+        == "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1"
+    )
+    assert event.source == ""
+    assert event.id == "Camera1Profile1"
+    assert event.CLASS == "motion"
+    assert event.TYPE == "Loitering Guard"
+    assert event.state == "0"
+
+
+def test_manage_motion_guard_init(event_manager):
+    """Verify that a new loitering guard event can be managed."""
+    event_manager.update(MOTION_GUARD_INIT)
+
+    event = event_manager[
+        "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY_"
+    ]
+    assert (
+        event.topic == "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY"
+    )
+    assert event.source == ""
+    assert event.id == "Camera1ProfileANY"
+    assert event.CLASS == "motion"
+    assert event.TYPE == "Motion Guard"
+    assert event.state == "0"
+
+
+def test_manage_object_analytics_init(event_manager):
+    """Verify that a new object analytics event can be managed."""
+    event_manager.update(OBJECT_ANALYTICS_INIT)
+
+    event = event_manager[
+        "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1_"
+    ]
+    assert (
+        event.topic
+        == "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1"
+    )
+    assert event.source == ""
+    assert event.id == "Device1Scenario1"
+    assert event.CLASS == "motion"
+    assert event.TYPE == "Object Analytics"
+    assert event.state == "0"
 
 
 def test_manage_event_port_0_init(event_manager):
