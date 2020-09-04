@@ -55,7 +55,6 @@ def test_get_configuration(motion_guard):
     assert profile1.name == "Profile 1"
     assert profile1.camera == 1
     assert profile1.uid == 1
-
     assert profile1.filters == [
         {"active": True, "data": 1, "type": "timeShortLivedLimit"},
         {"active": True, "data": 5, "type": "distanceSwayingObject"},
@@ -68,10 +67,6 @@ def test_get_configuration(motion_guard):
         },
     ]
     assert profile1.perspective == [
-        {"data": [[-0.7715, -0.1182], [-0.7715, 0.0824]], "height": 65, "type": "bar"},
-        {"data": [[0.2833, -0.8853], [0.2833, 0.5287]], "height": 193, "type": "bar"},
-    ]
-    assert profile1.presets == [
         {"data": [[-0.7715, -0.1182], [-0.7715, 0.0824]], "height": 65, "type": "bar"},
         {"data": [[0.2833, -0.8853], [0.2833, 0.5287]], "height": 193, "type": "bar"},
     ]

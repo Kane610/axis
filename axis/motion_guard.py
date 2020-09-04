@@ -69,11 +69,6 @@ class MotionGuardProfile(APIItem):
         return self.raw.get("perspective")
 
     @property
-    def presets(self) -> list:
-        """"""
-        return self.raw.get("perspective")
-
-    @property
     def triggers(self) -> list:
         """An array of triggers."""
         return self.raw["triggers"]
