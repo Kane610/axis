@@ -16,6 +16,10 @@ from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
 from .fence_guard import APPLICATION_NAME as FENCE_GUARD_APPLICATION_NAME, FenceGuard
 from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
+from .loitering_guard import (
+    APPLICATION_NAME as LOITERING_GUARD_APPLICATION_NAME,
+    LoiteringGuard,
+)
 from .motion_guard import APPLICATION_NAME as MOTION_GUARD_APPLICATION_NAME, MotionGuard
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
@@ -41,6 +45,7 @@ class Vapix:
         self.basic_device_info = None
         self.fence_guard = None
         self.light_control = None
+        self.loitering_guard = None
         self.motion_guard = None
         self.mqtt = None
         self.params = None
@@ -159,6 +164,7 @@ class Vapix:
 
         for app_name, app_class, app_attr in (
             (FENCE_GUARD_APPLICATION_NAME, FenceGuard, "fence_guard"),
+            (LOITERING_GUARD_APPLICATION_NAME, LoiteringGuard, "loitering_guard"),
             (MOTION_GUARD_APPLICATION_NAME, MotionGuard, "motion_guard"),
             (VMD4_APPLICATION_NAME, Vmd4, "vmd4"),
         ):

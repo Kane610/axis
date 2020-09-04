@@ -1,4 +1,9 @@
-"""Motion Guard API."""
+"""Motion Guard API.
+
+AXIS Motion Guard is a video motion detection application that detects
+and triggers an alarm whenever an object, such as a person or vehicle,
+moves within predefined areas in a camera’s field of view.
+"""
 
 import attr
 
