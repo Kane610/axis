@@ -17,6 +17,23 @@ def vmd4() -> Vmd4:
     return Vmd4(mock_request)
 
 
+def test_get_empty_configuration(vmd4):
+    """Test empty get_configuration"""
+    vmd4._request.return_value = response_get_configuration_empty
+    vmd4.update()
+    vmd4._request.assert_called_with(
+        "post",
+        "/local/vmd/control.cgi",
+        json={
+            "method": "getConfiguration",
+            "apiVersion": "1.4",
+            "context": "Axis library",
+        },
+    )
+
+    assert len(vmd4.values()) == 0
+
+
 def test_get_configuration(vmd4):
     """Test get_supported_versions"""
     vmd4._request.return_value = response_get_configuration
@@ -49,6 +66,18 @@ def test_get_configuration(vmd4):
         {"data": 5, "active": True, "type": "distanceSwayingObject"},
         {"data": [5, 5], "active": True, "type": "sizePercentage"},
     ]
+
+
+response_get_configuration_empty = {
+    "apiVersion": "1.4",
+    "method": "getConfiguration",
+    "context": "Axis library",
+    "data": {
+        "cameras": [{"id": 1, "rotation": 0, "active": True}],
+        "configurationStatus": 26,
+        "profiles": [],
+    },
+}
 
 
 response_get_configuration = {

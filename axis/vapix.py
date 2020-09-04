@@ -6,6 +6,7 @@ from packaging import version
 
 from .api_discovery import ApiDiscovery
 from .applications import (
+    APPLICATION_STATE_RUNNING,
     Applications,
     PARAM_CGI_KEY as APPLICATIONS_PARAM,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
@@ -14,6 +15,7 @@ from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
 from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
+from .motion_guard import APPLICATION_NAME as MOTION_GUARD_APPLICATION_NAME, MotionGuard
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
@@ -37,6 +39,7 @@ class Vapix:
         self.applications = None
         self.basic_device_info = None
         self.light_control = None
+        self.motion_guard = None
         self.mqtt = None
         self.params = None
         self.ports = None
@@ -152,9 +155,20 @@ class Vapix:
                 # Probably a viewer account
                 pass
 
-        if VMD4_APPLICATION_NAME in self.applications:
-            self.vmd4 = Vmd4(self.json_request)
-            self.vmd4.update()
+        for app_name, app_class, app_attr in (
+            (VMD4_APPLICATION_NAME, Vmd4, "vmd4"),
+            (MOTION_GUARD_APPLICATION_NAME, MotionGuard, "motion_guard"),
+        ):
+            if app_name not in self.applications:
+                continue
+
+            app_item = app_class(self.json_request)
+
+            if self.applications[app_name].status != APPLICATION_STATE_RUNNING:
+                continue
+
+            app_item.update()
+            setattr(self, app_attr, app_item)
 
     def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
