@@ -14,6 +14,7 @@ from .applications import (
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
+from .fence_guard import APPLICATION_NAME as FENCE_GUARD_APPLICATION_NAME, FenceGuard
 from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
 from .motion_guard import APPLICATION_NAME as MOTION_GUARD_APPLICATION_NAME, MotionGuard
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
@@ -38,6 +39,7 @@ class Vapix:
         self.api_discovery = None
         self.applications = None
         self.basic_device_info = None
+        self.fence_guard = None
         self.light_control = None
         self.motion_guard = None
         self.mqtt = None
@@ -156,8 +158,9 @@ class Vapix:
                 pass
 
         for app_name, app_class, app_attr in (
-            (VMD4_APPLICATION_NAME, Vmd4, "vmd4"),
+            (FENCE_GUARD_APPLICATION_NAME, FenceGuard, "fence_guard"),
             (MOTION_GUARD_APPLICATION_NAME, MotionGuard, "motion_guard"),
+            (VMD4_APPLICATION_NAME, Vmd4, "vmd4"),
         ):
             if app_name not in self.applications:
                 continue
