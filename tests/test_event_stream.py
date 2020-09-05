@@ -93,7 +93,7 @@ def test_audio_init(event_manager):
     """Verify that a new audio event can be managed."""
     event_manager.update(AUDIO_INIT)
 
-    event = event_manager["tns1:AudioSource/tnsaxis:TriggerLevel_1"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:AudioSource/tnsaxis:TriggerLevel"
     assert event.source == "channel"
     assert event.id == "1"
@@ -106,7 +106,7 @@ def test_daynight_init(event_manager):
     """Verify that a new day/night event can be managed."""
     event_manager.update(DAYNIGHT_INIT)
 
-    event = event_manager["tns1:VideoSource/tnsaxis:DayNightVision_1"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:VideoSource/tnsaxis:DayNightVision"
     assert event.source == "VideoSourceConfigurationToken"
     assert event.id == "1"
@@ -119,9 +119,7 @@ def test_fence_guard_init(event_manager):
     """Verify that a new fence guard event can be managed."""
     event_manager.update(FENCE_GUARD_INIT)
 
-    event = event_manager[
-        "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1_"
-    ]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1"
     assert event.source == ""
     assert event.id == "Camera1Profile1"
@@ -134,7 +132,7 @@ def test_light_status_init(event_manager):
     """Verify that a new day/night event can be managed."""
     event_manager.update(LIGHT_STATUS_INIT)
 
-    event = event_manager["tns1:Device/tnsaxis:Light/Status_0"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:Device/tnsaxis:Light/Status"
     assert event.source == "id"
     assert event.id == "0"
@@ -148,9 +146,7 @@ def test_loitering_guard_init(event_manager):
     """Verify that a new loitering guard event can be managed."""
     event_manager.update(LOITERING_GUARD_INIT)
 
-    event = event_manager[
-        "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1_"
-    ]
+    event = next(iter(event_manager.values()))
     assert (
         event.topic
         == "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1"
@@ -166,9 +162,7 @@ def test_motion_guard_init(event_manager):
     """Verify that a new loitering guard event can be managed."""
     event_manager.update(MOTION_GUARD_INIT)
 
-    event = event_manager[
-        "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY_"
-    ]
+    event = next(iter(event_manager.values()))
     assert (
         event.topic == "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY"
     )
@@ -183,9 +177,7 @@ def test_object_analytics_init(event_manager):
     """Verify that a new object analytics event can be managed."""
     event_manager.update(OBJECT_ANALYTICS_INIT)
 
-    event = event_manager[
-        "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1_"
-    ]
+    event = next(iter(event_manager.values()))
     assert (
         event.topic
         == "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1"
@@ -201,7 +193,7 @@ def test_port_0_init(event_manager):
     """Verify that a new day/night event can be managed."""
     event_manager.update(PORT_0_INIT)
 
-    event = event_manager["tns1:Device/tnsaxis:IO/Port_1"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:Device/tnsaxis:IO/Port"
     assert event.source == "port"
     assert event.id == "1"
@@ -214,7 +206,7 @@ def test_port_any_init(event_manager):
     """Verify that a new day/night event can be managed."""
     event_manager.update(PORT_ANY_INIT)
 
-    event = event_manager.events["tns1:Device/tnsaxis:IO/Port_None"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:Device/tnsaxis:IO/Port"
     assert event.CLASS == "input"
     assert event.TYPE == "Input"
@@ -226,7 +218,7 @@ def test_pir_init(event_manager):
     event_manager.update(PIR_INIT)
     assert event_manager.values()
 
-    event = event_manager["tns1:Device/tnsaxis:Sensor/PIR_0"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:Device/tnsaxis:Sensor/PIR"
     assert event.source == "sensor"
     assert event.id == "0"
@@ -251,7 +243,7 @@ def test_pir_change(event_manager):
     event_manager.update(PIR_INIT)
     event_manager.update(PIR_CHANGE)
 
-    event = event_manager["tns1:Device/tnsaxis:Sensor/PIR_0"]
+    event = next(iter(event_manager.values()))
     assert event.state == "1"
 
 
@@ -259,7 +251,7 @@ def test_port_any_init(event_manager):
     """Verify that a new day/night event can be managed."""
     event_manager.update(RELAY_INIT)
 
-    event = event_manager["tns1:Device/Trigger/Relay_3"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:Device/Trigger/Relay"
     assert event.source == "RelayToken"
     assert event.id == "3"
@@ -272,7 +264,7 @@ def test_vmd3_init(event_manager):
     """Verify that a new VMD3 event can be managed."""
     event_manager.update(VMD3_INIT)
 
-    event = event_manager["tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1_0"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
     assert event.source == "areaid"
     assert event.id == "0"
@@ -285,7 +277,7 @@ def test_vmd4_init(event_manager):
     """Verify that a new VMD4 event can be managed."""
     event_manager.update(VMD4_ANY_INIT)
 
-    event = event_manager["tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_"]
+    event = next(iter(event_manager.values()))
     assert event.topic == "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY"
     assert not event.source
     assert event.id == "Camera1ProfileANY"
@@ -299,7 +291,7 @@ def test_vmd4_change(event_manager):
     event_manager.update(VMD4_ANY_INIT)
     event_manager.update(VMD4_ANY_CHANGE)
 
-    event = event_manager["tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY_"]
+    event = next(iter(event_manager.values()))
     assert event.state == "1"
 
 
