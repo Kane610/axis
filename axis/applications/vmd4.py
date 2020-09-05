@@ -1,29 +1,24 @@
-"""Motion Guard API.
-
-AXIS Motion Guard is a video motion detection application that detects
-and triggers an alarm whenever an object, such as a person or vehicle,
-moves within predefined areas in a camera’s field of view.
-"""
+"""VMD4 API."""
 
 import attr
 
-from .api import APIItem, APIItems, Body
+from axis.api import APIItem, APIItems, Body
 
-URL = "/local/motionguard/control.cgi"
+URL = "/local/vmd/control.cgi"
 
-API_VERSION = "1.3"
+API_VERSION = "1.4"
 
-APPLICATION_NAME = "motionguard"
+APPLICATION_NAME = "vmd"
 
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
-PARAM_CGI_VALUE = "2.13"
+PARAM_CGI_VALUE = "2.12"
 
 
-class MotionGuard(APIItems):
-    """Motion Guard application on Axis devices"""
+class Vmd4(APIItems):
+    """VMD4 on Axis devices."""
 
     def __init__(self, request: object) -> None:
-        super().__init__({}, request, URL, MotionGuardProfile)
+        super().__init__({}, request, URL, Vmd4Profile)
 
     def update(self) -> None:
         """No update method."""
@@ -50,8 +45,8 @@ class MotionGuard(APIItems):
         )
 
 
-class MotionGuardProfile(APIItem):
-    """Motion Guard profile."""
+class Vmd4Profile(APIItem):
+    """VMD4 profile."""
 
     @property
     def camera(self) -> int:
@@ -67,11 +62,6 @@ class MotionGuardProfile(APIItem):
     def name(self) -> str:
         """Nice name of profile."""
         return self.raw["name"]
-
-    @property
-    def perspective(self) -> list:
-        """Perspective for improve triggers based on heights."""
-        return self.raw.get("perspective")
 
     @property
     def triggers(self) -> list:

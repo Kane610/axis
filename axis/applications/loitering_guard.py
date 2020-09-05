@@ -1,24 +1,28 @@
-"""VMD4 API."""
+"""Loitering Guard API.
+
+AXIS Loitering Guard tracks moving objects such as people and vehicles,
+and triggers an alarm if they have been in a predefined area for too long.
+"""
 
 import attr
 
-from .api import APIItem, APIItems, Body
+from axis.api import APIItem, APIItems, Body
 
-URL = "/local/vmd/control.cgi"
+URL = "/local/loiteringguard/control.cgi"
 
-API_VERSION = "1.4"
+API_VERSION = "1.3"
 
-APPLICATION_NAME = "vmd"
+APPLICATION_NAME = "loiteringguard"
 
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
-PARAM_CGI_VALUE = "2.12"
+PARAM_CGI_VALUE = "2.13"
 
 
-class Vmd4(APIItems):
-    """VMD4 on Axis devices."""
+class LoiteringGuard(APIItems):
+    """Loitering Guard application on Axis devices"""
 
     def __init__(self, request: object) -> None:
-        super().__init__({}, request, URL, Vmd4Profile)
+        super().__init__({}, request, URL, LoiteringGuardProfile)
 
     def update(self) -> None:
         """No update method."""
@@ -45,8 +49,8 @@ class Vmd4(APIItems):
         )
 
 
-class Vmd4Profile(APIItem):
-    """VMD4 profile."""
+class LoiteringGuardProfile(APIItem):
+    """Loitering Guard profile."""
 
     @property
     def camera(self) -> int:
@@ -62,6 +66,11 @@ class Vmd4Profile(APIItem):
     def name(self) -> str:
         """Nice name of profile."""
         return self.raw["name"]
+
+    @property
+    def perspective(self) -> list:
+        """Perspective for improve triggers based on heights."""
+        return self.raw.get("perspective")
 
     @property
     def triggers(self) -> list:

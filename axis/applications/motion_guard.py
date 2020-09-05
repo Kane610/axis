@@ -1,28 +1,29 @@
-"""Loitering Guard API.
+"""Motion Guard API.
 
-AXIS Loitering Guard tracks moving objects such as people and vehicles,
-and triggers an alarm if they have been in a predefined area for too long.
+AXIS Motion Guard is a video motion detection application that detects
+and triggers an alarm whenever an object, such as a person or vehicle,
+moves within predefined areas in a camera’s field of view.
 """
 
 import attr
 
-from .api import APIItem, APIItems, Body
+from axis.api import APIItem, APIItems, Body
 
-URL = "/local/loiteringguard/control.cgi"
+URL = "/local/motionguard/control.cgi"
 
 API_VERSION = "1.3"
 
-APPLICATION_NAME = "loiteringguard"
+APPLICATION_NAME = "motionguard"
 
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 PARAM_CGI_VALUE = "2.13"
 
 
-class LoiteringGuard(APIItems):
-    """Loitering Guard application on Axis devices"""
+class MotionGuard(APIItems):
+    """Motion Guard application on Axis devices"""
 
     def __init__(self, request: object) -> None:
-        super().__init__({}, request, URL, LoiteringGuardProfile)
+        super().__init__({}, request, URL, MotionGuardProfile)
 
     def update(self) -> None:
         """No update method."""
@@ -49,8 +50,8 @@ class LoiteringGuard(APIItems):
         )
 
 
-class LoiteringGuardProfile(APIItem):
-    """Loitering Guard profile."""
+class MotionGuardProfile(APIItem):
+    """Motion Guard profile."""
 
     @property
     def camera(self) -> int:

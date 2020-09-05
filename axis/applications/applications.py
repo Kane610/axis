@@ -5,7 +5,7 @@ Use VAPIX® Application API to upload, control and manage applications and their
 
 import xmltodict
 
-from .api import APIItem, APIItems
+from axis.api import APIItem, APIItems
 
 URL = "/axis-cgi/applications"
 URL_CONTROL = f"{URL}/control.cgi"
