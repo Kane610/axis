@@ -188,6 +188,11 @@ class FenceGuard(AxisBinaryEvent):
     CLASS = CLASS_MOTION
     TYPE = "Fence Guard"
 
+    @property
+    def id(self) -> str:
+        """Id of the event."""
+        return self.topic.split("/")[-1]
+
 
 class Input(AxisBinaryEvent):
     """Digital input event.
@@ -230,12 +235,76 @@ class Light(AxisBinaryEvent):
         return self.state == "ON"
 
 
+class LoiteringGuard(AxisBinaryEvent):
+    """Loitering Guard trigger event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera#Profile#',
+        'type': 'active',
+        'value': '0'
+    }
+    """
+
+    TOPIC = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
+    CLASS = CLASS_MOTION
+    TYPE = "Loitering Guard"
+
+    @property
+    def id(self) -> str:
+        """Id of the event."""
+        print(self.topic, self.topic.split("/")[-1])
+        return self.topic.split("/")[-1]
+
+
 class Motion(AxisBinaryEvent):
     """Motion detection event."""
 
     TOPIC = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
     CLASS = CLASS_MOTION
     TYPE = "Motion"
+
+
+class MotionGuard(AxisBinaryEvent):
+    """Motion Guard trigger event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tnsaxis:CameraApplicationPlatform/MotionGuard/Camera#Profile#',
+        'type': 'active',
+        'value': '0'
+    }
+    """
+
+    TOPIC = "tnsaxis:CameraApplicationPlatform/MotionGuard"
+    CLASS = CLASS_MOTION
+    TYPE = "Motion Guard"
+
+    @property
+    def id(self) -> str:
+        """Id of the event."""
+        return self.topic.split("/")[-1]
+
+
+class ObjectAnalytics(AxisBinaryEvent):
+    """Object Analytics trigger event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1',
+        'type': 'active',
+        'value': '0'
+    }
+    """
+
+    TOPIC = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/"
+    CLASS = CLASS_MOTION
+    TYPE = "Object Analytics"
+
+    @property
+    def id(self) -> str:
+        """Id of the event."""
+        return self.topic.split("/")[-1]
 
 
 class Pir(AxisBinaryEvent):
@@ -342,7 +411,10 @@ EVENT_CLASSES = (
     FenceGuard,
     Input,
     Light,
+    LoiteringGuard,
     Motion,
+    MotionGuard,
+    ObjectAnalytics,
     Pir,
     Relay,
     SupervisedInput,
