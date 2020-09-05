@@ -11,19 +11,10 @@ from .applications import (
     PARAM_CGI_KEY as APPLICATIONS_PARAM,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
 )
-from .applications.fence_guard import (
-    APPLICATION_NAME as FENCE_GUARD_APPLICATION_NAME,
-    FenceGuard,
-)
-from .applications.loitering_guard import (
-    APPLICATION_NAME as LOITERING_GUARD_APPLICATION_NAME,
-    LoiteringGuard,
-)
-from .applications.motion_guard import (
-    APPLICATION_NAME as MOTION_GUARD_APPLICATION_NAME,
-    MotionGuard,
-)
-from .applications.vmd4 import APPLICATION_NAME as VMD4_APPLICATION_NAME, Vmd4
+from .applications.fence_guard import FenceGuard
+from .applications.loitering_guard import LoiteringGuard
+from .applications.motion_guard import MotionGuard
+from .applications.vmd4 import Vmd4
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import AxisException, PathNotFound, Unauthorized
@@ -168,18 +159,21 @@ class Vapix:
                 # Probably a viewer account
                 pass
 
-        for app_name, app_class, app_attr in (
-            (FENCE_GUARD_APPLICATION_NAME, FenceGuard, "fence_guard"),
-            (LOITERING_GUARD_APPLICATION_NAME, LoiteringGuard, "loitering_guard"),
-            (MOTION_GUARD_APPLICATION_NAME, MotionGuard, "motion_guard"),
-            (VMD4_APPLICATION_NAME, Vmd4, "vmd4"),
+        for app_class, app_attr in (
+            (FenceGuard, "fence_guard"),
+            (LoiteringGuard, "loitering_guard"),
+            (MotionGuard, "motion_guard"),
+            (Vmd4, "vmd4"),
         ):
-            if app_name not in self.applications:
+            if app_class.APPLICATION_NAME not in self.applications:
                 continue
 
             app_item = app_class(self.json_request)
 
-            if self.applications[app_name].status != APPLICATION_STATE_RUNNING:
+            if (
+                self.applications[app_class.APPLICATION_NAME].status
+                != APPLICATION_STATE_RUNNING
+            ):
                 continue
 
             app_item.update()

@@ -5,9 +5,7 @@ and triggers an alarm whenever an object, such as a person or vehicle,
 moves within predefined areas in a camera’s field of view.
 """
 
-import attr
-
-from axis.api import APIItem, APIItems, Body
+from .guard_suite_base import GuardSuiteBase, GuardSuiteProfileBase
 
 URL = "/local/motionguard/control.cgi"
 
@@ -19,66 +17,10 @@ PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 PARAM_CGI_VALUE = "2.13"
 
 
-class MotionGuard(APIItems):
+class MotionGuard(GuardSuiteBase):
     """Motion Guard application on Axis devices"""
 
+    APPLICATION_NAME = APPLICATION_NAME
+
     def __init__(self, request: object) -> None:
-        super().__init__({}, request, URL, MotionGuardProfile)
-
-    def update(self) -> None:
-        """No update method."""
-        raw = self.get_configuration()
-
-        profiles = {}
-
-        for profile in raw["data"]["profiles"]:
-            camera = profile["camera"]
-            uid = profile["uid"]
-            profiles[f"Camera{camera}Profile{uid}"] = profile
-
-        self.process_raw(profiles)
-
-    def get_configuration(self) -> dict:
-        """Current configuration of application."""
-        return self._request(
-            "post",
-            URL,
-            json=attr.asdict(
-                Body("getConfiguration", API_VERSION),
-                filter=attr.filters.exclude(attr.fields(Body).params),
-            ),
-        )
-
-
-class MotionGuardProfile(APIItem):
-    """Motion Guard profile."""
-
-    @property
-    def camera(self) -> int:
-        """Camera ID."""
-        return self.raw["camera"]
-
-    @property
-    def filters(self) -> list:
-        """An array of exclude filters."""
-        return self.raw["filters"]
-
-    @property
-    def name(self) -> str:
-        """Nice name of profile."""
-        return self.raw["name"]
-
-    @property
-    def perspective(self) -> list:
-        """Perspective for improve triggers based on heights."""
-        return self.raw.get("perspective")
-
-    @property
-    def triggers(self) -> list:
-        """An array of triggers."""
-        return self.raw["triggers"]
-
-    @property
-    def uid(self) -> int:
-        """Unique ID of profile."""
-        return self.raw["uid"]
+        super().__init__(request, URL, GuardSuiteProfileBase, API_VERSION)
