@@ -22,6 +22,8 @@ PARAM_CGI_VALUE = "2.13"
 class MotionGuard(APIItems):
     """Motion Guard application on Axis devices"""
 
+    APPLICATION_NAME = APPLICATION_NAME
+
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, MotionGuardProfile)
 
