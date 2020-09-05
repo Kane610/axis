@@ -11,16 +11,23 @@ from .applications import (
     PARAM_CGI_KEY as APPLICATIONS_PARAM,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
 )
-from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
-from .configuration import Configuration
-from .errors import AxisException, PathNotFound, Unauthorized
-from .fence_guard import APPLICATION_NAME as FENCE_GUARD_APPLICATION_NAME, FenceGuard
-from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
-from .loitering_guard import (
+from .applications.fence_guard import (
+    APPLICATION_NAME as FENCE_GUARD_APPLICATION_NAME,
+    FenceGuard,
+)
+from .applications.loitering_guard import (
     APPLICATION_NAME as LOITERING_GUARD_APPLICATION_NAME,
     LoiteringGuard,
 )
-from .motion_guard import APPLICATION_NAME as MOTION_GUARD_APPLICATION_NAME, MotionGuard
+from .applications.motion_guard import (
+    APPLICATION_NAME as MOTION_GUARD_APPLICATION_NAME,
+    MotionGuard,
+)
+from .applications.vmd4 import APPLICATION_NAME as VMD4_APPLICATION_NAME, Vmd4
+from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
+from .configuration import Configuration
+from .errors import AxisException, PathNotFound, Unauthorized
+from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
@@ -28,7 +35,6 @@ from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
 from .utils import session_request
-from .vmd4 import APPLICATION_NAME as VMD4_APPLICATION_NAME, Vmd4
 
 LOGGER = logging.getLogger(__name__)
 

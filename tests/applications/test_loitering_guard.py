@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.loitering_guard tests/test_loitering
 from asynctest import Mock
 import pytest
 
-from axis.loitering_guard import LoiteringGuard
+from axis.applications.loitering_guard import LoiteringGuard
 
 
 @pytest.fixture

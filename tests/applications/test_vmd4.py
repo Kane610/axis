@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.vmd4 tests/test_vmd4.py
 from asynctest import Mock
 import pytest
 
-from axis.vmd4 import Vmd4
+from axis.applications.vmd4 import Vmd4
 
 
 @pytest.fixture

@@ -14,18 +14,26 @@ from axis.stream_profiles import StreamProfile
 from axis.vapix import Vapix
 
 from .test_api_discovery import response_getApiList as api_discovery_response
-from .test_applications import list_applications_response as applications_response
+from .applications.test_applications import (
+    list_applications_response as applications_response,
+)
+from .applications.test_fence_guard import (
+    response_get_configuration as fence_guard_response,
+)
+from .applications.test_loitering_guard import (
+    response_get_configuration as loitering_guard_response,
+)
+from .applications.test_motion_guard import (
+    response_get_configuration as motion_guard_response,
+)
 from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
-from .test_fence_guard import response_get_configuration as fence_guard_response
+from .applications.test_vmd4 import response_get_configuration as vmd4_response
 from .test_light_control import response_getLightInformation as light_control_response
-from .test_loitering_guard import response_get_configuration as loitering_guard_response
-from .test_motion_guard import response_get_configuration as motion_guard_response
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi
 from .test_stream_profiles import response_list as stream_profiles_response
-from .test_vmd4 import response_get_configuration as vmd4_response
 
 
 @pytest.fixture

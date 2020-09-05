@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.fence_guard tests/test_fence_guard.p
 from asynctest import Mock
 import pytest
 
-from axis.fence_guard import FenceGuard
+from axis.applications.fence_guard import FenceGuard
 
 
 @pytest.fixture

@@ -8,7 +8,7 @@ virtual line.
 
 import attr
 
-from .api import APIItem, APIItems, Body
+from axis.api import APIItem, APIItems, Body
 
 URL = "/local/fenceguard/control.cgi"
 
