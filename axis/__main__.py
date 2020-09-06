@@ -31,13 +31,17 @@ async def axis_device(host, port, username, password):
         return device
 
     except axis.Unauthorized:
-        LOGGER.warning("Connected to device at %s but not registered.", host)
+        LOGGER.warning(
+            "Connected to device at %s but not registered or user not admin.", host
+        )
 
     except (asyncio.TimeoutError, axis.RequestError):
         LOGGER.error("Error connecting to the Axis device at %s", host)
 
     except axis.AxisException:
         LOGGER.exception("Unknown Axis communication error occurred")
+
+    return device
 
 
 async def main(host, port, username, password, params, events):

@@ -253,7 +253,6 @@ class LoiteringGuard(AxisBinaryEvent):
     @property
     def id(self) -> str:
         """Id of the event."""
-        print(self.topic, self.topic.split("/")[-1])
         return self.topic.split("/")[-1]
 
 
