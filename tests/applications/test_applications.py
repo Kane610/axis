@@ -1,6 +1,6 @@
 """Test Axis Applications API.
 
-pytest --cov-report term-missing --cov=axis.applications tests/test_applications.py
+pytest --cov-report term-missing --cov=axis.applications tests/applications/test_applications.py
 """
 
 from asynctest import Mock
@@ -15,6 +15,15 @@ def applications() -> Applications:
     mock_request = Mock()
     mock_request.return_value = ""
     return Applications(mock_request)
+
+
+def test_update_no_application(applications):
+    """Test update applicatios call."""
+    applications._request.return_value = list_application_empty_response
+    applications.update()
+    applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
+
+    assert len(applications.values()) == 0
 
 
 def test_update_single_application(applications):
@@ -176,6 +185,9 @@ def test_list_multiple_applications(applications):
     assert raw["reply"]["application"][5]["@NiceName"] == "AXIS Loitering Guard"
     assert raw["reply"]["application"][6]["@NiceName"] == "AXIS Motion Guard"
 
+
+list_application_empty_response = """<reply result="ok">
+</reply>"""
 
 list_application_response = """<reply result="ok">
  <application Name="vmd" NiceName="AXIS Video Motion Detection" Vendor="Axis Communications" Version="4.4-5" ApplicationID="143440" License="None" Status="Running" ConfigurationPage="local/vmd/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />

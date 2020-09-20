@@ -29,6 +29,10 @@ class Applications(APIItems):
     def update(self) -> None:
         """No update method"""
         raw = self.list()
+
+        if "application" not in raw["reply"]:
+            return
+
         raw_applications = raw["reply"]["application"]
 
         applications = {}
