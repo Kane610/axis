@@ -4,7 +4,7 @@ from .guard_suite_base import GuardSuiteBase, GuardSuiteProfileBase
 
 URL = "/local/vmd/control.cgi"
 
-API_VERSION = "1.4"
+API_VERSION = "1.2"
 
 APPLICATION_NAME = "vmd"
 

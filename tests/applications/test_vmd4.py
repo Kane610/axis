@@ -26,7 +26,7 @@ def test_get_empty_configuration(vmd4):
         "/local/vmd/control.cgi",
         json={
             "method": "getConfiguration",
-            "apiVersion": "1.4",
+            "apiVersion": "1.2",
             "context": "Axis library",
         },
     )
@@ -43,7 +43,7 @@ def test_get_configuration(vmd4):
         "/local/vmd/control.cgi",
         json={
             "method": "getConfiguration",
-            "apiVersion": "1.4",
+            "apiVersion": "1.2",
             "context": "Axis library",
         },
     )
@@ -66,6 +66,26 @@ def test_get_configuration(vmd4):
         {"data": 5, "active": True, "type": "distanceSwayingObject"},
         {"data": [5, 5], "active": True, "type": "sizePercentage"},
     ]
+
+
+def test_get_configuration_error(vmd4):
+    """Test empty get_configuration.
+
+    _request returns an empty dict on error.
+    """
+    vmd4._request.return_value = {}
+    vmd4.update()
+    vmd4._request.assert_called_with(
+        "post",
+        "/local/vmd/control.cgi",
+        json={
+            "method": "getConfiguration",
+            "apiVersion": "1.2",
+            "context": "Axis library",
+        },
+    )
+
+    assert len(vmd4.values()) == 0
 
 
 response_get_configuration_empty = {
@@ -112,3 +132,14 @@ response_get_configuration = {
         ],
     },
 }
+
+response_get_configuration_error = {
+    "apiVersion": "1.1",
+    "method": "getConfiguration",
+    "context": "Axis library",
+    "error": {
+        "code": "2000",
+        "message": "The requested version of the application is not supported.",
+    },
+}
+

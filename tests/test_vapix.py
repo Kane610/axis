@@ -238,7 +238,7 @@ def test_initialize_applications(mock_config):
                 "mock_url/local/vmd/control.cgi",
                 json={
                     "method": "getConfiguration",
-                    "apiVersion": "1.4",
+                    "apiVersion": "1.2",
                     "context": "Axis library",
                 },
             ),

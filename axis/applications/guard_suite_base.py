@@ -18,6 +18,9 @@ class GuardSuiteBase(APIItems):
         """No update method."""
         raw = self.get_configuration()
 
+        if not raw:
+            return
+
         profiles = {}
 
         for profile in raw["data"]["profiles"]:
