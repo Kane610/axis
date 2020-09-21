@@ -26,7 +26,7 @@ def test_get_empty_configuration(vmd4):
         "/local/vmd/control.cgi",
         json={
             "method": "getConfiguration",
-            "apiVersion": "1.4",
+            "apiVersion": "1.2",
             "context": "Axis library",
         },
     )
@@ -43,7 +43,7 @@ def test_get_configuration(vmd4):
         "/local/vmd/control.cgi",
         json={
             "method": "getConfiguration",
-            "apiVersion": "1.4",
+            "apiVersion": "1.2",
             "context": "Axis library",
         },
     )
