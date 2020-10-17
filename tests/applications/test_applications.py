@@ -3,8 +3,8 @@
 pytest --cov-report term-missing --cov=axis.applications tests/applications/test_applications.py
 """
 
-from asynctest import Mock
 import pytest
+from unittest.mock import Mock
 
 from axis.applications import Applications
 

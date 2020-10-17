@@ -3,8 +3,8 @@
 pytest --cov-report term-missing --cov=axis.motion_guard tests/test_motion_guard.py
 """
 
-from asynctest import Mock
 import pytest
+from unittest.mock import Mock
 
 from axis.applications.motion_guard import MotionGuard
 

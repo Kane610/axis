@@ -3,7 +3,7 @@
 pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 """
 
-from asynctest import Mock
+from unittest.mock import Mock
 
 from axis.pwdgrp_cgi import SGRP_ADMIN, Users
 
@@ -122,7 +122,7 @@ def test_delete():
 def test_equals_in_value():
     """Verify that values containing `=` are parsed correctly."""
     mock_request = Mock()
-    fixture_with_equals = fixture + "equals-in-value=\"xyz==\""
+    fixture_with_equals = fixture + 'equals-in-value="xyz=="'
     Users(fixture_with_equals, mock_request)
 
 
