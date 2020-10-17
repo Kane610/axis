@@ -3,8 +3,8 @@
 pytest --cov-report term-missing --cov=axis.loitering_guard tests/test_loitering_guard.py
 """
 
-from asynctest import Mock
 import pytest
+from unittest.mock import Mock
 
 from axis.applications.loitering_guard import LoiteringGuard
 

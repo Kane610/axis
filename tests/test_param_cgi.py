@@ -4,8 +4,7 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
 import pytest
-
-from asynctest import Mock, call
+from unittest.mock import Mock, call
 
 from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
 

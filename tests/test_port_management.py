@@ -3,15 +3,14 @@
 pytest --cov-report term-missing --cov=axis.port_management tests/test_port_management.py
 """
 
-from asynctest import Mock
 import pytest
+from unittest.mock import Mock
 
 from axis.port_management import (
     IoPortManagement,
     PortSequence,
     Sequence,
     SetPort,
-    API_DISCOVERY_ID,
 )
 
 

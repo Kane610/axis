@@ -3,8 +3,8 @@
 pytest --cov-report term-missing --cov=axis.stream_profiles tests/test_stream_profiles.py
 """
 
-from asynctest import Mock
 import pytest
+from unittest.mock import Mock
 
 from axis.stream_profiles import StreamProfiles
 

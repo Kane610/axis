@@ -15,4 +15,5 @@ setup(
     install_requires=["attrs", "packaging", "requests", "xmltodict"],
     keywords=["axis", "vapix", "onvif", "event stream", "homeassistant"],
     classifiers=["Natural Language :: English", "Programming Language :: Python :: 3"],
+    python_requires=">=3.8.0",
 )

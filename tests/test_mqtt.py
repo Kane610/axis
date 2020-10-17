@@ -3,7 +3,7 @@
 pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
 import pytest
-from asynctest import Mock
+from unittest.mock import Mock
 
 from axis.mqtt import (
     ClientConfig,

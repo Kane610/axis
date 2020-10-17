@@ -4,8 +4,7 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import pytest
-
-from asynctest import Mock
+from unittest.mock import Mock
 
 from axis.light_control import LightControl
 

@@ -3,10 +3,9 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
-from unittest.mock import call
-from asynctest import Mock, patch
 import json
 import pytest
+from unittest.mock import Mock, call, patch
 
 from axis.errors import Unauthorized
 from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED

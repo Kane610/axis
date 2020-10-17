@@ -3,8 +3,8 @@
 pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discovery.py
 """
 
-from asynctest import Mock
 import pytest
+from unittest.mock import Mock
 
 from axis.api_discovery import ApiDiscovery, API_DISCOVERY_ID
 

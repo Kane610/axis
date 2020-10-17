@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 
 import pytest
 
-from asynctest import Mock
+from unittest.mock import Mock
 
 from axis.basic_device_info import BasicDeviceInfo
 
