@@ -38,24 +38,20 @@ from .test_stream_profiles import response_list as stream_profiles_response
 @pytest.fixture
 def mock_config() -> Mock:
     """Returns the configuration mock object."""
-    mock_config = Mock()
-    mock_config.host = "mock_host"
-    mock_config.url = "mock_url"
-    mock_config.session.get = "mock_get"
-    mock_config.session.post = "mock_post"
-    return mock_config
+    config = Mock()
+    return config
 
 
 def test_initialize_api_discovery(mock_config):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
     with patch(
-        "axis.vapix.session_request",
+        "axis.vapix.Vapix.request",
         side_effect=[
-            json.dumps(api_discovery_response),
-            json.dumps(basic_device_info_response),
-            json.dumps(io_port_management_response),
-            json.dumps(light_control_response),
-            json.dumps(stream_profiles_response),
+            api_discovery_response,
+            basic_device_info_response,
+            io_port_management_response,
+            light_control_response,
+            stream_profiles_response,
         ],
     ) as mock_request:
         vapix = Vapix(mock_config)
@@ -71,8 +67,8 @@ def test_initialize_api_discovery(mock_config):
     mock_request.assert_has_calls(
         [
             call(
-                "mock_post",
-                "mock_url/axis-cgi/apidiscovery.cgi",
+                "post",
+                "/axis-cgi/apidiscovery.cgi",
                 json={
                     "method": "getApiList",
                     "apiVersion": "1.0",
@@ -80,8 +76,8 @@ def test_initialize_api_discovery(mock_config):
                 },
             ),
             call(
-                "mock_post",
-                "mock_url/axis-cgi/basicdeviceinfo.cgi",
+                "post",
+                "/axis-cgi/basicdeviceinfo.cgi",
                 json={
                     "method": "getAllProperties",
                     "apiVersion": "1.1",
@@ -89,8 +85,8 @@ def test_initialize_api_discovery(mock_config):
                 },
             ),
             call(
-                "mock_post",
-                "mock_url/axis-cgi/io/portmanagement.cgi",
+                "post",
+                "/axis-cgi/io/portmanagement.cgi",
                 json={
                     "method": "getPorts",
                     "apiVersion": "1.0",
@@ -98,8 +94,8 @@ def test_initialize_api_discovery(mock_config):
                 },
             ),
             call(
-                "mock_post",
-                "mock_url/axis-cgi/lightcontrol.cgi",
+                "post",
+                "/axis-cgi/lightcontrol.cgi",
                 json={
                     "method": "getLightInformation",
                     "apiVersion": "1.1",
@@ -107,8 +103,8 @@ def test_initialize_api_discovery(mock_config):
                 },
             ),
             call(
-                "mock_post",
-                "mock_url/axis-cgi/streamprofile.cgi",
+                "post",
+                "/axis-cgi/streamprofile.cgi",
                 json={
                     "method": "list",
                     "apiVersion": "1.0",
@@ -135,18 +131,18 @@ def test_initialize_api_discovery(mock_config):
 def test_initialize_param_cgi(mock_config):
     """Verify that you can list parameters."""
     with patch(
-        "axis.vapix.session_request",
-        side_effect=[response_param_cgi, json.dumps(light_control_response)],
+        "axis.vapix.Vapix.request",
+        side_effect=[response_param_cgi, light_control_response],
     ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi()
 
     mock_request.assert_has_calls(
         [
-            call("mock_get", "mock_url/axis-cgi/param.cgi?action=list"),
+            call("get", "/axis-cgi/param.cgi?action=list"),
             call(
-                "mock_post",
-                "mock_url/axis-cgi/lightcontrol.cgi",
+                "post",
+                "/axis-cgi/lightcontrol.cgi",
                 json={
                     "method": "getLightInformation",
                     "apiVersion": "1.1",
@@ -172,7 +168,7 @@ def test_initialize_param_cgi(mock_config):
 
 def test_initialize_params_no_data(mock_config):
     """Verify that you can list parameters."""
-    with patch("axis.vapix.session_request", return_value="key=value") as mock_request:
+    with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi(preload_data=False)
 
@@ -182,15 +178,15 @@ def test_initialize_params_no_data(mock_config):
 def test_initialize_applications(mock_config):
     """Verify you can list and retrieve descriptions of applications."""
     with patch(
-        "axis.vapix.session_request",
+        "axis.vapix.Vapix.request",
         side_effect=[
             response_param_cgi,
-            json.dumps(light_control_response),
+            light_control_response,
             applications_response,
-            json.dumps(fence_guard_response),
-            json.dumps(loitering_guard_response),
-            json.dumps(motion_guard_response),
-            json.dumps(vmd4_response),
+            fence_guard_response,
+            loitering_guard_response,
+            motion_guard_response,
+            vmd4_response,
         ],
     ) as mock_request:
         vapix = Vapix(mock_config)
@@ -204,10 +200,10 @@ def test_initialize_applications(mock_config):
 
     mock_request.assert_has_calls(
         [
-            call("mock_post", "mock_url/axis-cgi/applications/list.cgi"),
+            call("post", "/axis-cgi/applications/list.cgi"),
             call(
-                "mock_post",
-                "mock_url/local/fenceguard/control.cgi",
+                "post",
+                "/local/fenceguard/control.cgi",
                 json={
                     "method": "getConfiguration",
                     "apiVersion": "1.3",
@@ -215,8 +211,8 @@ def test_initialize_applications(mock_config):
                 },
             ),
             call(
-                "mock_post",
-                "mock_url/local/loiteringguard/control.cgi",
+                "post",
+                "/local/loiteringguard/control.cgi",
                 json={
                     "method": "getConfiguration",
                     "apiVersion": "1.3",
@@ -224,8 +220,8 @@ def test_initialize_applications(mock_config):
                 },
             ),
             call(
-                "mock_post",
-                "mock_url/local/motionguard/control.cgi",
+                "post",
+                "/local/motionguard/control.cgi",
                 json={
                     "method": "getConfiguration",
                     "apiVersion": "1.3",
@@ -233,8 +229,8 @@ def test_initialize_applications(mock_config):
                 },
             ),
             call(
-                "mock_post",
-                "mock_url/local/vmd/control.cgi",
+                "post",
+                "/local/vmd/control.cgi",
                 json={
                     "method": "getConfiguration",
                     "apiVersion": "1.2",
@@ -262,15 +258,15 @@ def test_initialize_applications(mock_config):
 def test_initialize_applications_not_running(mock_config):
     """Verify you can list and retrieve descriptions of applications."""
     with patch(
-        "axis.vapix.session_request",
+        "axis.vapix.Vapix.request",
         side_effect=[
             response_param_cgi,
-            json.dumps(light_control_response),
+            light_control_response,
             applications_response.replace(
                 APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
             ),
         ],
-    ) as mock_request:
+    ):
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi()
         vapix.initialize_applications()
@@ -282,7 +278,7 @@ def test_initialize_applications_not_running(mock_config):
 
 def test_applications_dont_load_without_params(mock_config):
     """Verify that you can list parameters."""
-    with patch("axis.vapix.session_request", return_value="key=value") as mock_request:
+    with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi(preload_data=False)
         vapix.initialize_applications()
@@ -293,7 +289,7 @@ def test_applications_dont_load_without_params(mock_config):
 def test_initialize_users(mock_config):
     """Verify that you can list parameters."""
     with patch(
-        "axis.vapix.session_request",
+        "axis.vapix.Vapix.request",
         return_value="""users="userv"
 viewer="userv"
 operator="usera"
@@ -304,18 +300,16 @@ ptz=
         vapix = Vapix(mock_config)
         vapix.initialize_users()
 
-    mock_request.assert_called_with(
-        "mock_get", "mock_url/axis-cgi/pwdgrp.cgi?action=get"
-    )
+    mock_request.assert_called_with("get", "/axis-cgi/pwdgrp.cgi?action=get")
     assert vapix.users["userv"].viewer
 
 
 def test_initialize_api_discovery_unauthorized(mock_config):
     """Test initialize api discovery doesnt break due to exception."""
     with patch(
-        "axis.vapix.session_request",
+        "axis.vapix.Vapix.request",
         side_effect=[
-            json.dumps(api_discovery_response),
+            api_discovery_response,
             Unauthorized,
             Unauthorized,
             Unauthorized,
@@ -330,25 +324,3 @@ def test_initialize_api_discovery_unauthorized(mock_config):
     assert vapix.light_control is None
     assert vapix.mqtt is not None
     assert vapix.stream_profiles is None
-
-
-# def test_initialize_param_cgi(mock_config):
-#     """Test initialize api discovery doesnt break due to exception."""
-#     with patch(
-#         "axis.vapix.session_request",
-#         side_effect=[
-#             json.dumps(api_discovery_response),
-#             Unauthorized,
-#             Unauthorized,
-#             Unauthorized,
-#             Unauthorized,
-#         ],
-#     ):
-#         vapix = Vapix(mock_config)
-#         vapix.initialize_api_discovery()
-
-#     assert vapix.basic_device_info is None
-#     assert vapix.ports is None
-#     assert vapix.light_control is None
-#     assert vapix.mqtt is not None
-#     assert vapix.stream_profiles is None

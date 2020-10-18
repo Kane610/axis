@@ -19,9 +19,9 @@ class Configuration:
 
     @session.default
     def prepare_session(self) -> httpx.Client:
-        session = httpx.Client()
-        session.auth = httpx.DigestAuth(self.username, self.password)
-        session.verify = self.verify_ssl
+        session = httpx.Client(
+            auth=httpx.DigestAuth(self.username, self.password), verify=self.verify_ssl
+        )
         return session
 
     @property
