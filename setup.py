@@ -12,7 +12,7 @@ setup(
     license="MIT",
     url="https://github.com/Kane610/axis",
     download_url="https://github.com/Kane610/axis/archive/v37.tar.gz",
-    install_requires=["attrs", "packaging", "requests", "xmltodict"],
+    install_requires=["attrs", "packaging", "httpx", "xmltodict"],
     keywords=["axis", "vapix", "onvif", "event stream", "homeassistant"],
     classifiers=["Natural Language :: English", "Programming Language :: Python :: 3"],
     python_requires=">=3.8.0",

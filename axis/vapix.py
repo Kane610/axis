@@ -1,8 +1,9 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
-import json
 import logging
 from packaging import version
+
+import httpx
 
 from .api_discovery import ApiDiscovery
 from .applications import (
@@ -17,7 +18,7 @@ from .applications.motion_guard import MotionGuard
 from .applications.vmd4 import Vmd4
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
-from .errors import AxisException, PathNotFound, Unauthorized
+from .errors import raise_error, PathNotFound, RequestError, Unauthorized
 from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
@@ -25,7 +26,6 @@ from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAG
 from .port_cgi import Ports
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
-from .utils import session_request
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +36,10 @@ class Vapix:
     def __init__(self, config: Configuration) -> None:
         """Store local reference to device config."""
         self.config = config
+        self.session = httpx.Client(
+            auth=httpx.DigestAuth(config.username, config.password),
+            verify=config.verify_ssl,
+        )
 
         self.api_discovery = None
         self.applications = None
@@ -94,8 +98,11 @@ class Vapix:
 
     def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        self.api_discovery = ApiDiscovery(self.json_request)
-        self.api_discovery.update()
+        self.api_discovery = ApiDiscovery(self.request)
+        try:
+            self.api_discovery.update()
+        except PathNotFound:  # Device doesn't support API discovery
+            return
 
         for api_id, api_class, api_attr in (
             (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
@@ -106,11 +113,10 @@ class Vapix:
         ):
             if api_id in self.api_discovery:
                 try:
-                    api_item = api_class(self.json_request)
+                    api_item = api_class(self.request)
                     api_item.update()
                     setattr(self, api_attr, api_item)
-                except Unauthorized:
-                    # Probably a viewer account
+                except Unauthorized:  # Probably a viewer account
                     pass
 
     def initialize_param_cgi(self, preload_data: bool = True) -> None:
@@ -134,11 +140,10 @@ class Vapix:
 
         if not self.light_control and self.params.light_control:
             try:
-                light_control = LightControl(self.json_request)
+                light_control = LightControl(self.request)
                 light_control.update()
                 self.light_control = light_control
-            except Unauthorized:
-                # Probably a viewer account
+            except Unauthorized:  # Probably a viewer account
                 pass
 
         if not self.ports:
@@ -155,9 +160,8 @@ class Vapix:
         ):
             try:
                 self.applications.update()
-            except Unauthorized:
-                # Probably a viewer account
-                pass
+            except Unauthorized:  # Probably a viewer account
+                return
 
         for app_class, app_attr in (
             (FenceGuard, "fence_guard"),
@@ -168,7 +172,7 @@ class Vapix:
             if app_class.APPLICATION_NAME not in self.applications:
                 continue
 
-            app_item = app_class(self.json_request)
+            app_item = app_class(self.request)
 
             if (
                 self.applications[app_class.APPLICATION_NAME].status
@@ -185,47 +189,39 @@ class Vapix:
         self.users = Users(users, self.request)
 
     def request(self, method: str, path: str, **kwargs: dict) -> str:
-        """Prepare HTTP request."""
-        if method == "get":
-            session_method = self.config.session.get
-
-        elif method == "post":
-            session_method = self.config.session.post
-
-        else:
-            raise AxisException
-
+        """Make a request to the API."""
         url = self.config.url + path
-        result = session_request(session_method, url, **kwargs)
 
-        LOGGER.debug("Response: %s from %s", result, self.config.host)
+        LOGGER.debug("%s %s", url, kwargs)
 
-        if result.startswith("# Error:"):
-            result = ""
-
-        return result
-
-    def json_request(self, method: str, path: str, **kwargs: dict) -> dict:
-        """Prepare JSON request."""
-        if method == "get":
-            session_method = self.config.session.get
-
-        elif method == "post":
-            session_method = self.config.session.post
-
-        else:
-            raise AxisException
-
-        url = self.config.url + path
         try:
-            result = session_request(session_method, url, **kwargs)
-        except PathNotFound:
-            return {}
+            response = self.session.request(method, url, **kwargs)
+            response.raise_for_status()
 
-        LOGGER.debug("Response: %s from %s", result, self.config.host)
+            LOGGER.debug("Response: %s from %s", response.text, self.config.host)
 
-        json_result = json.loads(result)
-        if "error" in json_result:
-            json_result = {}
+            if "application/json" in response.headers.get("Content-Type"):
+                result = response.json()
+                if "error" in result:
+                    return {}
+                return result
 
-        return json_result
+            if response.text.startswith("# Error:"):
+                return ""
+            return response.text
+
+        except httpx.HTTPStatusError as errh:
+            LOGGER.debug("%s, %s", response, errh)
+            raise_error(response.status_code)
+
+        except httpx.TimeoutException as errt:
+            LOGGER.debug("%s", errt)
+            raise RequestError("Timeout: {}".format(errt))
+
+        except httpx.TransportError as errc:
+            LOGGER.debug("%s", errc)
+            raise RequestError("Connection error: {}".format(errc))
+
+        except httpx.RequestError as err:
+            LOGGER.debug("%s", err)
+            raise RequestError("Unknown error: {}".format(err))
