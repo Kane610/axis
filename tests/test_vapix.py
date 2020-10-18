@@ -44,7 +44,7 @@ def mock_config() -> Mock:
 
 def test_initialize_api_discovery(mock_config):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
-    with patch(
+    with patch("axis.vapix.httpx"), patch(
         "axis.vapix.Vapix.request",
         side_effect=[
             api_discovery_response,
@@ -130,7 +130,7 @@ def test_initialize_api_discovery(mock_config):
 
 def test_initialize_param_cgi(mock_config):
     """Verify that you can list parameters."""
-    with patch(
+    with patch("axis.vapix.httpx"), patch(
         "axis.vapix.Vapix.request",
         side_effect=[response_param_cgi, light_control_response],
     ) as mock_request:
@@ -168,7 +168,9 @@ def test_initialize_param_cgi(mock_config):
 
 def test_initialize_params_no_data(mock_config):
     """Verify that you can list parameters."""
-    with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
+    with patch("axis.vapix.httpx"), patch(
+        "axis.vapix.Vapix.request", return_value="key=value"
+    ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi(preload_data=False)
 
@@ -177,7 +179,7 @@ def test_initialize_params_no_data(mock_config):
 
 def test_initialize_applications(mock_config):
     """Verify you can list and retrieve descriptions of applications."""
-    with patch(
+    with patch("axis.vapix.httpx"), patch(
         "axis.vapix.Vapix.request",
         side_effect=[
             response_param_cgi,
@@ -257,7 +259,7 @@ def test_initialize_applications(mock_config):
 
 def test_initialize_applications_not_running(mock_config):
     """Verify you can list and retrieve descriptions of applications."""
-    with patch(
+    with patch("axis.vapix.httpx"), patch(
         "axis.vapix.Vapix.request",
         side_effect=[
             response_param_cgi,
@@ -278,7 +280,9 @@ def test_initialize_applications_not_running(mock_config):
 
 def test_applications_dont_load_without_params(mock_config):
     """Verify that you can list parameters."""
-    with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
+    with patch("axis.vapix.httpx"), patch(
+        "axis.vapix.Vapix.request", return_value="key=value"
+    ) as mock_request:
         vapix = Vapix(mock_config)
         vapix.initialize_param_cgi(preload_data=False)
         vapix.initialize_applications()
@@ -288,7 +292,7 @@ def test_applications_dont_load_without_params(mock_config):
 
 def test_initialize_users(mock_config):
     """Verify that you can list parameters."""
-    with patch(
+    with patch("axis.vapix.httpx"), patch(
         "axis.vapix.Vapix.request",
         return_value="""users="userv"
 viewer="userv"
@@ -306,7 +310,7 @@ ptz=
 
 def test_initialize_api_discovery_unauthorized(mock_config):
     """Test initialize api discovery doesnt break due to exception."""
-    with patch(
+    with patch("axis.vapix.httpx"), patch(
         "axis.vapix.Vapix.request",
         side_effect=[
             api_discovery_response,

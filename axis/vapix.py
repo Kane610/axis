@@ -36,6 +36,10 @@ class Vapix:
     def __init__(self, config: Configuration) -> None:
         """Store local reference to device config."""
         self.config = config
+        self.session = httpx.Client(
+            auth=httpx.DigestAuth(config.username, config.password),
+            verify=config.verify_ssl,
+        )
 
         self.api_discovery = None
         self.applications = None
@@ -191,7 +195,8 @@ class Vapix:
         LOGGER.debug("%s %s", url, kwargs)
 
         try:
-            response = self.config.session.request(method, url, **kwargs)
+            response = self.session.request(method, url, **kwargs)
+            # response = self.config.session.request(method, url, **kwargs)
             response.raise_for_status()
 
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)
