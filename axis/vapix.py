@@ -196,7 +196,6 @@ class Vapix:
 
         try:
             response = self.session.request(method, url, **kwargs)
-            # response = self.config.session.request(method, url, **kwargs)
             response.raise_for_status()
 
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)
@@ -218,13 +217,13 @@ class Vapix:
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
-        except httpx.TransportError as errc:
-            LOGGER.debug("%s", errc)
-            raise RequestError("Connection error: {}".format(errc))
-
         except httpx.TimeoutException as errt:
             LOGGER.debug("%s", errt)
             raise RequestError("Timeout: {}".format(errt))
+
+        except httpx.TransportError as errc:
+            LOGGER.debug("%s", errc)
+            raise RequestError("Connection error: {}".format(errc))
 
         except httpx.RequestError as err:
             LOGGER.debug("%s", err)
