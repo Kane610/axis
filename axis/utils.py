@@ -1,7 +1,7 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
-import requests
+import httpx
 
 from .errors import raise_error, RequestError
 
@@ -18,18 +18,18 @@ def session_request(session, url, **kwargs):
 
         return response.text
 
-    except requests.exceptions.HTTPError as errh:
+    except httpx.HTTPStatusError as errh:
         LOGGER.debug("%s, %s", response, errh)
         raise_error(response.status_code)
 
-    except requests.exceptions.ConnectionError as errc:
+    except httpx.TransportError as errc:
         LOGGER.debug("%s", errc)
         raise RequestError("Connection error: {}".format(errc))
 
-    except requests.exceptions.Timeout as errt:
+    except httpx.TimeoutException as errt:
         LOGGER.debug("%s", errt)
         raise RequestError("Timeout: {}".format(errt))
 
-    except requests.exceptions.RequestException as err:
+    except httpx.RequestError as err:
         LOGGER.debug("%s", err)
         raise RequestError("Unknown error: {}".format(err))
