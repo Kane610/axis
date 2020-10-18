@@ -99,7 +99,10 @@ class Vapix:
     def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
         self.api_discovery = ApiDiscovery(self.request)
-        self.api_discovery.update()
+        try:
+            self.api_discovery.update()
+        except PathNotFound:  # Device doesn't support API discovery
+            return
 
         for api_id, api_class, api_attr in (
             (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
@@ -113,8 +116,7 @@ class Vapix:
                     api_item = api_class(self.request)
                     api_item.update()
                     setattr(self, api_attr, api_item)
-                except Unauthorized:
-                    # Probably a viewer account
+                except Unauthorized:  # Probably a viewer account
                     pass
 
     def initialize_param_cgi(self, preload_data: bool = True) -> None:
@@ -141,8 +143,7 @@ class Vapix:
                 light_control = LightControl(self.request)
                 light_control.update()
                 self.light_control = light_control
-            except Unauthorized:
-                # Probably a viewer account
+            except Unauthorized:  # Probably a viewer account
                 pass
 
         if not self.ports:
@@ -159,9 +160,8 @@ class Vapix:
         ):
             try:
                 self.applications.update()
-            except Unauthorized:
-                # Probably a viewer account
-                pass
+            except Unauthorized:  # Probably a viewer account
+                return
 
         for app_class, app_attr in (
             (FenceGuard, "fence_guard"),
@@ -209,9 +209,6 @@ class Vapix:
             if response.text.startswith("# Error:"):
                 return ""
             return response.text
-
-        except PathNotFound:  # Requested CGI not available
-            return {}
 
         except httpx.HTTPStatusError as errh:
             LOGGER.debug("%s, %s", response, errh)
