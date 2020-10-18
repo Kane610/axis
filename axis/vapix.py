@@ -207,10 +207,7 @@ class Vapix:
 
     def json_request(self, method: str, path: str, **kwargs: dict) -> dict:
         """Prepare JSON request."""
-        if method == "get":
-            session_method = self.config.session.get
-
-        elif method == "post":
+        if method == "post":
             session_method = self.config.session.post
 
         else:

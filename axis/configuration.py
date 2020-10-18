@@ -5,7 +5,7 @@ import httpx
 
 
 @attr.s
-class Configuration -> None:
+class Configuration:
     """Device configuration."""
 
     host: str = attr.ib()
