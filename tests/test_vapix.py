@@ -3,9 +3,8 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
-import json
 import pytest
-from unittest.mock import Mock, call, patch
+from unittest.mock import AsyncMock, call, patch
 
 from axis.errors import Unauthorized
 from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
@@ -36,16 +35,16 @@ from .test_stream_profiles import response_list as stream_profiles_response
 
 
 @pytest.fixture
-def mock_config() -> Mock:
+def mock_config() -> AsyncMock:
     """Returns the configuration mock object."""
-    config = Mock()
+    config = AsyncMock()
     config.username = "root"
     config.password = "pass"
     config.verify_ssl = False
     return config
 
 
-def test_initialize_api_discovery(mock_config):
+async def test_initialize_api_discovery(mock_config):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
     with patch(
         "axis.vapix.Vapix.request",
@@ -58,7 +57,7 @@ def test_initialize_api_discovery(mock_config):
         ],
     ) as mock_request:
         vapix = Vapix(mock_config)
-        vapix.initialize_api_discovery()
+        await vapix.initialize_api_discovery()
 
     assert vapix.api_discovery
     assert vapix.basic_device_info
@@ -131,14 +130,14 @@ def test_initialize_api_discovery(mock_config):
     assert len(vapix.stream_profiles.values()) == 1
 
 
-def test_initialize_param_cgi(mock_config):
+async def test_initialize_param_cgi(mock_config):
     """Verify that you can list parameters."""
     with patch(
         "axis.vapix.Vapix.request",
         side_effect=[response_param_cgi, light_control_response],
     ) as mock_request:
         vapix = Vapix(mock_config)
-        vapix.initialize_param_cgi()
+        await vapix.initialize_param_cgi()
 
     mock_request.assert_has_calls(
         [
@@ -169,16 +168,16 @@ def test_initialize_param_cgi(mock_config):
     assert vapix.stream_profiles is None
 
 
-def test_initialize_params_no_data(mock_config):
+async def test_initialize_params_no_data(mock_config):
     """Verify that you can list parameters."""
     with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
         vapix = Vapix(mock_config)
-        vapix.initialize_param_cgi(preload_data=False)
+        await vapix.initialize_param_cgi(preload_data=False)
 
     mock_request.assert_not_called
 
 
-def test_initialize_applications(mock_config):
+async def test_initialize_applications(mock_config):
     """Verify you can list and retrieve descriptions of applications."""
     with patch(
         "axis.vapix.Vapix.request",
@@ -193,8 +192,8 @@ def test_initialize_applications(mock_config):
         ],
     ) as mock_request:
         vapix = Vapix(mock_config)
-        vapix.initialize_param_cgi()
-        vapix.initialize_applications()
+        await vapix.initialize_param_cgi()
+        await vapix.initialize_applications()
 
     assert vapix.fence_guard
     assert vapix.loitering_guard
@@ -258,7 +257,7 @@ def test_initialize_applications(mock_config):
     assert "Camera1Profile1" in vapix.vmd4
 
 
-def test_initialize_applications_not_running(mock_config):
+async def test_initialize_applications_not_running(mock_config):
     """Verify you can list and retrieve descriptions of applications."""
     with patch(
         "axis.vapix.Vapix.request",
@@ -271,25 +270,25 @@ def test_initialize_applications_not_running(mock_config):
         ],
     ):
         vapix = Vapix(mock_config)
-        vapix.initialize_param_cgi()
-        vapix.initialize_applications()
+        await vapix.initialize_param_cgi()
+        await vapix.initialize_applications()
 
     assert vapix.fence_guard is None
     assert vapix.motion_guard is None
     assert vapix.vmd4 is None
 
 
-def test_applications_dont_load_without_params(mock_config):
+async def test_applications_dont_load_without_params(mock_config):
     """Verify that you can list parameters."""
     with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
         vapix = Vapix(mock_config)
-        vapix.initialize_param_cgi(preload_data=False)
-        vapix.initialize_applications()
+        await vapix.initialize_param_cgi(preload_data=False)
+        await vapix.initialize_applications()
 
     mock_request.assert_not_called
 
 
-def test_initialize_users(mock_config):
+async def test_initialize_users(mock_config):
     """Verify that you can list parameters."""
     with patch(
         "axis.vapix.Vapix.request",
@@ -301,13 +300,13 @@ ptz=
 """,
     ) as mock_request:
         vapix = Vapix(mock_config)
-        vapix.initialize_users()
+        await vapix.initialize_users()
 
     mock_request.assert_called_with("get", "/axis-cgi/pwdgrp.cgi?action=get")
     assert vapix.users["userv"].viewer
 
 
-def test_initialize_api_discovery_unauthorized(mock_config):
+async def test_initialize_api_discovery_unauthorized(mock_config):
     """Test initialize api discovery doesnt break due to exception."""
     with patch(
         # with patch(
@@ -321,7 +320,7 @@ def test_initialize_api_discovery_unauthorized(mock_config):
         ],
     ):
         vapix = Vapix(mock_config)
-        vapix.initialize_api_discovery()
+        await vapix.initialize_api_discovery()
 
     assert vapix.basic_device_info is None
     assert vapix.ports is None

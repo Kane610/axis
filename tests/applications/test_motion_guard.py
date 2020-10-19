@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.motion_guard tests/test_motion_guard
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.applications.motion_guard import MotionGuard
 
@@ -12,15 +12,15 @@ from axis.applications.motion_guard import MotionGuard
 @pytest.fixture
 def motion_guard() -> MotionGuard:
     """Returns the motion_guard mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return MotionGuard(mock_request)
 
 
-def test_get_empty_configuration(motion_guard):
+async def test_get_empty_configuration(motion_guard):
     """Test empty get_configuration"""
     motion_guard._request.return_value = response_get_configuration_empty
-    motion_guard.update()
+    await motion_guard.update()
     motion_guard._request.assert_called_with(
         "post",
         "/local/motionguard/control.cgi",
@@ -34,10 +34,10 @@ def test_get_empty_configuration(motion_guard):
     assert len(motion_guard.values()) == 0
 
 
-def test_get_configuration(motion_guard):
+async def test_get_configuration(motion_guard):
     """Test get_configuration"""
     motion_guard._request.return_value = response_get_configuration
-    motion_guard.update()
+    await motion_guard.update()
     motion_guard._request.assert_called_with(
         "post",
         "/local/motionguard/control.cgi",

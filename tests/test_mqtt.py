@@ -3,7 +3,7 @@
 pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.mqtt import (
     ClientConfig,
@@ -18,16 +18,16 @@ from axis.mqtt import (
 @pytest.fixture
 def mqtt_client() -> MqttClient:
     """Returns the mqtt_client mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return MqttClient(mock_request)
 
 
-def test_client_config_simple(mqtt_client):
+async def test_client_config_simple(mqtt_client):
     """Test simple MQTT client configuration."""
     client_config = ClientConfig(Server("192.168.0.1"))
 
-    mqtt_client.configure_client(client_config)
+    await mqtt_client.configure_client(client_config)
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
@@ -52,7 +52,7 @@ def test_client_config_simple(mqtt_client):
     )
 
 
-def test_client_config_advanced(mqtt_client):
+async def test_client_config_advanced(mqtt_client):
     """Test advanced MQTT client configuration."""
     client_config = ClientConfig(
         Server("192.168.0.1"),
@@ -88,7 +88,7 @@ def test_client_config_advanced(mqtt_client):
         autoReconnect=False,
     )
 
-    mqtt_client.configure_client(client_config)
+    await mqtt_client.configure_client(client_config)
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
@@ -133,9 +133,9 @@ def test_client_config_advanced(mqtt_client):
     )
 
 
-def test_activate_client(mqtt_client):
+async def test_activate_client(mqtt_client):
     """Test activate client method."""
-    mqtt_client.activate()
+    await mqtt_client.activate()
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
@@ -148,9 +148,9 @@ def test_activate_client(mqtt_client):
     )
 
 
-def test_deactivate_client(mqtt_client):
+async def test_deactivate_client(mqtt_client):
     """Test deactivate client method."""
-    mqtt_client.deactivate()
+    await mqtt_client.deactivate()
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
@@ -163,9 +163,9 @@ def test_deactivate_client(mqtt_client):
     )
 
 
-def test_get_client_status(mqtt_client):
+async def test_get_client_status(mqtt_client):
     """Test get client status method."""
-    mqtt_client.get_client_status()
+    await mqtt_client.get_client_status()
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/client.cgi",
@@ -178,9 +178,9 @@ def test_get_client_status(mqtt_client):
     )
 
 
-def test_get_event_publication_config(mqtt_client):
+async def test_get_event_publication_config(mqtt_client):
     """Test get event publication config method."""
-    mqtt_client.get_event_publication_config()
+    await mqtt_client.get_event_publication_config()
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
@@ -192,9 +192,9 @@ def test_get_event_publication_config(mqtt_client):
     )
 
 
-def test_configure_event_publication_all_topics(mqtt_client):
+async def test_configure_event_publication_all_topics(mqtt_client):
     """Test configure event publication method with all topics."""
-    mqtt_client.configure_event_publication()
+    await mqtt_client.configure_event_publication()
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
@@ -207,14 +207,14 @@ def test_configure_event_publication_all_topics(mqtt_client):
     )
 
 
-def test_configure_event_publication_specific_topics(mqtt_client):
+async def test_configure_event_publication_specific_topics(mqtt_client):
     """Test configure event publication method with specific topics."""
     topics = [
         "onvif:Device/axis:IO/VirtualPort",
         "onvif:Device/axis:Status/SystemReady",
         "axis:Storage//.",
     ]
-    mqtt_client.configure_event_publication(topics)
+    await mqtt_client.configure_event_publication(topics)
     mqtt_client._request.assert_called_with(
         "post",
         "/axis-cgi/mqtt/event.cgi",
@@ -233,7 +233,7 @@ def test_configure_event_publication_specific_topics(mqtt_client):
     )
 
 
-def test_convert_json_to_event():
+async def test_convert_json_to_event():
     event = mqtt_json_to_event(
         b'{"timestamp": 1590045190230, "topic": "onvif:Device/axis:Sensor/PIR", "message": {"source": {"sensor": "0"}, "key": {}, "data": {"state": "0"}}}'
     )

@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.loitering_guard tests/test_loitering
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.applications.loitering_guard import LoiteringGuard
 
@@ -12,15 +12,15 @@ from axis.applications.loitering_guard import LoiteringGuard
 @pytest.fixture
 def loitering_guard() -> LoiteringGuard:
     """Returns the loitering_guard mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return LoiteringGuard(mock_request)
 
 
-def test_get_empty_configuration(loitering_guard):
+async def test_get_empty_configuration(loitering_guard):
     """Test empty get_configuration"""
     loitering_guard._request.return_value = response_get_configuration_empty
-    loitering_guard.update()
+    await loitering_guard.update()
     loitering_guard._request.assert_called_with(
         "post",
         "/local/loiteringguard/control.cgi",
@@ -34,10 +34,10 @@ def test_get_empty_configuration(loitering_guard):
     assert len(loitering_guard.values()) == 0
 
 
-def test_get_configuration(loitering_guard):
+async def test_get_configuration(loitering_guard):
     """Test get_configuration"""
     loitering_guard._request.return_value = response_get_configuration
-    loitering_guard.update()
+    await loitering_guard.update()
     loitering_guard._request.assert_called_with(
         "post",
         "/local/loiteringguard/control.cgi",

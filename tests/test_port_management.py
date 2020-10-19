@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.port_management tests/test_port_mana
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.port_management import (
     IoPortManagement,
@@ -17,15 +17,15 @@ from axis.port_management import (
 @pytest.fixture
 def io_port_management() -> IoPortManagement:
     """Returns the io_port_management mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return IoPortManagement(mock_request)
 
 
-def test_get_ports(io_port_management):
+async def test_get_ports(io_port_management):
     """Test get_ports call."""
     io_port_management._request.return_value = response_getPorts
-    io_port_management.update()
+    await io_port_management.update()
     io_port_management._request.assert_called_with(
         "post",
         "/axis-cgi/io/portmanagement.cgi",
@@ -44,7 +44,7 @@ def test_get_ports(io_port_management):
     assert item.state == "open"
     assert item.normalState == "open"
 
-    item.open()
+    await item.open()
     item._request.assert_called_with(
         "post",
         "/axis-cgi/io/portmanagement.cgi",
@@ -56,7 +56,7 @@ def test_get_ports(io_port_management):
         },
     )
 
-    item.close()
+    await item.close()
     item._request.assert_called_with(
         "post",
         "/axis-cgi/io/portmanagement.cgi",
@@ -69,9 +69,9 @@ def test_get_ports(io_port_management):
     )
 
 
-def test_set_ports(io_port_management):
+async def test_set_ports(io_port_management):
     """Test set_ports call."""
-    io_port_management.set_ports([SetPort("0", state="closed")])
+    await io_port_management.set_ports([SetPort("0", state="closed")])
     io_port_management._request.assert_called_with(
         "post",
         "/axis-cgi/io/portmanagement.cgi",
@@ -84,9 +84,9 @@ def test_set_ports(io_port_management):
     )
 
 
-def test_state_sequence(io_port_management):
+async def test_state_sequence(io_port_management):
     """Test set_ports call."""
-    io_port_management.set_state_sequence(
+    await io_port_management.set_state_sequence(
         PortSequence("0", [Sequence("open", 3000), Sequence("closed", 5000)])
     )
     io_port_management._request.assert_called_with(
@@ -107,10 +107,10 @@ def test_state_sequence(io_port_management):
     )
 
 
-def test_get_supported_versions(io_port_management):
+async def test_get_supported_versions(io_port_management):
     """Test get_supported_versions"""
     io_port_management._request.return_value = response_getSupportedVersions
-    response = io_port_management.get_supported_versions()
+    response = await io_port_management.get_supported_versions()
     io_port_management._request.assert_called_with(
         "post",
         "/axis-cgi/io/portmanagement.cgi",

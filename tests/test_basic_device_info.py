@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.basic_device_info import BasicDeviceInfo
 
@@ -12,15 +12,15 @@ from axis.basic_device_info import BasicDeviceInfo
 @pytest.fixture
 def basic_device_info() -> BasicDeviceInfo:
     """Returns the basic_device_info mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return BasicDeviceInfo(mock_request)
 
 
-def test_get_all_properties(basic_device_info):
+async def test_get_all_properties(basic_device_info):
     """Test get all properties api."""
     basic_device_info._request.return_value = response_getAllProperties
-    basic_device_info.update()
+    await basic_device_info.update()
     basic_device_info._request.assert_called_with(
         "post",
         "/axis-cgi/basicdeviceinfo.cgi",
@@ -47,10 +47,10 @@ def test_get_all_properties(basic_device_info):
     assert basic_device_info.weburl == "http://www.axis.com"
 
 
-def test_get_supported_versions(basic_device_info):
+async def test_get_supported_versions(basic_device_info):
     """Test get supported versions api."""
     basic_device_info._request.return_value = response_getSupportedVersions
-    response = basic_device_info.get_supported_versions()
+    response = await basic_device_info.get_supported_versions()
     basic_device_info._request.assert_called_with(
         "post",
         "/axis-cgi/basicdeviceinfo.cgi",

@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.vmd4 tests/test_vmd4.py
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.applications.vmd4 import Vmd4
 
@@ -12,15 +12,15 @@ from axis.applications.vmd4 import Vmd4
 @pytest.fixture
 def vmd4() -> Vmd4:
     """Returns the vmd4 mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return Vmd4(mock_request)
 
 
-def test_get_empty_configuration(vmd4):
+async def test_get_empty_configuration(vmd4):
     """Test empty get_configuration"""
     vmd4._request.return_value = response_get_configuration_empty
-    vmd4.update()
+    await vmd4.update()
     vmd4._request.assert_called_with(
         "post",
         "/local/vmd/control.cgi",
@@ -34,10 +34,10 @@ def test_get_empty_configuration(vmd4):
     assert len(vmd4.values()) == 0
 
 
-def test_get_configuration(vmd4):
+async def test_get_configuration(vmd4):
     """Test get_supported_versions"""
     vmd4._request.return_value = response_get_configuration
-    vmd4.update()
+    await vmd4.update()
     vmd4._request.assert_called_with(
         "post",
         "/local/vmd/control.cgi",
@@ -68,13 +68,13 @@ def test_get_configuration(vmd4):
     ]
 
 
-def test_get_configuration_error(vmd4):
+async def test_get_configuration_error(vmd4):
     """Test empty get_configuration.
 
-    _request returns an empty dict on error.
+    await _request returns an empty dict on error.
     """
     vmd4._request.return_value = {}
-    vmd4.update()
+    await vmd4.update()
     vmd4._request.assert_called_with(
         "post",
         "/local/vmd/control.cgi",
