@@ -55,7 +55,7 @@ class Vapix:
         self.users = None
         self.vmd4 = None
 
-    async def stop(self):
+    async def close(self):
         """Close session."""
         if self.session:
             await self.session.aclose()

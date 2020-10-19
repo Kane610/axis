@@ -55,7 +55,7 @@ async def main(host, port, username, password, params, events):
 
     if params:
         await device.vapix.initialize()
-        await device.vapix.stop()
+        await device.vapix.close()
 
         if not events:
             return
