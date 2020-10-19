@@ -19,8 +19,8 @@ class ApiDiscovery(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, Api)
 
-    def update(self, path=None) -> None:
-        raw = self.get_api_list()
+    async def update(self, path=None) -> None:
+        raw = await self.get_api_list()
         self.process_raw(raw)
 
     def process_raw(self, raw: dict) -> None:
@@ -32,9 +32,9 @@ class ApiDiscovery(APIItems):
 
         super().process_raw(raw_apis)
 
-    def get_api_list(self) -> dict:
+    async def get_api_list(self) -> dict:
         """List all APIs registered on API Discovery service."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -43,9 +43,9 @@ class ApiDiscovery(APIItems):
             ),
         )
 
-    def get_supported_versions(self) -> dict:
+    async def get_supported_versions(self) -> dict:
         """Supported versions of API Discovery API."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(

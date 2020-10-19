@@ -36,7 +36,7 @@ class Vapix:
     def __init__(self, config: Configuration) -> None:
         """Store local reference to device config."""
         self.config = config
-        self.session = httpx.Client(
+        self.session = httpx.AsyncClient(
             auth=httpx.DigestAuth(config.username, config.password),
             verify=config.verify_ssl,
         )
@@ -54,6 +54,12 @@ class Vapix:
         self.stream_profiles = None
         self.users = None
         self.vmd4 = None
+
+    async def stop(self):
+        """Close session."""
+        if self.session:
+            await self.session.aclose()
+            self.session = None
 
     @property
     def firmware_version(self) -> str:
@@ -90,17 +96,17 @@ class Vapix:
             return list(self.stream_profiles.values())
         return self.params.stream_profiles()
 
-    def initialize(self) -> None:
+    async def initialize(self) -> None:
         """Initialize Vapix functions."""
-        self.initialize_api_discovery()
-        self.initialize_param_cgi(preload_data=False)
-        self.initialize_applications()
+        await self.initialize_api_discovery()
+        await self.initialize_param_cgi(preload_data=False)
+        await self.initialize_applications()
 
-    def initialize_api_discovery(self) -> None:
+    async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
         self.api_discovery = ApiDiscovery(self.request)
         try:
-            self.api_discovery.update()
+            await self.api_discovery.update()
         except PathNotFound:  # Device doesn't support API discovery
             return
 
@@ -114,34 +120,34 @@ class Vapix:
             if api_id in self.api_discovery:
                 try:
                     api_item = api_class(self.request)
-                    api_item.update()
+                    await api_item.update()
                     setattr(self, api_attr, api_item)
                 except Unauthorized:  # Probably a viewer account
                     pass
 
-    def initialize_param_cgi(self, preload_data: bool = True) -> None:
+    async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
         self.params = Params(self.request)
 
         if preload_data:
-            self.params.update()
+            await self.params.update()
 
         if not preload_data:
-            self.params.update_properties()
+            await self.params.update_properties()
 
             if not self.basic_device_info:
-                self.params.update_brand()
+                await self.params.update_brand()
 
             if not self.ports:
-                self.params.update_ports()
+                await self.params.update_ports()
 
             if not self.stream_profiles:
-                self.params.update_stream_profiles()
+                await self.params.update_stream_profiles()
 
         if not self.light_control and self.params.light_control:
             try:
                 light_control = LightControl(self.request)
-                light_control.update()
+                await light_control.update()
                 self.light_control = light_control
             except Unauthorized:  # Probably a viewer account
                 pass
@@ -149,7 +155,7 @@ class Vapix:
         if not self.ports:
             self.ports = Ports(self.params, self.request)
 
-    def initialize_applications(self):
+    async def initialize_applications(self):
         """Load data for applications on device."""
         self.applications = Applications(self.request)
         if (
@@ -159,7 +165,7 @@ class Vapix:
             >= version.parse(APPLICATIONS_MINIMUM_VERSION)
         ):
             try:
-                self.applications.update()
+                await self.applications.update()
             except Unauthorized:  # Probably a viewer account
                 return
 
@@ -180,22 +186,22 @@ class Vapix:
             ):
                 continue
 
-            app_item.update()
+            await app_item.update()
             setattr(self, app_attr, app_item)
 
-    def initialize_users(self) -> None:
+    async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        users = self.request("get", PWDGRP_URL)
+        users = await self.request("get", PWDGRP_URL)
         self.users = Users(users, self.request)
 
-    def request(self, method: str, path: str, **kwargs: dict) -> str:
+    async def request(self, method: str, path: str, **kwargs: dict) -> str:
         """Make a request to the API."""
         url = self.config.url + path
 
         LOGGER.debug("%s %s", url, kwargs)
 
         try:
-            response = self.session.request(method, url, **kwargs)
+            response = await self.session.request(method, url, **kwargs)
             response.raise_for_status()
 
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)

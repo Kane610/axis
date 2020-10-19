@@ -41,16 +41,18 @@ class Users(APIItems):
     def __init__(self, raw: str, request: str) -> None:
         super().__init__(raw, request, URL_GET, User)
 
-    def create(self, user: str, *, pwd: str, sgrp: str, comment: str = None) -> None:
+    async def create(
+        self, user: str, *, pwd: str, sgrp: str, comment: str = None
+    ) -> None:
         """Create new user."""
         data = {"action": "add", "user": user, "pwd": pwd, "grp": "users", "sgrp": sgrp}
 
         if comment:
             data["comment"] = comment
 
-        self._request("post", URL, data=data)
+        await self._request("post", URL, data=data)
 
-    def modify(
+    async def modify(
         self, user: str, *, pwd: str = None, sgrp: str = None, comment: str = None
     ) -> None:
         """Update user."""
@@ -65,13 +67,13 @@ class Users(APIItems):
         if comment:
             data["comment"] = comment
 
-        self._request("post", URL, data=data)
+        await self._request("post", URL, data=data)
 
-    def delete(self, user: str) -> None:
+    async def delete(self, user: str) -> None:
         """Remove user."""
         data = {"action": "remove", "user": user}
 
-        self._request("post", URL, data=data)
+        await self._request("post", URL, data=data)
 
     def process_raw(self, raw: str) -> None:
         """Pre-process raw string.

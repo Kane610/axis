@@ -25,8 +25,7 @@ async def axis_device(host, port, username, password):
 
     try:
         with async_timeout.timeout(5):
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, device.vapix.initialize_users)
+            await device.vapix.initialize_users()
 
         return device
 
@@ -55,8 +54,8 @@ async def main(host, port, username, password, params, events):
         return
 
     if params:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, device.vapix.initialize)
+        await device.vapix.initialize()
+        await device.vapix.stop()
 
         if not events:
             return

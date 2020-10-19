@@ -20,13 +20,13 @@ class BasicDeviceInfo(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, APIItem)
 
-    def update(self, path=None) -> None:
-        raw = self.get_all_properties()
+    async def update(self, path=None) -> None:
+        raw = await self.get_all_properties()
         self.process_raw(raw["data"]["propertyList"])
 
-    def get_all_properties(self) -> dict:
+    async def get_all_properties(self) -> dict:
         """List all properties of basic device info."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -35,9 +35,9 @@ class BasicDeviceInfo(APIItems):
             ),
         )
 
-    def get_supported_versions(self) -> dict:
+    async def get_supported_versions(self) -> dict:
         """Supported versions of basic device info."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(

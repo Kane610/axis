@@ -47,8 +47,8 @@ class IoPortManagement(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, Port)
 
-    def update(self, path=None) -> None:
-        raw = self.get_ports()
+    async def update(self, path=None) -> None:
+        raw = await self.get_ports()
         if raw["data"]["numberOfPorts"] > 0:
             self.process_raw(raw["data"]["items"])
 
@@ -61,9 +61,9 @@ class IoPortManagement(APIItems):
 
         super().process_raw(raw_ports)
 
-    def get_ports(self) -> dict:
+    async def get_ports(self) -> dict:
         """This CGI method can be used to retrieve information about all ports on the device and their capabilities."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -72,7 +72,7 @@ class IoPortManagement(APIItems):
             ),
         )
 
-    def set_ports(self, ports: list) -> None:
+    async def set_ports(self, ports: list) -> None:
         """Configures anything from one to several ports.
 
         Some of the available options are:
@@ -82,7 +82,7 @@ class IoPortManagement(APIItems):
         The reason the change is treated as a nice name is because it doesn’t affect the underlying behavior of the port.
         Devices with configurable ports can change the direction to either input or output.
         """
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -91,17 +91,17 @@ class IoPortManagement(APIItems):
             ),
         )
 
-    def set_state_sequence(self, sequence: PortSequence) -> None:
+    async def set_state_sequence(self, sequence: PortSequence) -> None:
         """Applies a sequence of state changes with a delay in milliseconds between states."""
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(Body("setStateSequence", API_VERSION, params=sequence)),
         )
 
-    def get_supported_versions(self) -> dict:
+    async def get_supported_versions(self) -> dict:
         """This CGI method can be used to retrieve a list of supported API versions."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -158,9 +158,9 @@ class Port(APIItem):
         """Usage of port."""
         return self.raw["usage"]
 
-    def set_state(self, set_port: SetPort):
+    async def set_state(self, set_port: SetPort):
         """Set port state."""
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -169,10 +169,10 @@ class Port(APIItem):
             ),
         )
 
-    def open(self):
+    async def open(self):
         """Open port."""
-        self.set_state(SetPort(self.port, state="open"))
+        await self.set_state(SetPort(self.port, state="open"))
 
-    def close(self):
+    async def close(self):
         """Close port."""
-        self.set_state(SetPort(self.port, state="closed"))
+        await self.set_state(SetPort(self.port, state="closed"))
