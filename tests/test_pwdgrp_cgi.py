@@ -3,14 +3,14 @@
 pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 """
 
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.pwdgrp_cgi import SGRP_ADMIN, Users
 
 
 def test_users():
     """Verify that you can list users."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     users = Users(fixture, mock_request)
 
     assert users["userv"]
@@ -35,12 +35,12 @@ def test_users():
     assert users["usera"].ptz
 
 
-def test_create():
+async def test_create():
     """Verify that you can create users."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     users = Users(fixture, mock_request)
 
-    users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN)
+    await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN)
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/pwdgrp.cgi",
@@ -53,7 +53,7 @@ def test_create():
         },
     )
 
-    users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
+    await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/pwdgrp.cgi",
@@ -68,33 +68,33 @@ def test_create():
     )
 
 
-def test_modify():
+async def test_modify():
     """Verify that you can modify users."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     users = Users(fixture, mock_request)
 
-    users.modify("joe", pwd="abcd")
+    await users.modify("joe", pwd="abcd")
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/pwdgrp.cgi",
         data={"action": "update", "user": "joe", "pwd": "abcd"},
     )
 
-    users.modify("joe", sgrp=SGRP_ADMIN)
+    await users.modify("joe", sgrp=SGRP_ADMIN)
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/pwdgrp.cgi",
         data={"action": "update", "user": "joe", "sgrp": "viewer:operator:admin"},
     )
 
-    users.modify("joe", comment="comment")
+    await users.modify("joe", comment="comment")
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/pwdgrp.cgi",
         data={"action": "update", "user": "joe", "comment": "comment"},
     )
 
-    users.modify("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
+    await users.modify("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
     mock_request.assert_called_with(
         "post",
         "/axis-cgi/pwdgrp.cgi",
@@ -108,11 +108,11 @@ def test_modify():
     )
 
 
-def test_delete():
+async def test_delete():
     """Verify that you can delete users."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     users = Users(fixture, mock_request)
-    users.delete("joe")
+    await users.delete("joe")
 
     mock_request.assert_called_with(
         "post", "/axis-cgi/pwdgrp.cgi", data={"action": "remove", "user": "joe"}
@@ -121,7 +121,7 @@ def test_delete():
 
 def test_equals_in_value():
     """Verify that values containing `=` are parsed correctly."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     fixture_with_equals = fixture + 'equals-in-value="xyz=="'
     Users(fixture_with_equals, mock_request)
 

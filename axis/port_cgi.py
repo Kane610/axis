@@ -37,8 +37,8 @@ class Ports(APIItems):
 
         super().__init__(raw, request, None, Port)
 
-    def update(self) -> None:
-        self.param_cgi.update_ports()
+    async def update(self) -> None:
+        await self.param_cgi.update_ports()
         raw = self.param_cgi.ports
         self.process_raw(raw)
 
@@ -107,7 +107,7 @@ class Port:
         """
         return self.raw.get("Output.Active", "")
 
-    def action(self, action):
+    async def action(self, action):
         r"""Activate or deactivate an output.
 
         Use the <wait> option to activate/deactivate the port for a
@@ -129,12 +129,12 @@ class Port:
         )
         url = URL + ACTION.format(action=port_action)
 
-        self._request("get", url)
+        await self._request("get", url)
 
-    def open(self):
+    async def open(self):
         """Open port."""
-        self.action(ACTION_LOW)
+        await self.action(ACTION_LOW)
 
-    def close(self):
+    async def close(self):
         """Close port."""
-        self.action(ACTION_HIGH)
+        await self.action(ACTION_HIGH)

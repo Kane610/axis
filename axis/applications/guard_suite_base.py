@@ -14,9 +14,9 @@ class GuardSuiteBase(APIItems):
         self._api_version = api_version
         super().__init__({}, request, path, item_cls)
 
-    def update(self) -> None:
+    async def update(self) -> None:
         """No update method."""
-        raw = self.get_configuration()
+        raw = await self.get_configuration()
 
         if not raw:
             return
@@ -30,9 +30,9 @@ class GuardSuiteBase(APIItems):
 
         self.process_raw(profiles)
 
-    def get_configuration(self) -> dict:
+    async def get_configuration(self) -> dict:
         """Current configuration of application."""
-        return self._request(
+        return await self._request(
             "post",
             self._path,
             json=attr.asdict(

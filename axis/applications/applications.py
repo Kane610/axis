@@ -26,9 +26,9 @@ class Applications(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, Application)
 
-    def update(self) -> None:
+    async def update(self) -> None:
         """No update method"""
-        raw = self.list()
+        raw = await self.list()
 
         if "application" not in raw["reply"]:
             return
@@ -46,9 +46,9 @@ class Applications(APIItems):
 
         self.process_raw(applications)
 
-    def list(self) -> dict:
+    async def list(self) -> dict:
         """The applications/list.cgi is used to list information about installed applications."""
-        raw = self._request("post", URL_LIST)
+        raw = await self._request("post", URL_LIST)
         return xmltodict.parse(raw)
 
 

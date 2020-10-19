@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.fence_guard tests/test_fence_guard.p
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.applications.fence_guard import FenceGuard
 
@@ -12,15 +12,15 @@ from axis.applications.fence_guard import FenceGuard
 @pytest.fixture
 def fence_guard() -> FenceGuard:
     """Returns the fence_guard mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return FenceGuard(mock_request)
 
 
-def test_get_empty_configuration(fence_guard):
+async def test_get_empty_configuration(fence_guard):
     """Test empty get_configuration"""
     fence_guard._request.return_value = response_get_configuration_empty
-    fence_guard.update()
+    await fence_guard.update()
     fence_guard._request.assert_called_with(
         "post",
         "/local/fenceguard/control.cgi",
@@ -34,10 +34,10 @@ def test_get_empty_configuration(fence_guard):
     assert len(fence_guard.values()) == 0
 
 
-def test_get_configuration(fence_guard):
+async def test_get_configuration(fence_guard):
     """Test get_configuration"""
     fence_guard._request.return_value = response_get_configuration
-    fence_guard.update()
+    await fence_guard.update()
     fence_guard._request.assert_called_with(
         "post",
         "/local/fenceguard/control.cgi",

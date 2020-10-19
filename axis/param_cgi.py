@@ -39,9 +39,9 @@ class Params(APIItems):
 
     # Brand
 
-    def update_brand(self) -> None:
+    async def update_brand(self) -> None:
         """Update brand group of parameters."""
-        self.update(path=URL_GET + GROUP.format(group=BRAND))
+        await self.update(path=URL_GET + GROUP.format(group=BRAND))
 
     @property
     def brand(self) -> str:
@@ -73,11 +73,11 @@ class Params(APIItems):
 
     # Ports
 
-    def update_ports(self) -> None:
+    async def update_ports(self) -> None:
         """Update port groups of parameters."""
-        self.update(path=URL_GET + GROUP.format(group=INPUT))
-        self.update(path=URL_GET + GROUP.format(group=IOPORT))
-        self.update(path=URL_GET + GROUP.format(group=OUTPUT))
+        await self.update(path=URL_GET + GROUP.format(group=INPUT))
+        await self.update(path=URL_GET + GROUP.format(group=IOPORT))
+        await self.update(path=URL_GET + GROUP.format(group=OUTPUT))
 
     @property
     def nbrofinput(self) -> int:
@@ -96,9 +96,9 @@ class Params(APIItems):
 
     # Properties
 
-    def update_properties(self) -> None:
+    async def update_properties(self) -> None:
         """Update properties group of parameters."""
-        self.update(path=URL_GET + GROUP.format(group=PROPERTIES))
+        await self.update(path=URL_GET + GROUP.format(group=PROPERTIES))
 
     @property
     def api_http_version(self) -> str:
@@ -163,9 +163,9 @@ class Params(APIItems):
 
     # Stream profiles
 
-    def update_stream_profiles(self) -> None:
+    async def update_stream_profiles(self) -> None:
         """Update properties group of parameters."""
-        self.update(path=URL_GET + GROUP.format(group=STREAM_PROFILES))
+        await self.update(path=URL_GET + GROUP.format(group=STREAM_PROFILES))
 
     def stream_profiles(self) -> list:
         """Return a list of stream profiles."""

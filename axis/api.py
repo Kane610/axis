@@ -1,6 +1,5 @@
 """API management class and base class for the different end points."""
 
-from abc import ABC, abstractmethod
 import logging
 
 import attr
@@ -33,10 +32,10 @@ class APIItems:
         self.process_raw(raw)
         LOGGER.debug(pformat(raw))
 
-    def update(self, path=None) -> None:
+    async def update(self, path=None) -> None:
         if not path:
             path = self._path
-        raw = self._request("get", path)
+        raw = await self._request("get", path)
         self.process_raw(raw)
 
     def process_raw(self, raw: dict) -> set:
@@ -91,7 +90,6 @@ class APIItem:
         self._raw = raw
 
         for observer in self.observers:
-            # observer.observer_update()
             observer()
 
     def register_callback(self, callback) -> None:
@@ -102,11 +100,3 @@ class APIItem:
         """Remove observer."""
         if observer in self.observers:
             self.observers.remove(observer)
-
-
-class APIItemObserver(ABC):
-    """To register observer to an APIItem."""
-
-    @abstractmethod
-    def observer_update(self):
-        raise NotImplementedError

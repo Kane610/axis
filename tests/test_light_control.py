@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.light_control import LightControl
 
@@ -12,15 +12,15 @@ from axis.light_control import LightControl
 @pytest.fixture
 def light_control() -> LightControl:
     """Returns the light_control mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return LightControl(mock_request)
 
 
-def test_update(light_control):
+async def test_update(light_control):
     """Test update method."""
     light_control._request.return_value = response_getLightInformation
-    light_control.update()
+    await light_control.update()
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -46,10 +46,10 @@ def test_update(light_control):
     assert item.error_info == ""
 
 
-def test_get_service_capabilities(light_control):
+async def test_get_service_capabilities(light_control):
     """Test get service capabilities API."""
     light_control._request.return_value = response_getServiceCapabilities
-    light_control.get_service_capabilities()
+    await light_control.get_service_capabilities()
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -61,10 +61,10 @@ def test_get_service_capabilities(light_control):
     )
 
 
-def test_get_light_information(light_control):
+async def test_get_light_information(light_control):
     """Test get light information API."""
     light_control._request.return_value = response_getLightInformation
-    light_control.get_light_information()
+    await light_control.get_light_information()
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -76,9 +76,9 @@ def test_get_light_information(light_control):
     )
 
 
-def test_activate_light(light_control):
+async def test_activate_light(light_control):
     """Test activating light API."""
-    light_control.activate_light("led0")
+    await light_control.activate_light("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -91,9 +91,9 @@ def test_activate_light(light_control):
     )
 
 
-def test_deactivate_light(light_control):
+async def test_deactivate_light(light_control):
     """Test deactivating light API."""
-    light_control.deactivate_light("led0")
+    await light_control.deactivate_light("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -106,9 +106,9 @@ def test_deactivate_light(light_control):
     )
 
 
-def test_enable_light(light_control):
+async def test_enable_light(light_control):
     """Test enabling light API."""
-    light_control.enable_light("led0")
+    await light_control.enable_light("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -121,9 +121,9 @@ def test_enable_light(light_control):
     )
 
 
-def test_disable_light(light_control):
+async def test_disable_light(light_control):
     """Test disabling light API."""
-    light_control.disable_light("led0")
+    await light_control.disable_light("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -136,10 +136,10 @@ def test_disable_light(light_control):
     )
 
 
-def test_get_light_status(light_control):
+async def test_get_light_status(light_control):
     """Test get light status API."""
     light_control._request.return_value = response_getLightStatus
-    response = light_control.get_light_status("led0")
+    response = await light_control.get_light_status("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -154,9 +154,9 @@ def test_get_light_status(light_control):
     assert response["data"] == {"status": False}
 
 
-def test_set_automatic_intensity_mode(light_control):
+async def test_set_automatic_intensity_mode(light_control):
     """Test set automatic intensity mode API."""
-    light_control.set_automatic_intensity_mode("led0", True)
+    await light_control.set_automatic_intensity_mode("led0", True)
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -169,10 +169,10 @@ def test_set_automatic_intensity_mode(light_control):
     )
 
 
-def test_get_valid_intensity(light_control):
+async def test_get_valid_intensity(light_control):
     """Test get valid intensity API."""
     light_control._request.return_value = response_getManualIntensity
-    response = light_control.get_manual_intensity("led0")
+    response = await light_control.get_manual_intensity("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -187,9 +187,9 @@ def test_get_valid_intensity(light_control):
     assert response["data"] == {"intensity": 1000}
 
 
-def test_set_manual_intensity(light_control):
+async def test_set_manual_intensity(light_control):
     """Test set manual intensity API."""
-    light_control.set_manual_intensity("led0", 1000)
+    await light_control.set_manual_intensity("led0", 1000)
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -202,10 +202,10 @@ def test_set_manual_intensity(light_control):
     )
 
 
-def test_get_manual_intensity(light_control):
+async def test_get_manual_intensity(light_control):
     """Test get manual intensity API."""
     light_control._request.return_value = response_getValidIntensity
-    response = light_control.get_valid_intensity("led0")
+    response = await light_control.get_valid_intensity("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -220,9 +220,9 @@ def test_get_manual_intensity(light_control):
     assert response["data"] == {"ranges": [{"low": 0, "high": 1000}]}
 
 
-def test_set_individual_intensity(light_control):
+async def test_set_individual_intensity(light_control):
     """Test set individual intensity API."""
-    light_control.set_individual_intensity("led0", 1, 1000)
+    await light_control.set_individual_intensity("led0", 1, 1000)
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -235,10 +235,10 @@ def test_set_individual_intensity(light_control):
     )
 
 
-def test_get_individual_intensity(light_control):
+async def test_get_individual_intensity(light_control):
     """Test get individual intensity API."""
     light_control._request.return_value = response_getIndividualIntensity
-    response = light_control.get_individual_intensity("led0", 1)
+    response = await light_control.get_individual_intensity("led0", 1)
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -253,10 +253,10 @@ def test_get_individual_intensity(light_control):
     assert response["data"] == {"intensity": 1000}
 
 
-def test_get_current_intensity(light_control):
+async def test_get_current_intensity(light_control):
     """Test get current intensity API."""
     light_control._request.return_value = response_getCurrentIntensity
-    response = light_control.get_current_intensity("led0")
+    response = await light_control.get_current_intensity("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -271,9 +271,9 @@ def test_get_current_intensity(light_control):
     assert response["data"] == {"intensity": 1000}
 
 
-def test_set_automatic_angle_of_illumination_mode(light_control):
+async def test_set_automatic_angle_of_illumination_mode(light_control):
     """Test set automatic angle of illumination mode API."""
-    light_control.set_automatic_angle_of_illumination_mode("led0", True)
+    await light_control.set_automatic_angle_of_illumination_mode("led0", True)
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -286,10 +286,10 @@ def test_set_automatic_angle_of_illumination_mode(light_control):
     )
 
 
-def test_get_valid_angle_of_illumination(light_control):
+async def test_get_valid_angle_of_illumination(light_control):
     """Test get valid angle of illumination API."""
     light_control._request.return_value = response_getValidAngleOfIllumination
-    response = light_control.get_valid_angle_of_illumination("led0")
+    response = await light_control.get_valid_angle_of_illumination("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -306,9 +306,9 @@ def test_get_valid_angle_of_illumination(light_control):
     }
 
 
-def test_set_manual_angle_of_illumination(light_control):
+async def test_set_manual_angle_of_illumination(light_control):
     """Test set manual angle of illumination API."""
-    light_control.set_manual_angle_of_illumination("led0", 30)
+    await light_control.set_manual_angle_of_illumination("led0", 30)
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -321,10 +321,10 @@ def test_set_manual_angle_of_illumination(light_control):
     )
 
 
-def test_get_manual_angle_of_illumination(light_control):
+async def test_get_manual_angle_of_illumination(light_control):
     """Test get manual angle of illumination API."""
     light_control._request.return_value = response_getManualAngleOfIllumination
-    response = light_control.get_manual_angle_of_illumination("led0")
+    response = await light_control.get_manual_angle_of_illumination("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -339,10 +339,10 @@ def test_get_manual_angle_of_illumination(light_control):
     assert response["data"] == {"angleOfIllumination": 30}
 
 
-def test_get_current_angle_of_illumination(light_control):
+async def test_get_current_angle_of_illumination(light_control):
     """Test get current angle of illumination API."""
     light_control._request.return_value = response_getCurrentAngleOfIllumination
-    response = light_control.get_current_angle_of_illumination("led0")
+    response = await light_control.get_current_angle_of_illumination("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -357,9 +357,9 @@ def test_get_current_angle_of_illumination(light_control):
     assert response["data"] == {"angleOfIllumination": 20}
 
 
-def test_set_light_synchronization_day_night_mode(light_control):
+async def test_set_light_synchronization_day_night_mode(light_control):
     """Test set light synchronization day night mode API."""
-    light_control.set_light_synchronization_day_night_mode("led0", True)
+    await light_control.set_light_synchronization_day_night_mode("led0", True)
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -372,10 +372,10 @@ def test_set_light_synchronization_day_night_mode(light_control):
     )
 
 
-def test_get_light_synchronization_day_night_mode(light_control):
+async def test_get_light_synchronization_day_night_mode(light_control):
     """Test get light synchronization day night mode API."""
     light_control._request.return_value = response_getLightSynchronizationDayNightMode
-    response = light_control.get_light_synchronization_day_night_mode("led0")
+    response = await light_control.get_light_synchronization_day_night_mode("led0")
     light_control._request.assert_called_with(
         "post",
         "/axis-cgi/lightcontrol.cgi",
@@ -390,10 +390,10 @@ def test_get_light_synchronization_day_night_mode(light_control):
     assert response["data"] == {"enabled": True}
 
 
-def test_get_supported_versions(light_control):
+async def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     light_control._request.return_value = response_getSupportedVersions
-    response = light_control.get_supported_versions()
+    response = await light_control.get_supported_versions()
     light_control._request.assert_called_with(
         "post", "/axis-cgi/lightcontrol.cgi", json={"method": "getSupportedVersions"},
     )

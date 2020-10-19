@@ -24,8 +24,8 @@ class StreamProfiles(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, StreamProfile)
 
-    def update(self, path=None) -> None:
-        raw = self.list()
+    async def update(self, path=None) -> None:
+        raw = await self.list()
         if raw["data"]["maxProfiles"] > 0:
             self.process_raw(raw["data"]["streamProfile"])
 
@@ -38,13 +38,13 @@ class StreamProfiles(APIItems):
 
         super().process_raw(raw_profiles)
 
-    def list(self, params: list = []) -> dict:
+    async def list(self, params: list = []) -> dict:
         """This API method can be used to list the content of a stream profile.
 
         It is possible to list either one or multiple profiles and if the parameter
         streamProfileName is the empty list [] all available stream profiles will be listed.
         """
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -52,9 +52,9 @@ class StreamProfiles(APIItems):
             ),
         )
 
-    def get_supported_versions(self) -> dict:
+    async def get_supported_versions(self) -> dict:
         """This CGI method can be used to retrieve a list of supported API versions."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(

@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.applications tests/applications/test
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.applications import Applications
 
@@ -12,24 +12,24 @@ from axis.applications import Applications
 @pytest.fixture
 def applications() -> Applications:
     """Returns the api_discovery mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return Applications(mock_request)
 
 
-def test_update_no_application(applications):
+async def test_update_no_application(applications):
     """Test update applicatios call."""
     applications._request.return_value = list_application_empty_response
-    applications.update()
+    await applications.update()
     applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert len(applications.values()) == 0
 
 
-def test_update_single_application(applications):
+async def test_update_single_application(applications):
     """Test update applicatios call."""
     applications._request.return_value = list_application_response
-    applications.update()
+    await applications.update()
     applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert len(applications.values()) == 1
@@ -49,10 +49,10 @@ def test_update_single_application(applications):
     assert app.version == "4.4-5"
 
 
-def test_update_multiple_applications(applications):
+async def test_update_multiple_applications(applications):
     """Test update applicatios call."""
     applications._request.return_value = list_applications_response
-    applications.update()
+    await applications.update()
     applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert len(applications.values()) == 7
@@ -158,10 +158,10 @@ def test_update_multiple_applications(applications):
     assert app.version == "2.2-6"
 
 
-def test_list_single_application(applications):
+async def test_list_single_application(applications):
     """Test list applicatios call."""
     applications._request.return_value = list_application_response
-    raw = applications.list()
+    raw = await applications.list()
     applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert "reply" in raw
@@ -169,10 +169,10 @@ def test_list_single_application(applications):
     assert raw["reply"]["application"]["@NiceName"] == "AXIS Video Motion Detection"
 
 
-def test_list_multiple_applications(applications):
+async def test_list_multiple_applications(applications):
     """Test list applicatios call."""
     applications._request.return_value = list_applications_response
-    raw = applications.list()
+    raw = await applications.list()
     applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert "reply" in raw

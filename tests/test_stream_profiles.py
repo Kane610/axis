@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.stream_profiles tests/test_stream_pr
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.stream_profiles import StreamProfiles
 
@@ -12,15 +12,15 @@ from axis.stream_profiles import StreamProfiles
 @pytest.fixture
 def stream_profiles() -> StreamProfiles:
     """Returns the stream_profiles mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return StreamProfiles(mock_request)
 
 
-def test_list_stream_profiles(stream_profiles):
+async def test_list_stream_profiles(stream_profiles):
     """Test get_supported_versions"""
     stream_profiles._request.return_value = response_list
-    stream_profiles.update()
+    await stream_profiles.update()
     stream_profiles._request.assert_called_with(
         "post",
         "/axis-cgi/streamprofile.cgi",
@@ -41,10 +41,10 @@ def test_list_stream_profiles(stream_profiles):
     assert stream_profile.parameters == "resolution=1920x1080"
 
 
-def test_get_supported_versions(stream_profiles):
+async def test_get_supported_versions(stream_profiles):
     """Test get_supported_versions"""
     stream_profiles._request.return_value = response_getSupportedVersions
-    response = stream_profiles.get_supported_versions()
+    response = await stream_profiles.get_supported_versions()
     stream_profiles._request.assert_called_with(
         "post", "/axis-cgi/streamprofile.cgi", json={"method": "getSupportedVersions"},
     )

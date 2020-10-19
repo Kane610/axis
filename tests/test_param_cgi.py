@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
 import pytest
-from unittest.mock import Mock, call
+from unittest.mock import AsyncMock, call
 
 from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
 
@@ -12,14 +12,14 @@ from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
 @pytest.fixture
 def params() -> Params:
     """Returns the param cgi mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     return Params(mock_request)
 
 
-def test_params(params):
+async def test_params(params):
     """Verify that you can list parameters."""
     params._request.return_value = response_param_cgi
-    params.update()
+    await params.update()
 
     # Brand
     assert params.brand == "AXIS"
@@ -58,17 +58,17 @@ def test_params(params):
     assert params.system_serialnumber == "ACCC12345678"
 
 
-def test_params_empty_raw(params):
+async def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
     assert params
 
     assert params.light_control is False
 
 
-def test_update_brand(params):
+async def test_update_brand(params):
     """Verify that update brand works."""
     params._request.return_value = response_param_cgi_brand
-    params.update_brand()
+    await params.update_brand()
 
     params._request.assert_called_with(
         "get", "/axis-cgi/param.cgi?action=list&group=root.Brand"
@@ -83,10 +83,10 @@ def test_update_brand(params):
     assert params[f"{BRAND}.WebURL"].raw == "http://www.axis.com"
 
 
-def test_update_ports(params):
+async def test_update_ports(params):
     """Verify that update brand works."""
     params._request.return_value = response_param_cgi_ports
-    params.update_ports()
+    await params.update_ports()
 
     params._request.assert_has_calls(
         [
@@ -104,10 +104,10 @@ def test_update_ports(params):
     assert params[f"{OUTPUT}.NbrOfOutputs"].raw == "0"
 
 
-def test_update_properties(params):
+async def test_update_properties(params):
     """Verify that update properties works."""
     params._request.return_value = response_param_cgi_properties
-    params.update_properties()
+    await params.update_properties()
 
     params._request.assert_called_with(
         "get", "/axis-cgi/param.cgi?action=list&group=root.Properties"
@@ -233,10 +233,10 @@ def test_update_properties(params):
     assert params[f"{PROPERTIES}.ZipStream.ZipStream"].raw == "yes"
 
 
-def test_update_stream_profiles(params):
+async def test_update_stream_profiles(params):
     """Verify that update properties works."""
     params._request.return_value = response_param_cgi
-    params.update_stream_profiles()
+    await params.update_stream_profiles()
 
     params._request.assert_called_with(
         "get", "/axis-cgi/param.cgi?action=list&group=root.StreamProfile"

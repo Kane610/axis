@@ -20,8 +20,8 @@ class LightControl(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, Light)
 
-    def update(self, path=None) -> None:
-        raw = self.get_light_information()
+    async def update(self, path=None) -> None:
+        raw = await self.get_light_information()
         self.process_raw(raw.get("data", {}).get("items", []))
 
     def process_raw(self, raw: list) -> None:
@@ -33,9 +33,9 @@ class LightControl(APIItems):
 
         super().process_raw(raw_dict)
 
-    def get_service_capabilities(self) -> dict:
+    async def get_service_capabilities(self) -> dict:
         """List the capabilities of the light controller."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -44,9 +44,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_light_information(self) -> dict:
+    async def get_light_information(self) -> dict:
         """List the light control information."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -55,9 +55,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def activate_light(self, light_id: str) -> None:
+    async def activate_light(self, light_id: str) -> None:
         """Activate the light."""
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -65,9 +65,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def deactivate_light(self, light_id: str) -> None:
+    async def deactivate_light(self, light_id: str) -> None:
         """Deactivate the light."""
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -75,9 +75,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def enable_light(self, light_id: str) -> None:
+    async def enable_light(self, light_id: str) -> None:
         """Enable the light functionality."""
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -85,9 +85,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def disable_light(self, light_id: str) -> None:
+    async def disable_light(self, light_id: str) -> None:
         """Disable the light functionality."""
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -95,9 +95,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_light_status(self, light_id: str) -> dict:
+    async def get_light_status(self, light_id: str) -> dict:
         """List the light control information."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -105,9 +105,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def set_automatic_intensity_mode(self, light_id: str, enabled: bool) -> dict:
+    async def set_automatic_intensity_mode(self, light_id: str, enabled: bool) -> dict:
         """Enable the automatic light intensity control."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -119,9 +119,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_valid_intensity(self, light_id: str) -> dict:
+    async def get_valid_intensity(self, light_id: str) -> dict:
         """List the valid light intensity values."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -129,9 +129,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def set_manual_intensity(self, light_id: str, intensity: int) -> dict:
+    async def set_manual_intensity(self, light_id: str, intensity: int) -> dict:
         """Manually sets the intensity."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -143,9 +143,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_manual_intensity(self, light_id: str) -> dict:
+    async def get_manual_intensity(self, light_id: str) -> dict:
         """Receives the intensity from the setManualIntensity request."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -153,11 +153,11 @@ class LightControl(APIItems):
             ),
         )
 
-    def set_individual_intensity(
+    async def set_individual_intensity(
         self, light_id: str, led_id: int, intensity: int
     ) -> None:
         """Manually sets the intensity for an individual LED."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -173,9 +173,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_individual_intensity(self, light_id: str, led_id: int) -> dict:
+    async def get_individual_intensity(self, light_id: str, led_id: int) -> dict:
         """Receives the intensity from the setIndividualIntensity request."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -187,9 +187,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_current_intensity(self, light_id: str) -> dict:
+    async def get_current_intensity(self, light_id: str) -> dict:
         """Receives the current intensity."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -197,14 +197,14 @@ class LightControl(APIItems):
             ),
         )
 
-    def set_automatic_angle_of_illumination_mode(
+    async def set_automatic_angle_of_illumination_mode(
         self, light_id: str, enabled: bool
     ) -> None:
         """Automatically control the angle of illumination.
 
         Using this mode means that the angle of illumination is the same as the camera’s angle of view.
         """
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -216,9 +216,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_valid_angle_of_illumination(self, light_id: str) -> dict:
+    async def get_valid_angle_of_illumination(self, light_id: str) -> dict:
         """List the valid angle of illumination values."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -230,14 +230,14 @@ class LightControl(APIItems):
             ),
         )
 
-    def set_manual_angle_of_illumination(
+    async def set_manual_angle_of_illumination(
         self, light_id: str, angle_of_illumination: int
     ) -> None:
         """Set the manual angle of illumination.
 
         This is useful when the angle of illumination needs to be different from the camera’s view angle.
         """
-        self._request(
+        await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -252,9 +252,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_manual_angle_of_illumination(self, light_id: str) -> dict:
+    async def get_manual_angle_of_illumination(self, light_id: str) -> dict:
         """Receive the angle of illumination from the setManualAngleOfIllumination request."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -266,9 +266,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_current_angle_of_illumination(self, light_id: str) -> dict:
+    async def get_current_angle_of_illumination(self, light_id: str) -> dict:
         """Receive the current angle of illumination."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -280,11 +280,11 @@ class LightControl(APIItems):
             ),
         )
 
-    def set_light_synchronization_day_night_mode(
+    async def set_light_synchronization_day_night_mode(
         self, light_id: str, enabled: bool
     ) -> None:
         """Enable automatic synchronization with the day/night mode."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -296,9 +296,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_light_synchronization_day_night_mode(self, light_id: str) -> dict:
+    async def get_light_synchronization_day_night_mode(self, light_id: str) -> dict:
         """Check if the automatic synchronization is enabled with the day/night mode."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(
@@ -310,9 +310,9 @@ class LightControl(APIItems):
             ),
         )
 
-    def get_supported_versions(self) -> dict:
+    async def get_supported_versions(self) -> dict:
         """Supported versions of light control."""
-        return self._request(
+        return await self._request(
             "post",
             URL,
             json=attr.asdict(

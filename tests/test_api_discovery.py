@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 
 from axis.api_discovery import ApiDiscovery, API_DISCOVERY_ID
 
@@ -12,15 +12,15 @@ from axis.api_discovery import ApiDiscovery, API_DISCOVERY_ID
 @pytest.fixture
 def api_discovery() -> ApiDiscovery:
     """Returns the api_discovery mock object."""
-    mock_request = Mock()
+    mock_request = AsyncMock()
     mock_request.return_value = ""
     return ApiDiscovery(mock_request)
 
 
-def test_get_api_list(api_discovery):
+async def test_get_api_list(api_discovery):
     """Test get_api_list call."""
     api_discovery._request.return_value = response_getApiList
-    api_discovery.update()
+    await api_discovery.update()
     api_discovery._request.assert_called_with(
         "post",
         "/axis-cgi/apidiscovery.cgi",
@@ -35,10 +35,10 @@ def test_get_api_list(api_discovery):
     assert item.version == "1.0"
 
 
-def test_get_supported_versions(api_discovery):
+async def test_get_supported_versions(api_discovery):
     """Test get_supported_versions"""
     api_discovery._request.return_value = response_getSupportedVersions
-    response = api_discovery.get_supported_versions()
+    response = await api_discovery.get_supported_versions()
     api_discovery._request.assert_called_with(
         "post", "/axis-cgi/apidiscovery.cgi", json={"method": "getSupportedVersions"},
     )
