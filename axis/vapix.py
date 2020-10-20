@@ -1,5 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+import asyncio
 import logging
 from packaging import version
 
@@ -110,39 +111,51 @@ class Vapix:
         except PathNotFound:  # Device doesn't support API discovery
             return
 
-        for api_id, api_class, api_attr in (
-            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
-            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
-            (LIGHT_CONTROL_ID, LightControl, "light_control"),
-            (MQTT_ID, MqttClient, "mqtt"),
-            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
-        ):
-            if api_id in self.api_discovery:
-                try:
-                    api_item = api_class(self.request)
-                    await api_item.update()
-                    setattr(self, api_attr, api_item)
-                except Unauthorized:  # Probably a viewer account
-                    pass
+        async def initialize_api(api_class, api_attr) -> None:
+            """Initialize API and load data."""
+            try:
+                api_item = api_class(self.request)
+                await api_item.update()
+                setattr(self, api_attr, api_item)
+            except Unauthorized:  # Probably a viewer account
+                pass
+
+        await asyncio.gather(
+            *[
+                initialize_api(api_class, api_attr)
+                for api_id, api_class, api_attr in (
+                    (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
+                    (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
+                    (LIGHT_CONTROL_ID, LightControl, "light_control"),
+                    (MQTT_ID, MqttClient, "mqtt"),
+                    (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
+                )
+                if api_id in self.api_discovery
+            ]
+        )
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
         self.params = Params(self.request)
 
+        tasks = []
+
         if preload_data:
-            await self.params.update()
+            tasks.append(self.params.update())
 
         if not preload_data:
-            await self.params.update_properties()
+            tasks.append(self.params.update_properties())
 
             if not self.basic_device_info:
-                await self.params.update_brand()
+                tasks.append(self.params.update_brand())
 
             if not self.ports:
-                await self.params.update_ports()
+                tasks.append(self.params.update_ports())
 
             if not self.stream_profiles:
-                await self.params.update_stream_profiles()
+                tasks.append(self.params.update_stream_profiles())
+
+        await asyncio.gather(*tasks)
 
         if not self.light_control and self.params.light_control:
             try:
@@ -169,25 +182,28 @@ class Vapix:
             except Unauthorized:  # Probably a viewer account
                 return
 
-        for app_class, app_attr in (
-            (FenceGuard, "fence_guard"),
-            (LoiteringGuard, "loitering_guard"),
-            (MotionGuard, "motion_guard"),
-            (Vmd4, "vmd4"),
-        ):
-            if app_class.APPLICATION_NAME not in self.applications:
-                continue
-
+        async def initialize_app(app_class, app_attr):
+            """Initialize app and load data."""
             app_item = app_class(self.request)
-
-            if (
-                self.applications[app_class.APPLICATION_NAME].status
-                != APPLICATION_STATE_RUNNING
-            ):
-                continue
-
             await app_item.update()
             setattr(self, app_attr, app_item)
+
+        await asyncio.gather(
+            *[
+                initialize_app(app_class, app_attr)
+                for app_class, app_attr in (
+                    (FenceGuard, "fence_guard"),
+                    (LoiteringGuard, "loitering_guard"),
+                    (MotionGuard, "motion_guard"),
+                    (Vmd4, "vmd4"),
+                )
+                if (
+                    app_class.APPLICATION_NAME in self.applications
+                    and self.applications[app_class.APPLICATION_NAME].status
+                    == APPLICATION_STATE_RUNNING
+                )
+            ]
+        )
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
