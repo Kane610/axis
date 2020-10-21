@@ -1,5 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+import asyncio
 import logging
 from packaging import version
 
@@ -102,6 +103,16 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
+    async def _initialize_api_attribute(self, api_class, api_attr: str) -> None:
+        """Initialize API and load data."""
+        api_instance = api_class(self.request)
+        try:
+            await api_instance.update()
+        except Unauthorized:  # Probably a viewer account
+            pass
+        else:
+            setattr(self, api_attr, api_instance)
+
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
         self.api_discovery = ApiDiscovery(self.request)
@@ -109,6 +120,8 @@ class Vapix:
             await self.api_discovery.update()
         except PathNotFound:  # Device doesn't support API discovery
             return
+
+        tasks = []
 
         for api_id, api_class, api_attr in (
             (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
@@ -118,39 +131,37 @@ class Vapix:
             (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
         ):
             if api_id in self.api_discovery:
-                try:
-                    api_item = api_class(self.request)
-                    await api_item.update()
-                    setattr(self, api_attr, api_item)
-                except Unauthorized:  # Probably a viewer account
-                    pass
+                tasks.append(self._initialize_api_attribute(api_class, api_attr))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
         self.params = Params(self.request)
 
-        if preload_data:
-            await self.params.update()
+        tasks = []
 
-        if not preload_data:
-            await self.params.update_properties()
+        if preload_data:
+            tasks.append(self.params.update())
+
+        else:
+            tasks.append(self.params.update_properties())
 
             if not self.basic_device_info:
-                await self.params.update_brand()
+                tasks.append(self.params.update_brand())
 
             if not self.ports:
-                await self.params.update_ports()
+                tasks.append(self.params.update_ports())
 
             if not self.stream_profiles:
-                await self.params.update_stream_profiles()
+                tasks.append(self.params.update_stream_profiles())
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
         if not self.light_control and self.params.light_control:
-            try:
-                light_control = LightControl(self.request)
-                await light_control.update()
-                self.light_control = light_control
-            except Unauthorized:  # Probably a viewer account
-                pass
+            await self._initialize_api_attribute(LightControl, "light_control")
 
         if not self.ports:
             self.ports = Ports(self.params, self.request)
@@ -169,25 +180,23 @@ class Vapix:
             except Unauthorized:  # Probably a viewer account
                 return
 
+        tasks = []
+
         for app_class, app_attr in (
             (FenceGuard, "fence_guard"),
             (LoiteringGuard, "loitering_guard"),
             (MotionGuard, "motion_guard"),
             (Vmd4, "vmd4"),
         ):
-            if app_class.APPLICATION_NAME not in self.applications:
-                continue
-
-            app_item = app_class(self.request)
-
             if (
-                self.applications[app_class.APPLICATION_NAME].status
-                != APPLICATION_STATE_RUNNING
+                app_class.APPLICATION_NAME in self.applications
+                and self.applications[app_class.APPLICATION_NAME].status
+                == APPLICATION_STATE_RUNNING
             ):
-                continue
+                tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
-            await app_item.update()
-            setattr(self, app_attr, app_item)
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

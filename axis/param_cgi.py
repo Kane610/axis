@@ -5,6 +5,8 @@ https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 Lists Brand, Ports, Properties, Stream profiles.
 """
 
+import asyncio
+
 from .api import APIItem, APIItems
 from .stream_profiles import StreamProfile
 
@@ -75,9 +77,11 @@ class Params(APIItems):
 
     async def update_ports(self) -> None:
         """Update port groups of parameters."""
-        await self.update(path=URL_GET + GROUP.format(group=INPUT))
-        await self.update(path=URL_GET + GROUP.format(group=IOPORT))
-        await self.update(path=URL_GET + GROUP.format(group=OUTPUT))
+        await asyncio.gather(
+            self.update(path=URL_GET + GROUP.format(group=INPUT)),
+            self.update(path=URL_GET + GROUP.format(group=IOPORT)),
+            self.update(path=URL_GET + GROUP.format(group=OUTPUT)),
+        )
 
     @property
     def nbrofinput(self) -> int:
