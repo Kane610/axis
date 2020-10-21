@@ -103,6 +103,16 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
+    async def _initialize_api_attribute(self, api_class, api_attr: str) -> None:
+        """Initialize API and load data."""
+        api_instance = api_class(self.request)
+        try:
+            await api_instance.update()
+        except Unauthorized:  # Probably a viewer account
+            pass
+        else:
+            setattr(self, api_attr, api_instance)
+
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
         self.api_discovery = ApiDiscovery(self.request)
@@ -110,15 +120,6 @@ class Vapix:
             await self.api_discovery.update()
         except PathNotFound:  # Device doesn't support API discovery
             return
-
-        async def initialize_api(api_class, api_attr) -> None:
-            """Initialize API and load data."""
-            try:
-                api_item = api_class(self.request)
-                await api_item.update()
-                setattr(self, api_attr, api_item)
-            except Unauthorized:  # Probably a viewer account
-                pass
 
         tasks = []
 
@@ -130,7 +131,7 @@ class Vapix:
             (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
         ):
             if api_id in self.api_discovery:
-                tasks.append(initialize_api(api_class, api_attr))
+                tasks.append(self._initialize_api_attribute(api_class, api_attr))
 
         if tasks:
             await asyncio.gather(*tasks)
@@ -144,7 +145,7 @@ class Vapix:
         if preload_data:
             tasks.append(self.params.update())
 
-        if not preload_data:
+        else:
             tasks.append(self.params.update_properties())
 
             if not self.basic_device_info:
@@ -160,12 +161,7 @@ class Vapix:
             await asyncio.gather(*tasks)
 
         if not self.light_control and self.params.light_control:
-            try:
-                light_control = LightControl(self.request)
-                await light_control.update()
-                self.light_control = light_control
-            except Unauthorized:  # Probably a viewer account
-                pass
+            await self._initialize_api_attribute(LightControl, "light_control")
 
         if not self.ports:
             self.ports = Ports(self.params, self.request)
@@ -184,12 +180,6 @@ class Vapix:
             except Unauthorized:  # Probably a viewer account
                 return
 
-        async def initialize_app(app_class, app_attr):
-            """Initialize app and load data."""
-            app_item = app_class(self.request)
-            await app_item.update()
-            setattr(self, app_attr, app_item)
-
         tasks = []
 
         for app_class, app_attr in (
@@ -203,7 +193,7 @@ class Vapix:
                 and self.applications[app_class.APPLICATION_NAME].status
                 == APPLICATION_STATE_RUNNING
             ):
-                tasks.append(initialize_app(app_class, app_attr))
+                tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
         if tasks:
             await asyncio.gather(*tasks)
