@@ -155,7 +155,8 @@ class Vapix:
             if not self.stream_profiles:
                 tasks.append(self.params.update_stream_profiles())
 
-        await asyncio.gather(*tasks)
+        if tasks:
+            await asyncio.gather(*tasks)
 
         if not self.light_control and self.params.light_control:
             try:
