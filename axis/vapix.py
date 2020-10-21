@@ -120,19 +120,20 @@ class Vapix:
             except Unauthorized:  # Probably a viewer account
                 pass
 
-        await asyncio.gather(
-            *[
-                initialize_api(api_class, api_attr)
-                for api_id, api_class, api_attr in (
-                    (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
-                    (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
-                    (LIGHT_CONTROL_ID, LightControl, "light_control"),
-                    (MQTT_ID, MqttClient, "mqtt"),
-                    (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
-                )
-                if api_id in self.api_discovery
-            ]
-        )
+        tasks = []
+
+        for api_id, api_class, api_attr in (
+            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
+            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
+            (LIGHT_CONTROL_ID, LightControl, "light_control"),
+            (MQTT_ID, MqttClient, "mqtt"),
+            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
+        ):
+            if api_id in self.api_discovery:
+                tasks.append(initialize_api(api_class, api_attr))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
@@ -189,22 +190,23 @@ class Vapix:
             await app_item.update()
             setattr(self, app_attr, app_item)
 
-        await asyncio.gather(
-            *[
-                initialize_app(app_class, app_attr)
-                for app_class, app_attr in (
-                    (FenceGuard, "fence_guard"),
-                    (LoiteringGuard, "loitering_guard"),
-                    (MotionGuard, "motion_guard"),
-                    (Vmd4, "vmd4"),
-                )
-                if (
-                    app_class.APPLICATION_NAME in self.applications
-                    and self.applications[app_class.APPLICATION_NAME].status
-                    == APPLICATION_STATE_RUNNING
-                )
-            ]
-        )
+        tasks = []
+
+        for app_class, app_attr in (
+            (FenceGuard, "fence_guard"),
+            (LoiteringGuard, "loitering_guard"),
+            (MotionGuard, "motion_guard"),
+            (Vmd4, "vmd4"),
+        ):
+            if (
+                app_class.APPLICATION_NAME in self.applications
+                and self.applications[app_class.APPLICATION_NAME].status
+                == APPLICATION_STATE_RUNNING
+            ):
+                tasks.append(initialize_app(app_class, app_attr))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
