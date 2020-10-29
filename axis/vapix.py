@@ -146,16 +146,26 @@ class Vapix:
             tasks.append(self.params.update())
 
         else:
-            tasks.append(self.params.update_properties())
+            await self.params.update_properties()
 
             if not self.basic_device_info:
-                tasks.append(self.params.update_brand())
+                await self.params.update_brand()
 
             if not self.ports:
-                tasks.append(self.params.update_ports())
+                await self.params.update_ports()
 
             if not self.stream_profiles:
-                tasks.append(self.params.update_stream_profiles())
+                await self.params.update_stream_profiles()
+            # tasks.append(self.params.update_properties())
+
+            # if not self.basic_device_info:
+            #     tasks.append(self.params.update_brand())
+
+            # if not self.ports:
+            #     tasks.append(self.params.update_ports())
+
+            # if not self.stream_profiles:
+            #     tasks.append(self.params.update_stream_profiles())
 
         if tasks:
             await asyncio.gather(*tasks)
@@ -209,6 +219,11 @@ class Vapix:
 
         LOGGER.debug("%s %s", url, kwargs)
 
+        # self.session = httpx.AsyncClient(
+        #     auth=httpx.DigestAuth(self.config.username, self.config.password),
+        #     verify=self.config.verify_ssl,
+        # )
+
         try:
             response = await self.session.request(method, url, **kwargs)
             response.raise_for_status()
@@ -226,17 +241,21 @@ class Vapix:
             return response.text
 
         except httpx.HTTPStatusError as errh:
+            print("sssss")
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
         except httpx.TimeoutException as errt:
+            print("vvvvv")
             LOGGER.debug("%s", errt)
             raise RequestError("Timeout: {}".format(errt))
 
         except httpx.TransportError as errc:
+            print("rrrrr")
             LOGGER.debug("%s", errc)
             raise RequestError("Connection error: {}".format(errc))
 
         except httpx.RequestError as err:
+            print("ttttt")
             LOGGER.debug("%s", err)
             raise RequestError("Unknown error: {}".format(err))

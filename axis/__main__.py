@@ -34,7 +34,8 @@ async def axis_device(host, port, username, password):
             "Connected to device at %s but not registered or user not admin.", host
         )
 
-    except (asyncio.TimeoutError, axis.RequestError):
+    except (asyncio.TimeoutError, axis.RequestError) as err:
+        print("error", err)
         LOGGER.error("Error connecting to the Axis device at %s", host)
 
     except axis.AxisException:
