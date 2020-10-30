@@ -21,11 +21,20 @@ MOVE_UPRIGHT = "upright"
 MOVE_DOWNLEFT = "downleft"
 MOVE_DOWNRIGHT = "downright"
 MOVE_STOP = "stop"
-SUPPORTED_MOVE_COMMANDS = (MOVE_HOME, MOVE_UP, MOVE_DOWN, MOVE_LEFT, MOVE_RIGHT, MOVE_UPLEFT, MOVE_UPRIGHT, MOVE_DOWNLEFT, MOVE_DOWNRIGHT, MOVE_STOP)
+SUPPORTED_MOVES = (MOVE_HOME, MOVE_UP, MOVE_DOWN, MOVE_LEFT, MOVE_RIGHT, MOVE_UPLEFT, MOVE_UPRIGHT, MOVE_DOWNLEFT, MOVE_DOWNRIGHT, MOVE_STOP)
 
 AUTO = "auto"
 ON = "on"
 OFF = "off"
+
+QUERY_LIMITS = "limits"
+QUERY_MODE = "mode"
+QUERY_POSITION = "position"
+QUERY_PRESETPOSALL = "presetposall"
+QUERY_PRESETPOSCAM = "presetposcam"
+QUERY_PRESETPOSCAMDATA = "presetposcamdata"
+QUERY_SPEED = "speed"
+SUPPORTED_QUERIES = (QUERY_LIMITS, QUERY_MODE, QUERY_POSITION, QUERY_PRESETPOSALL, QUERY_PRESETPOSCAM, QUERY_PRESETPOSCAMDATA, QUERY_SPEED)
 
 
 def limit(num, minimum, maximum):
@@ -154,7 +163,7 @@ class PtzControl:
                 data["imagewidth"] = imagewidth
             if imageheight:
                 data["imageheight"] = imageheight
-        if move in SUPPORTED_MOVE_COMMANDS:
+        if move in SUPPORTED_MOVES:
             data["move"] = move
 
         for key, value, minimum, maximum in (
@@ -209,18 +218,20 @@ class PtzControl:
         print(data)
         return await self._request("post", URL, data=data)
 
-    # async def current_status(self):
-    #     """Returns the current status.
+    async def query(self, query):
+        """Returns the current status.
 
-    #     limits = PTZ limits for the Axis product.
-    #     mode = Products with Panopsis technology: The current mode (overview or normal).
-    #     position = Values for current position.
-    #     presetposall = Current preset positions for all video channels.
-    #     presetposcam = Current preset positions for a video channel.
-    #     presetposcamdata = Returns the configured preset positions with position data measured in degrees.
-    #     speed = Values for pan/tilt speed.
-    #     """
-    #     return await self._request("post", URL, data={"query": })
+        limits = PTZ limits for the Axis product.
+        mode = Products with Panopsis technology: The current mode (overview or normal).
+        position = Values for current position.
+        presetposall = Current preset positions for all video channels.
+        presetposcam = Current preset positions for a video channel.
+        presetposcamdata = Returns the configured preset positions with position data measured in degrees.
+        speed = Values for pan/tilt speed.
+        """
+        if query not in SUPPORTED_QUERIES:
+            return
+        return await self._request("post", URL, data={"query": query})
 
     async def configured_device_driver(self) -> str:
         """Name of the system-configured device driver."""

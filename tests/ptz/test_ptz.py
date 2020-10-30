@@ -6,7 +6,21 @@ pytest --cov-report term-missing --cov=axis.ptz.ptz tests/ptz/test_ptz.py
 import pytest
 from unittest.mock import AsyncMock
 
-from axis.ptz import AUTO, MOVE_HOME, OFF, ON, PtzControl, limit
+from axis.ptz import (
+    AUTO,
+    MOVE_HOME,
+    OFF,
+    ON,
+    PtzControl,
+    QUERY_LIMITS,
+    QUERY_MODE,
+    QUERY_POSITION,
+    QUERY_PRESETPOSALL,
+    QUERY_PRESETPOSCAM,
+    QUERY_PRESETPOSCAMDATA,
+    QUERY_SPEED,
+    limit,
+)
 
 
 UNSUPPORTED_COMMAND = "unsupported"
@@ -632,3 +646,206 @@ async def test_ptz_control_gotodevicepreset(ptz_control):
         "/axis-cgi/com/ptz.cgi",
         data={"gotodevicepreset": "any"},
     )
+
+
+async def test_query_limit(ptz_control):
+    """Verify PTZ control query limits."""
+    ptz_control._request.return_value = query_limits_response
+    response = await ptz_control.query(QUERY_LIMITS)
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"query": QUERY_LIMITS},
+    )
+
+    assert response == query_limits_response
+
+
+async def test_query_mode(ptz_control):
+    """Verify PTZ control query modes."""
+    ptz_control._request.return_value = query_mode_response
+    response = await ptz_control.query(QUERY_MODE)
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"query": QUERY_MODE},
+    )
+
+    assert response == query_mode_response
+
+
+async def test_query_position(ptz_control):
+    """Verify PTZ control query positions."""
+    ptz_control._request.return_value = query_position_response
+    response = await ptz_control.query(QUERY_POSITION)
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"query": QUERY_POSITION},
+    )
+
+    assert response == query_position_response
+
+
+async def test_query_presetposall(ptz_control):
+    """Verify PTZ control query presetposalls."""
+    ptz_control._request.return_value = query_presetposall_response
+    response = await ptz_control.query(QUERY_PRESETPOSALL)
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"query": QUERY_PRESETPOSALL},
+    )
+
+    assert response == query_presetposall_response
+
+
+async def test_query_presetposcam(ptz_control):
+    """Verify PTZ control query presetposcams."""
+    ptz_control._request.return_value = query_presetposcam_response
+    response = await ptz_control.query(QUERY_PRESETPOSCAM)
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"query": QUERY_PRESETPOSCAM},
+    )
+
+    assert response == query_presetposcam_response
+
+
+async def test_query_presetposcamdata(ptz_control):
+    """Verify PTZ control query presetposcamdatas."""
+    ptz_control._request.return_value = query_presetposcamdata_response
+    response = await ptz_control.query(QUERY_PRESETPOSCAMDATA)
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"query": QUERY_PRESETPOSCAMDATA},
+    )
+
+    assert response == query_presetposcamdata_response
+
+
+async def test_query_speed(ptz_control):
+    """Verify PTZ control query speeds."""
+    ptz_control._request.return_value = query_speed_response
+    response = await ptz_control.query(QUERY_SPEED)
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"query": QUERY_SPEED},
+    )
+
+    assert response == query_speed_response
+
+
+async def test_query_unsupported_command(ptz_control):
+    """Verify PTZ control query doesn't send unsupported commands."""
+    await ptz_control.query(UNSUPPORTED_COMMAND)
+    ptz_control._request.assert_not_called()
+
+
+async def test_get_configured_device_driver(ptz_control):
+    """Verify listing configured device driver."""
+    ptz_control._request.return_value = whoami_response
+    response = await ptz_control.configured_device_driver()
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"whoami": 1},
+    )
+
+    assert response == whoami_response
+
+
+async def test_get_available_ptz_commands(ptz_control):
+    """Verify listing configured device driver."""
+    ptz_control._request.return_value = info_response
+    response = await ptz_control.available_ptz_commands()
+    ptz_control._request.assert_called_with(
+        "post",
+        "/axis-cgi/com/ptz.cgi",
+        data={"info": 1},
+    )
+
+    assert response == info_response
+
+
+query_limits_response = """MinPan=-170
+MaxPan=170
+MinTilt=-20
+MaxTilt=90
+MinZoom=1
+MaxZoom=9999
+MinIris=1
+MaxIris=9999
+MinFocus=770
+MaxFocus=9999
+MinFieldAngle=22
+MaxFieldAngle=623
+MinBrightness=1
+MaxBrightness=9999"""
+
+query_mode_response = "mode=normal"
+
+query_position_response = """pan=51.2891
+tilt=46.1914
+zoom=1
+iris=6427
+focus=8265
+brightness=4999
+autofocus=off
+autoiris=on"""
+
+query_presetposall_response = """Preset Positions for camera 1
+presetposno1=Home"""
+
+query_presetposcam_response = """Preset Positions for camera 1
+presetposno1=Home"""
+
+query_presetposcamdata_response = """Preset Positions for camera 1
+presetposno1=Home"""
+
+query_speed_response = "speed=100"
+
+whoami_response = "Sony_camblock"
+
+info_response = """Available commands
+:
+{camera=[n]}
+whoami=yes
+center=[x],[y]
+   imagewidth=[n]
+   imageheight=[n]
+areazoom=[x],[y],[z]
+   imagewidth=[n]
+   imageheight=[n]
+move={ home | up | down | left | right | upleft | upright | downleft | downright | stop }
+pan=[abspos]
+tilt=[abspos]
+zoom=[n]
+focus=[n]
+iris=[n]
+brightness=[offset]
+rpan=[offset]
+rtilt=[offset]
+rzoom=[offset]
+rfocus=[offset]
+riris=[offset]
+rbrightness=[offset]
+autofocus={ on | off }
+autoiris={ on | off }
+ircutfilter={ on | off | auto }
+backlight={ on | off }
+continuouspantiltmove=[x-speed],[y-speed]
+continuouszoommove=[speed]
+continuousfocusmove=[speed]
+auxiliary=[function]
+setserverpresetname=[name]
+setserverpresetno=[n]
+removeserverpresetname=[name]
+removeserverpresetno=[n]
+gotoserverpresetname=[name]
+gotoserverpresetno=[n]
+speed=[n]
+query={ speed | position | limits | presetposcam | presetposall }"""
