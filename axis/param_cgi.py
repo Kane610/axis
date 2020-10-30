@@ -117,6 +117,13 @@ class Params(APIItems):
         return self[f"{PROPERTIES}.API.Metadata.Version"].raw
 
     @property
+    def api_ptz_presets_version(self) -> bool:
+        presets_version = f"{PROPERTIES}.API.PTZ.Presets.Version"
+        if presets_version not in self:
+            return False
+        return self[presets_version].raw == "yes"
+
+    @property
     def embedded_development(self) -> str:
         """VAPIX® Application API is supported.
 
@@ -160,6 +167,20 @@ class Params(APIItems):
         if light_control not in self:
             return False
         return self[light_control].raw == "yes"
+
+    @property
+    def ptz(self) -> bool:
+        ptz_support = f"{PROPERTIES}.PTZ.PTZ"
+        if ptz_support not in self:
+            return False
+        return self[ptz_support].raw == "yes"
+
+    @property
+    def ptz_digital_ptz(self) -> bool:
+        digital_ptz_support = f"{PROPERTIES}.PTZ.DigitalPTZ"
+        if digital_ptz_support not in self:
+            return False
+        return self[digital_ptz_support].raw == "yes"
 
     @property
     def system_serialnumber(self) -> str:
