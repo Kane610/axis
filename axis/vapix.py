@@ -25,7 +25,7 @@ from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
 from .port_cgi import Ports
-from .ptz import Ptz
+from .ptz import PtzControl
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
 
@@ -170,7 +170,7 @@ class Vapix:
             self.ports = Ports(self.params, self.request)
 
         if not self.ptz and self.params.ptz:
-            self.ptz = Ptz(self.params, self.request)
+            self.ptz = PtzControl(self.request)
 
     async def initialize_applications(self):
         """Load data for applications on device."""
