@@ -149,6 +149,7 @@ class Vapix:
 
         else:
             tasks.append(self.params.update_properties())
+            tasks.append(self.params.update_ptz())
 
             if not self.basic_device_info:
                 tasks.append(self.params.update_brand())

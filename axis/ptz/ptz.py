@@ -5,7 +5,7 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
-from typing import Optional, Union
+from typing import Optional
 
 from axis.api import APIItem, APIItems
 

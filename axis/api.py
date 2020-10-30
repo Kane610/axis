@@ -1,6 +1,7 @@
 """API management class and base class for the different end points."""
 
 import logging
+from typing import Any, Optional
 
 import attr
 
@@ -52,8 +53,19 @@ class APIItems:
 
         return new_items
 
+    def items(self) -> dict:
+        return self._items.items()
+
+    def keys(self) -> str:
+        return self._items.keys()
+
     def values(self):
         return self._items.values()
+
+    def get(self, obj_id: str, default: Optional[Any] = None):
+        if obj_id in self:
+            return self[obj_id]
+        return default
 
     def __getitem__(self, obj_id: str):
         return self._items[obj_id]
@@ -61,8 +73,8 @@ class APIItems:
     def __iter__(self):
         return iter(self._items)
 
-    def __contains__(self, item):
-        return item in self._items
+    def __contains__(self, obj_id: str):
+        return obj_id in self._items
 
 
 class APIItem:
