@@ -23,6 +23,10 @@ MOVE_DOWNRIGHT = "downright"
 MOVE_STOP = "stop"
 SUPPORTED_MOVE_COMMANDS = (MOVE_HOME, MOVE_UP, MOVE_DOWN, MOVE_LEFT, MOVE_RIGHT, MOVE_UPLEFT, MOVE_UPRIGHT, MOVE_DOWNLEFT, MOVE_DOWNRIGHT, MOVE_STOP)
 
+AUTO = "auto"
+ON = "on"
+OFF = "off"
+
 
 def limit(num, minimum, maximum):
     """Limits input 'num' between minimum and maximum values."""
@@ -30,13 +34,15 @@ def limit(num, minimum, maximum):
 
 
 class PtzControl:
+    """"""
+
     def __init__(self, request):
         """"""
         self._request = request
 
     async def control(
         self,
-        camera: int = 1,
+        camera: Optional[int] = None,
         center: Optional[tuple] = None,
         areazoom: Optional[tuple] = None,
         imagewidth: Optional[int] = None,
@@ -54,8 +60,8 @@ class PtzControl:
         rfocus: Optional[int] = None,
         riris: Optional[int] = None,
         rbrightness: Optional[int] = None,
-        autofocus: Optional[bool] = None,
-        autoiris: Optional[bool] = None,
+        autofocus: Optional[str] = None,
+        autoiris: Optional[str] = None,
         continuouspantiltmove: Optional[tuple] = None,
         continuouszoommove: Optional[int] = None,
         continuousfocusmove: Optional[int] = None,
@@ -67,8 +73,8 @@ class PtzControl:
         gotodevicepreset: Optional[int] = None,
         speed: Optional[int] = None,
         imagerotation: Optional[int] = None,
-        ircutfilter: Union[str, bool, None] = None,
-        backlight: Optional[bool] = None,
+        ircutfilter: Optional[str] = None,
+        backlight: Optional[str] = None,
     ) -> None:
         """Control the pan, tilt and zoom behavior of a PTZ unit.
 
@@ -151,7 +157,6 @@ class PtzControl:
         if move in SUPPORTED_MOVE_COMMANDS:
             data["move"] = move
 
-        # Range limited numbers
         for key, value, minimum, maximum in (
             ("pan", pan, -180, 180),
             ("tilt", tilt, -180, 180),
@@ -174,57 +179,21 @@ class PtzControl:
             if value is not None:
                 data[key] = limit(value, minimum, maximum)
 
-        # Booleans
-        for key, value, true, false in (
-            ("autofocus", autofocus, "on", "off"),
-            ("autoiris", autoiris, "on", "off"),
-            ("backlight", backlight, "on", "off"),
+        for key, value, supported_commands in (
+            ("autofocus", autofocus, (ON, OFF)),
+            ("autoiris", autoiris, (ON, OFF)),
+            ("backlight", backlight, (ON, OFF)),
+            ("ircutfilter", ircutfilter, (AUTO, ON, OFF)),
+            ("imagerotation", imagerotation, (0, 90, 180, 270)),
         ):
-            if value is not None:
-                data[key] = true if value else false
+            if value in supported_commands:
+                data[key] = value
 
-        # if pan:
-        #     data["pan"] = limit(pan, -180, 180)
-        # if tilt:
-        #     data["tilt"] = limit(tilt, -180, 180)
-        # if zoom:
-        #     # Support.S#.DigitalZoom is true, zoom ranges are 1 ... 19999 for zoom and -19999 ... 19999 for rzoom
-        #     data["zoom"] = limit(zoom, 1, 9999)
-        # if focus:
-        #     data["focus"] = limit(focus, 1, 9999)
-        # if iris:
-        #     data["iris"] = limit(iris, 1, 9999)
-        # if brightness:
-        #     data["brightness"] = limit(brightness, 1, 9999)
-        # if rpan:
-        #     data["rpan"] = limit(rpan, -360, 360)
-        # if rtilt:
-        #     data["rtilt"] = limit(rtilt, -360, 360)
-        # if rzoom:
-        #     data["rzoom"] = limit(rzoom, -9999, 9999)
-        # if rfocus:
-        #     data["rfocus"] = limit(rfocus, -9999, 9999)
-        # if riris:
-        #     data["riris"] = limit(riris, -9999, 9999)
-        # if rbrightness:
-        #     data["rbrightness"] = limit(rbrightness, -9999, 9999)
-        # if autofocus is not None:
-        #     data["autofocus"] = "on" if autofocus else "off"
-        # if autoiris is not None:
-        #     data["autoiris"] = "on" if autoiris else "off"
         if continuouspantiltmove:
             pan_speed, tilt_speed = continuouspantiltmove
             pan_speed = limit(pan_speed, -100, 100)
             tilt_speed = limit(tilt_speed, -100, 100)
             data["continuouspantiltmove"] = f"{pan_speed},{tilt_speed}"
-        # if continuouszoommove:
-        #     data["continuouszoommove"] = limit(continuouszoommove, -100, 100)
-        # if continuousfocusmove:
-        #     data["continuousfocusmove"] = limit(continuousfocusmove, -100, 100)
-        # if continuousirismove:
-        #     data["continuousirismove"] = limit(continuousirismove, -100, 100)
-        # if continuousbrightnessmove:
-        #     data["continuousbrightnessmove"] = limit(continuousbrightnessmove, -100, 100)
         if auxiliary:
             data["auxiliary"] = auxiliary
         if gotoserverpresetname:
@@ -233,17 +202,10 @@ class PtzControl:
             data["gotoserverpresetno"] = gotoserverpresetno
         if gotodevicepreset:
             data["gotodevicepreset"] = gotodevicepreset
-        # if speed:
-        #     data["speed"] = limit(speed, 1, 100)
-        if imagerotation in (0, 90, 180, 270):
-            data["imagerotation"] = imagerotation
-        if ircutfilter in ("auto", True, False):
-            if ircutfilter == "auto":
-                data["ircutfilter"] = ircutfilter
-            else:
-                data["ircutfilter"] = "on" if ircutfilter else "off"
-        # if backlight is not None:
-        #     data["backlight"] = "on" if backlight else "off"
+
+        if len(data) == 0 or (len(data) == 1 and "camera" in data):
+            return
+
         print(data)
         return await self._request("post", URL, data=data)
 

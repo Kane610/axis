@@ -11,7 +11,7 @@ from axis.applications import Applications
 
 @pytest.fixture
 def applications() -> Applications:
-    """Returns the api_discovery mock object."""
+    """Returns the applications mock object."""
     mock_request = AsyncMock()
     mock_request.return_value = ""
     return Applications(mock_request)
