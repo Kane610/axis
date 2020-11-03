@@ -41,6 +41,7 @@ async def test_update(light_control):
     assert item.synchronize_day_night_mode is True
     assert item.light_state is False
     assert item.automatic_intensity_mode is False
+    assert item.automatic_angle_of_illumination_mode is False
     assert item.number_of_leds == 1
     assert item.error is False
     assert item.error_info == ""
@@ -395,7 +396,9 @@ async def test_get_supported_versions(light_control):
     light_control._request.return_value = response_getSupportedVersions
     response = await light_control.get_supported_versions()
     light_control._request.assert_called_with(
-        "post", "/axis-cgi/lightcontrol.cgi", json={"method": "getSupportedVersions"},
+        "post",
+        "/axis-cgi/lightcontrol.cgi",
+        json={"method": "getSupportedVersions"},
     )
 
     assert response["data"] == {"apiVersions": ["1.1"]}

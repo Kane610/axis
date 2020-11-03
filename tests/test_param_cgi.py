@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 import pytest
 from unittest.mock import AsyncMock, call
 
-from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, Params
+from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, PTZ, Params
 
 
 @pytest.fixture
@@ -44,6 +44,8 @@ async def test_params(params):
     assert params.api_http_version == "3"
     assert params.api_metadata == "yes"
     assert params.api_metadata_version == "1.0"
+    assert params.api_ptz_presets_version == "2.00"
+    assert params.embedded_development == "2.16"
     assert params.firmware_builddate == "Feb 15 2019 09:42"
     assert params.firmware_buildnumber == "26"
     assert params.firmware_version == "9.10.1"
@@ -55,6 +57,8 @@ async def test_params(params):
     )
     assert params.image_rotation == "0,180"
     assert params.light_control is True
+    assert params.ptz is True
+    assert params.digital_ptz is True
     assert params.system_serialnumber == "ACCC12345678"
 
 
@@ -233,6 +237,103 @@ async def test_update_properties(params):
     assert params[f"{PROPERTIES}.ZipStream.ZipStream"].raw == "yes"
 
 
+async def test_update_ptz(params):
+    """Verify that update ptz works."""
+    params._request.return_value = response_param_cgi_ptz
+    await params.update_ptz()
+
+    params._request.assert_called_with(
+        "get", "/axis-cgi/param.cgi?action=list&group=root.PTZ"
+    )
+
+    assert params[f"{PTZ}.BoaProtPTZOperator"].raw == "password"
+    assert params.ptz_camera_default == 1
+    assert params.ptz_number_of_cameras == 1
+    assert params.ptz_number_of_serial_ports == 1
+    assert params.ptz_limits == {
+        1: {
+            "MaxBrightness": 9999,
+            "MaxFieldAngle": 623,
+            "MaxFocus": 9999,
+            "MaxIris": 9999,
+            "MaxPan": 170,
+            "MaxTilt": 90,
+            "MaxZoom": 9999,
+            "MinBrightness": 1,
+            "MinFieldAngle": 22,
+            "MinFocus": 770,
+            "MinIris": 1,
+            "MinPan": -170,
+            "MinTilt": -20,
+            "MinZoom": 1,
+        }
+    }
+    assert params.ptz_support == {
+        1: {
+            "AbsoluteBrightness": True,
+            "AbsoluteFocus": True,
+            "AbsoluteIris": True,
+            "AbsolutePan": True,
+            "AbsoluteTilt": True,
+            "AbsoluteZoom": True,
+            "ActionNotification": True,
+            "AreaZoom": True,
+            "AutoFocus": True,
+            "AutoIrCutFilter": True,
+            "AutoIris": True,
+            "Auxiliary": True,
+            "BackLight": True,
+            "ContinuousBrightness": False,
+            "ContinuousFocus": True,
+            "ContinuousIris": False,
+            "ContinuousPan": True,
+            "ContinuousTilt": True,
+            "ContinuousZoom": True,
+            "DevicePreset": False,
+            "DigitalZoom": True,
+            "GenericHTTP": False,
+            "IrCutFilter": True,
+            "JoyStickEmulation": True,
+            "LensOffset": False,
+            "OSDMenu": False,
+            "ProportionalSpeed": True,
+            "RelativeBrightness": True,
+            "RelativeFocus": True,
+            "RelativeIris": True,
+            "RelativePan": True,
+            "RelativeTilt": True,
+            "RelativeZoom": True,
+            "ServerPreset": True,
+            "SpeedCtl": True,
+        }
+    }
+    assert params.ptz_various == {
+        1: {
+            "AutoFocus": True,
+            "AutoIris": True,
+            "BackLight": False,
+            "BackLightEnabled": True,
+            "BrightnessEnabled": True,
+            "CtlQueueing": False,
+            "CtlQueueLimit": 20,
+            "CtlQueuePollTime": 20,
+            "FocusEnabled": True,
+            "HomePresetSet": True,
+            "IrCutFilter": "auto",
+            "IrCutFilterEnabled": True,
+            "IrisEnabled": True,
+            "MaxProportionalSpeed": 200,
+            "PanEnabled": True,
+            "ProportionalSpeedEnabled": True,
+            "PTZCounter": 8,
+            "ReturnToOverview": 0,
+            "SpeedCtlEnabled": True,
+            "TiltEnabled": True,
+            "ZoomEnabled": True,
+        }
+    }
+
+
 async def test_update_stream_profiles(params):
     """Verify that update properties works."""
     params._request.return_value = response_param_cgi
@@ -243,6 +344,7 @@ async def test_update_stream_profiles(params):
     )
     profiles = params.stream_profiles()
 
+    assert params.stream_profiles_max_groups == 26
     assert len(profiles) == 2
     assert profiles[0].name == "profile_1"
     assert profiles[0].description == "profile_1_description"
@@ -250,6 +352,16 @@ async def test_update_stream_profiles(params):
     assert profiles[1].name == "profile_2"
     assert profiles[1].description == "profile_2_description"
     assert profiles[1].parameters == "videocodec=h265"
+
+
+async def test_stream_profiles_empty_response(params):
+    """Verify that update properties works."""
+    params._request.return_value = ""
+    await params.update_stream_profiles()
+    profiles = params.stream_profiles()
+
+    assert params.stream_profiles_max_groups == 0
+    assert len(profiles) == 0
 
 
 response_param_cgi = """root.Audio.DSCP=0
@@ -1171,3 +1283,123 @@ root.Properties.TemperatureSensor.TemperatureControl=yes
 root.Properties.TemperatureSensor.TemperatureSensor=yes
 root.Properties.VirtualInput.VirtualInput=yes
 root.Properties.ZipStream.ZipStream=yes"""
+
+response_param_cgi_ptz = """root.PTZ.BoaProtPTZOperator=password
+root.PTZ.CameraDefault=1
+root.PTZ.NbrOfCameras=1
+root.PTZ.NbrOfSerPorts=1
+root.PTZ.CamPorts.Cam1Port=1
+root.PTZ.ImageSource.I0.PTZEnabled=true
+root.PTZ.Limit.L1.MaxBrightness=9999
+root.PTZ.Limit.L1.MaxFieldAngle=623
+root.PTZ.Limit.L1.MaxFocus=9999
+root.PTZ.Limit.L1.MaxIris=9999
+root.PTZ.Limit.L1.MaxPan=170
+root.PTZ.Limit.L1.MaxTilt=90
+root.PTZ.Limit.L1.MaxZoom=9999
+root.PTZ.Limit.L1.MinBrightness=1
+root.PTZ.Limit.L1.MinFieldAngle=22
+root.PTZ.Limit.L1.MinFocus=770
+root.PTZ.Limit.L1.MinIris=1
+root.PTZ.Limit.L1.MinPan=-170
+root.PTZ.Limit.L1.MinTilt=-20
+root.PTZ.Limit.L1.MinZoom=1
+root.PTZ.Preset.P0.HomePosition=1
+root.PTZ.Preset.P0.ImageSource=0
+root.PTZ.Preset.P0.Name=
+root.PTZ.Preset.P0.Position.P1.Data=tilt=0.000000:focus=32766.000000:pan=0.000000:iris=32766.000000:zoom=1.000000
+root.PTZ.Preset.P0.Position.P1.Name=Home
+root.PTZ.PTZDriverStatuses.Driver1Status=3
+root.PTZ.SerDriverStatuses.Ser1Status=3
+root.PTZ.Support.S1.AbsoluteBrightness=true
+root.PTZ.Support.S1.AbsoluteFocus=true
+root.PTZ.Support.S1.AbsoluteIris=true
+root.PTZ.Support.S1.AbsolutePan=true
+root.PTZ.Support.S1.AbsoluteTilt=true
+root.PTZ.Support.S1.AbsoluteZoom=true
+root.PTZ.Support.S1.ActionNotification=true
+root.PTZ.Support.S1.AreaZoom=true
+root.PTZ.Support.S1.AutoFocus=true
+root.PTZ.Support.S1.AutoIrCutFilter=true
+root.PTZ.Support.S1.AutoIris=true
+root.PTZ.Support.S1.Auxiliary=true
+root.PTZ.Support.S1.BackLight=true
+root.PTZ.Support.S1.ContinuousBrightness=false
+root.PTZ.Support.S1.ContinuousFocus=true
+root.PTZ.Support.S1.ContinuousIris=false
+root.PTZ.Support.S1.ContinuousPan=true
+root.PTZ.Support.S1.ContinuousTilt=true
+root.PTZ.Support.S1.ContinuousZoom=true
+root.PTZ.Support.S1.DevicePreset=false
+root.PTZ.Support.S1.DigitalZoom=true
+root.PTZ.Support.S1.GenericHTTP=false
+root.PTZ.Support.S1.IrCutFilter=true
+root.PTZ.Support.S1.JoyStickEmulation=true
+root.PTZ.Support.S1.LensOffset=false
+root.PTZ.Support.S1.OSDMenu=false
+root.PTZ.Support.S1.ProportionalSpeed=true
+root.PTZ.Support.S1.RelativeBrightness=true
+root.PTZ.Support.S1.RelativeFocus=true
+root.PTZ.Support.S1.RelativeIris=true
+root.PTZ.Support.S1.RelativePan=true
+root.PTZ.Support.S1.RelativeTilt=true
+root.PTZ.Support.S1.RelativeZoom=true
+root.PTZ.Support.S1.ServerPreset=true
+root.PTZ.Support.S1.SpeedCtl=true
+root.PTZ.UserAdv.U1.AdjustableZoomSpeedEnabled=true
+root.PTZ.UserAdv.U1.DeviceModVer=model:0467, version:0310
+root.PTZ.UserAdv.U1.DeviceStatus=cam=ok,pan=ok,tilt=ok
+root.PTZ.UserAdv.U1.LastTestDate=Thu Oct 29 08:12:04 2020
+root.PTZ.UserAdv.U1.MoveSpeed=100
+root.PTZ.UserAdv.U1.WhiteBalanceOnePushModeEnabled=true
+root.PTZ.UserCtlQueue.U0.Priority=10
+root.PTZ.UserCtlQueue.U0.TimeoutTime=60
+root.PTZ.UserCtlQueue.U0.TimeoutType=activity
+root.PTZ.UserCtlQueue.U0.UseCookie=yes
+root.PTZ.UserCtlQueue.U0.UserGroup=Administrator
+root.PTZ.UserCtlQueue.U1.Priority=30
+root.PTZ.UserCtlQueue.U1.TimeoutTime=60
+root.PTZ.UserCtlQueue.U1.TimeoutType=activity
+root.PTZ.UserCtlQueue.U1.UseCookie=yes
+root.PTZ.UserCtlQueue.U1.UserGroup=Operator
+root.PTZ.UserCtlQueue.U2.Priority=50
+root.PTZ.UserCtlQueue.U2.TimeoutTime=60
+root.PTZ.UserCtlQueue.U2.TimeoutType=timespan
+root.PTZ.UserCtlQueue.U2.UseCookie=yes
+root.PTZ.UserCtlQueue.U2.UserGroup=Viewer
+root.PTZ.UserCtlQueue.U3.Priority=20
+root.PTZ.UserCtlQueue.U3.TimeoutTime=20
+root.PTZ.UserCtlQueue.U3.TimeoutType=activity
+root.PTZ.UserCtlQueue.U3.UseCookie=no
+root.PTZ.UserCtlQueue.U3.UserGroup=Event
+root.PTZ.UserCtlQueue.U4.Priority=35
+root.PTZ.UserCtlQueue.U4.TimeoutTime=60
+root.PTZ.UserCtlQueue.U4.TimeoutType=infinity
+root.PTZ.UserCtlQueue.U4.UseCookie=no
+root.PTZ.UserCtlQueue.U4.UserGroup=Autotracking
+root.PTZ.UserCtlQueue.U5.Priority=0
+root.PTZ.UserCtlQueue.U5.TimeoutTime=60
+root.PTZ.UserCtlQueue.U5.TimeoutType=infinity
+root.PTZ.UserCtlQueue.U5.UseCookie=no
+root.PTZ.UserCtlQueue.U5.UserGroup=Onvif
+root.PTZ.Various.V1.AutoFocus=true
+root.PTZ.Various.V1.AutoIris=true
+root.PTZ.Various.V1.BackLight=false
+root.PTZ.Various.V1.BackLightEnabled=true
+root.PTZ.Various.V1.BrightnessEnabled=true
+root.PTZ.Various.V1.CtlQueueing=false
+root.PTZ.Various.V1.CtlQueueLimit=20
+root.PTZ.Various.V1.CtlQueuePollTime=20
+root.PTZ.Various.V1.FocusEnabled=true
+root.PTZ.Various.V1.HomePresetSet=true
+root.PTZ.Various.V1.IrCutFilter=auto
+root.PTZ.Various.V1.IrCutFilterEnabled=true
+root.PTZ.Various.V1.IrisEnabled=true
+root.PTZ.Various.V1.MaxProportionalSpeed=200
+root.PTZ.Various.V1.PanEnabled=true
+root.PTZ.Various.V1.ProportionalSpeedEnabled=true
+root.PTZ.Various.V1.PTZCounter=8
+root.PTZ.Various.V1.ReturnToOverview=0
+root.PTZ.Various.V1.SpeedCtlEnabled=true
+root.PTZ.Various.V1.TiltEnabled=true
+root.PTZ.Various.V1.ZoomEnabled=true"""
