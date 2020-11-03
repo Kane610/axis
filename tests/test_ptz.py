@@ -1,6 +1,6 @@
 """Test Axis PTZ control API.
 
-pytest --cov-report term-missing --cov=axis.ptz.ptz tests/ptz/test_ptz.py
+pytest --cov-report term-missing --cov=axis.ptz tests/test_ptz.py
 """
 
 import pytest
