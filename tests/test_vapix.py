@@ -154,7 +154,7 @@ async def test_initialize_param_cgi(mock_config):
         ]
     )
 
-    assert vapix.params["root.Brand.Brand"].raw == "AXIS"
+    assert vapix.params["root.Brand.Brand"] == "AXIS"
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"

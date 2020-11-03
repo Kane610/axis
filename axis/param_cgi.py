@@ -6,6 +6,7 @@ Lists Brand, Ports, Properties, Stream profiles.
 """
 
 import asyncio
+from typing import Any, Optional
 
 from .api import APIItem, APIItems
 from .stream_profiles import StreamProfile
@@ -31,6 +32,9 @@ class Params(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__("", request, URL_GET, APIItem)
 
+    def __getitem__(self, obj_id: str) -> Optional[Any]:
+        return self._items[obj_id].raw
+
     def process_raw(self, raw: str) -> None:
         """Pre-process raw string.
 
@@ -40,7 +44,7 @@ class Params(APIItems):
 
         super().process_raw(raw_params)
 
-    def process_dynamic_group(self, group_id, attributes):
+    def process_dynamic_group(self, group_id: str, attributes: tuple) -> dict:
         """Convert raw params to detailed """
         group = {}
         for camera in list(range(1, self.ptz_number_of_cameras + 1)):
@@ -48,15 +52,15 @@ class Params(APIItems):
             for attribute in attributes:
                 parameter = f"{group_id}{camera}.{attribute}"
                 if parameter in self:
-                    if self[parameter].raw in ("true", "false"):
-                        group[camera][attribute] = self[parameter].raw == "true"
+                    if self[parameter] in ("true", "false"):
+                        group[camera][attribute] = self[parameter] == "true"
                     elif (
-                        self[parameter].raw.isdigit()
-                        or self[parameter].raw[1:].isdigit()  # Negative values
+                        self[parameter].isdigit()
+                        or self[parameter][1:].isdigit()  # Negative values
                     ):
-                        group[camera][attribute] = int(self[parameter].raw)
+                        group[camera][attribute] = int(self[parameter])
                     else:
-                        group[camera][attribute] = self[parameter].raw
+                        group[camera][attribute] = self[parameter]
         return group
 
     # Brand
@@ -67,31 +71,31 @@ class Params(APIItems):
 
     @property
     def brand(self) -> str:
-        return self[f"{BRAND}.Brand"].raw
+        return self[f"{BRAND}.Brand"]
 
     @property
     def prodfullname(self) -> str:
-        return self[f"{BRAND}.ProdFullName"].raw
+        return self[f"{BRAND}.ProdFullName"]
 
     @property
     def prodnbr(self) -> str:
-        return self[f"{BRAND}.ProdNbr"].raw
+        return self[f"{BRAND}.ProdNbr"]
 
     @property
     def prodshortname(self) -> str:
-        return self[f"{BRAND}.ProdShortName"].raw
+        return self[f"{BRAND}.ProdShortName"]
 
     @property
     def prodtype(self) -> str:
-        return self[f"{BRAND}.ProdType"].raw
+        return self[f"{BRAND}.ProdType"]
 
     @property
     def prodvariant(self) -> str:
-        return self[f"{BRAND}.ProdVariant"].raw
+        return self[f"{BRAND}.ProdVariant"]
 
     @property
     def weburl(self) -> str:
-        return self[f"{BRAND}.WebURL"].raw
+        return self[f"{BRAND}.WebURL"]
 
     # Ports
 
@@ -106,17 +110,17 @@ class Params(APIItems):
     @property
     def nbrofinput(self) -> int:
         """Match the number of configured inputs."""
-        return self[f"{INPUT}.NbrOfInputs"].raw
+        return self[f"{INPUT}.NbrOfInputs"]
 
     @property
     def nbrofoutput(self) -> int:
         """Match the number of configured outputs."""
-        return self[f"{OUTPUT}.NbrOfOutputs"].raw
+        return self[f"{OUTPUT}.NbrOfOutputs"]
 
     @property
     def ports(self) -> dict:
         """Create a smaller dictionary containing all ports."""
-        return {param: self[param].raw for param in self if param.startswith(IOPORT)}
+        return {param: self[param] for param in self if param.startswith(IOPORT)}
 
     # Properties
 
@@ -126,15 +130,15 @@ class Params(APIItems):
 
     @property
     def api_http_version(self) -> str:
-        return self[f"{PROPERTIES}.API.HTTP.Version"].raw
+        return self[f"{PROPERTIES}.API.HTTP.Version"]
 
     @property
     def api_metadata(self) -> str:
-        return self[f"{PROPERTIES}.API.Metadata.Metadata"].raw
+        return self[f"{PROPERTIES}.API.Metadata.Metadata"]
 
     @property
     def api_metadata_version(self) -> str:
-        return self[f"{PROPERTIES}.API.Metadata.Version"].raw
+        return self[f"{PROPERTIES}.API.Metadata.Version"]
 
     @property
     def api_ptz_presets_version(self) -> bool:
@@ -143,10 +147,7 @@ class Params(APIItems):
         As of version 2.00 of the PTZ preset API Properties.API.PTZ.Presets.Version=2.00
         adding, updating and removing presets using param.cgi is no longer supported.
         """
-        presets_version = f"{PROPERTIES}.API.PTZ.Presets.Version"
-        if presets_version not in self:
-            return False
-        return self[presets_version].raw
+        return self.get(f"{PROPERTIES}.API.PTZ.Presets.Version", False)
 
     @property
     def embedded_development(self) -> str:
@@ -154,63 +155,51 @@ class Params(APIItems):
 
         Application list.cgi supported if => 1.20.
         """
-        return self[f"{PROPERTIES}.EmbeddedDevelopment.Version"].raw
+        return self[f"{PROPERTIES}.EmbeddedDevelopment.Version"]
 
     @property
     def firmware_builddate(self) -> str:
-        return self[f"{PROPERTIES}.Firmware.BuildDate"].raw
+        return self[f"{PROPERTIES}.Firmware.BuildDate"]
 
     @property
     def firmware_buildnumber(self) -> str:
-        return self[f"{PROPERTIES}.Firmware.BuildNumber"].raw
+        return self[f"{PROPERTIES}.Firmware.BuildNumber"]
 
     @property
     def firmware_version(self) -> str:
-        return self[f"{PROPERTIES}.Firmware.Version"].raw
+        return self[f"{PROPERTIES}.Firmware.Version"]
 
     @property
     def image_format(self) -> str:
-        image_format = f"{PROPERTIES}.Image.Format"
-        if image_format not in self:
-            return None
-        return self[image_format].raw
+        return self.get(f"{PROPERTIES}.Image.Format")
 
     @property
     def image_nbrofviews(self) -> str:
-        return self[f"{PROPERTIES}.Image.NbrOfViews"].raw
+        return self[f"{PROPERTIES}.Image.NbrOfViews"]
 
     @property
     def image_resolution(self) -> str:
-        return self[f"{PROPERTIES}.Image.Resolution"].raw
+        return self[f"{PROPERTIES}.Image.Resolution"]
 
     @property
     def image_rotation(self) -> str:
-        return self[f"{PROPERTIES}.Image.Rotation"].raw
+        return self[f"{PROPERTIES}.Image.Rotation"]
 
     @property
     def light_control(self) -> bool:
-        light_control = f"{PROPERTIES}.LightControl.LightControl2"
-        if light_control not in self:
-            return False
-        return self[light_control].raw == "yes"
+        return self.get(f"{PROPERTIES}.LightControl.LightControl2") == "yes"
 
     @property
     def ptz(self) -> bool:
-        ptz_support = f"{PROPERTIES}.PTZ.PTZ"
-        if ptz_support not in self:
-            return False
-        return self[ptz_support].raw == "yes"
+        return self.get(f"{PROPERTIES}.PTZ.PTZ") == "yes"
 
     @property
     def digital_ptz(self) -> bool:
-        digital_ptz_support = f"{PROPERTIES}.PTZ.DigitalPTZ"
-        if digital_ptz_support not in self:
-            return False
-        return self[digital_ptz_support].raw == "yes"
+        return self.get(f"{PROPERTIES}.PTZ.DigitalPTZ") == "yes"
 
     @property
     def system_serialnumber(self) -> str:
-        return self[f"{PROPERTIES}.System.SerialNumber"].raw
+        return self[f"{PROPERTIES}.System.SerialNumber"]
 
     # PTZ
 
@@ -221,17 +210,17 @@ class Params(APIItems):
     @property
     def ptz_camera_default(self) -> int:
         """The video channel used if the camera parameter is omitted in HTTP requests."""
-        return int(self[f"{PTZ}.CameraDefault"].raw)
+        return int(self[f"{PTZ}.CameraDefault"])
 
     @property
     def ptz_number_of_cameras(self) -> int:
         """Number of video channels."""
-        return int(self[f"{PTZ}.NbrOfCameras"].raw)
+        return int(self[f"{PTZ}.NbrOfCameras"])
 
     @property
     def ptz_number_of_serial_ports(self) -> int:
         """Number of serial ports."""
-        return int(self[f"{PTZ}.NbrOfSerPorts"].raw)
+        return int(self[f"{PTZ}.NbrOfSerPorts"])
 
     @property
     def ptz_limits(self) -> dict:
@@ -264,7 +253,7 @@ class Params(APIItems):
         return self.process_dynamic_group(f"{PTZ}.Limit.L", attributes)
 
     @property
-    def ptz_support(self):
+    def ptz_support(self) -> dict:
         """PTZ.Support.S# are populated when a driver is installed on a video channel.
 
         A parameter in the group has the value true if the corresponding capability
@@ -313,7 +302,7 @@ class Params(APIItems):
         return self.process_dynamic_group(f"{PTZ}.Support.S", attributes)
 
     @property
-    def ptz_various(self):
+    def ptz_various(self) -> dict:
         """PTZ.Various.V# are populated when a driver is installed on a video channel.
 
         The index # is the video channel number which starts from 1.
@@ -356,9 +345,7 @@ class Params(APIItems):
     @property
     def stream_profiles_max_groups(self) -> int:
         """Maximum number of supported stream profiles."""
-        if f"{STREAM_PROFILES}.MaxGroups" in self:
-            return int(self[f"{STREAM_PROFILES}.MaxGroups"].raw)
-        return 0
+        return int(self.get(f"{STREAM_PROFILES}.MaxGroups", 0))
 
     def stream_profiles(self) -> list:
         """Return a list of stream profiles."""
@@ -367,9 +354,9 @@ class Params(APIItems):
         try:
             for nbr in range(self.stream_profiles_max_groups):
                 raw = {
-                    "name": self[f"{STREAM_PROFILES}.S{nbr}.Name"].raw,
-                    "description": self[f"{STREAM_PROFILES}.S{nbr}.Description"].raw,
-                    "parameters": self[f"{STREAM_PROFILES}.S{nbr}.Parameters"].raw,
+                    "name": self[f"{STREAM_PROFILES}.S{nbr}.Name"],
+                    "description": self[f"{STREAM_PROFILES}.S{nbr}.Description"],
+                    "parameters": self[f"{STREAM_PROFILES}.S{nbr}.Parameters"],
                 }
                 profiles.append(StreamProfile(raw["name"], raw, self._request))
         except KeyError:
