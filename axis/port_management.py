@@ -47,7 +47,7 @@ class IoPortManagement(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, Port)
 
-    async def update(self, path=None) -> None:
+    async def update(self) -> None:
         raw = await self.get_ports()
         if raw["data"]["numberOfPorts"] > 0:
             self.process_raw(raw["data"]["items"])
@@ -158,7 +158,7 @@ class Port(APIItem):
         """Usage of port."""
         return self.raw["usage"]
 
-    async def set_state(self, set_port: SetPort):
+    async def set_state(self, set_port: SetPort) -> None:
         """Set port state."""
         await self._request(
             "post",
@@ -169,10 +169,10 @@ class Port(APIItem):
             ),
         )
 
-    async def open(self):
+    async def open(self) -> None:
         """Open port."""
         await self.set_state(SetPort(self.port, state="open"))
 
-    async def close(self):
+    async def close(self) -> None:
         """Close port."""
         await self.set_state(SetPort(self.port, state="closed"))
