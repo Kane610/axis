@@ -58,7 +58,7 @@ class Vapix:
         self.users = None
         self.vmd4 = None
 
-    async def close(self):
+    async def close(self) -> None:
         """Close session."""
         if self.session:
             await self.session.aclose()
@@ -105,7 +105,7 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
-    async def _initialize_api_attribute(self, api_class, api_attr: str) -> None:
+    async def _initialize_api_attribute(self, api_class: object, api_attr: str) -> None:
         """Initialize API and load data."""
         api_instance = api_class(self.request)
         try:
@@ -172,7 +172,7 @@ class Vapix:
         if not self.ptz and self.params.ptz:
             self.ptz = PtzControl(self.request)
 
-    async def initialize_applications(self):
+    async def initialize_applications(self) -> None:
         """Load data for applications on device."""
         self.applications = Applications(self.request)
         if (
