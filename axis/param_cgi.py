@@ -33,6 +33,7 @@ class Params(APIItems):
         super().__init__("", request, URL_GET, APIItem)
 
     def __getitem__(self, obj_id: str) -> Optional[Any]:
+        """self["string"] will return self._item["string"].raw."""
         return self._items[obj_id].raw
 
     def process_raw(self, raw: str) -> None:
