@@ -5,7 +5,7 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
-from typing import Optional
+from typing import Optional, Union
 
 URL = "/axis-cgi/com/ptz.cgi"
 
@@ -54,7 +54,9 @@ SUPPORTED_QUERIES = (
 )
 
 
-def limit(num, minimum, maximum):
+def limit(
+    num: Union[int, float], minimum: Union[int, float], maximum: Union[int, float]
+) -> Union[int, float]:
     """Limits input 'num' between minimum and maximum values."""
     return max(min(num, maximum), minimum)
 
@@ -62,7 +64,7 @@ def limit(num, minimum, maximum):
 class PtzControl:
     """Configure and control the PTZ functionality."""
 
-    def __init__(self, request):
+    def __init__(self, request: object) -> None:
         """Initialize PTZ control."""
         self._request = request
 
@@ -233,7 +235,7 @@ class PtzControl:
 
         return await self._request("post", URL, data=data)
 
-    async def query(self, query):
+    async def query(self, query: str) -> str:
         """Returns the current status.
 
         limits = PTZ limits for the Axis product.
