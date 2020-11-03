@@ -11,6 +11,7 @@ CLASS_INPUT = "input"
 CLASS_LIGHT = "light"
 CLASS_MOTION = "motion"
 CLASS_OUTPUT = "output"
+CLASS_PTZ = "ptz"
 CLASS_SOUND = "sound"
 
 EVENT_OPERATION = "operation"
@@ -69,7 +70,7 @@ class EventManager(APIItems):
     def parse_event_xml(self, event_data) -> dict:
         """Parse metadata xml."""
         event = {}
-
+        print(event_data)
         event_xml = event_data.decode()
         message = MESSAGE.search(event_xml)
 
@@ -324,6 +325,42 @@ class Pir(AxisBinaryEvent):
     TYPE = "PIR"
 
 
+class PtzMove(AxisBinaryEvent):
+    """PTZ Move event.
+
+    {
+        'operation': 'Initialized',
+        'topic': 'tns1:PTZController/tnsaxis:Move/Channel_1',
+        'source': 'PTZConfigurationToken',
+        'source_idx': '0',
+        'type': 'is_moving',
+        'value': '0'
+    }
+    """
+
+    TOPIC = "tns1:PTZController/tnsaxis:Move"
+    CLASS = CLASS_PTZ
+    TYPE = "is_moving"
+
+
+class PtzPreset(AxisBinaryEvent):
+    """PTZ Move event.
+
+    {
+        "operation": "Initialized",
+        "topic": "tns1:PTZController/tnsaxis:PTZPresets/Channel_1",
+        "source": "PresetToken",
+        "source_idx": "0",
+        "type": "on_preset",
+        "value": "1",
+    }
+    """
+
+    TOPIC = "tns1:PTZController/tnsaxis:PTZPresets"
+    CLASS = CLASS_PTZ
+    TYPE = "on_preset"
+
+
 class Relay(AxisBinaryEvent):
     """Relay event.
 
@@ -415,6 +452,8 @@ EVENT_CLASSES = (
     MotionGuard,
     ObjectAnalytics,
     Pir,
+    PtzMove,
+    PtzPreset,
     Relay,
     SupervisedInput,
     Vmd3,
