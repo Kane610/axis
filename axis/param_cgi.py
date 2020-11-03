@@ -57,7 +57,6 @@ class Params(APIItems):
                         group[camera][attribute] = int(self[parameter].raw)
                     else:
                         group[camera][attribute] = self[parameter].raw
-        print(group)
         return group
 
     # Brand
