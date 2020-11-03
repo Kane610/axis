@@ -17,7 +17,6 @@ from .param_cgi import IOPORT
 PROPERTY = "Properties.API.HTTP.Version=3"
 
 URL = "/axis-cgi/io/port.cgi"
-ACTION = "?action={action}"
 
 ACTION_HIGH = "/"
 ACTION_LOW = "\\"
@@ -107,7 +106,7 @@ class Port:
         """
         return self.raw.get("Output.Active", "")
 
-    async def action(self, action):
+    async def action(self, action: str) -> None:
         r"""Activate or deactivate an output.
 
         Use the <wait> option to activate/deactivate the port for a
@@ -124,17 +123,15 @@ class Port:
         if not self.direction == DIRECTION_OUT:
             return
 
-        port_action = quote(
-            "{port}:{action}".format(port=int(self.id) + 1, action=action), safe=""
-        )
-        url = URL + ACTION.format(action=port_action)
+        port_action = quote(f"{int(self.id) + 1}:{action}", safe="")
+        url = URL + f"?action={port_action}"
 
         await self._request("get", url)
 
-    async def open(self):
+    async def open(self) -> None:
         """Open port."""
         await self.action(ACTION_LOW)
 
-    async def close(self):
+    async def close(self) -> None:
         """Close port."""
         await self.action(ACTION_HIGH)
