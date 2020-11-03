@@ -4,6 +4,8 @@ AXIS Basic device information API can be used to retrieve simple information abo
 This information is used to identify basic properties of the product.
 """
 
+from typing import Any, Optional
+
 import attr
 
 from .api import APIItem, APIItems, Body
@@ -20,7 +22,11 @@ class BasicDeviceInfo(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, APIItem)
 
-    async def update(self, path=None) -> None:
+    def __getitem__(self, obj_id: str) -> Optional[Any]:
+        """self["string"] will return self._item["string"].raw."""
+        return self._items[obj_id].raw
+
+    async def update(self) -> None:
         raw = await self.get_all_properties()
         self.process_raw(raw["data"]["propertyList"])
 
@@ -47,71 +53,71 @@ class BasicDeviceInfo(APIItems):
         )
 
     @property
-    def architecture(self):
+    def architecture(self) -> str:
         """ApiVersion 1.1"""
-        return self["Architecture"].raw
+        return self["Architecture"]
 
     @property
-    def brand(self):
+    def brand(self) -> str:
         """ApiVersion 1.1"""
-        return self["Brand"].raw
+        return self["Brand"]
 
     @property
-    def builddate(self):
+    def builddate(self) -> str:
         """ApiVersion 1.1"""
-        return self["BuildDate"].raw
+        return self["BuildDate"]
 
     @property
-    def hardwareid(self):
+    def hardwareid(self) -> str:
         """ApiVersion 1.1"""
-        return self["HardwareID"].raw
+        return self["HardwareID"]
 
     @property
-    def prodfullname(self):
+    def prodfullname(self) -> str:
         """ApiVersion 1.1"""
-        return self["ProdFullName"].raw
+        return self["ProdFullName"]
 
     @property
-    def prodnbr(self):
+    def prodnbr(self) -> str:
         """ApiVersion 1.1"""
-        return self["ProdNbr"].raw
+        return self["ProdNbr"]
 
     @property
-    def prodshortname(self):
+    def prodshortname(self) -> str:
         """ApiVersion 1.1"""
-        return self["ProdShortName"].raw
+        return self["ProdShortName"]
 
     @property
-    def prodtype(self):
+    def prodtype(self) -> str:
         """ApiVersion 1.1"""
-        return self["ProdType"].raw
+        return self["ProdType"]
 
     @property
-    def prodvariant(self):
+    def prodvariant(self) -> str:
         """ApiVersion 1.1"""
-        return self["ProdVariant"].raw
+        return self["ProdVariant"]
 
     @property
-    def serialnumber(self):
+    def serialnumber(self) -> str:
         """ApiVersion 1.1"""
-        return self["SerialNumber"].raw
+        return self["SerialNumber"]
 
     @property
-    def soc(self):
+    def soc(self) -> str:
         """ApiVersion 1.1"""
-        return self["Soc"].raw
+        return self["Soc"]
 
     @property
-    def socserialnumber(self):
+    def socserialnumber(self) -> str:
         """ApiVersion 1.1"""
-        return self["SocSerialNumber"].raw
+        return self["SocSerialNumber"]
 
     @property
-    def version(self):
+    def version(self) -> str:
         """ApiVersion 1.1"""
-        return self["Version"].raw
+        return self["Version"]
 
     @property
-    def weburl(self):
+    def weburl(self) -> str:
         """ApiVersion 1.1"""
-        return self["WebURL"].raw
+        return self["WebURL"]

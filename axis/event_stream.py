@@ -463,7 +463,7 @@ EVENT_CLASSES = (
 BLACK_LISTED_TOPICS = "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"
 
 
-def create_event(event_id: str, event: dict, request) -> AxisEvent:
+def create_event(event_id: str, event: dict, request: object) -> AxisEvent:
     """Simplify creating event by not needing to know type."""
     for event_class in EVENT_CLASSES:
         if event[EVENT_TOPIC] in BLACK_LISTED_TOPICS:

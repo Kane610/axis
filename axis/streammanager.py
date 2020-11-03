@@ -3,6 +3,7 @@
 import asyncio
 import logging
 
+from .configuration import Configuration
 from .rtsp import RTSPClient, SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ RETRY_TIMER = 15
 class StreamManager:
     """Setup, start, stop and retry stream."""
 
-    def __init__(self, config):
+    def __init__(self, config: Configuration) -> None:
         """Setup stream manager."""
         self.config = config
         self.video = None  # Unsupported
@@ -28,7 +29,7 @@ class StreamManager:
         self.connection_status_callback = []
 
     @property
-    def stream_url(self):
+    def stream_url(self) -> str:
         """Build url for stream."""
         rtsp_url = RTSP_URL.format(
             host=self.config.host,
@@ -40,21 +41,21 @@ class StreamManager:
         return rtsp_url
 
     @property
-    def video_query(self):
+    def video_query(self) -> int:
         """Generate video query, not supported."""
         return 0
 
     @property
-    def audio_query(self):
+    def audio_query(self) -> int:
         """Generate audio query, not supported."""
         return 0
 
     @property
-    def event_query(self):
+    def event_query(self) -> str:
         """Generate event query."""
         return "on" if bool(self.event) else "off"
 
-    def session_callback(self, signal):
+    def session_callback(self, signal: str) -> None:
         """Signalling from stream session.
 
         Data - new data available for processing.
@@ -72,18 +73,18 @@ class StreamManager:
                 callback(signal)
 
     @property
-    def data(self):
+    def data(self) -> str:
         """Get stream data."""
         return self.stream.rtp.data
 
     @property
-    def state(self):
+    def state(self) -> str:
         """State of stream."""
         if not self.stream:
             return STATE_STOPPED
         return self.stream.session.state
 
-    def start(self):
+    def start(self) -> None:
         """Start stream."""
         if not self.stream or self.stream.session.state == STATE_STOPPED:
             self.stream = RTSPClient(
@@ -95,12 +96,12 @@ class StreamManager:
             )
             self.stream.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop stream."""
         if self.stream and self.stream.session.state != STATE_STOPPED:
             self.stream.stop()
 
-    def retry(self):
+    def retry(self) -> None:
         """No connection to device, retry connection after 15 seconds."""
         loop = asyncio.get_running_loop()
         self.stream = None

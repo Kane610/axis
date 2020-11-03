@@ -24,7 +24,7 @@ class StreamProfiles(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, StreamProfile)
 
-    async def update(self, path=None) -> None:
+    async def update(self) -> None:
         raw = await self.list()
         if raw["data"]["maxProfiles"] > 0:
             self.process_raw(raw["data"]["streamProfile"])
@@ -68,16 +68,16 @@ class StreamProfile(APIItem):
     """Stream profile item."""
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Name of stream profile."""
         return self.raw["name"]
 
     @property
-    def description(self):
+    def description(self) -> str:
         """Description of API."""
         return self.raw["description"]
 
     @property
-    def parameters(self):
+    def parameters(self) -> str:
         """Parameters of API."""
         return self.raw["parameters"]

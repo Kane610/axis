@@ -80,7 +80,7 @@ class APIItems:
 class APIItem:
     """Base class for all end points using APIItems class."""
 
-    def __init__(self, id: str, raw: dict, request) -> None:
+    def __init__(self, id: str, raw: dict, request: object) -> None:
         self._id = id
         self._raw = raw
         self._request = request
@@ -104,11 +104,11 @@ class APIItem:
         for observer in self.observers:
             observer()
 
-    def register_callback(self, callback) -> None:
+    def register_callback(self, callback: object) -> None:
         """Register callback for state updates."""
         self.observers.append(callback)
 
-    def remove_callback(self, observer) -> None:
+    def remove_callback(self, observer: object) -> None:
         """Remove observer."""
         if observer in self.observers:
             self.observers.remove(observer)
