@@ -1,6 +1,6 @@
 """Test Axis Object Analytics API.
 
-pytest --cov-report term-missing --cov=axis.object_analytics tests/test_object_analytics.py
+pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/applications/test_object_analytics.py
 """
 
 import pytest
@@ -15,6 +15,24 @@ def object_analytics() -> ObjectAnalytics:
     mock_request = AsyncMock()
     mock_request.return_value = ""
     return ObjectAnalytics(mock_request)
+
+
+async def test_get_no_configuration(object_analytics):
+    """Test no response from get_configuration"""
+    object_analytics._request.return_value = {}
+    await object_analytics.update()
+    object_analytics._request.assert_called_with(
+        "post",
+        "/local/objectanalytics/control.cgi",
+        json={
+            "method": "getConfiguration",
+            "apiVersion": "1.0",
+            "context": "Axis library",
+            "params": {},
+        },
+    )
+
+    assert len(object_analytics.values()) == 0
 
 
 async def test_get_empty_configuration(object_analytics):
