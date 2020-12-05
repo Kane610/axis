@@ -3,8 +3,6 @@
 Use VAPIX® Application API to upload, control and manage applications and their license keys.
 """
 
-import xmltodict
-
 from axis.api import APIItem, APIItems
 
 URL = "/axis-cgi/applications"
@@ -48,8 +46,7 @@ class Applications(APIItems):
 
     async def list(self) -> dict:
         """The applications/list.cgi is used to list information about installed applications."""
-        raw = await self._request("post", URL_LIST)
-        return xmltodict.parse(raw)
+        return await self._request("post", URL_LIST)
 
 
 class Application(APIItem):

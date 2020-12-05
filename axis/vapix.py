@@ -5,6 +5,7 @@ import logging
 from packaging import version
 
 import httpx
+import xmltodict
 
 from .api_discovery import ApiDiscovery
 from .applications import (
@@ -220,11 +221,16 @@ class Vapix:
 
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)
 
-            if "application/json" in response.headers.get("Content-Type"):
+            content_type = response.headers.get("Content-Type")
+
+            if "application/json" in content_type:
                 result = response.json()
                 if "error" in result:
                     return {}
                 return result
+
+            if "text/xml" in content_type:
+                return xmltodict.parse(response.text)
 
             if response.text.startswith("# Error:"):
                 return ""

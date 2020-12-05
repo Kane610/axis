@@ -6,6 +6,8 @@ pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 import pytest
 from unittest.mock import AsyncMock, call, patch
 
+import xmltodict
+
 from axis.errors import Unauthorized
 from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
 from axis.stream_profiles import StreamProfile
@@ -184,7 +186,7 @@ async def test_initialize_applications(mock_config):
         side_effect=[
             response_param_cgi,
             light_control_response,
-            applications_response,
+            xmltodict.parse(applications_response),
             fence_guard_response,
             loitering_guard_response,
             motion_guard_response,
@@ -264,8 +266,10 @@ async def test_initialize_applications_not_running(mock_config):
         side_effect=[
             response_param_cgi,
             light_control_response,
-            applications_response.replace(
-                APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
+            xmltodict.parse(
+                applications_response.replace(
+                    APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
+                )
             ),
         ],
     ):
