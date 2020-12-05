@@ -6,10 +6,13 @@ pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 import pytest
 from unittest.mock import AsyncMock, call, patch
 
-import xmltodict
+import httpx
+import respx
 
 from axis.errors import Unauthorized
 from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 from axis.stream_profiles import StreamProfile
 from axis.vapix import Vapix
 
@@ -34,6 +37,17 @@ from .test_light_control import response_getLightInformation as light_control_re
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi
 from .test_stream_profiles import response_list as stream_profiles_response
+
+
+@pytest.fixture
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
 
 
 @pytest.fixture
@@ -179,70 +193,69 @@ async def test_initialize_params_no_data(mock_config):
     mock_request.assert_not_called
 
 
-async def test_initialize_applications(mock_config):
+@respx.mock
+@pytest.mark.asyncio
+async def test_initialize_applications(device):
     """Verify you can list and retrieve descriptions of applications."""
-    with patch(
-        "axis.vapix.Vapix.request",
-        side_effect=[
-            response_param_cgi,
-            light_control_response,
-            xmltodict.parse(applications_response),
-            fence_guard_response,
-            loitering_guard_response,
-            motion_guard_response,
-            vmd4_response,
-        ],
-    ) as mock_request:
-        vapix = Vapix(mock_config)
-        await vapix.initialize_param_cgi()
-        await vapix.initialize_applications()
+    respx.get("http://host:80/axis-cgi/param.cgi?action=list").mock(
+        return_value=httpx.Response(
+            200,
+            text=response_param_cgi,
+            headers={"Content-Type": "text/plain"},
+        )
+    )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            json=light_control_response,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            text=applications_response,
+            headers={"Content-Type": "text/xml"},
+        )
+    )
+    respx.post("http://host:80/local/fenceguard/control.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            json=fence_guard_response,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+    respx.post("http://host:80/local/loiteringguard/control.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            json=loitering_guard_response,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+    respx.post("http://host:80/local/motionguard/control.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            json=motion_guard_response,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+    respx.post("http://host:80/local/vmd/control.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            json=vmd4_response,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+
+    vapix = device.vapix
+
+    await vapix.initialize_param_cgi()
+    await vapix.initialize_applications()
 
     assert vapix.fence_guard
     assert vapix.loitering_guard
     assert vapix.motion_guard
     assert vapix.vmd4
-
-    mock_request.assert_has_calls(
-        [
-            call("post", "/axis-cgi/applications/list.cgi"),
-            call(
-                "post",
-                "/local/fenceguard/control.cgi",
-                json={
-                    "method": "getConfiguration",
-                    "apiVersion": "1.3",
-                    "context": "Axis library",
-                },
-            ),
-            call(
-                "post",
-                "/local/loiteringguard/control.cgi",
-                json={
-                    "method": "getConfiguration",
-                    "apiVersion": "1.3",
-                    "context": "Axis library",
-                },
-            ),
-            call(
-                "post",
-                "/local/motionguard/control.cgi",
-                json={
-                    "method": "getConfiguration",
-                    "apiVersion": "1.3",
-                    "context": "Axis library",
-                },
-            ),
-            call(
-                "post",
-                "/local/vmd/control.cgi",
-                json={
-                    "method": "getConfiguration",
-                    "apiVersion": "1.2",
-                    "context": "Axis library",
-                },
-            ),
-        ]
-    )
 
     assert len(vapix.applications.values()) == 7
 
@@ -255,27 +268,44 @@ async def test_initialize_applications(mock_config):
     assert len(vapix.motion_guard.values()) == 1
     assert "Camera1Profile1" in vapix.motion_guard
 
+    assert vapix.object_analytics is None
+
     assert len(vapix.vmd4.values()) == 1
     assert "Camera1Profile1" in vapix.vmd4
 
 
-async def test_initialize_applications_not_running(mock_config):
+@respx.mock
+@pytest.mark.asyncio
+async def test_initialize_applications_not_running(device):
     """Verify you can list and retrieve descriptions of applications."""
-    with patch(
-        "axis.vapix.Vapix.request",
-        side_effect=[
-            response_param_cgi,
-            light_control_response,
-            xmltodict.parse(
-                applications_response.replace(
-                    APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
-                )
+    respx.get("http://host:80/axis-cgi/param.cgi?action=list").mock(
+        return_value=httpx.Response(
+            200,
+            text=response_param_cgi,
+            headers={"Content-Type": "text/plain"},
+        )
+    )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            json=light_control_response,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            text=applications_response.replace(
+                APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
             ),
-        ],
-    ):
-        vapix = Vapix(mock_config)
-        await vapix.initialize_param_cgi()
-        await vapix.initialize_applications()
+            headers={"Content-Type": "text/xml"},
+        )
+    )
+
+    vapix = device.vapix
+
+    await vapix.initialize_param_cgi()
+    await vapix.initialize_applications()
 
     assert vapix.fence_guard is None
     assert vapix.motion_guard is None
