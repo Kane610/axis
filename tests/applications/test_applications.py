@@ -4,33 +4,61 @@ pytest --cov-report term-missing --cov=axis.applications.applications tests/appl
 """
 
 import pytest
-from unittest.mock import AsyncMock
+
+import httpx
+import respx
 
 from axis.applications import Applications
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 
 
 @pytest.fixture
-def applications() -> Applications:
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
+
+
+@pytest.fixture
+def applications(device) -> Applications:
     """Returns the applications mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return Applications(mock_request)
+    return Applications(device.vapix.request)
 
 
+@respx.mock
+@pytest.mark.asyncio
 async def test_update_no_application(applications):
     """Test update applicatios call."""
-    applications._request.return_value = list_application_empty_response
+    route = respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            text=list_application_empty_response,
+            headers={"Content-Type": "text/xml"},
+        )
+    )
     await applications.update()
-    applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
+    assert route.called
     assert len(applications.values()) == 0
 
 
+@respx.mock
+@pytest.mark.asyncio
 async def test_update_single_application(applications):
-    """Test update applicatios call."""
-    applications._request.return_value = list_application_response
+    """Test update applications call."""
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            text=list_application_response,
+            headers={"Content-Type": "text/xml"},
+        )
+    )
     await applications.update()
-    applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert len(applications.values()) == 1
 
@@ -49,11 +77,18 @@ async def test_update_single_application(applications):
     assert app.version == "4.4-5"
 
 
+@respx.mock
+@pytest.mark.asyncio
 async def test_update_multiple_applications(applications):
     """Test update applicatios call."""
-    applications._request.return_value = list_applications_response
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            text=list_applications_response,
+            headers={"Content-Type": "text/xml"},
+        )
+    )
     await applications.update()
-    applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert len(applications.values()) == 7
 
@@ -158,22 +193,36 @@ async def test_update_multiple_applications(applications):
     assert app.version == "2.2-6"
 
 
+@respx.mock
+@pytest.mark.asyncio
 async def test_list_single_application(applications):
     """Test list applicatios call."""
-    applications._request.return_value = list_application_response
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            text=list_application_response,
+            headers={"Content-Type": "text/xml"},
+        )
+    )
     raw = await applications.list()
-    applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert "reply" in raw
     assert "application" in raw["reply"]
     assert raw["reply"]["application"]["@NiceName"] == "AXIS Video Motion Detection"
 
 
+@respx.mock
+@pytest.mark.asyncio
 async def test_list_multiple_applications(applications):
     """Test list applicatios call."""
-    applications._request.return_value = list_applications_response
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+        return_value=httpx.Response(
+            200,
+            text=list_applications_response,
+            headers={"Content-Type": "text/xml"},
+        )
+    )
     raw = await applications.list()
-    applications._request.assert_called_with("post", "/axis-cgi/applications/list.cgi")
 
     assert "reply" in raw
     assert "application" in raw["reply"]
