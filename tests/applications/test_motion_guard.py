@@ -1,6 +1,6 @@
 """Test Axis Motion Guard API.
 
-pytest --cov-report term-missing --cov=axis.motion_guard tests/test_motion_guard.py
+pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/applications/test_motion_guard.py
 """
 
 import pytest

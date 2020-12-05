@@ -1,6 +1,6 @@
 """Test Axis VMD4 API.
 
-pytest --cov-report term-missing --cov=axis.vmd4 tests/test_vmd4.py
+pytest --cov-report term-missing --cov=axis.applications.vmd4 tests/applications/test_vmd4.py
 """
 
 import pytest
@@ -58,7 +58,12 @@ async def test_get_configuration(vmd4):
     assert vmd4.triggers == [
         {
             "type": "includeArea",
-            "data": [[-0.97, -0.97], [-0.97, 0.97], [0.97, 0.97], [0.97, -0.97],],
+            "data": [
+                [-0.97, -0.97],
+                [-0.97, 0.97],
+                [0.97, 0.97],
+                [0.97, -0.97],
+            ],
         }
     ]
     assert vmd4.filters == [
@@ -142,4 +147,3 @@ response_get_configuration_error = {
         "message": "The requested version of the application is not supported.",
     },
 }
-

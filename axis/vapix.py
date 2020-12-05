@@ -10,12 +10,12 @@ from .api_discovery import ApiDiscovery
 from .applications import (
     APPLICATION_STATE_RUNNING,
     Applications,
-    PARAM_CGI_KEY as APPLICATIONS_PARAM,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
 )
 from .applications.fence_guard import FenceGuard
 from .applications.loitering_guard import LoiteringGuard
 from .applications.motion_guard import MotionGuard
+from .applications.object_analytics import ObjectAnalytics
 from .applications.vmd4 import Vmd4
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
@@ -51,6 +51,7 @@ class Vapix:
         self.loitering_guard = None
         self.motion_guard = None
         self.mqtt = None
+        self.object_analytics = None
         self.params = None
         self.ports = None
         self.ptz = None
@@ -175,12 +176,9 @@ class Vapix:
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
         self.applications = Applications(self.request)
-        if (
-            self.params
-            and f"root.{APPLICATIONS_PARAM}" in self.params
-            and version.parse(self.params.embedded_development)
-            >= version.parse(APPLICATIONS_MINIMUM_VERSION)
-        ):
+        if self.params and version.parse(
+            self.params.embedded_development
+        ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
             try:
                 await self.applications.update()
             except Unauthorized:  # Probably a viewer account
@@ -192,6 +190,7 @@ class Vapix:
             (FenceGuard, "fence_guard"),
             (LoiteringGuard, "loitering_guard"),
             (MotionGuard, "motion_guard"),
+            (ObjectAnalytics, "object_analytics"),
             (Vmd4, "vmd4"),
         ):
             if (

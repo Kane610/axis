@@ -1,6 +1,6 @@
 """Test Axis Fence Guard API.
 
-pytest --cov-report term-missing --cov=axis.fence_guard tests/test_fence_guard.py
+pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/applications/test_fence_guard.py
 """
 
 import pytest

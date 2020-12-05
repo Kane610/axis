@@ -55,7 +55,7 @@ class EventManager(APIItems):
         self.process_event(event)
 
     def process_event(self, event: dict) -> None:
-        """New event to process."""
+        """Process new event."""
         if event[EVENT_OPERATION] in (OPERATION_INITIALIZED, OPERATION_CHANGED):
             id = f'{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX, "")}'
 
@@ -70,7 +70,7 @@ class EventManager(APIItems):
     def parse_event_xml(self, event_data) -> dict:
         """Parse metadata xml."""
         event = {}
-        print(event_data)
+
         event_xml = event_data.decode()
         message = MESSAGE.search(event_xml)
 

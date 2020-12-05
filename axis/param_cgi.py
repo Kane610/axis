@@ -156,7 +156,7 @@ class Params(APIItems):
 
         Application list.cgi supported if => 1.20.
         """
-        return self[f"{PROPERTIES}.EmbeddedDevelopment.Version"]
+        return self.get(f"{PROPERTIES}.EmbeddedDevelopment.Version", "0.0")
 
     @property
     def firmware_builddate(self) -> str:
