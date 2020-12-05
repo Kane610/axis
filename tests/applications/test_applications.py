@@ -1,6 +1,6 @@
 """Test Axis Applications API.
 
-pytest --cov-report term-missing --cov=axis.applications tests/applications/test_applications.py
+pytest --cov-report term-missing --cov=axis.applications.applications tests/applications/test_applications.py
 """
 
 import pytest

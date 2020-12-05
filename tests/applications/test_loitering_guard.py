@@ -1,6 +1,6 @@
 """Test Axis Loitering Guard API.
 
-pytest --cov-report term-missing --cov=axis.loitering_guard tests/test_loitering_guard.py
+pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/applications/test_loitering_guard.py
 """
 
 import pytest
@@ -63,7 +63,12 @@ async def test_get_configuration(loitering_guard):
     assert profile1.triggers == [
         {
             "type": "loiteringArea",
-            "data": [[-0.97, -0.97], [-0.97, 0.97], [0.97, 0.97], [0.97, -0.97],],
+            "data": [
+                [-0.97, -0.97],
+                [-0.97, 0.97],
+                [0.97, 0.97],
+                [0.97, -0.97],
+            ],
             "conditions": [
                 {"type": "individual", "data": 120, "active": True},
                 {"type": "group", "data": 160, "active": False},
@@ -118,4 +123,3 @@ response_get_configuration = {
     "method": "getConfiguration",
     "context": "Axis library",
 }
-
