@@ -1,12 +1,12 @@
-"""Base classes for applications belonging to Axis Guard Suite."""
+"""Base classes for applications."""
 
 import attr
 
 from axis.api import APIItem, APIItems, Body
 
 
-class GuardSuiteBase(APIItems):
-    """Base Class for Guard Suite Applications."""
+class ApplicationAPIItems(APIItems):
+    """Base Class for applications."""
 
     def __init__(
         self, request: object, path: str, item_cls: object, api_version: str
@@ -42,8 +42,8 @@ class GuardSuiteBase(APIItems):
         )
 
 
-class GuardSuiteProfileBase(APIItem):
-    """Base class for Guard Suite Profiles."""
+class ApplicationAPIItem(APIItem):
+    """Base class for application profiles."""
 
     @property
     def camera(self) -> int:
