@@ -5,7 +5,7 @@ AXIS Object Analytics.
 
 import attr
 
-from .guard_suite_base import Body, GuardSuiteBase, GuardSuiteProfileBase
+from .api import Body, ApplicationAPIItems, ApplicationAPIItem
 
 URL = "/local/objectanalytics/control.cgi"
 
@@ -17,7 +17,7 @@ PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 PARAM_CGI_VALUE = "2.13"
 
 
-class ObjectAnalytics(GuardSuiteBase):
+class ObjectAnalytics(ApplicationAPIItems):
     """Object Analytics application on Axis devices"""
 
     APPLICATION_NAME = APPLICATION_NAME
@@ -52,7 +52,7 @@ class ObjectAnalytics(GuardSuiteBase):
         )
 
 
-class ObjectAnalyticsScenario(GuardSuiteProfileBase):
+class ObjectAnalyticsScenario(ApplicationAPIItem):
     """Object Analytics Scenario."""
 
     @property

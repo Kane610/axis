@@ -6,7 +6,7 @@ when it detects a moving object, such as a person or vehicle, crossing a user-de
 virtual line.
 """
 
-from .guard_suite_base import GuardSuiteBase, GuardSuiteProfileBase
+from .api import ApplicationAPIItems, ApplicationAPIItem
 
 URL = "/local/fenceguard/control.cgi"
 
@@ -18,10 +18,10 @@ PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 PARAM_CGI_VALUE = "2.13"
 
 
-class FenceGuard(GuardSuiteBase):
+class FenceGuard(ApplicationAPIItems):
     """Fence Guard application on Axis devices"""
 
     APPLICATION_NAME = APPLICATION_NAME
 
     def __init__(self, request: object) -> None:
-        super().__init__(request, URL, GuardSuiteProfileBase, API_VERSION)
+        super().__init__(request, URL, ApplicationAPIItem, API_VERSION)
