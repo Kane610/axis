@@ -3,70 +3,62 @@
 pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/applications/test_object_analytics.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
+
+import respx
 
 from axis.applications.object_analytics import ObjectAnalytics
 
 
 @pytest.fixture
-def object_analytics() -> ObjectAnalytics:
-    """Returns the fence_guard mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return ObjectAnalytics(mock_request)
+def object_analytics(axis_device) -> ObjectAnalytics:
+    """Returns the object analytics mock object."""
+    return ObjectAnalytics(axis_device.vapix.request)
 
 
+@respx.mock
 async def test_get_no_configuration(object_analytics):
     """Test no response from get_configuration"""
-    object_analytics._request.return_value = {}
-    await object_analytics.update()
-    object_analytics._request.assert_called_with(
-        "post",
-        "/local/objectanalytics/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": {},
-        },
+    route = respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
+        json={},
+        headers={"Content-Type": "application/json"},
     )
+    await object_analytics.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/local/objectanalytics/control.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getConfiguration",
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "params": {},
+    }
 
     assert len(object_analytics.values()) == 0
 
 
+@respx.mock
 async def test_get_empty_configuration(object_analytics):
     """Test empty get_configuration"""
-    object_analytics._request.return_value = response_get_configuration_empty
-    await object_analytics.update()
-    object_analytics._request.assert_called_with(
-        "post",
-        "/local/objectanalytics/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": {},
-        },
+    respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
+        json=response_get_configuration_empty,
+        headers={"Content-Type": "application/json"},
     )
+    await object_analytics.update()
 
     assert len(object_analytics.values()) == 0
 
 
+@respx.mock
 async def test_get_configuration(object_analytics):
     """Test get_configuration"""
-    object_analytics._request.return_value = response_get_configuration
-    await object_analytics.update()
-    object_analytics._request.assert_called_with(
-        "post",
-        "/local/objectanalytics/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": {},
-        },
+    respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
+        json=response_get_configuration,
+        headers={"Content-Type": "application/json"},
     )
+    await object_analytics.update()
 
     assert len(object_analytics.values()) == 2
 

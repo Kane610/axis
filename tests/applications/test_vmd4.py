@@ -3,50 +3,49 @@
 pytest --cov-report term-missing --cov=axis.applications.vmd4 tests/applications/test_vmd4.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
+
+import respx
 
 from axis.applications.vmd4 import Vmd4
 
 
 @pytest.fixture
-def vmd4() -> Vmd4:
+def vmd4(axis_device) -> Vmd4:
     """Returns the vmd4 mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return Vmd4(mock_request)
+    return Vmd4(axis_device.vapix.request)
 
 
+@respx.mock
 async def test_get_empty_configuration(vmd4):
     """Test empty get_configuration"""
-    vmd4._request.return_value = response_get_configuration_empty
-    await vmd4.update()
-    vmd4._request.assert_called_with(
-        "post",
-        "/local/vmd/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.2",
-            "context": "Axis library",
-        },
+    route = respx.post("http://host:80/local/vmd/control.cgi").respond(
+        json=response_get_configuration_empty,
+        headers={"Content-Type": "application/json"},
     )
+    await vmd4.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/local/vmd/control.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getConfiguration",
+        "apiVersion": "1.2",
+        "context": "Axis library",
+    }
 
     assert len(vmd4.values()) == 0
 
 
+@respx.mock
 async def test_get_configuration(vmd4):
     """Test get_supported_versions"""
-    vmd4._request.return_value = response_get_configuration
-    await vmd4.update()
-    vmd4._request.assert_called_with(
-        "post",
-        "/local/vmd/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.2",
-            "context": "Axis library",
-        },
+    respx.post("http://host:80/local/vmd/control.cgi").respond(
+        json=response_get_configuration,
+        headers={"Content-Type": "application/json"},
     )
+    await vmd4.update()
 
     assert len(vmd4.values()) == 1
 
@@ -73,22 +72,17 @@ async def test_get_configuration(vmd4):
     ]
 
 
+@respx.mock
 async def test_get_configuration_error(vmd4):
     """Test empty get_configuration.
 
     await _request returns an empty dict on error.
     """
-    vmd4._request.return_value = {}
-    await vmd4.update()
-    vmd4._request.assert_called_with(
-        "post",
-        "/local/vmd/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.2",
-            "context": "Axis library",
-        },
+    respx.post("http://host:80/local/vmd/control.cgi").respond(
+        json={},
+        headers={"Content-Type": "application/json"},
     )
+    await vmd4.update()
 
     assert len(vmd4.values()) == 0
 

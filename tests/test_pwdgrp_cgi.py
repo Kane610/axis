@@ -3,16 +3,22 @@
 pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 """
 
-from unittest.mock import AsyncMock
+import pytest
+import urllib
+
+import respx
 
 from axis.pwdgrp_cgi import SGRP_ADMIN, Users
 
 
-def test_users():
-    """Verify that you can list users."""
-    mock_request = AsyncMock()
-    users = Users(fixture, mock_request)
+@pytest.fixture
+def users(axis_device) -> Users:
+    """Returns the api_discovery mock object."""
+    return Users(fixture, axis_device.vapix.request)
 
+
+def test_users(users):
+    """Verify that you can list users."""
     assert users["userv"]
     assert users["userv"].name == "userv"
     assert users["userv"].viewer
@@ -35,95 +41,128 @@ def test_users():
     assert users["usera"].ptz
 
 
-async def test_create():
+@respx.mock
+async def test_create(users):
     """Verify that you can create users."""
-    mock_request = AsyncMock()
-    users = Users(fixture, mock_request)
+    route = respx.post("http://host:80/axis-cgi/pwdgrp.cgi")
 
     await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN)
-    mock_request.assert_called_with(
-        "post",
-        "/axis-cgi/pwdgrp.cgi",
-        data={
-            "action": "add",
-            "user": "joe",
-            "pwd": "abcd",
-            "grp": "users",
-            "sgrp": "viewer:operator:admin",
-        },
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert (
+        route.calls.last.request.content
+        == urllib.parse.urlencode(
+            {
+                "action": "add",
+                "user": "joe",
+                "pwd": "abcd",
+                "grp": "users",
+                "sgrp": "viewer:operator:admin",
+            }
+        ).encode()
     )
 
     await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
-    mock_request.assert_called_with(
-        "post",
-        "/axis-cgi/pwdgrp.cgi",
-        data={
-            "action": "add",
-            "user": "joe",
-            "pwd": "abcd",
-            "grp": "users",
-            "sgrp": "viewer:operator:admin",
-            "comment": "comment",
-        },
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert (
+        route.calls.last.request.content
+        == urllib.parse.urlencode(
+            {
+                "action": "add",
+                "user": "joe",
+                "pwd": "abcd",
+                "grp": "users",
+                "sgrp": "viewer:operator:admin",
+                "comment": "comment",
+            }
+        ).encode()
     )
 
 
-async def test_modify():
+@respx.mock
+async def test_modify(users):
     """Verify that you can modify users."""
-    mock_request = AsyncMock()
-    users = Users(fixture, mock_request)
+    route = respx.post("http://host:80/axis-cgi/pwdgrp.cgi")
 
     await users.modify("joe", pwd="abcd")
-    mock_request.assert_called_with(
-        "post",
-        "/axis-cgi/pwdgrp.cgi",
-        data={"action": "update", "user": "joe", "pwd": "abcd"},
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert (
+        route.calls.last.request.content
+        == urllib.parse.urlencode(
+            {"action": "update", "user": "joe", "pwd": "abcd"}
+        ).encode()
     )
 
     await users.modify("joe", sgrp=SGRP_ADMIN)
-    mock_request.assert_called_with(
-        "post",
-        "/axis-cgi/pwdgrp.cgi",
-        data={"action": "update", "user": "joe", "sgrp": "viewer:operator:admin"},
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert (
+        route.calls.last.request.content
+        == urllib.parse.urlencode(
+            {"action": "update", "user": "joe", "sgrp": "viewer:operator:admin"}
+        ).encode()
     )
 
     await users.modify("joe", comment="comment")
-    mock_request.assert_called_with(
-        "post",
-        "/axis-cgi/pwdgrp.cgi",
-        data={"action": "update", "user": "joe", "comment": "comment"},
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert (
+        route.calls.last.request.content
+        == urllib.parse.urlencode(
+            {"action": "update", "user": "joe", "comment": "comment"}
+        ).encode()
     )
 
     await users.modify("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
-    mock_request.assert_called_with(
-        "post",
-        "/axis-cgi/pwdgrp.cgi",
-        data={
-            "action": "update",
-            "user": "joe",
-            "pwd": "abcd",
-            "sgrp": "viewer:operator:admin",
-            "comment": "comment",
-        },
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert (
+        route.calls.last.request.content
+        == urllib.parse.urlencode(
+            {
+                "action": "update",
+                "user": "joe",
+                "pwd": "abcd",
+                "sgrp": "viewer:operator:admin",
+                "comment": "comment",
+            }
+        ).encode()
     )
 
 
-async def test_delete():
+@respx.mock
+async def test_delete(users):
     """Verify that you can delete users."""
-    mock_request = AsyncMock()
-    users = Users(fixture, mock_request)
+    route = respx.post("http://host:80/axis-cgi/pwdgrp.cgi")
+
     await users.delete("joe")
 
-    mock_request.assert_called_with(
-        "post", "/axis-cgi/pwdgrp.cgi", data={"action": "remove", "user": "joe"}
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert (
+        route.calls.last.request.content
+        == urllib.parse.urlencode({"action": "remove", "user": "joe"}).encode()
     )
 
 
-def test_equals_in_value():
+def test_equals_in_value(axis_device):
     """Verify that values containing `=` are parsed correctly."""
-    mock_request = AsyncMock()
-    fixture_with_equals = fixture + 'equals-in-value="xyz=="'
-    Users(fixture_with_equals, mock_request)
+    assert Users(fixture + 'equals-in-value="xyz=="', axis_device.vapix.request)
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

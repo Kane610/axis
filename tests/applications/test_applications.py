@@ -5,42 +5,25 @@ pytest --cov-report term-missing --cov=axis.applications.applications tests/appl
 
 import pytest
 
-import httpx
 import respx
 
 from axis.applications import Applications
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def applications(device) -> Applications:
+def applications(axis_device) -> Applications:
     """Returns the applications mock object."""
-    return Applications(device.vapix.request)
+    return Applications(axis_device.vapix.request)
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_update_no_application(applications):
     """Test update applicatios call."""
-    route = respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            text=list_application_empty_response,
-            headers={"Content-Type": "text/xml"},
-        )
+    route = respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=list_application_empty_response,
+        headers={"Content-Type": "text/xml"},
     )
+
     await applications.update()
 
     assert route.called
@@ -48,15 +31,11 @@ async def test_update_no_application(applications):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_update_single_application(applications):
     """Test update applications call."""
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            text=list_application_response,
-            headers={"Content-Type": "text/xml"},
-        )
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=list_application_response,
+        headers={"Content-Type": "text/xml"},
     )
     await applications.update()
 
@@ -78,15 +57,11 @@ async def test_update_single_application(applications):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_update_multiple_applications(applications):
     """Test update applicatios call."""
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            text=list_applications_response,
-            headers={"Content-Type": "text/xml"},
-        )
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=list_applications_response,
+        headers={"Content-Type": "text/xml"},
     )
     await applications.update()
 
@@ -194,17 +169,19 @@ async def test_update_multiple_applications(applications):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_list_single_application(applications):
-    """Test list applicatios call."""
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            text=list_application_response,
-            headers={"Content-Type": "text/xml"},
-        )
+    """Test list applications call.
+
+    Single application is sent as a dict, multiple applications are sent in a list.
+    """
+    list_route = respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=list_application_response,
+        headers={"Content-Type": "text/xml"},
     )
     raw = await applications.list()
+
+    assert list_route.calls.last.request.method == "POST"
+    assert list_route.calls.last.request.url.path == "/axis-cgi/applications/list.cgi"
 
     assert "reply" in raw
     assert "application" in raw["reply"]
@@ -212,15 +189,14 @@ async def test_list_single_application(applications):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_list_multiple_applications(applications):
-    """Test list applicatios call."""
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            text=list_applications_response,
-            headers={"Content-Type": "text/xml"},
-        )
+    """Test list applications call.
+
+    Single application is sent as a dict, multiple applications are sent in a list.
+    """
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=list_applications_response,
+        headers={"Content-Type": "text/xml"},
     )
     raw = await applications.list()
 
