@@ -4,12 +4,11 @@ pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
 import pytest
-from unittest.mock import AsyncMock, call, patch
 
 import httpx
 import respx
 
-from axis.errors import Unauthorized
+from axis.errors import MethodNotAllowed, PathNotFound, RequestError, Unauthorized
 from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
 from axis.configuration import Configuration
 from axis.device import AxisDevice
@@ -35,13 +34,13 @@ from .test_basic_device_info import (
 from .applications.test_vmd4 import response_get_configuration as vmd4_response
 from .test_light_control import response_getLightInformation as light_control_response
 from .test_port_management import response_getPorts as io_port_management_response
-from .test_param_cgi import response_param_cgi
+from .test_param_cgi import response_param_cgi as param_cgi_response
 from .test_stream_profiles import response_list as stream_profiles_response
 
 
 @pytest.fixture
 async def device() -> AxisDevice:
-    """Returns the axis device.
+    """Return the axis device.
 
     Clean up sessions automatically at the end of each test.
     """
@@ -51,29 +50,62 @@ async def device() -> AxisDevice:
 
 
 @pytest.fixture
-def mock_config() -> AsyncMock:
-    """Returns the configuration mock object."""
-    config = AsyncMock()
-    config.username = "root"
-    config.password = "pass"
-    config.verify_ssl = False
-    return config
+def vapix(device) -> Vapix:
+    """Return the vapix object."""
+    return device.vapix
 
 
-async def test_initialize_api_discovery(mock_config):
-    """Verify that you can initialize API Discovery and that devicelist parameters."""
-    with patch(
-        "axis.vapix.Vapix.request",
-        side_effect=[
-            api_discovery_response,
-            basic_device_info_response,
-            io_port_management_response,
-            light_control_response,
-            stream_profiles_response,
-        ],
-    ) as mock_request:
-        vapix = Vapix(mock_config)
-        await vapix.initialize_api_discovery()
+@respx.mock
+async def test_initialize(vapix):
+    """Verify that you can initialize all APIs."""
+    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+        json=api_discovery_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+        json=basic_device_info_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
+        json=io_port_management_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+        json=light_control_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+        json=stream_profiles_response,
+        headers={"Content-Type": "application/json"},
+    )
+
+    respx.get(
+        "http://host:80",
+        path__startswith="/axis-cgi/param.cgi",
+    ).respond(text=param_cgi_response)
+
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=applications_response,
+        headers={"Content-Type": "text/xml"},
+    )
+    respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+        json=fence_guard_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+        json=loitering_guard_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/local/motionguard/control.cgi").respond(
+        json=motion_guard_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/local/vmd/control.cgi").respond(
+        json=vmd4_response,
+        headers={"Content-Type": "application/json"},
+    )
+
+    await vapix.initialize()
 
     assert vapix.api_discovery
     assert vapix.basic_device_info
@@ -81,57 +113,49 @@ async def test_initialize_api_discovery(mock_config):
     assert vapix.mqtt
     assert vapix.stream_profiles
 
-    assert len(mock_request.mock_calls) == 5
-    mock_request.assert_has_calls(
-        [
-            call(
-                "post",
-                "/axis-cgi/apidiscovery.cgi",
-                json={
-                    "method": "getApiList",
-                    "apiVersion": "1.0",
-                    "context": "Axis library",
-                },
-            ),
-            call(
-                "post",
-                "/axis-cgi/basicdeviceinfo.cgi",
-                json={
-                    "method": "getAllProperties",
-                    "apiVersion": "1.1",
-                    "context": "Axis library",
-                },
-            ),
-            call(
-                "post",
-                "/axis-cgi/io/portmanagement.cgi",
-                json={
-                    "method": "getPorts",
-                    "apiVersion": "1.0",
-                    "context": "Axis library",
-                },
-            ),
-            call(
-                "post",
-                "/axis-cgi/lightcontrol.cgi",
-                json={
-                    "method": "getLightInformation",
-                    "apiVersion": "1.1",
-                    "context": "Axis library",
-                },
-            ),
-            call(
-                "post",
-                "/axis-cgi/streamprofile.cgi",
-                json={
-                    "method": "list",
-                    "apiVersion": "1.0",
-                    "context": "Axis library",
-                    "params": {"streamProfileName": []},
-                },
-            ),
-        ]
+    assert vapix.params["root.Brand.Brand"] == "AXIS"
+    assert vapix.firmware_version == "9.80.1"
+    assert vapix.product_number == "M1065-LW"
+    assert vapix.product_type == "Network Camera"
+    assert vapix.serial_number == "ACCC12345678"
+
+    assert vapix.fence_guard
+    assert vapix.loitering_guard
+    assert vapix.motion_guard
+    assert vapix.vmd4
+
+
+@respx.mock
+async def test_initialize_api_discovery(vapix):
+    """Verify that you can initialize API Discovery and that devicelist parameters."""
+    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+        json=api_discovery_response,
+        headers={"Content-Type": "application/json"},
     )
+    respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+        json=basic_device_info_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
+        json=io_port_management_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+        json=light_control_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+        json=stream_profiles_response,
+        headers={"Content-Type": "application/json"},
+    )
+
+    await vapix.initialize_api_discovery()
+
+    assert vapix.api_discovery
+    assert vapix.basic_device_info
+    assert vapix.light_control
+    assert vapix.mqtt
+    assert vapix.stream_profiles
 
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
@@ -146,108 +170,113 @@ async def test_initialize_api_discovery(mock_config):
     assert len(vapix.stream_profiles.values()) == 1
 
 
-async def test_initialize_param_cgi(mock_config):
-    """Verify that you can list parameters."""
-    with patch(
-        "axis.vapix.Vapix.request",
-        side_effect=[response_param_cgi, light_control_response],
-    ) as mock_request:
-        vapix = Vapix(mock_config)
-        await vapix.initialize_param_cgi()
-
-    mock_request.assert_has_calls(
-        [
-            call("get", "/axis-cgi/param.cgi?action=list"),
-            call(
-                "post",
-                "/axis-cgi/lightcontrol.cgi",
-                json={
-                    "method": "getLightInformation",
-                    "apiVersion": "1.1",
-                    "context": "Axis library",
-                },
-            ),
-        ]
+@respx.mock
+async def test_initialize_api_discovery_unauthorized(vapix):
+    """Test initialize api discovery doesnt break due to exception."""
+    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+        json=api_discovery_response,
+        headers={"Content-Type": "application/json"},
     )
+    respx.post(
+        "http://host:80",
+        path__in=(
+            "/axis-cgi/basicdeviceinfo.cgi",
+            "/axis-cgi/io/portmanagement.cgi",
+            "/axis-cgi/lightcontrol.cgi",
+            "/axis-cgi/mqtt/client.cgi",
+            "/axis-cgi/streamprofile.cgi",
+        ),
+    ).side_effect = Unauthorized
+
+    await vapix.initialize_api_discovery()
+
+    assert vapix.basic_device_info is None
+    assert vapix.ports is None
+    assert vapix.light_control is None
+    assert vapix.mqtt is not None
+    assert vapix.stream_profiles is None
+
+
+@respx.mock
+async def test_initialize_api_discovery_unsupported(vapix):
+    """Test initialize api discovery doesnt break due to exception."""
+    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
+
+    await vapix.initialize_api_discovery()
+
+    assert vapix.api_discovery
+
+
+@respx.mock
+async def test_initialize_param_cgi(vapix):
+    """Verify that you can list parameters."""
+    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+        text=param_cgi_response,
+        headers={"Content-Type": "text/plain"},
+    )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+        json=light_control_response,
+        headers={"Content-Type": "application/json"},
+    )
+    await vapix.initialize_param_cgi()
 
     assert vapix.params["root.Brand.Brand"] == "AXIS"
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
-    # assert isinstance(vapix.streaming_profiles[0], StreamProfile)
 
     assert vapix.basic_device_info is None
     assert len(vapix.ports.values()) == 1
     assert len(vapix.light_control.values()) == 1
     assert vapix.mqtt is None
     assert vapix.stream_profiles is None
-
-
-async def test_initialize_params_no_data(mock_config):
-    """Verify that you can list parameters."""
-    with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
-        vapix = Vapix(mock_config)
-        await vapix.initialize_param_cgi(preload_data=False)
-
-    mock_request.assert_not_called
+    assert vapix.streaming_profiles is not None
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_initialize_applications(device):
-    """Verify you can list and retrieve descriptions of applications."""
-    respx.get("http://host:80/axis-cgi/param.cgi?action=list").mock(
-        return_value=httpx.Response(
-            200,
-            text=response_param_cgi,
-            headers={"Content-Type": "text/plain"},
-        )
-    )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            json=light_control_response,
-            headers={"Content-Type": "application/json"},
-        )
-    )
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            text=applications_response,
-            headers={"Content-Type": "text/xml"},
-        )
-    )
-    respx.post("http://host:80/local/fenceguard/control.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            json=fence_guard_response,
-            headers={"Content-Type": "application/json"},
-        )
-    )
-    respx.post("http://host:80/local/loiteringguard/control.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            json=loitering_guard_response,
-            headers={"Content-Type": "application/json"},
-        )
-    )
-    respx.post("http://host:80/local/motionguard/control.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            json=motion_guard_response,
-            headers={"Content-Type": "application/json"},
-        )
-    )
-    respx.post("http://host:80/local/vmd/control.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            json=vmd4_response,
-            headers={"Content-Type": "application/json"},
-        )
-    )
+async def test_initialize_params_no_data(vapix):
+    """Verify that you can list parameters."""
+    param_route = respx.get(
+        "http://host:80",
+        path__startswith="/axis-cgi/param.cgi",
+    ).respond(text="key=value")
+    await vapix.initialize_param_cgi(preload_data=False)
 
-    vapix = device.vapix
+    assert param_route.call_count == 7
+
+
+@respx.mock
+async def test_initialize_applications(vapix):
+    """Verify you can list and retrieve descriptions of applications."""
+    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+        text=param_cgi_response,
+        headers={"Content-Type": "text/plain"},
+    )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+        json=light_control_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=applications_response,
+        headers={"Content-Type": "text/xml"},
+    )
+    respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+        json=fence_guard_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+        json=loitering_guard_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/local/motionguard/control.cgi").respond(
+        json=motion_guard_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/local/vmd/control.cgi").respond(
+        json=vmd4_response,
+        headers={"Content-Type": "application/json"},
+    )
 
     await vapix.initialize_param_cgi()
     await vapix.initialize_applications()
@@ -275,34 +304,43 @@ async def test_initialize_applications(device):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_initialize_applications_not_running(device):
-    """Verify you can list and retrieve descriptions of applications."""
-    respx.get("http://host:80/axis-cgi/param.cgi?action=list").mock(
-        return_value=httpx.Response(
-            200,
-            text=response_param_cgi,
-            headers={"Content-Type": "text/plain"},
-        )
+async def test_initialize_applications_unauthorized(vapix):
+    """Verify initialize applications doesnt break on too low credentials."""
+    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+        text=param_cgi_response,
+        headers={"Content-Type": "text/plain"},
     )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            json=light_control_response,
-            headers={"Content-Type": "application/json"},
-        )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+        json=light_control_response,
+        headers={"Content-Type": "application/json"},
     )
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
-        return_value=httpx.Response(
-            200,
-            text=applications_response.replace(
-                APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
-            ),
-            headers={"Content-Type": "text/xml"},
-        )
-    )
+    respx.post(
+        "http://host:80/axis-cgi/applications/list.cgi"
+    ).side_effect = Unauthorized
 
-    vapix = device.vapix
+    await vapix.initialize_param_cgi()
+    await vapix.initialize_applications()
+
+    assert vapix.applications
+
+
+@respx.mock
+async def test_initialize_applications_not_running(vapix):
+    """Verify you can list and retrieve descriptions of applications."""
+    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+        text=param_cgi_response,
+        headers={"Content-Type": "text/plain"},
+    )
+    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+        json=light_control_response,
+        headers={"Content-Type": "application/json"},
+    )
+    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+        text=applications_response.replace(
+            APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
+        ),
+        headers={"Content-Type": "text/xml"},
+    )
 
     await vapix.initialize_param_cgi()
     await vapix.initialize_applications()
@@ -312,52 +350,116 @@ async def test_initialize_applications_not_running(device):
     assert vapix.vmd4 is None
 
 
-async def test_applications_dont_load_without_params(mock_config):
+@respx.mock
+async def test_applications_dont_load_without_params(vapix):
+    """Applications depends on param cgi to be loaded first."""
+    param_route = respx.get(
+        "http://host:80",
+        path__startswith="/axis-cgi/param.cgi",
+    ).respond(text="key=value")
+
+    applications_route = respx.post("http://host:80/axis-cgi/applications/list.cgi")
+
+    await vapix.initialize_param_cgi(preload_data=False)
+    await vapix.initialize_applications()
+
+    assert param_route.call_count == 7
+    assert not applications_route.called
+
+
+@respx.mock
+async def test_initialize_users(vapix):
     """Verify that you can list parameters."""
-    with patch("axis.vapix.Vapix.request", return_value="key=value") as mock_request:
-        vapix = Vapix(mock_config)
-        await vapix.initialize_param_cgi(preload_data=False)
-        await vapix.initialize_applications()
-
-    mock_request.assert_not_called
-
-
-async def test_initialize_users(mock_config):
-    """Verify that you can list parameters."""
-    with patch(
-        "axis.vapix.Vapix.request",
-        return_value="""users="userv"
+    respx.get("http://host:80/axis-cgi/pwdgrp.cgi?action=get").respond(
+        text="""users="userv"
 viewer="userv"
 operator="usera"
 admin="usera"
 ptz=
 """,
-    ) as mock_request:
-        vapix = Vapix(mock_config)
-        await vapix.initialize_users()
+        headers={"Content-Type": "text/html"},
+    )
 
-    mock_request.assert_called_with("get", "/axis-cgi/pwdgrp.cgi?action=get")
+    await vapix.initialize_users()
+
     assert vapix.users["userv"].viewer
 
 
-async def test_initialize_api_discovery_unauthorized(mock_config):
-    """Test initialize api discovery doesnt break due to exception."""
-    with patch(
-        # with patch(
-        "axis.vapix.Vapix.request",
-        side_effect=[
-            api_discovery_response,
-            Unauthorized,
-            Unauthorized,
-            Unauthorized,
-            Unauthorized,
-        ],
-    ):
-        vapix = Vapix(mock_config)
-        await vapix.initialize_api_discovery()
+@respx.mock
+async def test_request_json_error(vapix):
+    """Verify that a JSON error returns an empty dict."""
+    respx.get("http://host:80").respond(
+        json={"error": ""}, headers={"Content-Type": "application/json"}
+    )
 
-    assert vapix.basic_device_info is None
-    assert vapix.ports is None
-    assert vapix.light_control is None
-    assert vapix.mqtt is not None
-    assert vapix.stream_profiles is None
+    assert await vapix.request("get", "") == {}
+
+
+@respx.mock
+async def test_request_plain_text_error(vapix):
+    """Verify that a plain text error returns an empty string."""
+    respx.get("http://host:80").respond(
+        text="# Error:", headers={"Content-Type": "text/plain"}
+    )
+
+    assert await vapix.request("get", "") == ""
+
+
+@respx.mock
+async def test_request_401_raises_unauthorized(vapix):
+    """Verify that a 401 raises Unauthorized exception.
+
+    This typically mean that user credentials aren't high enough, e.g. viewer account.
+    """
+    respx.get("http://host:80").respond(401)
+
+    with pytest.raises(Unauthorized):
+        await vapix.request("get", "")
+
+
+@respx.mock
+async def test_request_404_raises_path_not_found(vapix):
+    """Verify that a 404 raises PathNotFound exception.
+
+    This typically means something is unsupported.
+    """
+    respx.get("http://host:80").respond(404)
+
+    with pytest.raises(PathNotFound):
+        await vapix.request("get", "")
+
+
+@respx.mock
+async def test_request_405_raises_method_not_allowed(vapix):
+    """Verify that a 405 raises MethodNotAllowed exception."""
+    respx.get("http://host:80").respond(405)
+
+    with pytest.raises(MethodNotAllowed):
+        await vapix.request("get", "")
+
+
+@respx.mock
+async def test_request_timeout(vapix):
+    """Verify that you can list parameters."""
+    respx.get("http://host:80").side_effect = httpx.TimeoutException
+
+    with pytest.raises(RequestError):
+        await vapix.request("get", "")
+
+
+@respx.mock
+async def test_request_transport_error(vapix):
+    """Verify that you can list parameters."""
+    respx.get("http://host:80").side_effect = httpx.TransportError
+
+    with pytest.raises(RequestError):
+        await vapix.request("get", "")
+
+
+@respx.mock
+async def test_request_request_error(vapix):
+    """Verify that you can list parameters."""
+    respx.get("http://host:80").side_effect = httpx.RequestError
+
+    with pytest.raises(RequestError):
+        await vapix.request("get", "")
