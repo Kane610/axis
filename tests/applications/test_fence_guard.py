@@ -26,7 +26,7 @@ async def device() -> AxisDevice:
 
 @pytest.fixture
 def fence_guard(device) -> FenceGuard:
-    """Returns the applications mock object."""
+    """Returns the fence guard mock object."""
     return FenceGuard(device.vapix.request)
 
 

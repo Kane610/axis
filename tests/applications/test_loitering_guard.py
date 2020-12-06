@@ -3,50 +3,63 @@
 pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/applications/test_loitering_guard.py
 """
 
+import json
 import pytest
 from unittest.mock import AsyncMock
 
+import respx
+
 from axis.applications.loitering_guard import LoiteringGuard
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 
 
 @pytest.fixture
-def loitering_guard() -> LoiteringGuard:
-    """Returns the loitering_guard mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return LoiteringGuard(mock_request)
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
 
 
+@pytest.fixture
+def loitering_guard(device) -> LoiteringGuard:
+    """Returns the loitering guard mock object."""
+    return LoiteringGuard(device.vapix.request)
+
+
+@respx.mock
 async def test_get_empty_configuration(loitering_guard):
     """Test empty get_configuration"""
-    loitering_guard._request.return_value = response_get_configuration_empty
-    await loitering_guard.update()
-    loitering_guard._request.assert_called_with(
-        "post",
-        "/local/loiteringguard/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.3",
-            "context": "Axis library",
-        },
+    route = respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+        json=response_get_configuration_empty,
+        headers={"Content-Type": "application/json"},
     )
+    await loitering_guard.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/local/loiteringguard/control.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getConfiguration",
+        "apiVersion": "1.3",
+        "context": "Axis library",
+    }
 
     assert len(loitering_guard.values()) == 0
 
 
+@respx.mock
 async def test_get_configuration(loitering_guard):
     """Test get_configuration"""
-    loitering_guard._request.return_value = response_get_configuration
-    await loitering_guard.update()
-    loitering_guard._request.assert_called_with(
-        "post",
-        "/local/loiteringguard/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.3",
-            "context": "Axis library",
-        },
+    respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+        json=response_get_configuration,
+        headers={"Content-Type": "application/json"},
     )
+    await loitering_guard.update()
 
     assert len(loitering_guard.values()) == 1
 
