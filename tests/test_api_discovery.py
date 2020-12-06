@@ -3,29 +3,50 @@
 pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discovery.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
+
+import respx
 
 from axis.api_discovery import ApiDiscovery, API_DISCOVERY_ID
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 
 
 @pytest.fixture
-def api_discovery() -> ApiDiscovery:
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
+
+
+@pytest.fixture
+def api_discovery(device) -> ApiDiscovery:
     """Returns the api_discovery mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return ApiDiscovery(mock_request)
+    return ApiDiscovery(device.vapix.request)
 
 
+@respx.mock
 async def test_get_api_list(api_discovery):
     """Test get_api_list call."""
-    api_discovery._request.return_value = response_getApiList
-    await api_discovery.update()
-    api_discovery._request.assert_called_with(
-        "post",
-        "/axis-cgi/apidiscovery.cgi",
-        json={"method": "getApiList", "apiVersion": "1.0", "context": "Axis library"},
+    route = respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+        json=response_getApiList,
+        headers={"Content-Type": "application/json"},
     )
+    await api_discovery.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/apidiscovery.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getApiList",
+        "apiVersion": "1.0",
+        "context": "Axis library",
+    }
 
     assert len(api_discovery.values()) == 14
 
@@ -35,13 +56,22 @@ async def test_get_api_list(api_discovery):
     assert item.version == "1.0"
 
 
+@respx.mock
 async def test_get_supported_versions(api_discovery):
     """Test get_supported_versions"""
-    api_discovery._request.return_value = response_getSupportedVersions
-    response = await api_discovery.get_supported_versions()
-    api_discovery._request.assert_called_with(
-        "post", "/axis-cgi/apidiscovery.cgi", json={"method": "getSupportedVersions"},
+    route = respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+        json=response_getSupportedVersions,
+        headers={"Content-Type": "application/json"},
     )
+    response = await api_discovery.get_supported_versions()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/apidiscovery.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getSupportedVersions"
+    }
+
     assert response["data"] == {"apiVersions": ["1.0"]}
 
 
