@@ -4,22 +4,43 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
 import pytest
-from unittest.mock import AsyncMock, call
 
+import respx
+
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, PTZ, Params
 
 
 @pytest.fixture
-def params() -> Params:
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
+
+
+@pytest.fixture
+def params(device) -> Params:
     """Returns the param cgi mock object."""
-    mock_request = AsyncMock()
-    return Params(mock_request)
+    return Params(device.vapix.request)
 
 
+@respx.mock
 async def test_params(params):
     """Verify that you can list parameters."""
-    params._request.return_value = response_param_cgi
+    route = respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+        text=response_param_cgi,
+        headers={"Content-Type": "text/plain"},
+    )
     await params.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     # Brand
     assert params.brand == "AXIS"
@@ -69,14 +90,20 @@ async def test_params_empty_raw(params):
     assert params.light_control is False
 
 
+@respx.mock
 async def test_update_brand(params):
     """Verify that update brand works."""
-    params._request.return_value = response_param_cgi_brand
+    route = respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Brand"
+    ).respond(
+        text=response_param_cgi_brand,
+        headers={"Content-Type": "text/plain"},
+    )
     await params.update_brand()
 
-    params._request.assert_called_with(
-        "get", "/axis-cgi/param.cgi?action=list&group=root.Brand"
-    )
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params[f"{BRAND}.Brand"] == "AXIS"
     assert params[f"{BRAND}.ProdFullName"] == "AXIS M1065-LW Network Camera"
@@ -87,18 +114,45 @@ async def test_update_brand(params):
     assert params[f"{BRAND}.WebURL"] == "http://www.axis.com"
 
 
+@respx.mock
 async def test_update_ports(params):
     """Verify that update brand works."""
-    params._request.return_value = response_param_cgi_ports
+    input_route = respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Input"
+    ).respond(
+        text="root.Input.NbrOfInputs=1",
+        headers={"Content-Type": "text/plain"},
+    )
+    io_port_route = respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.IOPort"
+    ).respond(
+        text="""root.IOPort.I0.Configurable=no
+root.IOPort.I0.Direction=input
+root.IOPort.I0.Input.Name=PIR sensor
+root.IOPort.I0.Input.Trig=closed
+""",
+        headers={"Content-Type": "text/plain"},
+    )
+    output_route = respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Output"
+    ).respond(
+        text="root.Output.NbrOfOutputs=0",
+        headers={"Content-Type": "text/plain"},
+    )
+
     await params.update_ports()
 
-    params._request.assert_has_calls(
-        [
-            call("get", "/axis-cgi/param.cgi?action=list&group=root.Input"),
-            call("get", "/axis-cgi/param.cgi?action=list&group=root.IOPort"),
-            call("get", "/axis-cgi/param.cgi?action=list&group=root.Output"),
-        ]
-    )
+    assert input_route.called
+    assert input_route.calls.last.request.method == "GET"
+    assert input_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
+
+    assert io_port_route.called
+    assert io_port_route.calls.last.request.method == "GET"
+    assert io_port_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
+
+    assert output_route.called
+    assert output_route.calls.last.request.method == "GET"
+    assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params[f"{INPUT}.NbrOfInputs"] == "1"
     assert params[f"{IOPORT}.I0.Configurable"] == "no"
@@ -108,14 +162,21 @@ async def test_update_ports(params):
     assert params[f"{OUTPUT}.NbrOfOutputs"] == "0"
 
 
+@respx.mock
 async def test_update_properties(params):
     """Verify that update properties works."""
-    params._request.return_value = response_param_cgi_properties
+    route = respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Properties"
+    ).respond(
+        text=response_param_cgi_properties,
+        headers={"Content-Type": "text/plain"},
+    )
+
     await params.update_properties()
 
-    params._request.assert_called_with(
-        "get", "/axis-cgi/param.cgi?action=list&group=root.Properties"
-    )
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params[f"{PROPERTIES}.AlwaysMulticast.AlwaysMulticast"] == "yes"
     assert params[f"{PROPERTIES}.API.Browser.Language"] == "yes"
@@ -228,14 +289,21 @@ async def test_update_properties(params):
     assert params[f"{PROPERTIES}.ZipStream.ZipStream"] == "yes"
 
 
+@respx.mock
 async def test_update_ptz(params):
     """Verify that update ptz works."""
-    params._request.return_value = response_param_cgi_ptz
+    route = respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.PTZ"
+    ).respond(
+        text=response_param_cgi_ptz,
+        headers={"Content-Type": "text/plain"},
+    )
+
     await params.update_ptz()
 
-    params._request.assert_called_with(
-        "get", "/axis-cgi/param.cgi?action=list&group=root.PTZ"
-    )
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params[f"{PTZ}.BoaProtPTZOperator"] == "password"
     assert params.ptz_camera_default == 1
@@ -325,14 +393,22 @@ async def test_update_ptz(params):
     }
 
 
+@respx.mock
 async def test_update_stream_profiles(params):
     """Verify that update properties works."""
-    params._request.return_value = response_param_cgi
+    route = respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+    ).respond(
+        text=response_param_cgi,
+        headers={"Content-Type": "text/plain"},
+    )
+
     await params.update_stream_profiles()
 
-    params._request.assert_called_with(
-        "get", "/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
-    )
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
+
     profiles = params.stream_profiles()
 
     assert params.stream_profiles_max_groups == 26
@@ -345,10 +421,18 @@ async def test_update_stream_profiles(params):
     assert profiles[1].parameters == "videocodec=h265"
 
 
+@respx.mock
 async def test_stream_profiles_empty_response(params):
     """Verify that update properties works."""
-    params._request.return_value = ""
+    respx.get(
+        "http://host:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+    ).respond(
+        text="",
+        headers={"Content-Type": "text/plain"},
+    )
+
     await params.update_stream_profiles()
+
     profiles = params.stream_profiles()
 
     assert params.stream_profiles_max_groups == 0
