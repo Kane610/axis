@@ -196,8 +196,11 @@ async def test_update_multiple_applications(applications):
 @respx.mock
 @pytest.mark.asyncio
 async def test_list_single_application(applications):
-    """Test list applicatios call."""
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
+    """Test list applications call.
+
+    Single application is sent as a dict, multiple applications are sent in a list.
+    """
+    list_route = respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
         return_value=httpx.Response(
             200,
             text=list_application_response,
@@ -205,6 +208,9 @@ async def test_list_single_application(applications):
         )
     )
     raw = await applications.list()
+
+    assert list_route.calls.last.request.method == "POST"
+    assert list_route.calls.last.request.url.path == "/axis-cgi/applications/list.cgi"
 
     assert "reply" in raw
     assert "application" in raw["reply"]
@@ -214,7 +220,10 @@ async def test_list_single_application(applications):
 @respx.mock
 @pytest.mark.asyncio
 async def test_list_multiple_applications(applications):
-    """Test list applicatios call."""
+    """Test list applications call.
+
+    Single application is sent as a dict, multiple applications are sent in a list.
+    """
     respx.post("http://host:80/axis-cgi/applications/list.cgi").mock(
         return_value=httpx.Response(
             200,
