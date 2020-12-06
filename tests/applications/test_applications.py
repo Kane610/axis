@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.applications.applications tests/appl
 
 import pytest
 
-import httpx
 import respx
 
 from axis.applications import Applications
