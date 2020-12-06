@@ -3,33 +3,50 @@
 pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_device_info.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
+
+import respx
 
 from axis.basic_device_info import BasicDeviceInfo
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 
 
 @pytest.fixture
-def basic_device_info() -> BasicDeviceInfo:
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
+
+
+@pytest.fixture
+def basic_device_info(device) -> BasicDeviceInfo:
     """Returns the basic_device_info mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return BasicDeviceInfo(mock_request)
+    return BasicDeviceInfo(device.vapix.request)
 
 
+@respx.mock
 async def test_get_all_properties(basic_device_info):
     """Test get all properties api."""
-    basic_device_info._request.return_value = response_getAllProperties
-    await basic_device_info.update()
-    basic_device_info._request.assert_called_with(
-        "post",
-        "/axis-cgi/basicdeviceinfo.cgi",
-        json={
-            "method": "getAllProperties",
-            "apiVersion": "1.1",
-            "context": "Axis library",
-        },
+    route = respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+        json=response_getAllProperties,
+        headers={"Content-Type": "application/json"},
     )
+    await basic_device_info.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getAllProperties",
+        "apiVersion": "1.1",
+        "context": "Axis library",
+    }
 
     assert basic_device_info.architecture == "armv7hf"
     assert basic_device_info.brand == "AXIS"
@@ -47,15 +64,21 @@ async def test_get_all_properties(basic_device_info):
     assert basic_device_info.weburl == "http://www.axis.com"
 
 
+@respx.mock
 async def test_get_supported_versions(basic_device_info):
     """Test get supported versions api."""
-    basic_device_info._request.return_value = response_getSupportedVersions
-    response = await basic_device_info.get_supported_versions()
-    basic_device_info._request.assert_called_with(
-        "post",
-        "/axis-cgi/basicdeviceinfo.cgi",
-        json={"method": "getSupportedVersions"},
+    route = respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+        json=response_getSupportedVersions,
+        headers={"Content-Type": "application/json"},
     )
+    response = await basic_device_info.get_supported_versions()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getSupportedVersions",
+    }
 
     assert response["data"] == {"apiVersions": ["1.1"]}
 
