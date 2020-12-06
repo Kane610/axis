@@ -3,34 +3,51 @@
 pytest --cov-report term-missing --cov=axis.stream_profiles tests/test_stream_profiles.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
+
+import respx
 
 from axis.stream_profiles import StreamProfiles
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 
 
 @pytest.fixture
-def stream_profiles() -> StreamProfiles:
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
+
+
+@pytest.fixture
+def stream_profiles(device) -> StreamProfiles:
     """Returns the stream_profiles mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return StreamProfiles(mock_request)
+    return StreamProfiles(device.vapix.request)
 
 
+@respx.mock
 async def test_list_stream_profiles(stream_profiles):
     """Test get_supported_versions"""
-    stream_profiles._request.return_value = response_list
-    await stream_profiles.update()
-    stream_profiles._request.assert_called_with(
-        "post",
-        "/axis-cgi/streamprofile.cgi",
-        json={
-            "method": "list",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": {"streamProfileName": []},
-        },
+    route = respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+        json=response_list,
+        headers={"Content-Type": "application/json"},
     )
+    await stream_profiles.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "list",
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "params": {"streamProfileName": []},
+    }
 
     assert len(stream_profiles.values()) == 1
 
@@ -41,13 +58,22 @@ async def test_list_stream_profiles(stream_profiles):
     assert stream_profile.parameters == "resolution=1920x1080"
 
 
+@respx.mock
 async def test_get_supported_versions(stream_profiles):
     """Test get_supported_versions"""
-    stream_profiles._request.return_value = response_getSupportedVersions
-    response = await stream_profiles.get_supported_versions()
-    stream_profiles._request.assert_called_with(
-        "post", "/axis-cgi/streamprofile.cgi", json={"method": "getSupportedVersions"},
+    route = respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+        json=response_getSupportedVersions,
+        headers={"Content-Type": "application/json"},
     )
+    response = await stream_profiles.get_supported_versions()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getSupportedVersions"
+    }
+
     assert response["data"] == {"apiVersions": ["1.0"]}
 
 
