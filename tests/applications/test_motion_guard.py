@@ -5,30 +5,16 @@ pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/appl
 
 import json
 import pytest
-from unittest.mock import AsyncMock
 
 import respx
 
 from axis.applications.motion_guard import MotionGuard
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def motion_guard(device) -> MotionGuard:
+def motion_guard(axis_device) -> MotionGuard:
     """Returns the motion guard mock object."""
-    return MotionGuard(device.vapix.request)
+    return MotionGuard(axis_device.vapix.request)
 
 
 @respx.mock

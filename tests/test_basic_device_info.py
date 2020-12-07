@@ -9,25 +9,12 @@ import pytest
 import respx
 
 from axis.basic_device_info import BasicDeviceInfo
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def basic_device_info(device) -> BasicDeviceInfo:
+def basic_device_info(axis_device) -> BasicDeviceInfo:
     """Returns the basic_device_info mock object."""
-    return BasicDeviceInfo(device.vapix.request)
+    return BasicDeviceInfo(axis_device.vapix.request)
 
 
 @respx.mock

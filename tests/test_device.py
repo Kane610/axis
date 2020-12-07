@@ -5,8 +5,8 @@ pytest --cov-report term-missing --cov=axis.device tests/test_device.py
 
 from unittest.mock import Mock
 
-from axis.device import AxisDevice
 from axis.configuration import Configuration
+from axis.device import AxisDevice
 
 
 def test_device():

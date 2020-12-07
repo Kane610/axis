@@ -9,25 +9,12 @@ import pytest
 import respx
 
 from axis.api_discovery import ApiDiscovery, API_DISCOVERY_ID
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def api_discovery(device) -> ApiDiscovery:
+def api_discovery(axis_device) -> ApiDiscovery:
     """Returns the api_discovery mock object."""
-    return ApiDiscovery(device.vapix.request)
+    return ApiDiscovery(axis_device.vapix.request)
 
 
 @respx.mock

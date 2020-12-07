@@ -9,25 +9,12 @@ import pytest
 import respx
 
 from axis.applications.vmd4 import Vmd4
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def vmd4(device) -> Vmd4:
+def vmd4(axis_device) -> Vmd4:
     """Returns the vmd4 mock object."""
-    return Vmd4(device.vapix.request)
+    return Vmd4(axis_device.vapix.request)
 
 
 @respx.mock

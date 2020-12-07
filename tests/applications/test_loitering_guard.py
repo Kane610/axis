@@ -5,30 +5,16 @@ pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/a
 
 import json
 import pytest
-from unittest.mock import AsyncMock
 
 import respx
 
 from axis.applications.loitering_guard import LoiteringGuard
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def loitering_guard(device) -> LoiteringGuard:
+def loitering_guard(axis_device) -> LoiteringGuard:
     """Returns the loitering guard mock object."""
-    return LoiteringGuard(device.vapix.request)
+    return LoiteringGuard(axis_device.vapix.request)
 
 
 @respx.mock

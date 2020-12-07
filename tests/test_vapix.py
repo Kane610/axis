@@ -10,8 +10,6 @@ import respx
 
 from axis.errors import MethodNotAllowed, PathNotFound, RequestError, Unauthorized
 from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 from axis.stream_profiles import StreamProfile
 from axis.vapix import Vapix
 
@@ -39,20 +37,9 @@ from .test_stream_profiles import response_list as stream_profiles_response
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Return the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def vapix(device) -> Vapix:
+def vapix(axis_device) -> Vapix:
     """Return the vapix object."""
-    return device.vapix
+    return axis_device.vapix
 
 
 @respx.mock

@@ -9,25 +9,12 @@ import pytest
 import respx
 
 from axis.stream_profiles import StreamProfiles
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def stream_profiles(device) -> StreamProfiles:
+def stream_profiles(axis_device) -> StreamProfiles:
     """Returns the stream_profiles mock object."""
-    return StreamProfiles(device.vapix.request)
+    return StreamProfiles(axis_device.vapix.request)
 
 
 @respx.mock

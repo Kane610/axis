@@ -8,8 +8,6 @@ from urllib.parse import urlencode
 
 import respx
 
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 from axis.ptz import (
     AUTO,
     MOVE_HOME,
@@ -30,20 +28,9 @@ UNSUPPORTED_COMMAND = "unsupported"
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def ptz_control(device) -> PtzControl:
+def ptz_control(axis_device) -> PtzControl:
     """Returns the PTZ control mock object."""
-    return PtzControl(device.vapix.request)
+    return PtzControl(axis_device.vapix.request)
 
 
 def test_limit():

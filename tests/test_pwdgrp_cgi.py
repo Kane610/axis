@@ -8,26 +8,13 @@ import urllib
 
 import respx
 
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 from axis.pwdgrp_cgi import SGRP_ADMIN, Users
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def users(device) -> Users:
+def users(axis_device) -> Users:
     """Returns the api_discovery mock object."""
-    return Users(fixture, device.vapix.request)
+    return Users(fixture, axis_device.vapix.request)
 
 
 def test_users(users):
@@ -173,9 +160,9 @@ async def test_delete(users):
     )
 
 
-def test_equals_in_value(device):
+def test_equals_in_value(axis_device):
     """Verify that values containing `=` are parsed correctly."""
-    assert Users(fixture + 'equals-in-value="xyz=="', device.vapix.request)
+    assert Users(fixture + 'equals-in-value="xyz=="', axis_device.vapix.request)
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

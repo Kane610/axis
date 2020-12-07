@@ -9,25 +9,12 @@ import pytest
 import respx
 
 from axis.applications.object_analytics import ObjectAnalytics
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def object_analytics(device) -> ObjectAnalytics:
+def object_analytics(axis_device) -> ObjectAnalytics:
     """Returns the object analytics mock object."""
-    return ObjectAnalytics(device.vapix.request)
+    return ObjectAnalytics(axis_device.vapix.request)
 
 
 @respx.mock

@@ -7,26 +7,13 @@ import pytest
 
 import respx
 
-from axis.configuration import Configuration
-from axis.device import AxisDevice
 from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, PTZ, Params
 
 
 @pytest.fixture
-async def device() -> AxisDevice:
-    """Returns the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
-    yield axis_device
-    await axis_device.vapix.close()
-
-
-@pytest.fixture
-def params(device) -> Params:
+def params(axis_device) -> Params:
     """Returns the param cgi mock object."""
-    return Params(device.vapix.request)
+    return Params(axis_device.vapix.request)
 
 
 @respx.mock
