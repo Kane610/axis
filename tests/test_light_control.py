@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 
 import json
 import pytest
-from unittest.mock import AsyncMock
 
 import respx
 
