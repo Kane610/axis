@@ -3,9 +3,13 @@
 pytest --cov-report term-missing --cov=axis.port_management tests/test_port_management.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
 
+import respx
+
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 from axis.port_management import (
     IoPortManagement,
     PortSequence,
@@ -15,22 +19,40 @@ from axis.port_management import (
 
 
 @pytest.fixture
-def io_port_management() -> IoPortManagement:
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
+
+
+@pytest.fixture
+def io_port_management(device) -> IoPortManagement:
     """Returns the io_port_management mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return IoPortManagement(mock_request)
+    return IoPortManagement(device.vapix.request)
 
 
+@respx.mock
 async def test_get_ports(io_port_management):
     """Test get_ports call."""
-    io_port_management._request.return_value = response_getPorts
-    await io_port_management.update()
-    io_port_management._request.assert_called_with(
-        "post",
-        "/axis-cgi/io/portmanagement.cgi",
-        json={"method": "getPorts", "apiVersion": "1.0", "context": "Axis library"},
+    route = respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
+        json=response_getPorts,
+        headers={"Content-Type": "application/json"},
     )
+
+    await io_port_management.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "method": "getPorts",
+    }
 
     assert len(io_port_management.values()) == 1
 
@@ -45,77 +67,90 @@ async def test_get_ports(io_port_management):
     assert item.normalState == "open"
 
     await item.open()
-    item._request.assert_called_with(
-        "post",
-        "/axis-cgi/io/portmanagement.cgi",
-        json={
-            "method": "setPorts",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": [{"port": "0", "state": "open"}],
-        },
-    )
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "setPorts",
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "params": [{"port": "0", "state": "open"}],
+    }
 
     await item.close()
-    item._request.assert_called_with(
-        "post",
-        "/axis-cgi/io/portmanagement.cgi",
-        json={
-            "method": "setPorts",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": [{"port": "0", "state": "closed"}],
-        },
-    )
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "setPorts",
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "params": [{"port": "0", "state": "closed"}],
+    }
 
 
+@respx.mock
 async def test_set_ports(io_port_management):
     """Test set_ports call."""
+    route = respx.post("http://host:80/axis-cgi/io/portmanagement.cgi")
+
     await io_port_management.set_ports([SetPort("0", state="closed")])
-    io_port_management._request.assert_called_with(
-        "post",
-        "/axis-cgi/io/portmanagement.cgi",
-        json={
-            "method": "setPorts",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": [{"port": "0", "state": "closed"}],
-        },
-    )
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "setPorts",
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "params": [{"port": "0", "state": "closed"}],
+    }
 
 
-async def test_state_sequence(io_port_management):
-    """Test set_ports call."""
+@respx.mock
+async def test_set_state_sequence(io_port_management):
+    """Test setting state sequence call."""
+    route = respx.post("http://host:80/axis-cgi/io/portmanagement.cgi")
+
     await io_port_management.set_state_sequence(
         PortSequence("0", [Sequence("open", 3000), Sequence("closed", 5000)])
     )
-    io_port_management._request.assert_called_with(
-        "post",
-        "/axis-cgi/io/portmanagement.cgi",
-        json={
-            "method": "setStateSequence",
-            "apiVersion": "1.0",
-            "context": "Axis library",
-            "params": {
-                "port": "0",
-                "sequence": [
-                    {"state": "open", "time": 3000},
-                    {"state": "closed", "time": 5000},
-                ],
-            },
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "setStateSequence",
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "params": {
+            "port": "0",
+            "sequence": [
+                {"state": "open", "time": 3000},
+                {"state": "closed", "time": 5000},
+            ],
         },
-    )
+    }
 
 
+@respx.mock
 async def test_get_supported_versions(io_port_management):
-    """Test get_supported_versions"""
-    io_port_management._request.return_value = response_getSupportedVersions
-    response = await io_port_management.get_supported_versions()
-    io_port_management._request.assert_called_with(
-        "post",
-        "/axis-cgi/io/portmanagement.cgi",
-        json={"method": "getSupportedVersions"},
+    """Test get_supported_versions."""
+    route = respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
+        json=response_getSupportedVersions,
+        headers={"Content-Type": "application/json"},
     )
+
+    response = await io_port_management.get_supported_versions()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getSupportedVersions"
+    }
     assert response["data"] == {"apiVersions": ["1.0"]}
 
 
