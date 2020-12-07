@@ -3,50 +3,49 @@
 pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/applications/test_fence_guard.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
+
+import respx
 
 from axis.applications.fence_guard import FenceGuard
 
 
 @pytest.fixture
-def fence_guard() -> FenceGuard:
-    """Returns the fence_guard mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return FenceGuard(mock_request)
+def fence_guard(axis_device) -> FenceGuard:
+    """Returns the fence guard mock object."""
+    return FenceGuard(axis_device.vapix.request)
 
 
+@respx.mock
 async def test_get_empty_configuration(fence_guard):
     """Test empty get_configuration"""
-    fence_guard._request.return_value = response_get_configuration_empty
-    await fence_guard.update()
-    fence_guard._request.assert_called_with(
-        "post",
-        "/local/fenceguard/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.3",
-            "context": "Axis library",
-        },
+    route = respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+        json=response_get_configuration_empty,
+        headers={"Content-Type": "application/json"},
     )
+    await fence_guard.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/local/fenceguard/control.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getConfiguration",
+        "apiVersion": "1.3",
+        "context": "Axis library",
+    }
 
     assert len(fence_guard.values()) == 0
 
 
+@respx.mock
 async def test_get_configuration(fence_guard):
     """Test get_configuration"""
-    fence_guard._request.return_value = response_get_configuration
-    await fence_guard.update()
-    fence_guard._request.assert_called_with(
-        "post",
-        "/local/fenceguard/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.3",
-            "context": "Axis library",
-        },
+    respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+        json=response_get_configuration,
+        headers={"Content-Type": "application/json"},
     )
+    await fence_guard.update()
 
     assert len(fence_guard.values()) == 1
 

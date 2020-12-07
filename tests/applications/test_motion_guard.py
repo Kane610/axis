@@ -3,50 +3,49 @@
 pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/applications/test_motion_guard.py
 """
 
+import json
 import pytest
-from unittest.mock import AsyncMock
+
+import respx
 
 from axis.applications.motion_guard import MotionGuard
 
 
 @pytest.fixture
-def motion_guard() -> MotionGuard:
-    """Returns the motion_guard mock object."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    return MotionGuard(mock_request)
+def motion_guard(axis_device) -> MotionGuard:
+    """Returns the motion guard mock object."""
+    return MotionGuard(axis_device.vapix.request)
 
 
+@respx.mock
 async def test_get_empty_configuration(motion_guard):
     """Test empty get_configuration"""
-    motion_guard._request.return_value = response_get_configuration_empty
-    await motion_guard.update()
-    motion_guard._request.assert_called_with(
-        "post",
-        "/local/motionguard/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.3",
-            "context": "Axis library",
-        },
+    route = respx.post("http://host:80/local/motionguard/control.cgi").respond(
+        json=response_get_configuration_empty,
+        headers={"Content-Type": "application/json"},
     )
+    await motion_guard.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/local/motionguard/control.cgi"
+    assert json.loads(route.calls.last.request.content) == {
+        "method": "getConfiguration",
+        "apiVersion": "1.3",
+        "context": "Axis library",
+    }
 
     assert len(motion_guard.values()) == 0
 
 
+@respx.mock
 async def test_get_configuration(motion_guard):
     """Test get_configuration"""
-    motion_guard._request.return_value = response_get_configuration
-    await motion_guard.update()
-    motion_guard._request.assert_called_with(
-        "post",
-        "/local/motionguard/control.cgi",
-        json={
-            "method": "getConfiguration",
-            "apiVersion": "1.3",
-            "context": "Axis library",
-        },
+    respx.post("http://host:80/local/motionguard/control.cgi").respond(
+        json=response_get_configuration,
+        headers={"Content-Type": "application/json"},
     )
+    await motion_guard.update()
 
     assert len(motion_guard.values()) == 1
 
