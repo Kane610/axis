@@ -9,12 +9,8 @@ from axis.configuration import Configuration
 from axis.device import AxisDevice
 
 
-def test_device():
+def test_device(axis_device):
     """"""
-    axis_device = AxisDevice(
-        Configuration("host", port=80, username="root", password="pass")
-    )
-
     assert axis_device.config
     assert axis_device.vapix
     assert axis_device.stream
