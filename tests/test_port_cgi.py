@@ -3,21 +3,52 @@
 pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 """
 
+import pytest
+import urllib
 from unittest.mock import AsyncMock
 
+import respx
+
+from axis.configuration import Configuration
+from axis.device import AxisDevice
 from axis.param_cgi import Params
 from axis.port_cgi import ACTION_LOW, Ports
 
 
-async def test_ports():
+@pytest.fixture
+async def device() -> AxisDevice:
+    """Returns the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    axis_device = AxisDevice(Configuration("host", username="root", password="pass"))
+    yield axis_device
+    await axis_device.vapix.close()
+
+
+@pytest.fixture
+def ports(device) -> Ports:
+    """Returns the api_discovery mock object."""
+    params = Params(device.vapix.request)
+    return Ports(params, device.vapix.request)
+
+
+@respx.mock
+async def test_ports(ports):
     """Test that different types of ports work."""
-    mock_request = AsyncMock()
-    mock_request.return_value = fixture_ports
-    params = Params(mock_request)
-    ports = Ports(params, mock_request)
+    update_ports_route = respx.route(
+        url__startswith="http://host:80/axis-cgi/param.cgi"
+    ).respond(
+        text=fixture_ports,
+        headers={"Content-Type": "text/plain"},
+    )
+
+    action_low_route = respx.get("http://host:80/axis-cgi/io/port.cgi?action=4%3A%2F")
+    action_high_route = respx.get("http://host:80/axis-cgi/io/port.cgi?action=4%3A%5C")
+
     await ports.update()
 
-    mock_request.assert_called_once
+    assert update_ports_route.call_count == 3
 
     assert ports["0"].id == "0"
     assert ports["0"].configurable == "no"
@@ -25,7 +56,8 @@ async def test_ports():
     assert not ports["0"].name
 
     await ports["0"].action(action=ACTION_LOW)
-    mock_request.assert_called_once
+
+    assert not action_low_route.called
 
     assert ports["1"].id == "1"
     assert ports["1"].configurable == "no"
@@ -46,21 +78,30 @@ async def test_ports():
     assert ports["3"].output_active == "open"
 
     await ports["3"].close()
-    mock_request.assert_called_with("get", "/axis-cgi/io/port.cgi?action=4%3A%2F")
+
+    assert action_low_route.called
+    assert action_low_route.calls.last.request.method == "GET"
+    assert action_low_route.calls.last.request.url.path == "/axis-cgi/io/port.cgi"
+    assert action_low_route.calls.last.request.url.query.decode() == "action=4%3A%2F"
 
     await ports["3"].open()
-    mock_request.assert_called_with("get", "/axis-cgi/io/port.cgi?action=4%3A%5C")
+    assert action_high_route.called
+    assert action_high_route.calls.last.request.method == "GET"
+    assert action_high_route.calls.last.request.url.path == "/axis-cgi/io/port.cgi"
+    assert action_high_route.calls.last.request.url.query.decode() == "action=4%3A%5C"
 
 
-async def test_no_ports():
+@respx.mock
+async def test_no_ports(ports):
     """Test that no ports also work."""
-    mock_request = AsyncMock()
-    mock_request.return_value = ""
-    params = Params(mock_request)
-    ports = Ports(params, mock_request)
+    route = respx.route(url__startswith="http://host:80/axis-cgi/param.cgi").respond(
+        text="",
+        headers={"Content-Type": "text/plain"},
+    )
+
     await ports.update()
 
-    mock_request.assert_called_once
+    assert route.call_count == 3
 
     assert len(ports.values()) == 0
 
