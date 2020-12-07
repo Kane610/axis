@@ -4,8 +4,6 @@ pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 """
 
 import pytest
-import urllib
-from unittest.mock import AsyncMock
 
 import respx
 
@@ -39,7 +37,29 @@ async def test_ports(ports):
     update_ports_route = respx.route(
         url__startswith="http://host:80/axis-cgi/param.cgi"
     ).respond(
-        text=fixture_ports,
+        text="""root.IOPort.I0.Direction=input
+root.IOPort.I0.Usage=Button
+root.IOPort.I1.Configurable=no
+root.IOPort.I1.Direction=input
+root.IOPort.I1.Input.Name=PIR sensor
+root.IOPort.I1.Input.Trig=closed
+root.IOPort.I2.Direction=input
+root.IOPort.I2.Usage=
+root.IOPort.I2.Output.Active=closed
+root.IOPort.I2.Output.Button=none
+root.IOPort.I2.Output.DelayTime=0
+root.IOPort.I2.Output.Mode=bistable
+root.IOPort.I2.Output.Name=Output 2
+root.IOPort.I2.Output.PulseTime=0
+root.IOPort.I3.Direction=output
+root.IOPort.I3.Usage=Tampering
+root.IOPort.I3.Output.Active=open
+root.IOPort.I3.Output.Button=none
+root.IOPort.I3.Output.DelayTime=0
+root.IOPort.I3.Output.Mode=bistable
+root.IOPort.I3.Output.Name=Tampering
+root.IOPort.I3.Output.PulseTime=0
+""",
         headers={"Content-Type": "text/plain"},
     )
 
@@ -102,30 +122,4 @@ async def test_no_ports(ports):
     await ports.update()
 
     assert route.call_count == 3
-
     assert len(ports.values()) == 0
-
-
-fixture_ports = """root.IOPort.I0.Direction=input
-root.IOPort.I0.Usage=Button
-root.IOPort.I1.Configurable=no
-root.IOPort.I1.Direction=input
-root.IOPort.I1.Input.Name=PIR sensor
-root.IOPort.I1.Input.Trig=closed
-root.IOPort.I2.Direction=input
-root.IOPort.I2.Usage=
-root.IOPort.I2.Output.Active=closed
-root.IOPort.I2.Output.Button=none
-root.IOPort.I2.Output.DelayTime=0
-root.IOPort.I2.Output.Mode=bistable
-root.IOPort.I2.Output.Name=Output 2
-root.IOPort.I2.Output.PulseTime=0
-root.IOPort.I3.Direction=output
-root.IOPort.I3.Usage=Tampering
-root.IOPort.I3.Output.Active=open
-root.IOPort.I3.Output.Button=none
-root.IOPort.I3.Output.DelayTime=0
-root.IOPort.I3.Output.Mode=bistable
-root.IOPort.I3.Output.Name=Tampering
-root.IOPort.I3.Output.PulseTime=0
-"""
