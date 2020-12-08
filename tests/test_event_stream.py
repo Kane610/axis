@@ -42,41 +42,15 @@ from .event_fixtures import (
 
 
 @pytest.fixture
-def event_manager() -> EventManager:
+def event_manager(axis_device) -> EventManager:
     """Returns mocked event manager."""
-    signal = Mock()
-    return EventManager(signal)
+    axis_device.enable_events(Mock())
+    return axis_device.event
 
 
 def test_parse_event_first_message(event_manager):
     """Verify that first message doesn't do anything."""
     assert not event_manager.parse_event_xml(FIRST_MESSAGE)
-
-
-def test_parse_event_pir_init(event_manager):
-    """Verify that PIR init can be parsed correctly."""
-    pir = event_manager.parse_event_xml(PIR_INIT)
-    assert pir == {
-        "operation": "Initialized",
-        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
-        "source": "sensor",
-        "source_idx": "0",
-        "type": "state",
-        "value": "0",
-    }
-
-
-def test_parse_event_pir_change(event_manager):
-    """Verify that PIR change can be parsed correctly"""
-    pir = event_manager.parse_event_xml(PIR_CHANGE)
-    assert pir == {
-        "operation": "Changed",
-        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
-        "source": "sensor",
-        "source_idx": "0",
-        "type": "state",
-        "value": "1",
-    }
 
 
 def test_parse_event_pir_init(event_manager):
