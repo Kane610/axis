@@ -215,7 +215,6 @@ async def test_get_event_publication_config(mqtt_client):
                 }
             },
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await mqtt_client.get_event_publication_config()

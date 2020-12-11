@@ -41,7 +41,6 @@ async def test_update(light_control):
                 ]
             },
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.update()
@@ -88,7 +87,6 @@ async def test_get_service_capabilities(light_control):
                 "dayNightSynchronizeSupport": True,
             },
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_service_capabilities()
@@ -137,7 +135,6 @@ async def test_get_light_information(light_control):
                 ]
             },
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_light_information()
@@ -178,7 +175,6 @@ async def test_activate_light(light_control):
             "method": "activateLight",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.activate_light("led0")
@@ -203,7 +199,6 @@ async def test_deactivate_light(light_control):
             "method": "deactivateLight",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.deactivate_light("led0")
@@ -228,7 +223,6 @@ async def test_enable_light(light_control):
             "method": "enableLight",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.enable_light("led0")
@@ -253,7 +247,6 @@ async def test_disable_light(light_control):
             "method": "disableLight",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.disable_light("led0")
@@ -278,7 +271,6 @@ async def test_get_light_status(light_control):
             "method": "getLightStatus",
             "data": {"status": False},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_light_status("led0")
@@ -305,7 +297,6 @@ async def test_set_automatic_intensity_mode(light_control):
             "method": "setAutomaticIntensityMode",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.set_automatic_intensity_mode("led0", True)
@@ -330,7 +321,6 @@ async def test_get_manual_intensity(light_control):
             "method": "getManualIntensity",
             "data": {"intensity": 1000},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_manual_intensity("led0")
@@ -357,7 +347,6 @@ async def test_set_manual_intensity(light_control):
             "method": "setManualIntensity",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.set_manual_intensity("led0", 1000)
@@ -382,7 +371,6 @@ async def test_get_valid_intensity(light_control):
             "method": "getValidIntensity",
             "data": {"ranges": [{"low": 0, "high": 1000}]},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_valid_intensity("led0")
@@ -409,7 +397,6 @@ async def test_set_individual_intensity(light_control):
             "method": "setIndividualIntensity",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.set_individual_intensity("led0", 1, 1000)
@@ -434,7 +421,6 @@ async def test_get_individual_intensity(light_control):
             "method": "getIndividualIntensity",
             "data": {"intensity": 1000},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_individual_intensity("led0", 1)
@@ -461,7 +447,6 @@ async def test_get_current_intensity(light_control):
             "method": "getCurrentIntensity",
             "data": {"intensity": 1000},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_current_intensity("led0")
@@ -488,7 +473,6 @@ async def test_set_automatic_angle_of_illumination_mode(light_control):
             "method": "setAutomaticAngleOfIlluminationMode",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.set_automatic_angle_of_illumination_mode("led0", True)
@@ -514,7 +498,6 @@ async def test_get_valid_angle_of_illumination(light_control):
             "method": "getValidAngleOfIllumination",
             "data": {"ranges": [{"low": 10, "high": 30}, {"low": 20, "high": 50}]},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_valid_angle_of_illumination("led0")
@@ -543,7 +526,6 @@ async def test_set_manual_angle_of_illumination(light_control):
             "method": "setManualAngleOfIllumination",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.set_manual_angle_of_illumination("led0", 30)
@@ -569,7 +551,6 @@ async def test_get_manual_angle_of_illumination(light_control):
             "method": "getManualAngleOfIllumination",
             "data": {"angleOfIllumination": 30},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_manual_angle_of_illumination("led0")
@@ -597,7 +578,6 @@ async def test_get_current_angle_of_illumination(light_control):
             "method": "getCurrentAngleOfIllumination",
             "data": {"angleOfIllumination": 20},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_current_angle_of_illumination("led0")
@@ -624,7 +604,6 @@ async def test_set_light_synchronization_day_night_mode(light_control):
             "method": "setLightSynchronizationDayNightMode",
             "data": {},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     await light_control.set_light_synchronization_day_night_mode("led0", True)
@@ -650,7 +629,6 @@ async def test_get_light_synchronization_day_night_mode(light_control):
             "method": "getLightSynchronizeDayNightMode",
             "data": {"enabled": True},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_light_synchronization_day_night_mode("led0")
@@ -676,7 +654,6 @@ async def test_get_supported_versions(light_control):
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.1"]},
         },
-        headers={"Content-Type": "application/json"},
     )
 
     response = await light_control.get_supported_versions()

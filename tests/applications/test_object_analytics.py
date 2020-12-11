@@ -22,7 +22,6 @@ async def test_get_no_configuration(object_analytics):
     """Test no response from get_configuration"""
     route = respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
         json={},
-        headers={"Content-Type": "application/json"},
     )
     await object_analytics.update()
 
@@ -44,7 +43,6 @@ async def test_get_empty_configuration(object_analytics):
     """Test empty get_configuration"""
     respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
         json=response_get_configuration_empty,
-        headers={"Content-Type": "application/json"},
     )
     await object_analytics.update()
 
@@ -56,7 +54,6 @@ async def test_get_configuration(object_analytics):
     """Test get_configuration"""
     respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
         json=response_get_configuration,
-        headers={"Content-Type": "application/json"},
     )
     await object_analytics.update()
 

@@ -27,7 +27,6 @@ async def test_get_ports(io_port_management):
     """Test get_ports call."""
     route = respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
         json=response_getPorts,
-        headers={"Content-Type": "application/json"},
     )
 
     await io_port_management.update()
@@ -127,7 +126,6 @@ async def test_get_supported_versions(io_port_management):
     """Test get_supported_versions."""
     route = respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
         json=response_getSupportedVersions,
-        headers={"Content-Type": "application/json"},
     )
 
     response = await io_port_management.get_supported_versions()

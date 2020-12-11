@@ -22,7 +22,6 @@ async def test_get_empty_configuration(loitering_guard):
     """Test empty get_configuration"""
     route = respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
         json=response_get_configuration_empty,
-        headers={"Content-Type": "application/json"},
     )
     await loitering_guard.update()
 
@@ -43,7 +42,6 @@ async def test_get_configuration(loitering_guard):
     """Test get_configuration"""
     respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
         json=response_get_configuration,
-        headers={"Content-Type": "application/json"},
     )
     await loitering_guard.update()
 
