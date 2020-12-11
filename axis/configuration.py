@@ -2,11 +2,14 @@
 
 import attr
 
+from httpx import AsyncClient
+
 
 @attr.s
 class Configuration:
     """Device configuration."""
 
+    session: AsyncClient = attr.ib()
     host: str = attr.ib()
     username: str = attr.ib(kw_only=True)
     password: str = attr.ib(kw_only=True)

@@ -39,10 +39,6 @@ class Vapix:
     def __init__(self, config: Configuration) -> None:
         """Store local reference to device config."""
         self.config = config
-        self.session = httpx.AsyncClient(
-            auth=httpx.DigestAuth(config.username, config.password),
-            verify=config.verify_ssl,
-        )
 
         self.api_discovery = None
         self.applications = None
@@ -59,12 +55,6 @@ class Vapix:
         self.stream_profiles = None
         self.users = None
         self.vmd4 = None
-
-    async def close(self) -> None:
-        """Close session."""
-        if self.session:
-            await self.session.aclose()
-            self.session = None
 
     @property
     def firmware_version(self) -> str:
@@ -212,11 +202,13 @@ class Vapix:
     async def request(self, method: str, path: str, **kwargs: dict) -> str:
         """Make a request to the API."""
         url = self.config.url + path
+        auth = httpx.DigestAuth(self.config.username, self.config.password)
 
         LOGGER.debug("%s %s", url, kwargs)
-
         try:
-            response = await self.session.request(method, url, **kwargs)
+            response = await self.config.session.request(
+                method, url, auth=auth, **kwargs
+            )
             response.raise_for_status()
 
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)

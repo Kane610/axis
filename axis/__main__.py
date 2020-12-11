@@ -6,6 +6,7 @@ import async_timeout
 import logging
 
 import axis
+from httpx import AsyncClient
 
 LOGGER = logging.getLogger(__name__)
 
@@ -16,10 +17,10 @@ def event_handler(action, event):
 
 async def axis_device(host, port, username, password):
     """Create a Axis device."""
-
+    session = AsyncClient(verify=False)
     device = axis.AxisDevice(
         axis.configuration.Configuration(
-            host, port=port, username=username, password=password
+            session, host, port=port, username=username, password=password
         )
     )
 
@@ -55,23 +56,21 @@ async def main(host, port, username, password, params, events):
 
     if params:
         await device.vapix.initialize()
-        await device.vapix.close()
-
-        if not events:
-            return
 
     if events:
         device.enable_events(event_callback=event_handler)
         device.stream.start()
 
     try:
-        while True:
-            await asyncio.sleep(1)
+        if events:
+            while True:
+                await asyncio.sleep(1)
 
     except asyncio.CancelledError:
         pass
 
     finally:
+        await device.config.session.aclose()
         device.stream.stop()
 
 
