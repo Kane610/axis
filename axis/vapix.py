@@ -39,6 +39,7 @@ class Vapix:
     def __init__(self, config: Configuration) -> None:
         """Store local reference to device config."""
         self.config = config
+        self.auth = httpx.DigestAuth(self.config.username, self.config.password)
 
         self.api_discovery = None
         self.applications = None
@@ -202,12 +203,11 @@ class Vapix:
     async def request(self, method: str, path: str, **kwargs: dict) -> str:
         """Make a request to the API."""
         url = self.config.url + path
-        auth = httpx.DigestAuth(self.config.username, self.config.password)
 
         LOGGER.debug("%s %s", url, kwargs)
         try:
             response = await self.config.session.request(
-                method, url, auth=auth, **kwargs
+                method, url, auth=self.auth, **kwargs
             )
             response.raise_for_status()
 
