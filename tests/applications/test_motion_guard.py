@@ -22,7 +22,6 @@ async def test_get_empty_configuration(motion_guard):
     """Test empty get_configuration"""
     route = respx.post("http://host:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration_empty,
-        headers={"Content-Type": "application/json"},
     )
     await motion_guard.update()
 
@@ -43,7 +42,6 @@ async def test_get_configuration(motion_guard):
     """Test get_configuration"""
     respx.post("http://host:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration,
-        headers={"Content-Type": "application/json"},
     )
     await motion_guard.update()
 

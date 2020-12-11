@@ -22,7 +22,6 @@ async def test_list_stream_profiles(stream_profiles):
     """Test get_supported_versions"""
     route = respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
         json=response_list,
-        headers={"Content-Type": "application/json"},
     )
     await stream_profiles.update()
 
@@ -50,7 +49,6 @@ async def test_get_supported_versions(stream_profiles):
     """Test get_supported_versions"""
     route = respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
         json=response_getSupportedVersions,
-        headers={"Content-Type": "application/json"},
     )
     response = await stream_profiles.get_supported_versions()
 

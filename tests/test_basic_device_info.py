@@ -22,7 +22,6 @@ async def test_get_all_properties(basic_device_info):
     """Test get all properties api."""
     route = respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=response_getAllProperties,
-        headers={"Content-Type": "application/json"},
     )
     await basic_device_info.update()
 
@@ -56,7 +55,6 @@ async def test_get_supported_versions(basic_device_info):
     """Test get supported versions api."""
     route = respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=response_getSupportedVersions,
-        headers={"Content-Type": "application/json"},
     )
     response = await basic_device_info.get_supported_versions()
 

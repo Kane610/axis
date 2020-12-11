@@ -7,7 +7,7 @@ from axis.device import AxisDevice
 
 
 @pytest.fixture
-async def axis_device() -> AxisDevice:
+async def axis_device(loop) -> AxisDevice:
     """Returns the axis device.
 
     Clean up sessions automatically at the end of each test.

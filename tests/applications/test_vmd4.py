@@ -22,7 +22,6 @@ async def test_get_empty_configuration(vmd4):
     """Test empty get_configuration"""
     route = respx.post("http://host:80/local/vmd/control.cgi").respond(
         json=response_get_configuration_empty,
-        headers={"Content-Type": "application/json"},
     )
     await vmd4.update()
 
@@ -43,7 +42,6 @@ async def test_get_configuration(vmd4):
     """Test get_supported_versions"""
     respx.post("http://host:80/local/vmd/control.cgi").respond(
         json=response_get_configuration,
-        headers={"Content-Type": "application/json"},
     )
     await vmd4.update()
 
@@ -80,7 +78,6 @@ async def test_get_configuration_error(vmd4):
     """
     respx.post("http://host:80/local/vmd/control.cgi").respond(
         json={},
-        headers={"Content-Type": "application/json"},
     )
     await vmd4.update()
 

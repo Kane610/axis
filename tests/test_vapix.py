@@ -47,23 +47,18 @@ async def test_initialize(vapix):
     """Verify that you can initialize all APIs."""
     respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
         json=api_discovery_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=basic_device_info_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
         json=io_port_management_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
         json=stream_profiles_response,
-        headers={"Content-Type": "application/json"},
     )
 
     respx.get(
@@ -77,19 +72,15 @@ async def test_initialize(vapix):
     )
     respx.post("http://host:80/local/fenceguard/control.cgi").respond(
         json=fence_guard_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
         json=loitering_guard_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/local/motionguard/control.cgi").respond(
         json=motion_guard_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/local/vmd/control.cgi").respond(
         json=vmd4_response,
-        headers={"Content-Type": "application/json"},
     )
 
     await vapix.initialize()
@@ -117,23 +108,18 @@ async def test_initialize_api_discovery(vapix):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
     respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
         json=api_discovery_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=basic_device_info_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
         json=io_port_management_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
         json=stream_profiles_response,
-        headers={"Content-Type": "application/json"},
     )
 
     await vapix.initialize_api_discovery()
@@ -162,7 +148,6 @@ async def test_initialize_api_discovery_unauthorized(vapix):
     """Test initialize api discovery doesnt break due to exception."""
     respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
         json=api_discovery_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post(
         "http://host:80",
@@ -203,7 +188,6 @@ async def test_initialize_param_cgi(vapix):
     )
     respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
-        headers={"Content-Type": "application/json"},
     )
     await vapix.initialize_param_cgi()
 
@@ -242,7 +226,6 @@ async def test_initialize_applications(vapix):
     )
     respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response,
@@ -250,19 +233,15 @@ async def test_initialize_applications(vapix):
     )
     respx.post("http://host:80/local/fenceguard/control.cgi").respond(
         json=fence_guard_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
         json=loitering_guard_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/local/motionguard/control.cgi").respond(
         json=motion_guard_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/local/vmd/control.cgi").respond(
         json=vmd4_response,
-        headers={"Content-Type": "application/json"},
     )
 
     await vapix.initialize_param_cgi()
@@ -299,7 +278,6 @@ async def test_initialize_applications_unauthorized(vapix):
     )
     respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post(
         "http://host:80/axis-cgi/applications/list.cgi"
@@ -320,7 +298,6 @@ async def test_initialize_applications_not_running(vapix):
     )
     respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
-        headers={"Content-Type": "application/json"},
     )
     respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response.replace(
