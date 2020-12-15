@@ -19,7 +19,6 @@ import pytest
 def rtsp_client(axis_device) -> RTSPClient:
     """Return the RTSP client."""
     axis_device.enable_events(event_callback=Mock())
-    # axis_device.session_callback = Mock()
     with patch("axis.rtsp.asyncio.get_running_loop"), patch(
         "axis.rtsp.socket"
     ) as mock_socket:
@@ -409,8 +408,6 @@ async def test_rtsp(rtsp_client):
     assert len(rtsp_client.loop.call_later.call_args_list) == 7
 
     assert rtsp_client.session.sequence == 4
-    # assert len(rtsp_client.loop.call_later.call_args_list) == 0
-    # assert rtsp_client.session
 
     # STOP stream
     rtsp_client.stop()
@@ -427,44 +424,63 @@ async def test_rtsp(rtsp_client):
     assert rtsp_client.session.sequence == 5
 
 
+def test_methods(rtsp_client):
+    """Verify method attributes."""
+    method = rtsp_client.method
+
+    assert method.sequence == "CSeq: 0\r\n"
+
+    assert method.authentication == ""
+    with patch.object(method.session, "digest", True), patch.object(
+        method.session, "generate_digest", return_value="digest"
+    ):
+        assert method.authentication == "Authorization: digest\r\n"
+
+    with patch.object(method.session, "basic", True), patch.object(
+        method.session, "generate_basic", return_value="basic"
+    ):
+        assert method.authentication == "Authorization: basic\r\n"
+
+    assert method.user_agent == "User-Agent: HASS Axis\r\n"
+
+    assert method.session_id == ""
+    with patch.object(method.session, "session_id", "1"):
+        assert method.session_id == "Session: 1\r\n"
+
+    assert method.transport == "Transport: RTP/AVP;unicast;client_port=45678-45679\r\n"
+
+
 def test_session_state_method(rtsp_client):
-    """"""
+    """Verify state method."""
     session = rtsp_client.session
 
     assert session.sequence == 0
     assert session.method == "OPTIONS"
     assert session.state == STATE_STARTING
 
-    session.sequence = 1
-    assert session.sequence == 1
-    assert session.method == "DESCRIBE"
-    assert session.state == STATE_STARTING
+    with patch.object(session, "sequence", 1):
+        assert session.method == "DESCRIBE"
+        assert session.state == STATE_STARTING
 
-    session.sequence = 2
-    assert session.sequence == 2
-    assert session.method == "SETUP"
-    assert session.state == STATE_STARTING
+    with patch.object(session, "sequence", 2):
+        assert session.method == "SETUP"
+        assert session.state == STATE_STARTING
 
-    session.sequence = 3
-    assert session.sequence == 3
-    assert session.method == "PLAY"
-    assert session.state == STATE_STARTING
+    with patch.object(session, "sequence", 3):
+        assert session.method == "PLAY"
+        assert session.state == STATE_STARTING
 
-    session.sequence = 4
-    assert session.sequence == 4
-    assert session.method == "KEEP-ALIVE"
-    assert session.state == STATE_PLAYING
+    with patch.object(session, "sequence", 4):
+        assert session.method == "KEEP-ALIVE"
+        assert session.state == STATE_PLAYING
 
-    session.sequence = 5
-    assert session.sequence == 5
-    assert session.method == "TEARDOWN"
-    assert session.state == STATE_STOPPED
-
-    session.sequence = 6
-    assert session.sequence == 6
-    with pytest.raises(IndexError):
-        assert session.method
+    with patch.object(session, "sequence", 5):
+        assert session.method == "TEARDOWN"
         assert session.state == STATE_STOPPED
+
+    with patch.object(session, "sequence", 6), pytest.raises(IndexError):
+        session.method
+        session.state
 
 
 def test_session_update_status_codes(rtsp_client):
