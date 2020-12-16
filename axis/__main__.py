@@ -69,6 +69,7 @@ async def main(host, port, username, password, params, events):
             await asyncio.sleep(1)
 
     except asyncio.CancelledError:
+        device.stream.stop()
         pass
 
     finally:
