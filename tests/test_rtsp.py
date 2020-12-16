@@ -3,10 +3,12 @@
 pytest --cov-report term-missing --cov=axis.rtsp tests/test_rtsp.py
 """
 
+import logging
 from unittest.mock import Mock, patch
 
 from axis.rtsp import (
     RTSPClient,
+    SIGNAL_FAILED,
     STATE_PLAYING,
     STATE_STARTING,
     STATE_STOPPED,
@@ -410,7 +412,10 @@ async def test_rtsp(rtsp_client):
     assert rtsp_client.session.sequence == 4
 
     # STOP stream
-    rtsp_client.stop()
+    rtsp_client.session.sequence = 5
+    with patch.object(rtsp_client, "keep_alive_handle") as mock_keep_alive_handle:
+        rtsp_client.data_received(b"")
+        mock_keep_alive_handle.cancel.assert_called()
     transport.write.assert_called_with(
         b"TEARDOWN "
         + b"rtsp://host/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
@@ -422,6 +427,70 @@ async def test_rtsp(rtsp_client):
     assert len(rtsp_client.loop.call_later.call_args_list) == 7
 
     assert rtsp_client.session.sequence == 5
+
+
+def test_rtsp_client_init_done(rtsp_client):
+    """Verify RTSP client init done."""
+    mock_future = Mock()
+
+    # Successful init
+    with patch.object(rtsp_client, "stop") as mock_rtsp_client_stop, patch.object(
+        rtsp_client, "callback"
+    ) as mock_rtsp_client_callback:
+        rtsp_client.init_done(mock_future)
+        mock_rtsp_client_stop.assert_not_called()
+        mock_rtsp_client_callback.assert_not_called()
+
+    # Failed init
+    mock_future.exception.side_effect = OSError
+    with patch.object(rtsp_client, "stop") as mock_rtsp_client_stop, patch.object(
+        rtsp_client, "callback"
+    ) as mock_rtsp_client_callback:
+        rtsp_client.init_done(mock_future)
+        mock_rtsp_client_stop.assert_called()
+        mock_rtsp_client_callback.assert_called_with(SIGNAL_FAILED)
+
+
+def test_rtsp_client_time_out(rtsp_client, caplog):
+    """Verify RTSP client time out method."""
+    with patch.object(rtsp_client, "time_out_handle", True), patch.object(
+        rtsp_client, "stop"
+    ) as mock_rtsp_client_stop, patch.object(
+        rtsp_client, "callback"
+    ) as mock_rtsp_client_callback:
+        rtsp_client.time_out()
+        assert "Response timed out host" in caplog.text
+        assert rtsp_client.time_out_handle is None
+        mock_rtsp_client_stop.assert_called()
+        mock_rtsp_client_callback.assert_called_with(SIGNAL_FAILED)
+
+
+def test_rtsp_client_connection_lost(rtsp_client, caplog):
+    """Verify RTSP client connection lost method."""
+    with caplog.at_level(logging.DEBUG):
+        rtsp_client.connection_lost("exc")
+    assert "RTSP session lost connection" in caplog.text
+
+
+def test_rtp_client(rtsp_client, caplog):
+    """Verify RTP client."""
+    rtp_client = rtsp_client.rtp
+
+    mock_transport = Mock()
+    rtp_client.client.connection_made(mock_transport)
+    assert rtp_client.client.transport == mock_transport
+
+    with caplog.at_level(logging.DEBUG):
+        rtp_client.client.connection_lost("exc")
+    assert "Stream recepient offline" in caplog.text
+
+    with patch.object(rtp_client.client, "callback") as mock_callback:
+        rtp_client.client.datagram_received("0123456789ABCDEF", "addr")
+        mock_callback.assert_called_with("data")
+        assert rtp_client.data == "CDEF"
+
+    rtsp_client.stop()
+    mock_transport.close.assert_called()
 
 
 def test_methods(rtsp_client):
