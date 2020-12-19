@@ -34,8 +34,6 @@ class RTSPClient(asyncio.Protocol):
         self.callback = callback
         self.rtp = RTPClient(self.loop, callback)
         self.session = RTSPSession(url, host, username, password)
-        self.session.rtp_port = self.rtp.port
-        self.session.rtcp_port = self.rtp.rtcp_port
         self.method = RTSPMethods(self.session)
 
         self.transport = None
@@ -43,7 +41,11 @@ class RTSPClient(asyncio.Protocol):
         self.time_out_handle = None
 
     def start(self):
-        """Start session."""
+        """Start RTSP session."""
+        self.rtp.start()
+        self.session.rtp_port = self.rtp.port
+        self.session.rtcp_port = self.rtp.rtcp_port
+
         conn = self.loop.create_connection(
             lambda: self, self.session.host, self.session.port
         )
@@ -143,16 +145,22 @@ class RTPClient(object):
 
         Store port for RTSP session setup.
         """
+        self.loop = loop
+        self.client = self.UDPClient(callback)
+        self.port = 0
+        self.rtcp_port = 0
+
+    def start(self):
+        """Start RTP client."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(("", 0))
         self.port = sock.getsockname()[1]
-        self.client = self.UDPClient(callback)
         # conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
         # conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
-        conn = loop.create_datagram_endpoint(
+        conn = self.loop.create_datagram_endpoint(
             lambda: self.client, local_addr=("0.0.0.0", self.port)
         )
-        loop.create_task(conn)
+        self.loop.create_task(conn)
         # self.port = self.client.transport.get_extra_info('sockname')[1]
         self.rtcp_port = self.port + 1
 
@@ -313,13 +321,13 @@ class RTSPSession(object):
     def __init__(self, url, host, username, password):
         """Session parameters."""
         self._basic_auth = None
+        self.sequence = 0
 
         self.url = url
         self.host = host
         self.port = RTSP_PORT
         self.username = username
         self.password = password
-        self.sequence = 0
         self.user_agent = "HASS Axis"
         self.rtp_port = None
         self.rtcp_port = None
@@ -331,6 +339,7 @@ class RTSPSession(object):
             "KEEP-ALIVE",
             "TEARDOWN",
         ]
+
         # Information as part of ack from device
         self.rtsp_version = None
         self.status_code = None
