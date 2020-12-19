@@ -312,6 +312,8 @@ class RTSPSession(object):
 
     def __init__(self, url, host, username, password):
         """Session parameters."""
+        self._basic_auth = None
+
         self.url = url
         self.host = host
         self.port = RTSP_PORT
@@ -321,7 +323,6 @@ class RTSPSession(object):
         self.user_agent = "HASS Axis"
         self.rtp_port = None
         self.rtcp_port = None
-        self.basic_auth = None
         self.methods = [
             "OPTIONS",
             "DESCRIBE",
@@ -475,11 +476,11 @@ class RTSPSession(object):
         """RFC 2617."""
         from base64 import b64encode
 
-        if not self.basic_auth:
+        if not self._basic_auth:
             creds = f"{self.username}:{self.password}"
-            self.basic_auth = "Basic "
-            self.basic_auth += b64encode(creds.encode("UTF-8")).decode("UTF-8")
-        return self.basic_auth
+            self._basic_auth = "Basic "
+            self._basic_auth += b64encode(creds.encode("UTF-8")).decode("UTF-8")
+        return self._basic_auth
 
     def stop(self):
         """Set session to stopped."""

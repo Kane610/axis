@@ -55,7 +55,7 @@ async def test_rtsp(rtsp_client):
     ]
 
     assert rtsp_client.session.sequence == 0
-    assert rtsp_client.session.basic_auth is None
+    assert rtsp_client.session._basic_auth is None
     assert rtsp_client.session.rtsp_version is None
     assert rtsp_client.session.status_code is None
     assert rtsp_client.session.status_text is None
@@ -104,7 +104,7 @@ async def test_rtsp(rtsp_client):
     assert len(rtsp_client.loop.call_later.call_args_list) == 2
 
     assert rtsp_client.session.sequence == 1
-    assert rtsp_client.session.basic_auth is None
+    assert rtsp_client.session._basic_auth is None
     assert rtsp_client.session.status_code == 200
     assert rtsp_client.session.status_text == "OK"
     assert rtsp_client.session.sequence_ack == 0
@@ -216,7 +216,7 @@ async def test_rtsp(rtsp_client):
     assert len(rtsp_client.loop.call_later.call_args_list) == 4
 
     assert rtsp_client.session.sequence == 2
-    assert rtsp_client.session.basic_auth is None
+    assert rtsp_client.session._basic_auth is None
     assert rtsp_client.session.status_code == 200
     assert rtsp_client.session.status_text == "OK"
     assert rtsp_client.session.sequence_ack == 1
@@ -280,7 +280,7 @@ async def test_rtsp(rtsp_client):
     assert len(rtsp_client.loop.call_later.call_args_list) == 5
 
     assert rtsp_client.session.sequence == 3
-    assert rtsp_client.session.basic_auth is None
+    assert rtsp_client.session._basic_auth is None
     assert rtsp_client.session.status_code == 200
     assert rtsp_client.session.status_text == "OK"
     assert rtsp_client.session.sequence_ack == 2
@@ -348,7 +348,7 @@ async def test_rtsp(rtsp_client):
     assert len(rtsp_client.loop.call_later.call_args_list) == 6
 
     assert rtsp_client.session.sequence == 4
-    assert rtsp_client.session.basic_auth is None
+    assert rtsp_client.session._basic_auth is None
     assert rtsp_client.session.status_code == 200
     assert rtsp_client.session.status_text == "OK"
     assert rtsp_client.session.sequence_ack == 3
@@ -627,7 +627,7 @@ def test_session_generate_basic_auth(rtsp_client):
     basic_auth = session.generate_basic()
 
     assert basic_auth == "Basic cm9vdDpwYXNz"
-    assert basic_auth == session.basic_auth  # Make session.basic_auth private
+    assert basic_auth == session._basic_auth
 
     with patch("base64.b64encode") as mock_b64encode:
         basic_auth = session.generate_basic()
