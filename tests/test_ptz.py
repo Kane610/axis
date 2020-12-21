@@ -24,6 +24,8 @@ from axis.ptz import (
     limit,
 )
 
+from .conftest import HOST
+
 UNSUPPORTED_COMMAND = "unsupported"
 
 
@@ -45,7 +47,7 @@ def test_limit():
 @respx.mock
 async def test_ptz_control_no_input(ptz_control):
     """Verify that PTZ control without input doesn't send out anything."""
-    route = respx.get("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.get(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control()
     assert not route.called
 
@@ -53,7 +55,7 @@ async def test_ptz_control_no_input(ptz_control):
 @respx.mock
 async def test_ptz_control_camera_no_output(ptz_control):
     """Verify that PTZ control does not send out camera input without additional commands."""
-    route = respx.get("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.get(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(camera=1)
     assert not route.called
 
@@ -61,7 +63,7 @@ async def test_ptz_control_camera_no_output(ptz_control):
 @respx.mock
 async def test_ptz_control_camera_with_move(ptz_control):
     """Verify that PTZ control send out camera input with additional commands."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(camera=2, move=MOVE_HOME)
 
@@ -77,7 +79,7 @@ async def test_ptz_control_camera_with_move(ptz_control):
 @respx.mock
 async def test_ptz_control_center(ptz_control):
     """Verify that PTZ control can send out center input."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(center=(30, 60))
     assert route.calls.last.request.content == urlencode({"center": "30,60"}).encode()
 
@@ -85,7 +87,7 @@ async def test_ptz_control_center(ptz_control):
 @respx.mock
 async def test_ptz_control_center_with_imagewidth(ptz_control):
     """Verify that PTZ control can send out center together with imagewidth."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(center=(30, 60), imagewidth=120)
     assert (
         route.calls.last.request.content
@@ -96,7 +98,7 @@ async def test_ptz_control_center_with_imagewidth(ptz_control):
 @respx.mock
 async def test_ptz_control_areazoom(ptz_control):
     """Verify that PTZ control can send out areazoom input."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(areazoom=(30, 60, 90))
     assert (
         route.calls.last.request.content == urlencode({"areazoom": "30,60,90"}).encode()
@@ -106,7 +108,7 @@ async def test_ptz_control_areazoom(ptz_control):
 @respx.mock
 async def test_ptz_control_areazoom_too_little_zoom(ptz_control):
     """Verify that PTZ control can send out areazoom input."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(areazoom=(30, 60, 0))
     assert (
         route.calls.last.request.content == urlencode({"areazoom": "30,60,1"}).encode()
@@ -116,7 +118,7 @@ async def test_ptz_control_areazoom_too_little_zoom(ptz_control):
 @respx.mock
 async def test_ptz_control_areazoom_with_imageheight(ptz_control):
     """Verify that PTZ control can send out areazoom with imageheight."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(areazoom=(30, 60, 90), imageheight=120)
     assert (
         route.calls.last.request.content
@@ -127,7 +129,7 @@ async def test_ptz_control_areazoom_with_imageheight(ptz_control):
 @respx.mock
 async def test_ptz_control_camera_with_unsupported_move(ptz_control):
     """Verify that PTZ control only send out supported moves."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(move=UNSUPPORTED_COMMAND)
     assert not route.called
 
@@ -135,7 +137,7 @@ async def test_ptz_control_camera_with_unsupported_move(ptz_control):
 @respx.mock
 async def test_ptz_control_pan(ptz_control):
     """Verify that PTZ control can send out pan and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(pan=90)
     assert route.calls.last.request.content == urlencode({"pan": 90}).encode()
@@ -150,7 +152,7 @@ async def test_ptz_control_pan(ptz_control):
 @respx.mock
 async def test_ptz_control_tilt(ptz_control):
     """Verify that PTZ control can send out tilt and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(tilt=90)
     assert route.calls.last.request.content == urlencode({"tilt": 90}).encode()
@@ -165,7 +167,7 @@ async def test_ptz_control_tilt(ptz_control):
 @respx.mock
 async def test_ptz_control_zoom(ptz_control):
     """Verify that PTZ control can send out zoom and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(zoom=90)
     assert route.calls.last.request.content == urlencode({"zoom": 90}).encode()
@@ -180,7 +182,7 @@ async def test_ptz_control_zoom(ptz_control):
 @respx.mock
 async def test_ptz_control_focus(ptz_control):
     """Verify that PTZ control can send out focus and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(focus=90)
     assert route.calls.last.request.content == urlencode({"focus": 90}).encode()
@@ -195,7 +197,7 @@ async def test_ptz_control_focus(ptz_control):
 @respx.mock
 async def test_ptz_control_iris(ptz_control):
     """Verify that PTZ control can send out iris and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(iris=90)
     assert route.calls.last.request.content == urlencode({"iris": 90}).encode()
@@ -210,7 +212,7 @@ async def test_ptz_control_iris(ptz_control):
 @respx.mock
 async def test_ptz_control_brightness(ptz_control):
     """Verify that PTZ control can send out brightness and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(brightness=90)
     assert route.calls.last.request.content == urlencode({"brightness": 90}).encode()
@@ -225,7 +227,7 @@ async def test_ptz_control_brightness(ptz_control):
 @respx.mock
 async def test_ptz_control_rpan(ptz_control):
     """Verify that PTZ control can send out rpan and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(rpan=90)
     assert route.calls.last.request.content == urlencode({"rpan": 90}).encode()
@@ -240,7 +242,7 @@ async def test_ptz_control_rpan(ptz_control):
 @respx.mock
 async def test_ptz_control_rtilt(ptz_control):
     """Verify that PTZ control can send out rtilt and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(rtilt=90)
     assert route.calls.last.request.content == urlencode({"rtilt": 90}).encode()
@@ -255,7 +257,7 @@ async def test_ptz_control_rtilt(ptz_control):
 @respx.mock
 async def test_ptz_control_rzoom(ptz_control):
     """Verify that PTZ control can send out rzoom and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(rzoom=90)
     assert route.calls.last.request.content == urlencode({"rzoom": 90}).encode()
@@ -270,7 +272,7 @@ async def test_ptz_control_rzoom(ptz_control):
 @respx.mock
 async def test_ptz_control_rfocus(ptz_control):
     """Verify that PTZ control can send out rfocus and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(rfocus=90)
     assert route.calls.last.request.content == urlencode({"rfocus": 90}).encode()
@@ -285,7 +287,7 @@ async def test_ptz_control_rfocus(ptz_control):
 @respx.mock
 async def test_ptz_control_riris(ptz_control):
     """Verify that PTZ control can send out riris and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(riris=90)
     assert route.calls.last.request.content == urlencode({"riris": 90}).encode()
@@ -300,7 +302,7 @@ async def test_ptz_control_riris(ptz_control):
 @respx.mock
 async def test_ptz_control_rbrightness(ptz_control):
     """Verify that PTZ control can send out rbrightness and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(rbrightness=90)
     assert route.calls.last.request.content == urlencode({"rbrightness": 90}).encode()
@@ -317,7 +319,7 @@ async def test_ptz_control_rbrightness(ptz_control):
 @respx.mock
 async def test_ptz_control_continuouszoommove(ptz_control):
     """Verify that PTZ control can send out continuouszoommove and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(continuouszoommove=90)
     assert (
@@ -341,7 +343,7 @@ async def test_ptz_control_continuouszoommove(ptz_control):
 @respx.mock
 async def test_ptz_control_continuousfocusmove(ptz_control):
     """Verify that PTZ control can send out continuousfocusmove and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(continuousfocusmove=90)
     assert (
@@ -365,7 +367,7 @@ async def test_ptz_control_continuousfocusmove(ptz_control):
 @respx.mock
 async def test_ptz_control_continuousirismove(ptz_control):
     """Verify that PTZ control can send out continuousirismove and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(continuousirismove=90)
     assert (
@@ -389,7 +391,7 @@ async def test_ptz_control_continuousirismove(ptz_control):
 @respx.mock
 async def test_ptz_control_continuousbrightnessmove(ptz_control):
     """Verify that PTZ control can send out continuousbrightnessmove and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(continuousbrightnessmove=90)
     assert (
@@ -413,7 +415,7 @@ async def test_ptz_control_continuousbrightnessmove(ptz_control):
 @respx.mock
 async def test_ptz_control_speed(ptz_control):
     """Verify that PTZ control can send out speed and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(speed=90)
     assert route.calls.last.request.content == urlencode({"speed": 90}).encode()
@@ -428,7 +430,7 @@ async def test_ptz_control_speed(ptz_control):
 @respx.mock
 async def test_ptz_control_autofocus(ptz_control):
     """Verify that PTZ control can send out autofocus."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(autofocus=UNSUPPORTED_COMMAND)
     assert not route.called
@@ -440,7 +442,7 @@ async def test_ptz_control_autofocus(ptz_control):
 @respx.mock
 async def test_ptz_control_autoiris(ptz_control):
     """Verify that PTZ control can send out autoiris."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(autoiris=UNSUPPORTED_COMMAND)
     assert not route.called
@@ -452,7 +454,7 @@ async def test_ptz_control_autoiris(ptz_control):
 @respx.mock
 async def test_ptz_control_backlight(ptz_control):
     """Verify that PTZ control can send out backlight."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(backlight=UNSUPPORTED_COMMAND)
     assert not route.called
@@ -464,7 +466,7 @@ async def test_ptz_control_backlight(ptz_control):
 @respx.mock
 async def test_ptz_control_ircutfilter(ptz_control):
     """Verify that PTZ control can send out ircutfilter."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(ircutfilter=UNSUPPORTED_COMMAND)
     assert not route.called
@@ -476,7 +478,7 @@ async def test_ptz_control_ircutfilter(ptz_control):
 @respx.mock
 async def test_ptz_control_imagerotation(ptz_control):
     """Verify that PTZ control can send out imagerotation."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(imagerotation=UNSUPPORTED_COMMAND)
     assert not route.called
@@ -490,7 +492,7 @@ async def test_ptz_control_imagerotation(ptz_control):
 @respx.mock
 async def test_ptz_control_continuouspantiltmove(ptz_control):
     """Verify that PTZ control can send out continuouspantiltmove and its limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
     await ptz_control.control(continuouspantiltmove=(30, 60))
     assert (
@@ -514,7 +516,7 @@ async def test_ptz_control_continuouspantiltmove(ptz_control):
 @respx.mock
 async def test_ptz_control_auxiliary(ptz_control):
     """Verify that PTZ control can send out auxiliary."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(auxiliary="any")
     assert route.calls.last.request.content == urlencode({"auxiliary": "any"}).encode()
 
@@ -522,7 +524,7 @@ async def test_ptz_control_auxiliary(ptz_control):
 @respx.mock
 async def test_ptz_control_gotoserverpresetname(ptz_control):
     """Verify that PTZ control can send out gotoserverpresetname."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(gotoserverpresetname="any")
     assert (
         route.calls.last.request.content
@@ -533,7 +535,7 @@ async def test_ptz_control_gotoserverpresetname(ptz_control):
 @respx.mock
 async def test_ptz_control_gotoserverpresetno(ptz_control):
     """Verify that PTZ control can send out gotoserverpresetno."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(gotoserverpresetno="any")
     assert (
         route.calls.last.request.content
@@ -544,7 +546,7 @@ async def test_ptz_control_gotoserverpresetno(ptz_control):
 @respx.mock
 async def test_ptz_control_gotodevicepreset(ptz_control):
     """Verify that PTZ control can send out gotodevicepreset."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.control(gotodevicepreset="any")
     assert (
         route.calls.last.request.content
@@ -555,7 +557,7 @@ async def test_ptz_control_gotodevicepreset(ptz_control):
 @respx.mock
 async def test_query_limit(ptz_control):
     """Verify PTZ control query limits."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="""MinPan=-170
 MaxPan=170
 MinTilt=-20
@@ -603,7 +605,7 @@ MaxBrightness=9999"""
 @respx.mock
 async def test_query_mode(ptz_control):
     """Verify PTZ control query modes."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="mode=normal",
         headers={"Content-Type": "text/plain"},
     )
@@ -620,7 +622,7 @@ async def test_query_mode(ptz_control):
 @respx.mock
 async def test_query_position(ptz_control):
     """Verify PTZ control query positions."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="""pan=51.2891
 tilt=46.1914
 zoom=1
@@ -657,7 +659,7 @@ autoiris=on"""
 @respx.mock
 async def test_query_presetposall(ptz_control):
     """Verify PTZ control query presetposalls."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="""Preset Positions for camera 1
 presetposno1=Home""",
         headers={"Content-Type": "text/plain"},
@@ -682,7 +684,7 @@ presetposno1=Home"""
 @respx.mock
 async def test_query_presetposcam(ptz_control):
     """Verify PTZ control query presetposcams."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="""Preset Positions for camera 1
 presetposno1=Home""",
         headers={"Content-Type": "text/plain"},
@@ -707,7 +709,7 @@ presetposno1=Home"""
 @respx.mock
 async def test_query_presetposcamdata(ptz_control):
     """Verify PTZ control query presetposcamdatas."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="""Preset Positions for camera 1
 presetposno1=Home""",
         headers={"Content-Type": "text/plain"},
@@ -732,7 +734,7 @@ presetposno1=Home"""
 @respx.mock
 async def test_query_speed(ptz_control):
     """Verify PTZ control query speeds."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="speed=100",
         headers={"Content-Type": "text/plain"},
     )
@@ -751,7 +753,7 @@ async def test_query_speed(ptz_control):
 @respx.mock
 async def test_query_unsupported_command(ptz_control):
     """Verify PTZ control query doesn't send unsupported commands."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
     await ptz_control.query(UNSUPPORTED_COMMAND)
     assert not route.called
 
@@ -759,7 +761,7 @@ async def test_query_unsupported_command(ptz_control):
 @respx.mock
 async def test_get_configured_device_driver(ptz_control):
     """Verify listing configured device driver."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="Sony_camblock",
         headers={"Content-Type": "text/plain"},
     )
@@ -777,7 +779,7 @@ async def test_get_configured_device_driver(ptz_control):
 @respx.mock
 async def test_get_available_ptz_commands(ptz_control):
     """Verify listing configured device driver."""
-    route = respx.post("http://host:80/axis-cgi/com/ptz.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi").respond(
         text="""Available commands
 :
 {camera=[n]}

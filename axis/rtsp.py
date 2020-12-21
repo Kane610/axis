@@ -115,7 +115,6 @@ class RTSPClient(asyncio.Protocol):
 
     def keep_alive(self):
         """Keep RTSP session alive per negotiated time interval."""
-        self.keep_alive_handle = None
         self.transport.write(self.method.message.encode())
         self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
@@ -125,7 +124,6 @@ class RTSPClient(asyncio.Protocol):
         This usually happens if device isn't available on specified IP.
         """
         _LOGGER.warning("Response timed out %s", self.session.host)
-        self.time_out_handle = None
         self.stop()
         self.callback(SIGNAL_FAILED)
 

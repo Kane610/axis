@@ -15,6 +15,8 @@ from axis.rtsp import (
 )
 from axis.streammanager import RETRY_TIMER, StreamManager
 
+from .conftest import HOST
+
 
 @pytest.fixture
 def stream_manager(axis_device) -> StreamManager:
@@ -29,14 +31,14 @@ async def test_stream_url(stream_manager):
     assert stream_manager.event_query == "off"
     assert (
         stream_manager.stream_url
-        == "rtsp://host/axis-media/media.amp?video=0&audio=0&event=off"
+        == f"rtsp://{HOST}/axis-media/media.amp?video=0&audio=0&event=off"
     )
 
     stream_manager.event = True
     assert stream_manager.event_query == "on"
     assert (
         stream_manager.stream_url
-        == "rtsp://host/axis-media/media.amp?video=0&audio=0&event=on"
+        == f"rtsp://{HOST}/axis-media/media.amp?video=0&audio=0&event=on"
     )
 
 

@@ -10,6 +10,8 @@ import respx
 
 from axis.stream_profiles import StreamProfiles
 
+from .conftest import HOST
+
 
 @pytest.fixture
 def stream_profiles(axis_device) -> StreamProfiles:
@@ -20,7 +22,7 @@ def stream_profiles(axis_device) -> StreamProfiles:
 @respx.mock
 async def test_list_stream_profiles(stream_profiles):
     """Test get_supported_versions"""
-    route = respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=response_list,
     )
     await stream_profiles.update()
@@ -47,7 +49,7 @@ async def test_list_stream_profiles(stream_profiles):
 @respx.mock
 async def test_get_supported_versions(stream_profiles):
     """Test get_supported_versions"""
-    route = respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=response_getSupportedVersions,
     )
     response = await stream_profiles.get_supported_versions()

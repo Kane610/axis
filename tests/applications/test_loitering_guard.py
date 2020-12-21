@@ -10,6 +10,8 @@ import respx
 
 from axis.applications.loitering_guard import LoiteringGuard
 
+from ..conftest import HOST
+
 
 @pytest.fixture
 def loitering_guard(axis_device) -> LoiteringGuard:
@@ -20,7 +22,7 @@ def loitering_guard(axis_device) -> LoiteringGuard:
 @respx.mock
 async def test_get_empty_configuration(loitering_guard):
     """Test empty get_configuration"""
-    route = respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
     await loitering_guard.update()
@@ -40,7 +42,7 @@ async def test_get_empty_configuration(loitering_guard):
 @respx.mock
 async def test_get_configuration(loitering_guard):
     """Test get_configuration"""
-    respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
         json=response_get_configuration,
     )
     await loitering_guard.update()

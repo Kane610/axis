@@ -10,6 +10,8 @@ import respx
 
 from axis.applications.fence_guard import FenceGuard
 
+from ..conftest import HOST
+
 
 @pytest.fixture
 def fence_guard(axis_device) -> FenceGuard:
@@ -20,7 +22,7 @@ def fence_guard(axis_device) -> FenceGuard:
 @respx.mock
 async def test_get_empty_configuration(fence_guard):
     """Test empty get_configuration"""
-    route = respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
     await fence_guard.update()
@@ -40,7 +42,7 @@ async def test_get_empty_configuration(fence_guard):
 @respx.mock
 async def test_get_configuration(fence_guard):
     """Test get_configuration"""
-    respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration,
     )
     await fence_guard.update()

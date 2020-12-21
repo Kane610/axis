@@ -10,6 +10,8 @@ import respx
 
 from axis.pwdgrp_cgi import SGRP_ADMIN, Users
 
+from .conftest import HOST
+
 
 @pytest.fixture
 def users(axis_device) -> Users:
@@ -44,7 +46,7 @@ def test_users(users):
 @respx.mock
 async def test_create(users):
     """Verify that you can create users."""
-    route = respx.post("http://host:80/axis-cgi/pwdgrp.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
     await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN)
 
@@ -87,7 +89,7 @@ async def test_create(users):
 @respx.mock
 async def test_modify(users):
     """Verify that you can modify users."""
-    route = respx.post("http://host:80/axis-cgi/pwdgrp.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
     await users.modify("joe", pwd="abcd")
 
@@ -147,7 +149,7 @@ async def test_modify(users):
 @respx.mock
 async def test_delete(users):
     """Verify that you can delete users."""
-    route = respx.post("http://host:80/axis-cgi/pwdgrp.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
     await users.delete("joe")
 

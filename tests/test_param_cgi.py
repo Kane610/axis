@@ -9,6 +9,8 @@ import respx
 
 from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, PTZ, Params
 
+from .conftest import HOST
+
 
 @pytest.fixture
 def params(axis_device) -> Params:
@@ -19,7 +21,7 @@ def params(axis_device) -> Params:
 @respx.mock
 async def test_params(params):
     """Verify that you can list parameters."""
-    route = respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+    route = respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
@@ -81,7 +83,7 @@ async def test_params_empty_raw(params):
 async def test_update_brand(params):
     """Verify that update brand works."""
     route = respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Brand"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Brand"
     ).respond(
         text=response_param_cgi_brand,
         headers={"Content-Type": "text/plain"},
@@ -105,13 +107,13 @@ async def test_update_brand(params):
 async def test_update_ports(params):
     """Verify that update brand works."""
     input_route = respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Input"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Input"
     ).respond(
         text="root.Input.NbrOfInputs=1",
         headers={"Content-Type": "text/plain"},
     )
     io_port_route = respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.IOPort"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.IOPort"
     ).respond(
         text="""root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input
@@ -121,7 +123,7 @@ root.IOPort.I0.Input.Trig=closed
         headers={"Content-Type": "text/plain"},
     )
     output_route = respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Output"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Output"
     ).respond(
         text="root.Output.NbrOfOutputs=0",
         headers={"Content-Type": "text/plain"},
@@ -153,7 +155,7 @@ root.IOPort.I0.Input.Trig=closed
 async def test_update_properties(params):
     """Verify that update properties works."""
     route = respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.Properties"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Properties"
     ).respond(
         text=response_param_cgi_properties,
         headers={"Content-Type": "text/plain"},
@@ -280,7 +282,7 @@ async def test_update_properties(params):
 async def test_update_ptz(params):
     """Verify that update ptz works."""
     route = respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.PTZ"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.PTZ"
     ).respond(
         text=response_param_cgi_ptz,
         headers={"Content-Type": "text/plain"},
@@ -384,7 +386,7 @@ async def test_update_ptz(params):
 async def test_update_stream_profiles(params):
     """Verify that update properties works."""
     route = respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
     ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
@@ -412,7 +414,7 @@ async def test_update_stream_profiles(params):
 async def test_stream_profiles_empty_response(params):
     """Verify that update properties works."""
     respx.get(
-        "http://host:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
     ).respond(
         text="",
         headers={"Content-Type": "text/plain"},
