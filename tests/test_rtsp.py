@@ -448,28 +448,6 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     )
 
 
-def test_rtsp_client_init_done(rtsp_client):
-    """Verify RTSP client init done."""
-    mock_future = Mock()
-
-    # Successful init
-    with patch.object(rtsp_client, "stop") as mock_rtsp_client_stop, patch.object(
-        rtsp_client, "callback"
-    ) as mock_rtsp_client_callback:
-        rtsp_client.init_done(mock_future)
-        mock_rtsp_client_stop.assert_not_called()
-        mock_rtsp_client_callback.assert_not_called()
-
-    # Failed init
-    mock_future.exception.side_effect = OSError
-    with patch.object(rtsp_client, "stop") as mock_rtsp_client_stop, patch.object(
-        rtsp_client, "callback"
-    ) as mock_rtsp_client_callback:
-        rtsp_client.init_done(mock_future)
-        mock_rtsp_client_stop.assert_called()
-        mock_rtsp_client_callback.assert_called_with(SIGNAL_FAILED)
-
-
 def test_rtsp_client_time_out(rtsp_client, caplog):
     """Verify RTSP client time out method."""
     with patch.object(rtsp_client, "stop") as mock_rtsp_client_stop, patch.object(

@@ -2,7 +2,6 @@
 
 # PYTHON RTSP INSPIRATION
 # https://github.com/timohoeting/python-mjpeg-over-rtsp-client/blob/master/rtsp_client.py
-# http://codegist.net/snippet/python/rtsp_authenticationpy_crayfishapps_python
 # https://github.com/perexg/satip-axe/blob/master/tools/multicast-rtp
 
 import asyncio
@@ -32,34 +31,27 @@ class RTSPClient(asyncio.Protocol):
         """RTSP."""
         self.loop = asyncio.get_running_loop()
         self.callback = callback
+
         self.rtp = RTPClient(self.loop, callback)
+
         self.session = RTSPSession(url, host, username, password)
+        self.session.rtp_port = self.rtp.port
+        self.session.rtcp_port = self.rtp.rtcp_port
+
         self.method = RTSPMethods(self.session)
 
         self.transport = None
         self.keep_alive_handle = None
         self.time_out_handle = None
 
-    def start(self):
+    async def start(self):
         """Start RTSP session."""
         self.rtp.start()
-        self.session.rtp_port = self.rtp.port
-        self.session.rtcp_port = self.rtp.rtcp_port
 
-        conn = self.loop.create_connection(
-            lambda: self, self.session.host, self.session.port
-        )
-        task = self.loop.create_task(conn)
-        task.add_done_callback(self.init_done)
-
-    def init_done(self, fut):
-        """Server ready.
-
-        If we get OSError during init the device is not available.
-        """
         try:
-            if fut.exception():
-                fut.result()
+            await self.loop.create_connection(
+                lambda: self, self.session.host, self.session.port
+            )
         except OSError as err:
             _LOGGER.debug("RTSP got exception %s", err)
             self.stop()
@@ -132,7 +124,7 @@ class RTSPClient(asyncio.Protocol):
         _LOGGER.debug("RTSP session lost connection")
 
 
-class RTPClient(object):
+class RTPClient:
     """Data connection to device.
 
     When data is received send a signal on callback to whoever is interested.
@@ -141,26 +133,22 @@ class RTPClient(object):
     def __init__(self, loop, callback=None):
         """Configure and bind socket.
 
-        Store port for RTSP session setup.
+        We need to bind the port for RTSP before setting up the endpoint
+        since it will block until a connection has been set up and
+        the port is needed for setting up the RTSP session.
         """
         self.loop = loop
         self.client = self.UDPClient(callback)
-        self.port = 0
-        self.rtcp_port = 0
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("", 0))
+        self.port = self.sock.getsockname()[1]
+        self.rtcp_port = self.port + 1
 
     def start(self):
         """Start RTP client."""
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(("", 0))
-        self.port = sock.getsockname()[1]
-        # conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
-        # conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
-        conn = self.loop.create_datagram_endpoint(
-            lambda: self.client, local_addr=("0.0.0.0", self.port)
+        self.loop.create_task(
+            self.loop.create_datagram_endpoint(lambda: self.client, sock=self.sock)
         )
-        self.loop.create_task(conn)
-        # self.port = self.client.transport.get_extra_info('sockname')[1]
-        self.rtcp_port = self.port + 1
 
     def stop(self):
         """Close transport from receiving any more packages."""

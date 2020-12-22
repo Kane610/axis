@@ -94,7 +94,7 @@ class StreamManager:
                 self.config.password,
                 self.session_callback,
             )
-            self.stream.start()
+            asyncio.create_task(self.stream.start())
 
     def stop(self) -> None:
         """Stop stream."""
