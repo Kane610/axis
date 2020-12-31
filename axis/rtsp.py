@@ -46,7 +46,7 @@ class RTSPClient(asyncio.Protocol):
 
     async def start(self):
         """Start RTSP session."""
-        self.rtp.start()
+        await self.rtp.start()
 
         try:
             await self.loop.create_connection(
@@ -144,11 +144,9 @@ class RTPClient:
         self.port = self.sock.getsockname()[1]
         self.rtcp_port = self.port + 1
 
-    def start(self):
+    async def start(self):
         """Start RTP client."""
-        self.loop.create_task(
-            self.loop.create_datagram_endpoint(lambda: self.client, sock=self.sock)
-        )
+        await self.loop.create_datagram_endpoint(lambda: self.client, sock=self.sock)
 
     def stop(self):
         """Close transport from receiving any more packages."""

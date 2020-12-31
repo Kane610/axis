@@ -29,7 +29,8 @@ async def rtsp_client(axis_device) -> RTSPClient:
     axis_device.enable_events(event_callback=Mock())
     with patch("axis.rtsp.RTSP_PORT", RTSP_PORT):
         axis_device.stream.start()
-    return axis_device.stream.stream
+    yield axis_device.stream.stream
+    axis_device.stream.stop()
 
 
 async def test_successful_connect(rtsp_server, rtsp_client):
@@ -400,6 +401,25 @@ async def test_successful_connect(rtsp_server, rtsp_client):
         rtsp_client.session.control_url
         == "rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on"
     )
+
+    # Connect to RTP socket
+    class UDPClientProtocol:
+        def __init__(self):
+            self.transport = None
+
+        def connection_made(self, transport):
+            self.transport = transport
+
+        def send_message(self, message: str) -> None:
+            print("Send:", message)
+            self.transport.sendto(message.encode())
+
+    loop = asyncio.get_running_loop()
+    transport, protocol = await loop.create_datagram_endpoint(
+        UDPClientProtocol, remote_addr=(HOST, rtp_port)
+    )
+    protocol.send_message("123456789ABCDEF")
+    transport.close()
 
     # KEEP-ALIVE send OPTIONS signal to keep session alive
     assert rtsp_client.keep_alive_handle

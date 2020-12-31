@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.streammanager tests/test_streammanag
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from axis.rtsp import (
     SIGNAL_DATA,
@@ -45,6 +45,7 @@ async def test_stream_url(stream_manager):
 @patch("axis.streammanager.RTSPClient")
 async def test_initialize_stream(rtsp_client, stream_manager):
     """Test stream commands."""
+    rtsp_client.return_value.start = AsyncMock()
     # Stream does not exist
     assert not stream_manager.stream  # Stream does not exist
     stream_manager.stop()  # Calling stop shouldn't do anything
