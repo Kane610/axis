@@ -4,11 +4,14 @@ pytest --cov-report term-missing --cov=axis.configuration tests/test_configurati
 """
 
 from axis.configuration import Configuration
+from httpx import AsyncClient
 
 
 def test_configuration():
     """Test Configuration works."""
+    session = AsyncClient(verify=False)
     config = Configuration(
+        session,
         "192.168.0.1",
         username="root",
         password="pass",
@@ -28,7 +31,9 @@ def test_configuration():
 
 def test_minimal_configuration():
     """Test Configuration works."""
+    session = AsyncClient(verify=False)
     config = Configuration(
+        session,
         "192.168.1.1",
         username="bill",
         password="cipher",
