@@ -160,7 +160,7 @@ class RTPClient:
         try:
             return self.client.data.popleft()
         except IndexError:
-            return {}
+            return ""
 
     class UDPClient:
         """Datagram recepient for device data."""
@@ -377,7 +377,6 @@ class RTSPSession(object):
             state = STATE_PLAYING
         else:
             state = STATE_STOPPED
-        _LOGGER.debug("RTSP session (%s) state %s", self.host, state)
         return state
 
     def update(self, response):

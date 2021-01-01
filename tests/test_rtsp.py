@@ -410,6 +410,9 @@ async def test_successful_connect(rtsp_server, rtsp_client):
         def connection_made(self, transport):
             self.transport = transport
 
+        def connection_lost(self, exc):
+            print("Connection lost.")
+
         def send_message(self, message: str) -> None:
             print("Send:", message)
             self.transport.sendto(message.encode())
