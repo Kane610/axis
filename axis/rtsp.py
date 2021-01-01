@@ -5,6 +5,7 @@
 # https://github.com/perexg/satip-axe/blob/master/tools/multicast-rtp
 
 import asyncio
+from collections import deque
 import logging
 import socket
 
@@ -156,7 +157,10 @@ class RTPClient:
     @property
     def data(self):
         """Refer to most recently received data."""
-        return self.client.data
+        try:
+            return self.client.data.popleft()
+        except IndexError:
+            return {}
 
     class UDPClient:
         """Datagram recepient for device data."""
@@ -164,7 +168,7 @@ class RTPClient:
         def __init__(self, callback):
             """Signal events to subscriber using callback."""
             self.callback = callback
-            self.data = None
+            self.data = deque()
             self.transport = None
 
         def connection_made(self, transport):
@@ -182,7 +186,7 @@ class RTPClient:
         def datagram_received(self, data, addr):
             """Signals when new data is available."""
             if self.callback:
-                self.data = data[12:]
+                self.data.append(data[12:])
                 self.callback("data")
 
 
