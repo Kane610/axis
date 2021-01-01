@@ -30,6 +30,7 @@ from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
 from .applications.test_vmd4 import response_get_configuration as vmd4_response
+from .conftest import HOST
 from .test_light_control import response_getLightInformation as light_control_response
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi as param_cgi_response
@@ -45,41 +46,41 @@ def vapix(axis_device) -> Vapix:
 @respx.mock
 async def test_initialize(vapix):
     """Verify that you can initialize all APIs."""
-    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=api_discovery_response,
     )
-    respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=basic_device_info_response,
     )
-    respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
         json=io_port_management_response,
     )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
     )
-    respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=stream_profiles_response,
     )
 
     respx.get(
-        "http://host:80",
+        f"http://{HOST}:80",
         path__startswith="/axis-cgi/param.cgi",
     ).respond(text=param_cgi_response)
 
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response,
         headers={"Content-Type": "text/xml"},
     )
-    respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=fence_guard_response,
     )
-    respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
         json=loitering_guard_response,
     )
-    respx.post("http://host:80/local/motionguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=motion_guard_response,
     )
-    respx.post("http://host:80/local/vmd/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=vmd4_response,
     )
 
@@ -106,19 +107,19 @@ async def test_initialize(vapix):
 @respx.mock
 async def test_initialize_api_discovery(vapix):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
-    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=api_discovery_response,
     )
-    respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=basic_device_info_response,
     )
-    respx.post("http://host:80/axis-cgi/io/portmanagement.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
         json=io_port_management_response,
     )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
     )
-    respx.post("http://host:80/axis-cgi/streamprofile.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=stream_profiles_response,
     )
 
@@ -146,11 +147,11 @@ async def test_initialize_api_discovery(vapix):
 @respx.mock
 async def test_initialize_api_discovery_unauthorized(vapix):
     """Test initialize api discovery doesnt break due to exception."""
-    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=api_discovery_response,
     )
     respx.post(
-        "http://host:80",
+        f"http://{HOST}:80",
         path__in=(
             "/axis-cgi/basicdeviceinfo.cgi",
             "/axis-cgi/io/portmanagement.cgi",
@@ -172,7 +173,7 @@ async def test_initialize_api_discovery_unauthorized(vapix):
 @respx.mock
 async def test_initialize_api_discovery_unsupported(vapix):
     """Test initialize api discovery doesnt break due to exception."""
-    respx.post("http://host:80/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
+    respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
 
     await vapix.initialize_api_discovery()
 
@@ -182,11 +183,11 @@ async def test_initialize_api_discovery_unsupported(vapix):
 @respx.mock
 async def test_initialize_param_cgi(vapix):
     """Verify that you can list parameters."""
-    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+    respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
     )
     await vapix.initialize_param_cgi()
@@ -209,7 +210,7 @@ async def test_initialize_param_cgi(vapix):
 async def test_initialize_params_no_data(vapix):
     """Verify that you can list parameters."""
     param_route = respx.get(
-        "http://host:80",
+        f"http://{HOST}:80",
         path__startswith="/axis-cgi/param.cgi",
     ).respond(text="key=value")
     await vapix.initialize_param_cgi(preload_data=False)
@@ -220,27 +221,27 @@ async def test_initialize_params_no_data(vapix):
 @respx.mock
 async def test_initialize_applications(vapix):
     """Verify you can list and retrieve descriptions of applications."""
-    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+    respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
     )
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response,
         headers={"Content-Type": "text/xml"},
     )
-    respx.post("http://host:80/local/fenceguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=fence_guard_response,
     )
-    respx.post("http://host:80/local/loiteringguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
         json=loitering_guard_response,
     )
-    respx.post("http://host:80/local/motionguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=motion_guard_response,
     )
-    respx.post("http://host:80/local/vmd/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=vmd4_response,
     )
 
@@ -272,15 +273,15 @@ async def test_initialize_applications(vapix):
 @respx.mock
 async def test_initialize_applications_unauthorized(vapix):
     """Verify initialize applications doesnt break on too low credentials."""
-    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+    respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
     )
     respx.post(
-        "http://host:80/axis-cgi/applications/list.cgi"
+        f"http://{HOST}:80/axis-cgi/applications/list.cgi"
     ).side_effect = Unauthorized
 
     await vapix.initialize_param_cgi()
@@ -292,14 +293,14 @@ async def test_initialize_applications_unauthorized(vapix):
 @respx.mock
 async def test_initialize_applications_not_running(vapix):
     """Verify you can list and retrieve descriptions of applications."""
-    respx.get("http://host:80/axis-cgi/param.cgi?action=list").respond(
+    respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
-    respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json=light_control_response,
     )
-    respx.post("http://host:80/axis-cgi/applications/list.cgi").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response.replace(
             APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
         ),
@@ -318,11 +319,11 @@ async def test_initialize_applications_not_running(vapix):
 async def test_applications_dont_load_without_params(vapix):
     """Applications depends on param cgi to be loaded first."""
     param_route = respx.get(
-        "http://host:80",
+        f"http://{HOST}:80",
         path__startswith="/axis-cgi/param.cgi",
     ).respond(text="key=value")
 
-    applications_route = respx.post("http://host:80/axis-cgi/applications/list.cgi")
+    applications_route = respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi")
 
     await vapix.initialize_param_cgi(preload_data=False)
     await vapix.initialize_applications()
@@ -334,7 +335,7 @@ async def test_applications_dont_load_without_params(vapix):
 @respx.mock
 async def test_initialize_users(vapix):
     """Verify that you can list parameters."""
-    respx.get("http://host:80/axis-cgi/pwdgrp.cgi?action=get").respond(
+    respx.get(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi?action=get").respond(
         text="""users="userv"
 viewer="userv"
 operator="usera"
@@ -352,7 +353,7 @@ ptz=
 @respx.mock
 async def test_request_json_error(vapix):
     """Verify that a JSON error returns an empty dict."""
-    respx.get("http://host:80").respond(
+    respx.get(f"http://{HOST}:80").respond(
         json={"error": ""}, headers={"Content-Type": "application/json"}
     )
 
@@ -362,7 +363,7 @@ async def test_request_json_error(vapix):
 @respx.mock
 async def test_request_plain_text_error(vapix):
     """Verify that a plain text error returns an empty string."""
-    respx.get("http://host:80").respond(
+    respx.get(f"http://{HOST}:80").respond(
         text="# Error:", headers={"Content-Type": "text/plain"}
     )
 
@@ -375,7 +376,7 @@ async def test_request_401_raises_unauthorized(vapix):
 
     This typically mean that user credentials aren't high enough, e.g. viewer account.
     """
-    respx.get("http://host:80").respond(401)
+    respx.get(f"http://{HOST}:80").respond(401)
 
     with pytest.raises(Unauthorized):
         await vapix.request("get", "")
@@ -387,7 +388,7 @@ async def test_request_404_raises_path_not_found(vapix):
 
     This typically means something is unsupported.
     """
-    respx.get("http://host:80").respond(404)
+    respx.get(f"http://{HOST}:80").respond(404)
 
     with pytest.raises(PathNotFound):
         await vapix.request("get", "")
@@ -396,7 +397,7 @@ async def test_request_404_raises_path_not_found(vapix):
 @respx.mock
 async def test_request_405_raises_method_not_allowed(vapix):
     """Verify that a 405 raises MethodNotAllowed exception."""
-    respx.get("http://host:80").respond(405)
+    respx.get(f"http://{HOST}:80").respond(405)
 
     with pytest.raises(MethodNotAllowed):
         await vapix.request("get", "")
@@ -405,7 +406,7 @@ async def test_request_405_raises_method_not_allowed(vapix):
 @respx.mock
 async def test_request_timeout(vapix):
     """Verify that you can list parameters."""
-    respx.get("http://host:80").side_effect = httpx.TimeoutException
+    respx.get(f"http://{HOST}:80").side_effect = httpx.TimeoutException
 
     with pytest.raises(RequestError):
         await vapix.request("get", "")
@@ -414,7 +415,7 @@ async def test_request_timeout(vapix):
 @respx.mock
 async def test_request_transport_error(vapix):
     """Verify that you can list parameters."""
-    respx.get("http://host:80").side_effect = httpx.TransportError
+    respx.get(f"http://{HOST}:80").side_effect = httpx.TransportError
 
     with pytest.raises(RequestError):
         await vapix.request("get", "")
@@ -423,7 +424,7 @@ async def test_request_transport_error(vapix):
 @respx.mock
 async def test_request_request_error(vapix):
     """Verify that you can list parameters."""
-    respx.get("http://host:80").side_effect = httpx.RequestError
+    respx.get(f"http://{HOST}:80").side_effect = httpx.RequestError
 
     with pytest.raises(RequestError):
         await vapix.request("get", "")

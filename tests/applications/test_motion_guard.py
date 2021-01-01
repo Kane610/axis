@@ -10,6 +10,8 @@ import respx
 
 from axis.applications.motion_guard import MotionGuard
 
+from ..conftest import HOST
+
 
 @pytest.fixture
 def motion_guard(axis_device) -> MotionGuard:
@@ -20,7 +22,7 @@ def motion_guard(axis_device) -> MotionGuard:
 @respx.mock
 async def test_get_empty_configuration(motion_guard):
     """Test empty get_configuration"""
-    route = respx.post("http://host:80/local/motionguard/control.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
     await motion_guard.update()
@@ -40,7 +42,7 @@ async def test_get_empty_configuration(motion_guard):
 @respx.mock
 async def test_get_configuration(motion_guard):
     """Test get_configuration"""
-    respx.post("http://host:80/local/motionguard/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration,
     )
     await motion_guard.update()

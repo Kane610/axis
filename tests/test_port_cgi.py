@@ -10,6 +10,8 @@ import respx
 from axis.param_cgi import Params
 from axis.port_cgi import ACTION_LOW, Ports
 
+from .conftest import HOST
+
 
 @pytest.fixture
 def ports(axis_device) -> Ports:
@@ -22,7 +24,7 @@ def ports(axis_device) -> Ports:
 async def test_ports(ports):
     """Test that different types of ports work."""
     update_ports_route = respx.route(
-        url__startswith="http://host:80/axis-cgi/param.cgi"
+        url__startswith=f"http://{HOST}:80/axis-cgi/param.cgi"
     ).respond(
         text="""root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
@@ -50,8 +52,12 @@ root.IOPort.I3.Output.PulseTime=0
         headers={"Content-Type": "text/plain"},
     )
 
-    action_low_route = respx.get("http://host:80/axis-cgi/io/port.cgi?action=4%3A%2F")
-    action_high_route = respx.get("http://host:80/axis-cgi/io/port.cgi?action=4%3A%5C")
+    action_low_route = respx.get(
+        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%2F"
+    )
+    action_high_route = respx.get(
+        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%5C"
+    )
 
     await ports.update()
 
@@ -101,7 +107,7 @@ root.IOPort.I3.Output.PulseTime=0
 @respx.mock
 async def test_no_ports(ports):
     """Test that no ports also work."""
-    route = respx.route(url__startswith="http://host:80/axis-cgi/param.cgi").respond(
+    route = respx.route(url__startswith=f"http://{HOST}:80/axis-cgi/param.cgi").respond(
         text="",
         headers={"Content-Type": "text/plain"},
     )

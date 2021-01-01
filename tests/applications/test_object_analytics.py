@@ -10,6 +10,8 @@ import respx
 
 from axis.applications.object_analytics import ObjectAnalytics
 
+from ..conftest import HOST
+
 
 @pytest.fixture
 def object_analytics(axis_device) -> ObjectAnalytics:
@@ -20,7 +22,7 @@ def object_analytics(axis_device) -> ObjectAnalytics:
 @respx.mock
 async def test_get_no_configuration(object_analytics):
     """Test no response from get_configuration"""
-    route = respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json={},
     )
     await object_analytics.update()
@@ -41,7 +43,7 @@ async def test_get_no_configuration(object_analytics):
 @respx.mock
 async def test_get_empty_configuration(object_analytics):
     """Test empty get_configuration"""
-    respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json=response_get_configuration_empty,
     )
     await object_analytics.update()
@@ -52,7 +54,7 @@ async def test_get_empty_configuration(object_analytics):
 @respx.mock
 async def test_get_configuration(object_analytics):
     """Test get_configuration"""
-    respx.post("http://host:80/local/objectanalytics/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json=response_get_configuration,
     )
     await object_analytics.update()

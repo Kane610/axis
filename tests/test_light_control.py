@@ -9,6 +9,7 @@ import pytest
 import respx
 
 from axis.light_control import LightControl
+from .conftest import HOST
 
 
 @pytest.fixture
@@ -20,7 +21,7 @@ def light_control(axis_device) -> LightControl:
 @respx.mock
 async def test_update(light_control):
     """Test update method."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getLightInformation",
@@ -73,7 +74,7 @@ async def test_update(light_control):
 @respx.mock
 async def test_get_service_capabilities(light_control):
     """Test get service capabilities API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getServiceCapabilities",
@@ -114,7 +115,7 @@ async def test_get_service_capabilities(light_control):
 @respx.mock
 async def test_get_light_information(light_control):
     """Test get light information API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getLightInformation",
@@ -169,7 +170,7 @@ async def test_get_light_information(light_control):
 @respx.mock
 async def test_activate_light(light_control):
     """Test activating light API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "activateLight",
@@ -193,7 +194,7 @@ async def test_activate_light(light_control):
 @respx.mock
 async def test_deactivate_light(light_control):
     """Test deactivating light API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "deactivateLight",
@@ -217,7 +218,7 @@ async def test_deactivate_light(light_control):
 @respx.mock
 async def test_enable_light(light_control):
     """Test enabling light API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "enableLight",
@@ -241,7 +242,7 @@ async def test_enable_light(light_control):
 @respx.mock
 async def test_disable_light(light_control):
     """Test disabling light API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "disableLight",
@@ -265,7 +266,7 @@ async def test_disable_light(light_control):
 @respx.mock
 async def test_get_light_status(light_control):
     """Test get light status API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getLightStatus",
@@ -291,7 +292,7 @@ async def test_get_light_status(light_control):
 @respx.mock
 async def test_set_automatic_intensity_mode(light_control):
     """Test set automatic intensity mode API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "setAutomaticIntensityMode",
@@ -315,7 +316,7 @@ async def test_set_automatic_intensity_mode(light_control):
 @respx.mock
 async def test_get_manual_intensity(light_control):
     """Test get valid intensity API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getManualIntensity",
@@ -341,7 +342,7 @@ async def test_get_manual_intensity(light_control):
 @respx.mock
 async def test_set_manual_intensity(light_control):
     """Test set manual intensity API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "setManualIntensity",
@@ -365,7 +366,7 @@ async def test_set_manual_intensity(light_control):
 @respx.mock
 async def test_get_valid_intensity(light_control):
     """Test get valid intensity API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getValidIntensity",
@@ -391,7 +392,7 @@ async def test_get_valid_intensity(light_control):
 @respx.mock
 async def test_set_individual_intensity(light_control):
     """Test set individual intensity API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "setIndividualIntensity",
@@ -415,7 +416,7 @@ async def test_set_individual_intensity(light_control):
 @respx.mock
 async def test_get_individual_intensity(light_control):
     """Test get individual intensity API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getIndividualIntensity",
@@ -441,7 +442,7 @@ async def test_get_individual_intensity(light_control):
 @respx.mock
 async def test_get_current_intensity(light_control):
     """Test get current intensity API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "getCurrentIntensity",
@@ -467,7 +468,7 @@ async def test_get_current_intensity(light_control):
 @respx.mock
 async def test_set_automatic_angle_of_illumination_mode(light_control):
     """Test set automatic angle of illumination mode API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "setAutomaticAngleOfIlluminationMode",
@@ -491,7 +492,7 @@ async def test_set_automatic_angle_of_illumination_mode(light_control):
 @respx.mock
 async def test_get_valid_angle_of_illumination(light_control):
     """Test get valid angle of illumination API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "my context",
@@ -520,7 +521,7 @@ async def test_get_valid_angle_of_illumination(light_control):
 @respx.mock
 async def test_set_manual_angle_of_illumination(light_control):
     """Test set manual angle of illumination API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "setManualAngleOfIllumination",
@@ -544,7 +545,7 @@ async def test_set_manual_angle_of_illumination(light_control):
 @respx.mock
 async def test_get_manual_angle_of_illumination(light_control):
     """Test get manual angle of illumination API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "my context",
@@ -571,7 +572,7 @@ async def test_get_manual_angle_of_illumination(light_control):
 @respx.mock
 async def test_get_current_angle_of_illumination(light_control):
     """Test get current angle of illumination API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "my context",
@@ -598,7 +599,7 @@ async def test_get_current_angle_of_illumination(light_control):
 @respx.mock
 async def test_set_light_synchronization_day_night_mode(light_control):
     """Test set light synchronization day night mode API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "method": "setLightSynchronizationDayNightMode",
@@ -622,7 +623,7 @@ async def test_set_light_synchronization_day_night_mode(light_control):
 @respx.mock
 async def test_get_light_synchronization_day_night_mode(light_control):
     """Test get light synchronization day night mode API."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "context": "my context",
@@ -649,7 +650,7 @@ async def test_get_light_synchronization_day_night_mode(light_control):
 @respx.mock
 async def test_get_supported_versions(light_control):
     """Test get supported versions api."""
-    route = respx.post("http://host:80/axis-cgi/lightcontrol.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.1"]},

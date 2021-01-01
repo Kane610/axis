@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.streammanager tests/test_streammanag
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from axis.rtsp import (
     SIGNAL_DATA,
@@ -14,6 +14,8 @@ from axis.rtsp import (
     STATE_STOPPED,
 )
 from axis.streammanager import RETRY_TIMER, StreamManager
+
+from .conftest import HOST
 
 
 @pytest.fixture
@@ -29,20 +31,21 @@ async def test_stream_url(stream_manager):
     assert stream_manager.event_query == "off"
     assert (
         stream_manager.stream_url
-        == "rtsp://host/axis-media/media.amp?video=0&audio=0&event=off"
+        == f"rtsp://{HOST}/axis-media/media.amp?video=0&audio=0&event=off"
     )
 
     stream_manager.event = True
     assert stream_manager.event_query == "on"
     assert (
         stream_manager.stream_url
-        == "rtsp://host/axis-media/media.amp?video=0&audio=0&event=on"
+        == f"rtsp://{HOST}/axis-media/media.amp?video=0&audio=0&event=on"
     )
 
 
 @patch("axis.streammanager.RTSPClient")
 async def test_initialize_stream(rtsp_client, stream_manager):
     """Test stream commands."""
+    rtsp_client.return_value.start = AsyncMock()
     # Stream does not exist
     assert not stream_manager.stream  # Stream does not exist
     stream_manager.stop()  # Calling stop shouldn't do anything

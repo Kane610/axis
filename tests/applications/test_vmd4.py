@@ -10,6 +10,8 @@ import respx
 
 from axis.applications.vmd4 import Vmd4
 
+from ..conftest import HOST
+
 
 @pytest.fixture
 def vmd4(axis_device) -> Vmd4:
@@ -20,7 +22,7 @@ def vmd4(axis_device) -> Vmd4:
 @respx.mock
 async def test_get_empty_configuration(vmd4):
     """Test empty get_configuration"""
-    route = respx.post("http://host:80/local/vmd/control.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration_empty,
     )
     await vmd4.update()
@@ -40,7 +42,7 @@ async def test_get_empty_configuration(vmd4):
 @respx.mock
 async def test_get_configuration(vmd4):
     """Test get_supported_versions"""
-    respx.post("http://host:80/local/vmd/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration,
     )
     await vmd4.update()
@@ -76,7 +78,7 @@ async def test_get_configuration_error(vmd4):
 
     await _request returns an empty dict on error.
     """
-    respx.post("http://host:80/local/vmd/control.cgi").respond(
+    respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json={},
     )
     await vmd4.update()

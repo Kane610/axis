@@ -10,6 +10,8 @@ import respx
 
 from axis.basic_device_info import BasicDeviceInfo
 
+from .conftest import HOST
+
 
 @pytest.fixture
 def basic_device_info(axis_device) -> BasicDeviceInfo:
@@ -20,7 +22,7 @@ def basic_device_info(axis_device) -> BasicDeviceInfo:
 @respx.mock
 async def test_get_all_properties(basic_device_info):
     """Test get all properties api."""
-    route = respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=response_getAllProperties,
     )
     await basic_device_info.update()
@@ -53,7 +55,7 @@ async def test_get_all_properties(basic_device_info):
 @respx.mock
 async def test_get_supported_versions(basic_device_info):
     """Test get supported versions api."""
-    route = respx.post("http://host:80/axis-cgi/basicdeviceinfo.cgi").respond(
+    route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=response_getSupportedVersions,
     )
     response = await basic_device_info.get_supported_versions()

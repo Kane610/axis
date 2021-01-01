@@ -2,10 +2,10 @@
 
 # PYTHON RTSP INSPIRATION
 # https://github.com/timohoeting/python-mjpeg-over-rtsp-client/blob/master/rtsp_client.py
-# http://codegist.net/snippet/python/rtsp_authenticationpy_crayfishapps_python
 # https://github.com/perexg/satip-axe/blob/master/tools/multicast-rtp
 
 import asyncio
+from collections import deque
 import logging
 import socket
 
@@ -32,32 +32,27 @@ class RTSPClient(asyncio.Protocol):
         """RTSP."""
         self.loop = asyncio.get_running_loop()
         self.callback = callback
+
         self.rtp = RTPClient(self.loop, callback)
+
         self.session = RTSPSession(url, host, username, password)
         self.session.rtp_port = self.rtp.port
         self.session.rtcp_port = self.rtp.rtcp_port
+
         self.method = RTSPMethods(self.session)
 
         self.transport = None
         self.keep_alive_handle = None
         self.time_out_handle = None
 
-    def start(self):
-        """Start session."""
-        conn = self.loop.create_connection(
-            lambda: self, self.session.host, self.session.port
-        )
-        task = self.loop.create_task(conn)
-        task.add_done_callback(self.init_done)
+    async def start(self):
+        """Start RTSP session."""
+        await self.rtp.start()
 
-    def init_done(self, fut):
-        """Server ready.
-
-        If we get OSError during init the device is not available.
-        """
         try:
-            if fut.exception():
-                fut.result()
+            await self.loop.create_connection(
+                lambda: self, self.session.host, self.session.port
+            )
         except OSError as err:
             _LOGGER.debug("RTSP got exception %s", err)
             self.stop()
@@ -113,7 +108,6 @@ class RTSPClient(asyncio.Protocol):
 
     def keep_alive(self):
         """Keep RTSP session alive per negotiated time interval."""
-        self.keep_alive_handle = None
         self.transport.write(self.method.message.encode())
         self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
@@ -123,7 +117,6 @@ class RTSPClient(asyncio.Protocol):
         This usually happens if device isn't available on specified IP.
         """
         _LOGGER.warning("Response timed out %s", self.session.host)
-        self.time_out_handle = None
         self.stop()
         self.callback(SIGNAL_FAILED)
 
@@ -132,7 +125,7 @@ class RTSPClient(asyncio.Protocol):
         _LOGGER.debug("RTSP session lost connection")
 
 
-class RTPClient(object):
+class RTPClient:
     """Data connection to device.
 
     When data is received send a signal on callback to whoever is interested.
@@ -141,20 +134,20 @@ class RTPClient(object):
     def __init__(self, loop, callback=None):
         """Configure and bind socket.
 
-        Store port for RTSP session setup.
+        We need to bind the port for RTSP before setting up the endpoint
+        since it will block until a connection has been set up and
+        the port is needed for setting up the RTSP session.
         """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(("", 0))
-        self.port = sock.getsockname()[1]
+        self.loop = loop
         self.client = self.UDPClient(callback)
-        # conn = loop.create_datagram_endpoint(lambda: self.client, sock=sock)
-        # conn = loop.create_datagram_endpoint(lambda: self.client, local_addr=('0.0.0.0', 0))
-        conn = loop.create_datagram_endpoint(
-            lambda: self.client, local_addr=("0.0.0.0", self.port)
-        )
-        loop.create_task(conn)
-        # self.port = self.client.transport.get_extra_info('sockname')[1]
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("", 0))
+        self.port = self.sock.getsockname()[1]
         self.rtcp_port = self.port + 1
+
+    async def start(self):
+        """Start RTP client."""
+        await self.loop.create_datagram_endpoint(lambda: self.client, sock=self.sock)
 
     def stop(self):
         """Close transport from receiving any more packages."""
@@ -164,7 +157,10 @@ class RTPClient(object):
     @property
     def data(self):
         """Refer to most recently received data."""
-        return self.client.data
+        try:
+            return self.client.data.popleft()
+        except IndexError:
+            return ""
 
     class UDPClient:
         """Datagram recepient for device data."""
@@ -172,7 +168,7 @@ class RTPClient(object):
         def __init__(self, callback):
             """Signal events to subscriber using callback."""
             self.callback = callback
-            self.data = None
+            self.data = deque()
             self.transport = None
 
         def connection_made(self, transport):
@@ -190,7 +186,7 @@ class RTPClient(object):
         def datagram_received(self, data, addr):
             """Signals when new data is available."""
             if self.callback:
-                self.data = data[12:]
+                self.data.append(data[12:])
                 self.callback("data")
 
 
@@ -312,16 +308,17 @@ class RTSPSession(object):
 
     def __init__(self, url, host, username, password):
         """Session parameters."""
+        self._basic_auth = None
+        self.sequence = 0
+
         self.url = url
         self.host = host
         self.port = RTSP_PORT
         self.username = username
         self.password = password
-        self.sequence = 0
         self.user_agent = "HASS Axis"
         self.rtp_port = None
         self.rtcp_port = None
-        self.basic_auth = None
         self.methods = [
             "OPTIONS",
             "DESCRIBE",
@@ -330,6 +327,7 @@ class RTSPSession(object):
             "KEEP-ALIVE",
             "TEARDOWN",
         ]
+
         # Information as part of ack from device
         self.rtsp_version = None
         self.status_code = None
@@ -379,7 +377,6 @@ class RTSPSession(object):
             state = STATE_PLAYING
         else:
             state = STATE_STOPPED
-        _LOGGER.debug("RTSP session (%s) state %s", self.host, state)
         return state
 
     def update(self, response):
@@ -475,11 +472,11 @@ class RTSPSession(object):
         """RFC 2617."""
         from base64 import b64encode
 
-        if not self.basic_auth:
+        if not self._basic_auth:
             creds = f"{self.username}:{self.password}"
-            self.basic_auth = "Basic "
-            self.basic_auth += b64encode(creds.encode("UTF-8")).decode("UTF-8")
-        return self.basic_auth
+            self._basic_auth = "Basic "
+            self._basic_auth += b64encode(creds.encode("UTF-8")).decode("UTF-8")
+        return self._basic_auth
 
     def stop(self):
         """Set session to stopped."""
