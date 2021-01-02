@@ -27,6 +27,7 @@ async def axis_device(host, port, username, password):
     try:
         with async_timeout.timeout(5):
             await device.vapix.initialize_users()
+            await device.vapix.load_user_groups()
 
         return device
 

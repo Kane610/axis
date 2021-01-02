@@ -11,6 +11,7 @@ import respx
 from axis.errors import MethodNotAllowed, PathNotFound, RequestError, Unauthorized
 from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
 from axis.stream_profiles import StreamProfile
+from axis.user_groups import UNKNOWN
 from axis.vapix import Vapix
 
 from .test_api_discovery import response_getApiList as api_discovery_response
@@ -137,11 +138,11 @@ async def test_initialize_api_discovery(vapix):
     assert vapix.serial_number == "ACCC12345678"
     assert isinstance(vapix.streaming_profiles[0], StreamProfile)
 
-    assert len(vapix.basic_device_info.values()) == 14
-    assert len(vapix.ports.values()) == 1
-    assert len(vapix.light_control.values()) == 1
+    assert len(vapix.basic_device_info) == 14
+    assert len(vapix.ports) == 1
+    assert len(vapix.light_control) == 1
     assert vapix.mqtt is not None
-    assert len(vapix.stream_profiles.values()) == 1
+    assert len(vapix.stream_profiles) == 1
 
 
 @respx.mock
@@ -336,18 +337,97 @@ async def test_applications_dont_load_without_params(vapix):
 async def test_initialize_users(vapix):
     """Verify that you can list parameters."""
     respx.get(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi?action=get").respond(
-        text="""users="userv"
-viewer="userv"
-operator="usera"
-admin="usera"
+        text="""users="usera,userv"
+viewer="root,userv"
+operator="root,usera"
+admin="root,usera"
+root="root"
 ptz=
 """,
-        headers={"Content-Type": "text/html"},
+        headers={"Content-Type": "text/plain"},
     )
 
     await vapix.initialize_users()
 
+    assert vapix.users["root"].admin
+    assert vapix.users["usera"].admin
     assert vapix.users["userv"].viewer
+
+
+@respx.mock
+async def test_initialize_users_fails_due_to_low_credentials(vapix):
+    """Verify that you can list parameters."""
+    respx.get(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi?action=get").respond(401)
+
+    await vapix.initialize_users()
+
+    assert vapix.users
+
+
+@respx.mock
+async def test_load_user_groups(vapix):
+    """Verify that you can load user groups."""
+    respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+        text="root\nroot admin operator ptz viewer\n",
+        headers={"Content-Type": "text/plain"},
+    )
+
+    await vapix.load_user_groups()
+
+    assert vapix.user_groups
+    assert vapix.user_groups.privileges == "admin"
+    assert vapix.user_groups.admin
+    assert vapix.user_groups.operator
+    assert vapix.user_groups.viewer
+    assert vapix.user_groups.ptz
+    assert vapix.access_rights == "admin"
+
+@respx.mock
+async def test_load_user_groups_from_pwdgrpcgi(vapix):
+    """Verify that you can load user groups from pwdgrp.cgi."""
+    respx.get(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi?action=get").respond(
+        text="""users=
+viewer="root"
+operator="root"
+admin="root"
+root="root"
+ptz=
+""",
+        headers={"Content-Type": "text/plain"},
+    )
+    user_group_route = respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+        text="root\nroot admin operator ptz viewer\n",
+        headers={"Content-Type": "text/plain"},
+    )
+
+    await vapix.initialize_users()
+    await vapix.load_user_groups()
+
+    assert not user_group_route.called
+
+    assert vapix.user_groups
+    assert vapix.user_groups.privileges == "admin"
+    assert vapix.user_groups.admin
+    assert vapix.user_groups.operator
+    assert vapix.user_groups.viewer
+    assert not vapix.user_groups.ptz
+    assert vapix.access_rights == "admin"
+
+
+@respx.mock
+async def test_load_user_groups_fails_when_not_supported(vapix):
+    """Verify that load user groups still initialize class even when not supported."""
+    respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(404)
+
+    await vapix.load_user_groups()
+
+    assert vapix.user_groups
+    assert vapix.access_rights == UNKNOWN
+
+
+async def test_not_loading_user_groups_makes_access_rights_unknown(vapix):
+    """Verify that not loading user groups still returns a proper string of vapix.access_rights."""
+    assert vapix.access_rights == UNKNOWN
 
 
 @respx.mock

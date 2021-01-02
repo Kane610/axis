@@ -14,7 +14,7 @@ comment: The comment field of the account.
 """
 import re
 
-from .api import APIItems
+from .api import APIItems, APIItem
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
@@ -83,24 +83,24 @@ class Users(APIItems):
         """
         raw_dict = dict(group.split("=", 1) for group in raw.splitlines())
 
+        if not "root" in raw_dict:
+            return
+
+        users = ["root"] + REGEX_STRING.findall(raw_dict["users"])
+
         raw_users = {
             user: {
                 group: user in REGEX_STRING.findall(raw_dict[group])
                 for group in [ADMIN, OPERATOR, VIEWER, PTZ]
             }
-            for user in REGEX_STRING.findall(raw_dict["users"])
+            for user in users
         }
 
         super().process_raw(raw_users)
 
 
-class User:
+class User(APIItem):
     """Represents a user."""
-
-    def __init__(self, id: str, raw: dict, request: str) -> None:
-        self.id = id
-        self.raw = raw
-        self._request = request
 
     @property
     def name(self) -> str:
