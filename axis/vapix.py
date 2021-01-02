@@ -29,6 +29,7 @@ from .port_cgi import Ports
 from .ptz import PtzControl
 from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
+from .user_groups import UNKNOWN, URL as USER_GROUPS_URL, UserGroups
 
 LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class Vapix:
         self.ports = None
         self.ptz = None
         self.stream_profiles = None
+        self.user_groups = None
         self.users = None
         self.vmd4 = None
 
@@ -84,6 +86,13 @@ class Vapix:
         if self.basic_device_info:
             return self.basic_device_info.serialnumber
         return self.params.system_serialnumber
+
+    @property
+    def access_rights(self) -> str:
+        """Access rights with the account."""
+        if self.user_groups:
+            return self.user_groups.privileges
+        return UNKNOWN
 
     @property
     def streaming_profiles(self) -> list:
@@ -197,8 +206,34 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        users = await self.request("get", PWDGRP_URL)
+        try:
+            users = await self.request("get", PWDGRP_URL)
+        except Unauthorized:
+            users = ""
         self.users = Users(users, self.request)
+
+    async def load_user_groups(self) -> None:
+        """Load user groups to know the access rights of the user.
+        
+        If information is available from pwdgrp.cgi use that.
+        """
+        if self.users and self.config.username in self.users:
+            user = self.users[self.config.username]
+            user_groups = (
+                f"{user.name}\n"
+                + (f"admin " if user.admin else "")
+                + (f"operator " if user.operator else "")
+                + (f"viewer " if user.viewer else "")
+                + (f"ptz" if user.ptz else "")
+            )
+
+        else:
+            try:
+                user_groups = await self.request("get", USER_GROUPS_URL)
+            except PathNotFound:
+                user_groups = ""
+
+        self.user_groups = UserGroups(user_groups, self.request)
 
     async def request(self, method: str, path: str, **kwargs: dict) -> str:
         """Make a request to the API."""

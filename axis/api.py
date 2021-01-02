@@ -76,6 +76,17 @@ class APIItems:
     def __contains__(self, obj_id: str):
         return obj_id in self._items
 
+    def __len__(self) -> int:
+        """Return number of items in class."""
+        return len(self._items)
+
+    def __bool__(self) -> bool:
+        """Return True.
+
+        Needs to define this because __len__ asserts false on length 0.
+        """
+        return True
+
 
 class APIItem:
     """Base class for all end points using APIItems class."""

@@ -43,6 +43,11 @@ def test_users(users):
     assert users["usera"].ptz
 
 
+def test_get_users_low_privileges(axis_device):
+    users = Users("", axis_device.vapix.request)
+    assert len(users) == 0
+
+
 @respx.mock
 async def test_create(users):
     """Verify that you can create users."""
@@ -175,6 +180,7 @@ basic-device-info=""
 gpio="environment,actionengined,led,mediaclipcgi,iod,scheduled,ptzadm,"
 operator="usera,usero,sdk,wwwo,wwwaovp,wwwaop,wwwao,wwwop,wwwaov,root"
 ptz="usera,wwwop,wwwaop,wwwaovp,wwwap,wwwp,wwwovp,root,wwwvp,wwwavp"
+root="root"
 users="userv,usero,usera"
 viewer="usera,usero,sdk,wwwaovp,wwwaov,wwwov,wwwovp,wwwav,root,userv,wwwv"
 digusers="root,operator,viewer"
