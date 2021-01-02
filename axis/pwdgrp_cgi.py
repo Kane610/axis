@@ -13,6 +13,7 @@ sgrp: Colon separated existing secondary group names of the account.
 comment: The comment field of the account.
 """
 import re
+from typing import Optional
 
 from .api import APIItems, APIItem
 
@@ -41,6 +42,39 @@ class Users(APIItems):
     def __init__(self, raw: str, request: object) -> None:
         super().__init__(raw, request, URL_GET, User)
 
+    async def update(self, path: Optional[str] = None) -> None:
+        """Update list of current users."""
+        users = await self.list()
+        self.process_raw(users)
+
+    def process_raw(self, raw: str) -> None:
+        """Pre-process raw string.
+
+        Prepare users to work with APIItems.
+        Create booleans with user levels.
+        """
+        if "=" not in raw:
+            return
+
+        raw_dict = dict(group.split("=", 1) for group in raw.splitlines())
+
+        users = ["root"] + REGEX_STRING.findall(raw_dict["users"])
+
+        raw_users = {
+            user: {
+                group: user in REGEX_STRING.findall(raw_dict[group])
+                for group in [ADMIN, OPERATOR, VIEWER, PTZ]
+            }
+            for user in users
+        }
+
+        super().process_raw(raw_users)
+
+    async def list(self) -> str:
+        """List current users."""
+        data = {"action": "get"}
+        return await self._request("post", URL, data=data)
+
     async def create(
         self, user: str, *, pwd: str, sgrp: str, comment: str = None
     ) -> None:
@@ -53,7 +87,12 @@ class Users(APIItems):
         await self._request("post", URL, data=data)
 
     async def modify(
-        self, user: str, *, pwd: str = None, sgrp: str = None, comment: str = None
+        self,
+        user: str,
+        *,
+        pwd: Optional[str] = None,
+        sgrp: Optional[str] = None,
+        comment: Optional[str] = None
     ) -> None:
         """Update user."""
         data = {"action": "update", "user": user}
@@ -74,29 +113,6 @@ class Users(APIItems):
         data = {"action": "remove", "user": user}
 
         await self._request("post", URL, data=data)
-
-    def process_raw(self, raw: str) -> None:
-        """Pre-process raw string.
-
-        Prepare users to work with APIItems.
-        Create booleans with user levels.
-        """
-        raw_dict = dict(group.split("=", 1) for group in raw.splitlines())
-
-        if not "root" in raw_dict:
-            return
-
-        users = ["root"] + REGEX_STRING.findall(raw_dict["users"])
-
-        raw_users = {
-            user: {
-                group: user in REGEX_STRING.findall(raw_dict[group])
-                for group in [ADMIN, OPERATOR, VIEWER, PTZ]
-            }
-            for user in users
-        }
-
-        super().process_raw(raw_users)
 
 
 class User(APIItem):

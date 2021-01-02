@@ -27,7 +27,7 @@ from .param_cgi import Params
 from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
 from .port_cgi import Ports
 from .ptz import PtzControl
-from .pwdgrp_cgi import URL_GET as PWDGRP_URL, Users
+from .pwdgrp_cgi import Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
 from .user_groups import UNKNOWN, URL as USER_GROUPS_URL, UserGroups
 
@@ -206,25 +206,25 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
+        self.users = Users("", self.request)
         try:
-            users = await self.request("get", PWDGRP_URL)
+            await self.users.update()
         except Unauthorized:
-            users = ""
-        self.users = Users(users, self.request)
+            pass
 
     async def load_user_groups(self) -> None:
         """Load user groups to know the access rights of the user.
-        
+
         If information is available from pwdgrp.cgi use that.
         """
         if self.users and self.config.username in self.users:
             user = self.users[self.config.username]
             user_groups = (
                 f"{user.name}\n"
-                + (f"admin " if user.admin else "")
-                + (f"operator " if user.operator else "")
-                + (f"viewer " if user.viewer else "")
-                + (f"ptz" if user.ptz else "")
+                + ("admin " if user.admin else "")
+                + ("operator " if user.operator else "")
+                + ("viewer " if user.viewer else "")
+                + ("ptz" if user.ptz else "")
             )
 
         else:

@@ -336,7 +336,7 @@ async def test_applications_dont_load_without_params(vapix):
 @respx.mock
 async def test_initialize_users(vapix):
     """Verify that you can list parameters."""
-    respx.get(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi?action=get").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
         text="""users="usera,userv"
 viewer="root,userv"
 operator="root,usera"
@@ -357,7 +357,7 @@ ptz=
 @respx.mock
 async def test_initialize_users_fails_due_to_low_credentials(vapix):
     """Verify that you can list parameters."""
-    respx.get(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi?action=get").respond(401)
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(401)
 
     await vapix.initialize_users()
 
@@ -382,10 +382,11 @@ async def test_load_user_groups(vapix):
     assert vapix.user_groups.ptz
     assert vapix.access_rights == "admin"
 
+
 @respx.mock
 async def test_load_user_groups_from_pwdgrpcgi(vapix):
     """Verify that you can load user groups from pwdgrp.cgi."""
-    respx.get(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi?action=get").respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
         text="""users=
 viewer="root"
 operator="root"
