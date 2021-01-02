@@ -42,7 +42,7 @@ class Users(APIItems):
         super().__init__(raw, request, URL_GET, User)
 
     async def update(self, path=None) -> None:
-        """"""
+        """Update list of current users."""
         users = await self.list()
         self.process_raw(users)
 
@@ -69,8 +69,8 @@ class Users(APIItems):
 
         super().process_raw(raw_users)
 
-    async def list(self):
-        """"""
+    async def list(self) -> str:
+        """List current users."""
         data = {"action": "get"}
         return await self._request("post", URL, data=data)
 

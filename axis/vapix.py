@@ -206,10 +206,11 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
+        self.users = Users("", self.request)
         try:
-            self.users = Users("", self.request)
-        except Unauthorized:
             await self.users.update()
+        except Unauthorized:
+            pass
 
     async def load_user_groups(self) -> None:
         """Load user groups to know the access rights of the user.
