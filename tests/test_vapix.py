@@ -382,6 +382,7 @@ async def test_load_user_groups(vapix):
     assert vapix.user_groups.ptz
     assert vapix.access_rights == "admin"
 
+
 @respx.mock
 async def test_load_user_groups_from_pwdgrpcgi(vapix):
     """Verify that you can load user groups from pwdgrp.cgi."""

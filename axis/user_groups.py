@@ -20,14 +20,13 @@ class UserGroups(APIItems):
     def process_raw(self, raw: str) -> None:
         """Process raw group list to generate a full list of what is and isnt supported."""
         raw_list = raw.splitlines()
-        
+
         group_list = []
         if len(raw_list) == 2:
-            group_list = raw_list[1].split()            
+            group_list = raw_list[1].split()
 
         raw_groups = {
-            group: group in group_list
-            for group in [ADMIN, OPERATOR, VIEWER, PTZ]
+            group: group in group_list for group in [ADMIN, OPERATOR, VIEWER, PTZ]
         }
 
         super().process_raw(raw_groups)
@@ -42,7 +41,7 @@ class UserGroups(APIItems):
         if self.viewer:
             return VIEWER
         return UNKNOWN
-    
+
     @property
     def admin(self) -> bool:
         """Is user admin."""

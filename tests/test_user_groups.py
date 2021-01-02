@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.user_groups tests/test_user_groups.py
 """
 
-import json
 import pytest
 
 import respx
@@ -22,7 +21,7 @@ def user_groups(axis_device) -> UserGroups:
 @respx.mock
 async def test_empty_response(user_groups):
     """Test get_supported_versions"""
-    route = respx.get(f"http://{HOST}:80{URL}").respond(
+    respx.get(f"http://{HOST}:80{URL}").respond(
         text="",
         headers={"Content-Type": "text/plain"},
     )
@@ -38,7 +37,7 @@ async def test_empty_response(user_groups):
 @respx.mock
 async def test_root_user(user_groups):
     """Test get_supported_versions"""
-    route = respx.get(f"http://{HOST}:80{URL}").respond(
+    respx.get(f"http://{HOST}:80{URL}").respond(
         text="root\nroot admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -55,7 +54,7 @@ async def test_root_user(user_groups):
 @respx.mock
 async def test_admin_user(user_groups):
     """Test get_supported_versions"""
-    route = respx.get(f"http://{HOST}:80{URL}").respond(
+    respx.get(f"http://{HOST}:80{URL}").respond(
         text="administrator\nusers admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -71,7 +70,7 @@ async def test_admin_user(user_groups):
 @respx.mock
 async def test_operator_user(user_groups):
     """Test get_supported_versions"""
-    route = respx.get(f"http://{HOST}:80{URL}").respond(
+    respx.get(f"http://{HOST}:80{URL}").respond(
         text="operator\nusers operator viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -87,12 +86,11 @@ async def test_operator_user(user_groups):
 @respx.mock
 async def test_viewer_user(user_groups):
     """Test get_supported_versions"""
-    route = respx.get(f"http://{HOST}:80{URL}").respond(
+    respx.get(f"http://{HOST}:80{URL}").respond(
         text="viewer\nusers viewer\n",
         headers={"Content-Type": "text/plain"},
     )
     await user_groups.update()
-
 
     assert user_groups.privileges == "viewer"
     assert not user_groups.admin

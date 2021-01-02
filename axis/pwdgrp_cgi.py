@@ -13,6 +13,7 @@ sgrp: Colon separated existing secondary group names of the account.
 comment: The comment field of the account.
 """
 import re
+from typing import Optional
 
 from .api import APIItems, APIItem
 
@@ -41,7 +42,7 @@ class Users(APIItems):
     def __init__(self, raw: str, request: object) -> None:
         super().__init__(raw, request, URL_GET, User)
 
-    async def update(self, path=None) -> None:
+    async def update(self, path: Optional[str] = None) -> None:
         """Update list of current users."""
         users = await self.list()
         self.process_raw(users)
@@ -86,7 +87,12 @@ class Users(APIItems):
         await self._request("post", URL, data=data)
 
     async def modify(
-        self, user: str, *, pwd: str = None, sgrp: str = None, comment: str = None
+        self,
+        user: str,
+        *,
+        pwd: Optional[str] = None,
+        sgrp: Optional[str] = None,
+        comment: Optional[str] = None
     ) -> None:
         """Update user."""
         data = {"action": "update", "user": user}
