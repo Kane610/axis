@@ -2,7 +2,7 @@
 
 https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 
-Lists Brand, Ports, Properties, Stream profiles.
+Lists Brand, Ports, Properties, PTZ, Stream profiles.
 """
 
 import asyncio
@@ -18,6 +18,7 @@ URL_GET = URL + "?action=list"
 GROUP = "&group={group}"
 
 BRAND = "root.Brand"
+IMAGE = "root.Image"
 INPUT = "root.Input"
 IOPORT = "root.IOPort"
 OUTPUT = "root.Output"
@@ -98,6 +99,27 @@ class Params(APIItems):
     def weburl(self) -> str:
         return self[f"{BRAND}.WebURL"]
 
+    # Image
+
+    async def update_image(self) -> None:
+        """Update image group of parameters."""
+        await self.update(path=f"{URL_GET}&group={IMAGE}")
+
+    @property
+    def image_sources(self) -> list:
+        """Basic image source information."""
+        sources = []
+
+        for nbr in range(self.image_nbrofviews):
+            sources.append(
+                {
+                    "name": self[f"{IMAGE}.I{nbr}.Name"],
+                    "source": int(self[f"{IMAGE}.I{nbr}.Source"]),
+                }
+            )
+
+        return sources
+
     # Ports
 
     async def update_ports(self) -> None:
@@ -175,8 +197,9 @@ class Params(APIItems):
         return self.get(f"{PROPERTIES}.Image.Format")
 
     @property
-    def image_nbrofviews(self) -> str:
-        return self[f"{PROPERTIES}.Image.NbrOfViews"]
+    def image_nbrofviews(self) -> int:
+        """Number of supported view areas."""
+        return int(self[f"{PROPERTIES}.Image.NbrOfViews"])
 
     @property
     def image_resolution(self) -> str:

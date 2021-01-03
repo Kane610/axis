@@ -40,6 +40,12 @@ async def test_params(params):
     assert params.prodvariant == ""
     assert params.weburl == "http://www.axis.com"
 
+    # Image
+    assert params.image_sources == [
+        {"name": "View Area 1", "source": 0},
+        {"name": "View Area 2", "source": 0},
+    ]
+
     # Ports
     assert params.nbrofinput == "1"
     assert params.nbrofoutput == "0"
@@ -60,7 +66,7 @@ async def test_params(params):
     assert params.firmware_buildnumber == "26"
     assert params.firmware_version == "9.10.1"
     assert params.image_format == "jpeg,mjpeg,h264"
-    assert params.image_nbrofviews == "2"
+    assert params.image_nbrofviews == 2
     assert (
         params.image_resolution
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"

@@ -62,6 +62,9 @@ async def test_initialize(vapix):
     respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=stream_profiles_response,
     )
+    respx.post(f"http://{HOST}:80/axis-cgi/viewarea/info.cgi").respond(
+        json={"apiVersion": "1.0", "method": "list", "data": {"viewAreas": []}}
+    )
 
     respx.get(
         f"http://{HOST}:80",
@@ -92,6 +95,7 @@ async def test_initialize(vapix):
     assert vapix.light_control
     assert vapix.mqtt
     assert vapix.stream_profiles
+    assert vapix.view_areas
 
     assert vapix.params["root.Brand.Brand"] == "AXIS"
     assert vapix.firmware_version == "9.80.1"
@@ -123,6 +127,9 @@ async def test_initialize_api_discovery(vapix):
     respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=stream_profiles_response,
     )
+    respx.post(f"http://{HOST}:80/axis-cgi/viewarea/info.cgi").respond(
+        json={"apiVersion": "1.0", "method": "list", "data": {"viewAreas": []}}
+    )
 
     await vapix.initialize_api_discovery()
 
@@ -131,6 +138,7 @@ async def test_initialize_api_discovery(vapix):
     assert vapix.light_control
     assert vapix.mqtt
     assert vapix.stream_profiles
+    assert vapix.view_areas
 
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
@@ -159,6 +167,7 @@ async def test_initialize_api_discovery_unauthorized(vapix):
             "/axis-cgi/lightcontrol.cgi",
             "/axis-cgi/mqtt/client.cgi",
             "/axis-cgi/streamprofile.cgi",
+            "/axis-cgi/viewarea/info.cgi",
         ),
     ).side_effect = Unauthorized
 
