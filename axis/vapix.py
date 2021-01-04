@@ -29,6 +29,7 @@ from .port_cgi import Ports
 from .ptz import PtzControl
 from .pwdgrp_cgi import Users
 from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
+from .view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
 from .user_groups import UNKNOWN, URL as USER_GROUPS_URL, UserGroups
 
 LOGGER = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ class Vapix:
         self.stream_profiles = None
         self.user_groups = None
         self.users = None
+        self.view_areas = None
         self.vmd4 = None
 
     @property
@@ -133,6 +135,7 @@ class Vapix:
             (LIGHT_CONTROL_ID, LightControl, "light_control"),
             (MQTT_ID, MqttClient, "mqtt"),
             (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
+            (VIEW_AREAS_ID, ViewAreas, "view_areas"),
         ):
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
@@ -161,6 +164,9 @@ class Vapix:
 
             if not self.stream_profiles:
                 tasks.append(self.params.update_stream_profiles())
+
+            if self.view_areas:
+                tasks.append(self.params.update_image())
 
         if tasks:
             await asyncio.gather(*tasks)

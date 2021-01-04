@@ -36,7 +36,7 @@ async def test_get_api_list(api_discovery):
         "context": "Axis library",
     }
 
-    assert len(api_discovery.values()) == 14
+    assert len(api_discovery.values()) == 15
 
     item = api_discovery[API_DISCOVERY_ID]
     assert item.id == "api-discovery"
@@ -74,39 +74,39 @@ response_getApiList = {
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
-                "id": "io-port-management",
-                "version": "1.0",
-                "name": "IO Port Management",
-                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
-            },
-            {
-                "id": "stream-profiles",
-                "version": "1.0",
-                "name": "Stream Profiles",
-                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
-            },
-            {
-                "id": "mqtt-client",
-                "version": "1.0",
-                "name": "MQTT Client API",
-                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
-            },
-            {
-                "id": "systemready",
-                "version": "1.1",
-                "name": "Systemready",
-                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
-            },
-            {
                 "id": "basic-device-info",
                 "version": "1.1",
                 "name": "Basic Device Information",
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
-                "id": "user-management",
+                "id": "capture-mode",
+                "version": "1.0",
+                "name": "Capture Mode",
+                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
+            },
+            {
+                "id": "guard-tour",
+                "version": "1.0",
+                "name": "Guard Tour",
+                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
+            },
+            {
+                "id": "io-port-management",
+                "version": "1.0",
+                "name": "IO Port Management",
+                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
+            },
+            {
+                "id": "light-control",
                 "version": "1.1",
-                "name": "User Management",
+                "name": "Light Control",
+                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
+            },
+            {
+                "id": "mqtt-client",
+                "version": "1.0",
+                "name": "MQTT Client API",
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
@@ -122,33 +122,39 @@ response_getApiList = {
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
+                "id": "param-cgi",
+                "version": "1.0",
+                "name": "Legacy Parameter Handling",
+                "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
+            },
+            {
                 "id": "ptz-control",
                 "version": "1.0",
                 "name": "PTZ Control",
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
-                "id": "capture-mode",
+                "id": "stream-profiles",
                 "version": "1.0",
-                "name": "Capture Mode",
+                "name": "Stream Profiles",
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
-                "id": "light-control",
+                "id": "systemready",
                 "version": "1.1",
-                "name": "Light Control",
+                "name": "Systemready",
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
-                "id": "guard-tour",
-                "version": "1.0",
-                "name": "Guard Tour",
+                "id": "user-management",
+                "version": "1.1",
+                "name": "User Management",
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
             {
-                "id": "param-cgi",
+                "id": "view-area",
                 "version": "1.0",
-                "name": "Legacy Parameter Handling",
+                "name": "View Area",
                 "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
             },
         ]
