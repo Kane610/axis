@@ -54,7 +54,7 @@ class Ports(APIItems):
             if port_index not in raw_ports:
                 raw_ports[port_index] = {}
 
-            name = param.replace(IOPORT + ".I" + port_index + ".", "")
+            name = param.replace(f"I{port_index}.", "")
             raw_ports[port_index][name] = raw[param]
 
         super().process_raw(raw_ports)
