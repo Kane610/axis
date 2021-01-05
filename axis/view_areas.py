@@ -101,16 +101,14 @@ class ViewAreas(APIItems):
 
     async def update(self) -> None:
         raw = await self.list()
-        self.process_raw(raw["data"]["viewAreas"])
+        raw_dict = self.pre_process_raw(raw)
+        self.process_raw(raw_dict)
 
-    def process_raw(self, raw: List) -> None:
-        """Pre-process raw json dict.
-
-        Prepare parameters to work with APIItems.
-        """
-        raw_dict = {api["id"]: api for api in raw}
-
-        super().process_raw(raw_dict)
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Return a dictionary of view areas."""
+        view_area_data = raw.get("data", {}).get("viewAreas", {})
+        return {api["id"]: api for api in view_area_data}
 
     async def list(self) -> dict:
         """This API method can be used to list the content of a view area.
@@ -175,8 +173,8 @@ class ViewAreas(APIItems):
             ),
         )
 
-        if "data" in raw:
-            self.process_raw(raw["data"]["viewAreas"])
+        raw_dict = self.pre_process_raw(raw)
+        self.process_raw(raw_dict)
 
     async def reset_geometry(
         self,
@@ -202,8 +200,8 @@ class ViewAreas(APIItems):
                 ),
             ),
         )
-        if "data" in raw:
-            self.process_raw(raw["data"]["viewAreas"])
+        raw_dict = self.pre_process_raw(raw)
+        self.process_raw(raw_dict)
 
     async def get_supported_config_versions(self) -> dict:
         """This CGI method can be used to retrieve a list of supported API versions.
