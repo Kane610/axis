@@ -23,8 +23,6 @@ ACTION_LOW = "\\"
 DIRECTION_IN = "input"
 DIRECTION_OUT = "output"
 
-REGEX_PORT_INDEX = re.compile(r"\d+")
-
 
 class Ports(APIItems):
     """Represents all ports of io/port.cgi."""
