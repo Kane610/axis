@@ -42,7 +42,7 @@ class APIItems:
         """Allow childs to pre-process raw data."""
         return raw
 
-    def process_raw(self, raw: dict) -> set:
+    def process_raw(self, raw: Any) -> set:
         new_items = set()
 
         for id, raw_item in self.pre_process_raw(raw).items():

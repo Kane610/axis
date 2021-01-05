@@ -2,6 +2,7 @@
 
 import logging
 import re
+from typing import Union
 
 from .api import APIItem, APIItems
 
@@ -42,40 +43,47 @@ class EventManager(APIItems):
 
     def __init__(self, signal: object) -> None:
         """Ready information about events."""
-        super().__init__(raw={}, request=None, path="", item_cls=create_event)
+        super().__init__({}, None, "", create_event)
         self.signal = signal
 
-    def update(self, event_data: str) -> None:
+    def update(self, raw: Union[bytes, list]) -> None:
         """Prepare event."""
-        event = self.parse_event_xml(event_data)
+        new_events = self.process_raw(raw)
 
-        if not event:
-            return
+        for new_event in new_events:
+            if self[new_event].TOPIC:  # Don't signal on unsupported events
+                self.signal(OPERATION_INITIALIZED, new_event)
 
-        self.process_event(event)
+    @staticmethod
+    def pre_process_raw(raw: Union[bytes, list]) -> dict:
+        """Return a dictionary of initialized or changed events."""
+        if not raw:
+            return {}
 
-    def process_event(self, event: dict) -> None:
-        """Process new event."""
-        if event[EVENT_OPERATION] in (OPERATION_INITIALIZED, OPERATION_CHANGED):
+        if isinstance(raw, bytes):
+            raw = [EventManager.parse_event_xml(raw)]
+
+        events = {}
+        for event in raw:
+            if event[EVENT_OPERATION] not in (OPERATION_INITIALIZED, OPERATION_CHANGED):
+                LOGGER.debug("Unsupported event operation %s", event[EVENT_OPERATION])
+                continue
+
             id = f'{event[EVENT_TOPIC]}_{event.get(EVENT_SOURCE_IDX, "")}'
+            events[id] = event
 
-            new_events = self.process_raw({id: event})
-            for new_event in new_events:
-                if self[new_event].TOPIC:
-                    self.signal(OPERATION_INITIALIZED, new_event)
+        return events
 
-        elif event[EVENT_OPERATION] == OPERATION_DELETED:
-            LOGGER.debug("Deleted event from stream")
-
-    def parse_event_xml(self, event_data) -> dict:
+    @staticmethod
+    def parse_event_xml(event_data: bytes) -> dict:
         """Parse metadata xml."""
-        event = {}
-
         event_xml = event_data.decode()
         message = MESSAGE.search(event_xml)
 
         if not message:
-            return event
+            return {}
+
+        event = {}
 
         event[EVENT_OPERATION] = message.group(EVENT_OPERATION)
 
