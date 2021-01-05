@@ -47,28 +47,29 @@ class Users(APIItems):
         users = await self.list()
         self.process_raw(users)
 
-    def process_raw(self, raw: str) -> None:
+    @staticmethod
+    def pre_process_raw(raw: str) -> dict:
         """Pre-process raw string.
 
         Prepare users to work with APIItems.
         Create booleans with user levels.
         """
         if "=" not in raw:
-            return
+            return {}
 
         raw_dict = dict(group.split("=", 1) for group in raw.splitlines())
 
-        users = ["root"] + REGEX_STRING.findall(raw_dict["users"])
+        raw_users = ["root"] + REGEX_STRING.findall(raw_dict["users"])
 
-        raw_users = {
+        users = {
             user: {
                 group: user in REGEX_STRING.findall(raw_dict[group])
                 for group in [ADMIN, OPERATOR, VIEWER, PTZ]
             }
-            for user in users
+            for user in raw_users
         }
 
-        super().process_raw(raw_users)
+        return users
 
     async def list(self) -> str:
         """List current users."""
