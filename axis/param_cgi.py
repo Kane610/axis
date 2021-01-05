@@ -65,25 +65,40 @@ class Params(APIItems):
         self.process_raw(raw)
 
     def process_dynamic_group(
-        self, group_name: str, group_id: str, attributes: tuple
+        self, raw_group: dict, prefix: str, attributes: tuple, group_range: range
     ) -> dict:
-        """Convert raw params to detailed."""
-        group = {}
-        for camera in list(range(1, self.ptz_number_of_cameras + 1)):
-            group[camera] = {}
+        """Convert raw dynamic groups to a proper dictionary.
+
+        raw_group: self[group]
+        prefix: "Support.S"
+        attributes: ("AbsoluteZoom", "DigitalZoom")
+        group_range: range(5)
+        """
+        dynamic_group = {}
+        for index in group_range:
+            item = {}
+
             for attribute in attributes:
-                parameter = f"{group_id}{camera}.{attribute}"
-                if parameter in self[group_name]:
-                    if self[group_name][parameter] in ("true", "false"):
-                        group[camera][attribute] = self[group_name][parameter] == "true"
-                    elif (
-                        self[group_name][parameter].isdigit()
-                        or self[group_name][parameter][1:].isdigit()  # Negative values
-                    ):
-                        group[camera][attribute] = int(self[group_name][parameter])
-                    else:
-                        group[camera][attribute] = self[group_name][parameter]
-        return group
+                parameter = f"{prefix}{index}.{attribute}"  # Support.S0.AbsoluteZoom
+
+                if parameter not in raw_group:
+                    continue
+
+                parameter_value = raw_group[parameter]
+
+                if parameter_value in ("true", "false"):  # Boolean values
+                    item[attribute] = parameter_value == "true"
+
+                elif parameter_value.lstrip("-").isdigit():  # Positive/negative values
+                    item[attribute] = int(parameter_value)
+
+                else:
+                    item[attribute] = parameter_value
+
+            if item:
+                dynamic_group[index] = item
+
+        return dynamic_group
 
     # Brand
 
@@ -128,15 +143,20 @@ class Params(APIItems):
     @property
     def image_sources(self) -> list:
         """Basic image source information."""
+        if IMAGE not in self:
+            return []
+
+        raw_sources = self.process_dynamic_group(
+            self[IMAGE],
+            "I",
+            ("Name", "Source"),
+            range(self.image_nbrofviews),
+        )
+
         sources = []
 
-        for nbr in range(self.image_nbrofviews):
-            sources.append(
-                {
-                    "name": self[IMAGE][f"I{nbr}.Name"],
-                    "source": int(self[IMAGE][f"I{nbr}.Source"]),
-                }
-            )
+        for raw_source in raw_sources.values():  # Convert source keys to lower case
+            sources.append(dict((k.lower(), v) for k, v in raw_source.items()))
 
         return sources
 
@@ -296,7 +316,9 @@ class Params(APIItems):
             "MinTilt",
             "MinZoom",
         )
-        return self.process_dynamic_group(PTZ, "Limit.L", attributes)
+        return self.process_dynamic_group(
+            self[PTZ], "Limit.L", attributes, range(1, self.ptz_number_of_cameras + 1)
+        )
 
     @property
     def ptz_support(self) -> dict:
@@ -345,7 +367,9 @@ class Params(APIItems):
             "ServerPreset",
             "SpeedCtl",
         )
-        return self.process_dynamic_group(PTZ, "Support.S", attributes)
+        return self.process_dynamic_group(
+            self[PTZ], "Support.S", attributes, range(1, self.ptz_number_of_cameras + 1)
+        )
 
     @property
     def ptz_various(self) -> dict:
@@ -380,7 +404,9 @@ class Params(APIItems):
             "TiltEnabled",
             "ZoomEnabled",
         )
-        return self.process_dynamic_group(PTZ, "Various.V", attributes)
+        return self.process_dynamic_group(
+            self[PTZ], "Various.V", attributes, range(1, self.ptz_number_of_cameras + 1)
+        )
 
     # Stream profiles
 
@@ -395,18 +421,21 @@ class Params(APIItems):
 
     def stream_profiles(self) -> list:
         """Return a list of stream profiles."""
+        if STREAM_PROFILES not in self:
+            return []
+
+        raw_profiles = self.process_dynamic_group(
+            self[STREAM_PROFILES],
+            "S",
+            ("Name", "Description", "Parameters"),
+            range(self.stream_profiles_max_groups),
+        )
+
         profiles = []
 
-        try:
-            for nbr in range(self.stream_profiles_max_groups):
-                raw = {
-                    "name": self[STREAM_PROFILES][f"S{nbr}.Name"],
-                    "description": self[STREAM_PROFILES][f"S{nbr}.Description"],
-                    "parameters": self[STREAM_PROFILES][f"S{nbr}.Parameters"],
-                }
-                profiles.append(StreamProfile(raw["name"], raw, self._request))
-        except KeyError:
-            pass
+        for raw_profile in raw_profiles.values():  # Convert profile keys to lower case
+            profile = dict((k.lower(), v) for k, v in raw_profile.items())
+            profiles.append(StreamProfile(profile["name"], profile, self._request))
 
         return profiles
 

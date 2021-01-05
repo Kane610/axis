@@ -82,6 +82,8 @@ async def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
 
+    assert params.image_sources == []
+
 
 @respx.mock
 async def test_update_brand(params):
@@ -105,6 +107,28 @@ async def test_update_brand(params):
     assert params.prodtype == "Network Camera"
     assert params.prodvariant == ""
     assert params.weburl == "http://www.axis.com"
+
+
+@respx.mock
+async def test_update_image(params):
+    """Verify that update brand works."""
+    route = respx.get(
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Image"
+    ).respond(
+        text=response_param_cgi,
+        headers={"Content-Type": "text/plain"},
+    )
+    await params.update_image()
+
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
+
+    assert params.image_nbrofviews == 2
+    assert params.image_sources == [
+        {"name": "View Area 1", "source": 0},
+        {"name": "View Area 2", "source": 0},
+    ]
 
 
 @respx.mock
