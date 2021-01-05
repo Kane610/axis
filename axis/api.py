@@ -39,10 +39,15 @@ class APIItems:
         raw = await self._request("get", path)
         self.process_raw(raw)
 
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Allow childs to pre-process raw data."""
+        return raw
+
     def process_raw(self, raw: dict) -> set:
         new_items = set()
 
-        for id, raw_item in raw.items():
+        for id, raw_item in self.pre_process_raw(raw).items():
             obj = self._items.get(id)
 
             if obj is not None:

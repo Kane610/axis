@@ -25,21 +25,17 @@ class ObjectAnalytics(ApplicationAPIItems):
     def __init__(self, request: object) -> None:
         super().__init__(request, URL, ObjectAnalyticsScenario, API_VERSION)
 
-    async def update(self) -> None:
-        """No update method."""
-        raw = await self.get_configuration()
-
-        if not raw:
-            return
-
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Prepare scenarios data for process_raw."""
         scenarios = {}
 
-        for scenario in raw["data"]["scenarios"]:
+        for scenario in raw.get("data", {}).get("scenarios", {}):
             device = scenario["devices"][0]["id"]
             uid = scenario["id"]
             scenarios[f"Device{device}Scenario{uid}"] = scenario
 
-        self.process_raw(scenarios)
+        return scenarios
 
     async def get_configuration(self) -> dict:
         """Current configuration of application."""

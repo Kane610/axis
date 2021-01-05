@@ -101,8 +101,7 @@ class ViewAreas(APIItems):
 
     async def update(self) -> None:
         raw = await self.list()
-        raw_dict = self.pre_process_raw(raw)
-        self.process_raw(raw_dict)
+        self.process_raw(raw)
 
     @staticmethod
     def pre_process_raw(raw: dict) -> dict:
@@ -173,8 +172,7 @@ class ViewAreas(APIItems):
             ),
         )
 
-        raw_dict = self.pre_process_raw(raw)
-        self.process_raw(raw_dict)
+        self.process_raw(raw)
 
     async def reset_geometry(
         self,
@@ -200,8 +198,7 @@ class ViewAreas(APIItems):
                 ),
             ),
         )
-        raw_dict = self.pre_process_raw(raw)
-        self.process_raw(raw_dict)
+        self.process_raw(raw)
 
     async def get_supported_config_versions(self) -> dict:
         """This CGI method can be used to retrieve a list of supported API versions.

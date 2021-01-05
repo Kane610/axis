@@ -31,13 +31,11 @@ class Ports(APIItems):
 
     def __init__(self, param_cgi: object, request: str) -> None:
         self.param_cgi = param_cgi
-        raw = self.pre_process_raw(self.param_cgi.ports)
-        super().__init__(raw, request, None, Port)
+        super().__init__(self.param_cgi.ports, request, None, Port)
 
     async def update(self) -> None:
         await self.param_cgi.update_ports()
-        raw = self.pre_process_raw(self.param_cgi.ports)
-        self.process_raw(raw)
+        self.process_raw(self.param_cgi.ports)
 
     @staticmethod
     def pre_process_raw(ports: dict) -> dict:
