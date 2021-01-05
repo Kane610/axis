@@ -42,27 +42,31 @@ class Params(APIItems):
     """Represents all parameters of param.cgi."""
 
     def __init__(self, request: object) -> None:
-        super().__init__({}, request, URL_GET, Param)
+        super().__init__("", request, URL_GET, Param)
 
     async def update(self, path: Optional[str] = None) -> None:
         if not path:
             path = self._path
-        raw_string = await self._request("get", path)
+        raw = await self._request("get", path)
+        self.process_raw(raw)
 
-        raw = {}
-        for raw_line in raw_string.splitlines():  # root.group.parameter..=value
+    @staticmethod
+    def pre_process_raw(raw: str) -> dict:
+        """Return a dictionary of parameter groups."""
+        params = {}
+        for raw_line in raw.splitlines():  # root.group.parameter..=value
             split_line = raw_line.split(".", 2)  # root, group, parameter..=value
             group = ".".join(split_line[:2])  # root.group
 
             if group not in SUPPORTED_GROUPS:
                 continue
 
-            raw.setdefault(group, {})
+            params.setdefault(group, {})
 
             param = split_line[2].split("=", 1)  # parameter.., value
-            raw[group][param[0]] = param[1]  # {root.group: {parameter..: value}}
+            params[group][param[0]] = param[1]  # {root.group: {parameter..: value}}
 
-        self.process_raw(raw)
+        return params
 
     @staticmethod
     def process_dynamic_group(
