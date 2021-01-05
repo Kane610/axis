@@ -27,9 +27,16 @@ class Applications(APIItems):
     async def update(self) -> None:
         """No update method"""
         raw = await self.list()
+        self.process_raw(raw)
 
-        if "application" not in raw["reply"]:
-            return
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Return a dictionary of applications."""
+        if not raw:
+            return {}
+
+        if "application" not in raw.get("reply", {}):
+            return {}
 
         raw_applications = raw["reply"]["application"]
 
@@ -42,7 +49,7 @@ class Applications(APIItems):
             for raw_application in raw_applications:
                 applications[raw_application["@Name"]] = raw_application
 
-        self.process_raw(applications)
+        return applications
 
     async def list(self) -> dict:
         """The applications/list.cgi is used to list information about installed applications."""

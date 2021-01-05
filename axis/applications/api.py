@@ -17,18 +17,19 @@ class ApplicationAPIItems(APIItems):
     async def update(self) -> None:
         """No update method."""
         raw = await self.get_configuration()
+        self.process_raw(raw)
 
-        if not raw:
-            return
-
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Prepare profiles data for process_raw."""
         profiles = {}
 
-        for profile in raw["data"]["profiles"]:
+        for profile in raw.get("data", {}).get("profiles", {}):
             camera = profile["camera"]
             uid = profile["uid"]
             profiles[f"Camera{camera}Profile{uid}"] = profile
 
-        self.process_raw(profiles)
+        return profiles
 
     async def get_configuration(self) -> dict:
         """Current configuration of application."""

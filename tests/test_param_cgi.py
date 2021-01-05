@@ -7,7 +7,7 @@ import pytest
 
 import respx
 
-from axis.param_cgi import BRAND, INPUT, IOPORT, OUTPUT, PROPERTIES, PTZ, Params
+from axis.param_cgi import Params
 
 from .conftest import HOST
 
@@ -47,13 +47,15 @@ async def test_params(params):
     ]
 
     # Ports
-    assert params.nbrofinput == "1"
-    assert params.nbrofoutput == "0"
+    assert params.nbrofinput == 1
+    assert params.nbrofoutput == 0
     assert params.ports == {
-        "root.IOPort.I0.Configurable": "no",
-        "root.IOPort.I0.Direction": "input",
-        "root.IOPort.I0.Input.Name": "PIR sensor",
-        "root.IOPort.I0.Input.Trig": "closed",
+        0: {
+            "Configurable": "no",
+            "Direction": "input",
+            "Input.Name": "PIR sensor",
+            "Input.Trig": "closed",
+        }
     }
 
     # Properties
@@ -80,9 +82,9 @@ async def test_params(params):
 
 async def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
-    assert params
+    assert len(params) == 0
 
-    assert params.light_control is False
+    assert params.image_sources == []
 
 
 @respx.mock
@@ -100,13 +102,35 @@ async def test_update_brand(params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params[f"{BRAND}.Brand"] == "AXIS"
-    assert params[f"{BRAND}.ProdFullName"] == "AXIS M1065-LW Network Camera"
-    assert params[f"{BRAND}.ProdNbr"] == "M1065-LW"
-    assert params[f"{BRAND}.ProdShortName"] == "AXIS M1065-LW"
-    assert params[f"{BRAND}.ProdType"] == "Network Camera"
-    assert params[f"{BRAND}.ProdVariant"] == ""
-    assert params[f"{BRAND}.WebURL"] == "http://www.axis.com"
+    assert params.brand == "AXIS"
+    assert params.prodfullname == "AXIS M1065-LW Network Camera"
+    assert params.prodnbr == "M1065-LW"
+    assert params.prodshortname == "AXIS M1065-LW"
+    assert params.prodtype == "Network Camera"
+    assert params.prodvariant == ""
+    assert params.weburl == "http://www.axis.com"
+
+
+@respx.mock
+async def test_update_image(params):
+    """Verify that update brand works."""
+    route = respx.get(
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Image"
+    ).respond(
+        text=response_param_cgi,
+        headers={"Content-Type": "text/plain"},
+    )
+    await params.update_image()
+
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
+
+    assert params.image_nbrofviews == 2
+    assert params.image_sources == [
+        {"name": "View Area 1", "source": 0},
+        {"name": "View Area 2", "source": 0},
+    ]
 
 
 @respx.mock
@@ -149,12 +173,16 @@ root.IOPort.I0.Input.Trig=closed
     assert output_route.calls.last.request.method == "GET"
     assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params[f"{INPUT}.NbrOfInputs"] == "1"
-    assert params[f"{IOPORT}.I0.Configurable"] == "no"
-    assert params[f"{IOPORT}.I0.Direction"] == "input"
-    assert params[f"{IOPORT}.I0.Input.Name"] == "PIR sensor"
-    assert params[f"{IOPORT}.I0.Input.Trig"] == "closed"
-    assert params[f"{OUTPUT}.NbrOfOutputs"] == "0"
+    assert params.nbrofinput == 1
+    assert params.ports == {
+        0: {
+            "Configurable": "no",
+            "Direction": "input",
+            "Input.Name": "PIR sensor",
+            "Input.Trig": "closed",
+        }
+    }
+    assert params.nbrofoutput == 0
 
 
 @respx.mock
@@ -173,115 +201,45 @@ async def test_update_properties(params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params[f"{PROPERTIES}.AlwaysMulticast.AlwaysMulticast"] == "yes"
-    assert params[f"{PROPERTIES}.API.Browser.Language"] == "yes"
-    assert params[f"{PROPERTIES}.API.Browser.RootPwdSetValue"] == "yes"
-    assert params[f"{PROPERTIES}.API.Browser.UserGroup"] == "yes"
-    assert params[f"{PROPERTIES}.API.ClientNotes.ClientNotes"] == "yes"
-    assert params[f"{PROPERTIES}.API.HTTP.AdminPath"] == "/"
-    assert params[f"{PROPERTIES}.API.HTTP.Version"] == "3"
-    assert params[f"{PROPERTIES}.API.Metadata.Metadata"] == "yes"
-    assert params[f"{PROPERTIES}.API.Metadata.Version"] == "1.0"
-    assert params[f"{PROPERTIES}.API.OnScreenControls.OnScreenControls"] == "yes"
-    assert params[f"{PROPERTIES}.API.PTZ.Presets.Version"] == "2.00"
-    assert params[f"{PROPERTIES}.API.RTSP.RTSPAuth"] == "yes"
-    assert params[f"{PROPERTIES}.API.RTSP.Version"] == "2.01"
-    assert params[f"{PROPERTIES}.API.WebService.EntryService"] == "yes"
-    assert params[f"{PROPERTIES}.API.WebService.WebService"] == "yes"
-    assert params[f"{PROPERTIES}.API.WebService.ONVIF.ONVIF"] == "yes"
-    assert params[f"{PROPERTIES}.API.WebService.ONVIF.Version"] == "1.02"
-    assert params[f"{PROPERTIES}.API.WebSocket.RTSP.RTSP"] == "yes"
-    assert params[f"{PROPERTIES}.ApiDiscovery.ApiDiscovery"] == "yes"
-    assert params[f"{PROPERTIES}.Audio.Audio"] == "yes"
-    assert params[f"{PROPERTIES}.Audio.DuplexMode"] == "half,post,get"
-    assert params[f"{PROPERTIES}.Audio.Format"] == "lpcm,g711,g726,aac,opus"
-    assert params[f"{PROPERTIES}.Audio.InputType"] == "internal"
-    assert params[f"{PROPERTIES}.Audio.Decoder.Format"] == "g711,g726,axis-mulaw-128"
-    assert params[f"{PROPERTIES}.Audio.Source.A0.Input"] == "yes"
-    assert params[f"{PROPERTIES}.Audio.Source.A0.Output"] == "yes"
-    assert params[f"{PROPERTIES}.EmbeddedDevelopment.CacheSize"] == "76546048"
-    assert params[f"{PROPERTIES}.EmbeddedDevelopment.DefaultCacheSize"] == "92274688"
-    assert params[f"{PROPERTIES}.EmbeddedDevelopment.EmbeddedDevelopment"] == "yes"
-    assert params[f"{PROPERTIES}.EmbeddedDevelopment.Version"] == "2.16"
+    assert params.api_http_version == "3"
+    assert params.api_metadata == "yes"
+    assert params.api_metadata_version == "1.0"
+    # assert params[f"{PROPERTIES}.API.OnScreenControls.OnScreenControls"] == "yes"
+    assert params.api_ptz_presets_version == "2.00"
+    # assert params[f"{PROPERTIES}.API.RTSP.RTSPAuth"] == "yes"
+    # assert params[f"{PROPERTIES}.API.RTSP.Version"] == "2.01"
+    # assert params[f"{PROPERTIES}.ApiDiscovery.ApiDiscovery"] == "yes"
+    # assert params[f"{PROPERTIES}.EmbeddedDevelopment.EmbeddedDevelopment"] == "yes"
+    assert params.embedded_development == "2.16"
+    assert params.firmware_builddate == "Feb 15 2019 09:42"
+    assert params.firmware_buildnumber == "26"
+    assert params.firmware_version == "9.10.1"
+    assert params.image_format == "jpeg,mjpeg,h264"
+    assert params.image_nbrofviews == 2
     assert (
-        params[f"{PROPERTIES}.EmbeddedDevelopment.RuleEngine.MultiConfiguration"]
-        == "yes"
-    )
-    assert params[f"{PROPERTIES}.Firmware.BuildDate"] == "Feb 15 2019 09:42"
-    assert params[f"{PROPERTIES}.Firmware.BuildNumber"] == "26"
-    assert params[f"{PROPERTIES}.Firmware.Version"] == "9.10.1"
-    assert params[f"{PROPERTIES}.FirmwareManagement.Version"] == "1.0"
-    assert params[f"{PROPERTIES}.GuardTour.GuardTour"] == "yes"
-    assert params[f"{PROPERTIES}.GuardTour.MaxGuardTours"] == "100"
-    assert params[f"{PROPERTIES}.GuardTour.MinGuardTourWaitTime"] == "10"
-    assert params[f"{PROPERTIES}.GuardTour.RecordedTour"] == "no"
-    assert params[f"{PROPERTIES}.HTTPS.HTTPS"] == "yes"
-    assert params[f"{PROPERTIES}.Image.Format"] == "jpeg,mjpeg,h264"
-    assert params[f"{PROPERTIES}.Image.NbrOfViews"] == "2"
-    assert (
-        params[f"{PROPERTIES}.Image.Resolution"]
+        params.image_resolution
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
     )
-    assert params[f"{PROPERTIES}.Image.Rotation"] == "0,180"
-    assert params[f"{PROPERTIES}.Image.ShowSuboptimalResolutions"] == "false"
-    assert params[f"{PROPERTIES}.Image.H264.Profiles"] == "Baseline,Main,High"
-    assert params[f"{PROPERTIES}.ImageSource.DayNight"] == "yes"
-    assert params[f"{PROPERTIES}.IO.ManualTriggerNbr"] == "6"
-    assert params[f"{PROPERTIES}.LEDControl.LEDControl"] == "yes"
-    assert params[f"{PROPERTIES}.LightControl.LightControl2"] == "yes"
-    assert params[f"{PROPERTIES}.LightControl.LightControlAvailable"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.AutoRepair"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.ContinuousRecording"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.DiskEncryption"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.DiskHealth"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.ExportRecording"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.FailOverRecording"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.LocalStorage"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.NbrOfContinuousRecordingProfiles"] == "1"
-    assert params[f"{PROPERTIES}.LocalStorage.RequiredFileSystem"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.SDCard"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.StorageLimit"] == "yes"
-    assert params[f"{PROPERTIES}.LocalStorage.Version"] == "1.00"
-    assert params[f"{PROPERTIES}.Motion.MaxNbrOfWindows"] == "10"
-    assert params[f"{PROPERTIES}.Motion.Motion"] == "yes"
-    assert params[f"{PROPERTIES}.Network.WLAN.WLANScan2"] == "yes"
-    assert params[f"{PROPERTIES}.NetworkShare.CIFS"] == "yes"
-    assert params[f"{PROPERTIES}.NetworkShare.IPV6"] == "yes"
-    assert params[f"{PROPERTIES}.NetworkShare.NameLookup"] == "yes"
-    assert params[f"{PROPERTIES}.NetworkShare.NetworkShare"] == "yes"
-    assert params[f"{PROPERTIES}.PackageManager.FormatListing"] == "yes"
-    assert params[f"{PROPERTIES}.PackageManager.LicenseKeyManagement"] == "yes"
-    assert params[f"{PROPERTIES}.PackageManager.PackageManager"] == "yes"
-    assert params[f"{PROPERTIES}.PrivacyMask.MaxNbrOfPrivacyMasks"] == "10"
-    assert params[f"{PROPERTIES}.PrivacyMask.Polygon"] == "no"
-    assert params[f"{PROPERTIES}.PrivacyMask.PrivacyMask"] == "no"
-    assert (
-        params[f"{PROPERTIES}.PrivacyMask.Query"]
-        == "list,position,listpxjson,positionpxjson"
-    )
-    assert params[f"{PROPERTIES}.PTZ.DigitalPTZ"] == "yes"
-    assert params[f"{PROPERTIES}.PTZ.DriverManagement"] == "no"
-    assert params[f"{PROPERTIES}.PTZ.DriverModeList"] == "none"
-    assert params[f"{PROPERTIES}.PTZ.PTZ"] == "yes"
-    assert params[f"{PROPERTIES}.PTZ.PTZOnQuadView"] == "no"
-    assert params[f"{PROPERTIES}.PTZ.SelectableDriverMode"] == "no"
-    assert params[f"{PROPERTIES}.RemoteService.RemoteService"] == "no"
-    assert params[f"{PROPERTIES}.RTC.RTC"] == "yes"
-    assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
-    assert params[f"{PROPERTIES}.Serial.Serial"] == "no"
-    assert params[f"{PROPERTIES}.System.Architecture"] == "armv7hf"
-    assert params[f"{PROPERTIES}.System.HardwareID"] == "70E"
-    assert params[f"{PROPERTIES}.System.Language"] == "English"
-    assert params[f"{PROPERTIES}.System.LanguageType"] == "default"
-    assert params[f"{PROPERTIES}.System.SerialNumber"] == "ACCC12345678"
-    assert params[f"{PROPERTIES}.System.Soc"] == "Ambarella S2L (Flattened Device Tree)"
-    assert params[f"{PROPERTIES}.Tampering.Tampering"] == "yes"
-    assert params[f"{PROPERTIES}.TemperatureSensor.Fan"] == "no"
-    assert params[f"{PROPERTIES}.TemperatureSensor.Heater"] == "no"
-    assert params[f"{PROPERTIES}.TemperatureSensor.TemperatureControl"] == "yes"
-    assert params[f"{PROPERTIES}.TemperatureSensor.TemperatureSensor"] == "yes"
-    assert params[f"{PROPERTIES}.VirtualInput.VirtualInput"] == "yes"
-    assert params[f"{PROPERTIES}.ZipStream.ZipStream"] == "yes"
+    assert params.image_rotation == "0,180"
+    # assert params[f"{PROPERTIES}.LEDControl.LEDControl"] == "yes"
+    assert params.light_control is True
+    # assert params[f"{PROPERTIES}.LightControl.LightControlAvailable"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.AutoRepair"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.ContinuousRecording"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.DiskEncryption"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.DiskHealth"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.ExportRecording"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.FailOverRecording"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.LocalStorage"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.NbrOfContinuousRecordingProfiles"] == "1"
+    # assert params[f"{PROPERTIES}.LocalStorage.RequiredFileSystem"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.SDCard"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.StorageLimit"] == "yes"
+    # assert params[f"{PROPERTIES}.LocalStorage.Version"] == "1.00"
+    assert params.digital_ptz is True
+    assert params.ptz is True
+    # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
+    assert params.system_serialnumber == "ACCC12345678"
 
 
 @respx.mock
@@ -300,7 +258,6 @@ async def test_update_ptz(params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params[f"{PTZ}.BoaProtPTZOperator"] == "password"
     assert params.ptz_camera_default == 1
     assert params.ptz_number_of_cameras == 1
     assert params.ptz_number_of_serial_ports == 1

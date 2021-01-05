@@ -97,7 +97,7 @@ async def test_initialize(vapix):
     assert vapix.stream_profiles
     assert vapix.view_areas
 
-    assert vapix.params["root.Brand.Brand"] == "AXIS"
+    assert vapix.params.brand == "AXIS"
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -202,7 +202,7 @@ async def test_initialize_param_cgi(vapix):
     )
     await vapix.initialize_param_cgi()
 
-    assert vapix.params["root.Brand.Brand"] == "AXIS"
+    assert vapix.params.brand == "AXIS"
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -222,7 +222,7 @@ async def test_initialize_params_no_data(vapix):
     param_route = respx.get(
         f"http://{HOST}:80",
         path__startswith="/axis-cgi/param.cgi",
-    ).respond(text="key=value")
+    ).respond(text="")
     await vapix.initialize_param_cgi(preload_data=False)
 
     assert param_route.call_count == 7

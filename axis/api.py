@@ -33,16 +33,20 @@ class APIItems:
         self.process_raw(raw)
         LOGGER.debug(pformat(raw))
 
-    async def update(self, path: Optional[str] = None) -> None:
-        if not path:
-            path = self._path
-        raw = await self._request("get", path)
+    async def update(self) -> None:
+        raw = await self._request("get", self._path)
         self.process_raw(raw)
 
-    def process_raw(self, raw: dict) -> set:
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Allow childs to pre-process raw data."""
+        return raw
+
+    def process_raw(self, raw: Any) -> set:
+        """Process raw and return a set of new IDs."""
         new_items = set()
 
-        for id, raw_item in raw.items():
+        for id, raw_item in self.pre_process_raw(raw).items():
             obj = self._items.get(id)
 
             if obj is not None:

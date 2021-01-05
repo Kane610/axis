@@ -17,7 +17,8 @@ class UserGroups(APIItems):
     def __init__(self, raw: str, request: object) -> None:
         super().__init__(raw, request, URL, APIItem)
 
-    def process_raw(self, raw: str) -> None:
+    @staticmethod
+    def pre_process_raw(raw: str) -> dict:
         """Process raw group list to generate a full list of what is and isnt supported."""
         raw_list = raw.splitlines()
 
@@ -25,11 +26,7 @@ class UserGroups(APIItems):
         if len(raw_list) == 2:
             group_list = raw_list[1].split()
 
-        raw_groups = {
-            group: group in group_list for group in [ADMIN, OPERATOR, VIEWER, PTZ]
-        }
-
-        super().process_raw(raw_groups)
+        return {group: group in group_list for group in [ADMIN, OPERATOR, VIEWER, PTZ]}
 
     @property
     def privileges(self) -> str:

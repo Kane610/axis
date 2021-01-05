@@ -26,17 +26,19 @@ class StreamProfiles(APIItems):
 
     async def update(self) -> None:
         raw = await self.list()
-        if raw["data"]["maxProfiles"] > 0:
-            self.process_raw(raw["data"]["streamProfile"])
+        self.process_raw(raw)
 
-    def process_raw(self, raw: dict) -> None:
-        """Pre-process raw json list.
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Return a dictionary of stream profiles."""
+        if not raw:
+            return {}
 
-        Prepare parameters to work with APIItems.
-        """
-        raw_profiles = {profile["name"]: profile for profile in raw}
+        if raw.get("data", {}).get("maxProfiles", 0) == 0:
+            return {}
 
-        super().process_raw(raw_profiles)
+        profiles = raw["data"]["streamProfile"]
+        return {profile["name"]: profile for profile in profiles}
 
     async def list(self, params: list = []) -> dict:
         """This API method can be used to list the content of a stream profile.

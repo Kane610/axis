@@ -49,17 +49,19 @@ class IoPortManagement(APIItems):
 
     async def update(self) -> None:
         raw = await self.get_ports()
-        if raw["data"]["numberOfPorts"] > 0:
-            self.process_raw(raw["data"]["items"])
+        self.process_raw(raw)
 
-    def process_raw(self, raw: list) -> None:
-        """Pre-process raw json dict.
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Return a dictionary of ports."""
+        if not raw:
+            return {}
 
-        Prepare parameters to work with APIItems.
-        """
-        raw_ports = {port["port"]: port for port in raw}
+        if raw.get("data", {}).get("numberOfPorts", 0) == 0:
+            return {}
 
-        super().process_raw(raw_ports)
+        ports = raw["data"]["items"]
+        return {port["port"]: port for port in ports}
 
     async def get_ports(self) -> dict:
         """This CGI method can be used to retrieve information about all ports on the device and their capabilities."""
