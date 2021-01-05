@@ -23,14 +23,11 @@ class ApiDiscovery(APIItems):
         raw = await self.get_api_list()
         self.process_raw(raw)
 
-    def process_raw(self, raw: dict) -> None:
-        """Pre-process raw json dict.
-
-        Prepare parameters to work with APIItems.
-        """
-        raw_apis = {api["id"]: api for api in raw.get("data", {}).get("apiList", [])}
-
-        super().process_raw(raw_apis)
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Return a dictionary of discovered APIs."""
+        api_data = raw.get("data", {}).get("apiList", [])
+        return {api["id"]: api for api in api_data}
 
     async def get_api_list(self) -> dict:
         """List all APIs registered on API Discovery service."""

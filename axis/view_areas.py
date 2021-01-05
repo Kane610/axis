@@ -106,7 +106,7 @@ class ViewAreas(APIItems):
     @staticmethod
     def pre_process_raw(raw: dict) -> dict:
         """Return a dictionary of view areas."""
-        view_area_data = raw.get("data", {}).get("viewAreas", {})
+        view_area_data = raw.get("data", {}).get("viewAreas", [])
         return {api["id"]: api for api in view_area_data}
 
     async def list(self) -> dict:
