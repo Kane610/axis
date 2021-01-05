@@ -28,7 +28,12 @@ class BasicDeviceInfo(APIItems):
 
     async def update(self) -> None:
         raw = await self.get_all_properties()
-        self.process_raw(raw["data"]["propertyList"])
+        self.process_raw(raw)
+
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Return a dictionary of device information."""
+        return raw.get("data", {}).get("propertyList", {})
 
     async def get_all_properties(self) -> dict:
         """List all properties of basic device info."""
