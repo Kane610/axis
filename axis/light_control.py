@@ -22,16 +22,13 @@ class LightControl(APIItems):
 
     async def update(self, path=None) -> None:
         raw = await self.get_light_information()
-        self.process_raw(raw.get("data", {}).get("items", []))
+        self.process_raw(raw)
 
-    def process_raw(self, raw: list) -> None:
-        """Pre-process raw json dict.
-
-        Prepare parameters to work with APIItems.
-        """
-        raw_dict = {api["lightID"]: api for api in raw}
-
-        super().process_raw(raw_dict)
+    @staticmethod
+    def pre_process_raw(raw: dict) -> dict:
+        """Return a dictionary of lights."""
+        light_control_data = raw.get("data", {}).get("items", [])
+        return {api["lightID"]: api for api in light_control_data}
 
     async def get_service_capabilities(self) -> dict:
         """List the capabilities of the light controller."""
