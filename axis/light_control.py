@@ -20,7 +20,7 @@ class LightControl(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, Light)
 
-    async def update(self, path=None) -> None:
+    async def update(self) -> None:
         raw = await self.get_light_information()
         self.process_raw(raw)
 

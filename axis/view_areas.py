@@ -8,7 +8,7 @@ process by fine tuning an area digitally after the camera has been manually poin
 """
 
 import attr
-from typing import List, Optional
+from typing import Optional
 
 from .api import APIItem, APIItems, Body
 

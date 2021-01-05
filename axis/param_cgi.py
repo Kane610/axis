@@ -15,7 +15,6 @@ PROPERTY = "Properties.API.HTTP.Version=3"
 
 URL = "/axis-cgi/param.cgi"
 URL_GET = URL + "?action=list"
-GROUP = "&group={group}"
 
 BRAND = "root.Brand"
 IMAGE = "root.Image"
@@ -44,9 +43,8 @@ class Params(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__("", request, URL_GET, Param)
 
-    async def update(self, path: Optional[str] = None) -> None:
-        if not path:
-            path = self._path
+    async def update(self, group: str = "") -> None:
+        path = URL_GET + (f"&group={group}" if group else "")
         raw = await self._request("get", path)
         self.process_raw(raw)
 
@@ -109,7 +107,7 @@ class Params(APIItems):
 
     async def update_brand(self) -> None:
         """Update brand group of parameters."""
-        await self.update(path=URL_GET + GROUP.format(group=BRAND))
+        await self.update(BRAND)
 
     @property
     def brand(self) -> str:
@@ -143,7 +141,7 @@ class Params(APIItems):
 
     async def update_image(self) -> None:
         """Update image group of parameters."""
-        await self.update(path=f"{URL_GET}&group={IMAGE}")
+        await self.update(IMAGE)
 
     @property
     def image_sources(self) -> list:
@@ -170,9 +168,9 @@ class Params(APIItems):
     async def update_ports(self) -> None:
         """Update port groups of parameters."""
         await asyncio.gather(
-            self.update(path=URL_GET + GROUP.format(group=INPUT)),
-            self.update(path=URL_GET + GROUP.format(group=IOPORT)),
-            self.update(path=URL_GET + GROUP.format(group=OUTPUT)),
+            self.update(INPUT),
+            self.update(IOPORT),
+            self.update(OUTPUT),
         )
 
     @property
@@ -218,7 +216,7 @@ class Params(APIItems):
 
     async def update_properties(self) -> None:
         """Update properties group of parameters."""
-        await self.update(path=URL_GET + GROUP.format(group=PROPERTIES))
+        await self.update(PROPERTIES)
 
     @property
     def api_http_version(self) -> str:
@@ -298,7 +296,7 @@ class Params(APIItems):
 
     async def update_ptz(self) -> None:
         """Update PTZ group of parameters."""
-        await self.update(path=URL_GET + GROUP.format(group=PTZ))
+        await self.update(PTZ)
 
     @property
     def ptz_camera_default(self) -> int:
@@ -439,7 +437,7 @@ class Params(APIItems):
 
     async def update_stream_profiles(self) -> None:
         """Update stream profiles group of parameters."""
-        await self.update(path=URL_GET + GROUP.format(group=STREAM_PROFILES))
+        await self.update(STREAM_PROFILES)
 
     @property
     def stream_profiles_max_groups(self) -> int:

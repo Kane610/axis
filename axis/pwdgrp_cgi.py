@@ -42,7 +42,7 @@ class Users(APIItems):
     def __init__(self, raw: str, request: object) -> None:
         super().__init__(raw, request, URL_GET, User)
 
-    async def update(self, path: Optional[str] = None) -> None:
+    async def update(self) -> None:
         """Update list of current users."""
         users = await self.list()
         self.process_raw(users)

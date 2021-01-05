@@ -19,7 +19,7 @@ class ApiDiscovery(APIItems):
     def __init__(self, request: object) -> None:
         super().__init__({}, request, URL, Api)
 
-    async def update(self, path=None) -> None:
+    async def update(self) -> None:
         raw = await self.get_api_list()
         self.process_raw(raw)
 

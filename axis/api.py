@@ -33,10 +33,8 @@ class APIItems:
         self.process_raw(raw)
         LOGGER.debug(pformat(raw))
 
-    async def update(self, path: Optional[str] = None) -> None:
-        if not path:
-            path = self._path
-        raw = await self._request("get", path)
+    async def update(self) -> None:
+        raw = await self._request("get", self._path)
         self.process_raw(raw)
 
     @staticmethod
