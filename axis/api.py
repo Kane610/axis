@@ -43,6 +43,7 @@ class APIItems:
         return raw
 
     def process_raw(self, raw: Any) -> set:
+        """Process raw and return a set of new IDs."""
         new_items = set()
 
         for id, raw_item in self.pre_process_raw(raw).items():

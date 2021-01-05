@@ -65,6 +65,9 @@ class EventManager(APIItems):
 
         events = {}
         for event in raw:
+            if not event:
+                continue
+
             if event[EVENT_OPERATION] not in (OPERATION_INITIALIZED, OPERATION_CHANGED):
                 LOGGER.debug("Unsupported event operation %s", event[EVENT_OPERATION])
                 continue

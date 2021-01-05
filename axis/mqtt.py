@@ -67,13 +67,11 @@ def mqtt_json_to_event(msg: str) -> dict:
     message = json.loads(msg)
     topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")
 
-    source = ""
-    source_idx = ""
+    source = source_idx = ""
     if message["message"]["source"]:
         source, source_idx = next(iter(message["message"]["source"].items()))
 
-    data_type = ""
-    data_value = ""
+    data_type = data_value = ""
     if message["message"]["data"]:
         data_type, data_value = next(iter(message["message"]["data"].items()))
 
@@ -110,19 +108,25 @@ class MqttClient(APIItems):
     async def activate(self) -> None:
         """Activate MQTT Client."""
         await self._request(
-            "post", URL_CLIENT, json=attr.asdict(Body("activateClient", API_VERSION)),
+            "post",
+            URL_CLIENT,
+            json=attr.asdict(Body("activateClient", API_VERSION)),
         )
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
         await self._request(
-            "post", URL_CLIENT, json=attr.asdict(Body("deactivateClient", API_VERSION)),
+            "post",
+            URL_CLIENT,
+            json=attr.asdict(Body("deactivateClient", API_VERSION)),
         )
 
     async def get_client_status(self) -> dict:
         """Get MQTT Client status."""
         return await self._request(
-            "post", URL_CLIENT, json=attr.asdict(Body("getClientStatus", API_VERSION)),
+            "post",
+            URL_CLIENT,
+            json=attr.asdict(Body("getClientStatus", API_VERSION)),
         )
 
     async def get_event_publication_config(self) -> dict:
