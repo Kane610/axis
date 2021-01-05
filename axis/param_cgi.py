@@ -64,8 +64,9 @@ class Params(APIItems):
 
         self.process_raw(raw)
 
+    @staticmethod
     def process_dynamic_group(
-        self, raw_group: dict, prefix: str, attributes: tuple, group_range: range
+        raw_group: dict, prefix: str, attributes: tuple, group_range: range
     ) -> dict:
         """Convert raw dynamic groups to a proper dictionary.
 
@@ -173,19 +174,41 @@ class Params(APIItems):
     @property
     def nbrofinput(self) -> int:
         """Match the number of configured inputs."""
-        return self[INPUT]["NbrOfInputs"]
+        return int(self[INPUT]["NbrOfInputs"])
 
     @property
     def nbrofoutput(self) -> int:
         """Match the number of configured outputs."""
-        return self[OUTPUT]["NbrOfOutputs"]
+        return int(self[OUTPUT]["NbrOfOutputs"])
 
     @property
     def ports(self) -> dict:
         """Create a smaller dictionary containing all ports."""
-        if IOPORT in self:
-            return self[IOPORT].raw
-        return {}
+        if IOPORT not in self:
+            return {}
+
+        attributes = (
+            "Usage",
+            "Configurable",
+            "Direction",
+            "Input.Name",
+            "Input.Trig",
+            "Output.Active",
+            "Output.Button",
+            "Output.DelayTime",
+            "Output.Mode",
+            "Output.Name",
+            "Output.PulseTime",
+        )
+
+        ports = self.process_dynamic_group(
+            self[IOPORT],
+            "I",
+            attributes,
+            range(self.nbrofinput + self.nbrofoutput),
+        )
+
+        return ports
 
     # Properties
 

@@ -47,13 +47,15 @@ async def test_params(params):
     ]
 
     # Ports
-    assert params.nbrofinput == "1"
-    assert params.nbrofoutput == "0"
+    assert params.nbrofinput == 1
+    assert params.nbrofoutput == 0
     assert params.ports == {
-        "I0.Configurable": "no",
-        "I0.Direction": "input",
-        "I0.Input.Name": "PIR sensor",
-        "I0.Input.Trig": "closed",
+        0: {
+            "Configurable": "no",
+            "Direction": "input",
+            "Input.Name": "PIR sensor",
+            "Input.Trig": "closed",
+        }
     }
 
     # Properties
@@ -171,14 +173,16 @@ root.IOPort.I0.Input.Trig=closed
     assert output_route.calls.last.request.method == "GET"
     assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.nbrofinput == "1"
+    assert params.nbrofinput == 1
     assert params.ports == {
-        "I0.Configurable": "no",
-        "I0.Direction": "input",
-        "I0.Input.Name": "PIR sensor",
-        "I0.Input.Trig": "closed",
+        0: {
+            "Configurable": "no",
+            "Direction": "input",
+            "Input.Name": "PIR sensor",
+            "Input.Trig": "closed",
+        }
     }
-    assert params.nbrofoutput == "0"
+    assert params.nbrofoutput == 0
 
 
 @respx.mock

@@ -12,7 +12,6 @@ import re
 from urllib.parse import quote
 
 from .api import APIItems
-from .param_cgi import IOPORT
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
@@ -32,32 +31,21 @@ class Ports(APIItems):
 
     def __init__(self, param_cgi: object, request: str) -> None:
         self.param_cgi = param_cgi
-        raw = self.param_cgi.ports
-
+        raw = self.pre_process_ports(self.param_cgi.ports)
         super().__init__(raw, request, None, Port)
 
     async def update(self) -> None:
         await self.param_cgi.update_ports()
-        raw = self.param_cgi.ports
+        raw = self.pre_process_ports(self.param_cgi.ports)
         self.process_raw(raw)
 
-    def process_raw(self, raw: dict) -> None:
-        """Pre-process raw dict.
+    @staticmethod
+    def pre_process_ports(ports: dict) -> dict:
+        """Pre process ports for process raw.
 
-        Prepare parameters to work with APIItems.
+        Index needs to be a string.
         """
-        raw_ports = {}
-
-        for param in raw:
-            port_index = REGEX_PORT_INDEX.search(param).group(0)
-
-            if port_index not in raw_ports:
-                raw_ports[port_index] = {}
-
-            name = param.replace(f"I{port_index}.", "")
-            raw_ports[port_index][name] = raw[param]
-
-        super().process_raw(raw_ports)
+        return dict((str(k), v) for k, v in ports.items())
 
 
 class Port:

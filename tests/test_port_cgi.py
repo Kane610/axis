@@ -26,7 +26,8 @@ async def test_ports(ports):
     update_ports_route = respx.route(
         url__startswith=f"http://{HOST}:80/axis-cgi/param.cgi"
     ).respond(
-        text="""root.IOPort.I0.Direction=input
+        text="""root.Input.NbrOfInputs=3
+root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
 root.IOPort.I1.Configurable=no
 root.IOPort.I1.Direction=input
@@ -48,6 +49,7 @@ root.IOPort.I3.Output.DelayTime=0
 root.IOPort.I3.Output.Mode=bistable
 root.IOPort.I3.Output.Name=Tampering
 root.IOPort.I3.Output.PulseTime=0
+root.Output.NbrOfOutputs=1
 """,
         headers={"Content-Type": "text/plain"},
     )
@@ -66,7 +68,7 @@ root.IOPort.I3.Output.PulseTime=0
     assert ports["0"].id == "0"
     assert ports["0"].configurable == "no"
     assert ports["0"].direction == "input"
-    assert not ports["0"].name
+    assert ports["0"].name == ""
 
     await ports["0"].action(action=ACTION_LOW)
 
