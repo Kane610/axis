@@ -1,8 +1,7 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
-import re
-from typing import Any, Union
+from typing import Union
 
 import xmltodict
 
@@ -29,49 +28,13 @@ OPERATION_INITIALIZED = "Initialized"
 OPERATION_CHANGED = "Changed"
 OPERATION_DELETED = "Deleted"
 
-TOPIC = (
-    "MetadataStream",
-    "Event",
-    "NotificationMessage",
-    "Topic",
-    "#text",
-)
-
-TIMESTAMP = (
-    "MetadataStream",
-    "Event",
-    "NotificationMessage",
-    "Message",
-    "Message",
-    "@UtcTime",
-)
-
-OPERATION = (
-    "MetadataStream",
-    "Event",
-    "NotificationMessage",
-    "Message",
-    "Message",
-    "@PropertyOperation",
-)
-
-SOURCE = (
-    "MetadataStream",
-    "Event",
-    "NotificationMessage",
-    "Message",
-    "Message",
-    "Source",
-)
-
-DATA = (
-    "MetadataStream",
-    "Event",
-    "NotificationMessage",
-    "Message",
-    "Message",
-    "Data",
-)
+NOTIFICATIONMESSAGE = ("MetadataStream", "Event", "NotificationMessage")
+TOPIC = NOTIFICATIONMESSAGE + ("Topic", "#text")
+MESSAGE = NOTIFICATIONMESSAGE + ("Message", "Message")
+TIMESTAMP = MESSAGE + ("@UtcTime",)
+OPERATION = MESSAGE + ("@PropertyOperation",)
+SOURCE = MESSAGE + ("Source",)
+DATA = MESSAGE + ("Data",)
 
 NAMESPACES = {
     "http://www.onvif.org/ver10/schema": None,
@@ -129,7 +92,7 @@ class EventManager(APIItems):
         """Parse metadata xml."""
         raw = xmltodict.parse(raw_bytes, process_namespaces=True, namespaces=NAMESPACES)
 
-        if not raw["MetadataStream"]:
+        if not raw.get("MetadataStream"):
             return {}
 
         event = {}
@@ -515,7 +478,7 @@ EVENT_CLASSES = (
     Vmd4,
 )
 
-BLACK_LISTED_TOPICS = "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"
+BLACK_LISTED_TOPICS = ["tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"]
 
 
 def create_event(event_id: str, event: dict, request: object) -> AxisEvent:
