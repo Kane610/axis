@@ -35,6 +35,8 @@ from .event_fixtures import (
     PTZ_PRESET_AT_3_TRUE,
     PTZ_PRESET_AT_3_FALSE,
     RELAY_INIT,
+    RULE_ENGINE_REGION_DETECTOR_INIT,
+    STORAGE_ALERT_INIT,
     VMD3_INIT,
     VMD4_ANY_INIT,
     VMD4_ANY_CHANGE,
@@ -72,6 +74,28 @@ def event_manager(axis_device) -> EventManager:
                 "source_idx": "0",
                 "type": "state",
                 "value": "1",
+            },
+        ),
+        (
+            RULE_ENGINE_REGION_DETECTOR_INIT,
+            {
+                "operation": "Initialized",
+                "source": "VideoSource",
+                "source_idx": "0",
+                "topic": "tns1:RuleEngine/MotionRegionDetector/Motion",
+                "type": "State",
+                "value": "0",
+            },
+        ),
+        (
+            STORAGE_ALERT_INIT,
+            {
+                "operation": "Initialized",
+                "source": "disk_id",
+                "source_idx": "NetworkShare",
+                "topic": "tnsaxis:Storage/Alert",
+                "type": "overall_health",
+                "value": "-3",
             },
         ),
         (
@@ -215,7 +239,7 @@ def test_parse_event_xml(event_manager, input: bytes, expected: dict):
             {
                 "topic": "tns1:Device/tnsaxis:IO/Port",
                 "source": "port",
-                "source_idx": "-1",
+                "source_idx": "",
                 "class": "input",
                 "type": "Input",
                 "state": "0",

@@ -48,6 +48,14 @@ def traverse(data: dict, keys: tuple) -> Union[dict, str]:
     return traverse(data.get(head, {}), tail) if tail else data.get(head, "")
 
 
+def extract_name_value(data: dict) -> tuple:
+    """Extract name and value from a simple item, take first dictionary if it is a list."""
+    item = data.get("SimpleItem", {})
+    if isinstance(item, list):
+        item = item[0]
+    return (item.get("@Name", ""), item.get("@Value", ""))
+
+
 class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
@@ -103,13 +111,11 @@ class EventManager(APIItems):
 
         source = traverse(raw, SOURCE)
         if source:
-            event[EVENT_SOURCE] = source["SimpleItem"].get("@Name", "")
-            event[EVENT_SOURCE_IDX] = source["SimpleItem"].get("@Value", "")
+            event[EVENT_SOURCE], event[EVENT_SOURCE_IDX] = extract_name_value(source)
 
         data = traverse(raw, DATA)
         if data:
-            event[EVENT_TYPE] = data["SimpleItem"].get("@Name", "")
-            event[EVENT_VALUE] = data["SimpleItem"].get("@Value", "")
+            event[EVENT_TYPE], event[EVENT_VALUE] = extract_name_value(data)
 
         LOGGER.debug(event)
 
@@ -141,8 +147,12 @@ class AxisEvent(APIItem):
 
     @property
     def id(self) -> str:
-        """Id of the event."""
-        return self.raw.get(EVENT_SOURCE_IDX, "")
+        """Id of the event.
+
+        -1 means ANY source.
+        """
+        index = self.raw.get(EVENT_SOURCE_IDX, "")
+        return index if index != "-1" else ""  # Regex returned empty string
 
     @property
     def state(self) -> str:
