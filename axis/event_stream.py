@@ -2,7 +2,9 @@
 
 import logging
 import re
-from typing import Union
+from typing import Any, Union
+
+import xmltodict
 
 from .api import APIItem, APIItems
 
@@ -18,6 +20,7 @@ CLASS_SOUND = "sound"
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
 EVENT_SOURCE_IDX = "source_idx"
+EVENT_TIMESTAMP = "timestamp"
 EVENT_TOPIC = "topic"
 EVENT_TYPE = "type"
 EVENT_VALUE = "value"
@@ -26,16 +29,60 @@ OPERATION_INITIALIZED = "Initialized"
 OPERATION_CHANGED = "Changed"
 OPERATION_DELETED = "Deleted"
 
-MESSAGE = re.compile(r'(?<=PropertyOperation)="(?P<operation>\w+)"')
-TOPIC = re.compile(r"(?<=<wsnt:Topic).*>(?P<topic>.*)(?=<\/wsnt:Topic>)")
-SOURCE = re.compile(
-    r'(?<=<tt:Source>).*Name="(?P<source>\w+)"'
-    + r'.*Value="(?P<source_idx>\w+)".*(?=<\/tt:Source>)'
+TOPIC = (
+    "MetadataStream",
+    "Event",
+    "NotificationMessage",
+    "Topic",
+    "#text",
 )
-DATA = re.compile(
-    r'(?<=<tt:Data>).*Name="(?P<type>\w*)"'
-    + r'.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)'
+
+TIMESTAMP = (
+    "MetadataStream",
+    "Event",
+    "NotificationMessage",
+    "Message",
+    "Message",
+    "@UtcTime",
 )
+
+OPERATION = (
+    "MetadataStream",
+    "Event",
+    "NotificationMessage",
+    "Message",
+    "Message",
+    "@PropertyOperation",
+)
+
+SOURCE = (
+    "MetadataStream",
+    "Event",
+    "NotificationMessage",
+    "Message",
+    "Message",
+    "Source",
+)
+
+DATA = (
+    "MetadataStream",
+    "Event",
+    "NotificationMessage",
+    "Message",
+    "Message",
+    "Data",
+)
+
+NAMESPACES = {
+    "http://www.onvif.org/ver10/schema": None,
+    "http://docs.oasis-open.org/wsn/b-2": None,
+}
+
+
+def traverse(data: dict, keys: tuple) -> Union[dict, str]:
+    """Traverse dictionary using keys to retrieve last item."""
+    head, *tail = keys
+    return traverse(data.get(head, {}), tail) if tail else data.get(head, "")
 
 
 class EventManager(APIItems):
@@ -78,31 +125,28 @@ class EventManager(APIItems):
         return events
 
     @staticmethod
-    def parse_event_xml(event_data: bytes) -> dict:
+    def parse_event_xml(raw_bytes: bytes) -> dict:
         """Parse metadata xml."""
-        event_xml = event_data.decode()
-        message = MESSAGE.search(event_xml)
+        raw = xmltodict.parse(raw_bytes, process_namespaces=True, namespaces=NAMESPACES)
 
-        if not message:
+        if not raw["MetadataStream"]:
             return {}
 
         event = {}
 
-        event[EVENT_OPERATION] = message.group(EVENT_OPERATION)
+        event[EVENT_TOPIC] = traverse(raw, TOPIC)
+        # event[EVENT_TIMESTAMP] = traverse(raw, TIMESTAMP)
+        event[EVENT_OPERATION] = traverse(raw, OPERATION)
 
-        topic = TOPIC.search(event_xml)
-        if topic:
-            event[EVENT_TOPIC] = topic.group(EVENT_TOPIC)
-
-        source = SOURCE.search(event_xml)
+        source = traverse(raw, SOURCE)
         if source:
-            event[EVENT_SOURCE] = source.group(EVENT_SOURCE)
-            event[EVENT_SOURCE_IDX] = source.group(EVENT_SOURCE_IDX)
+            event[EVENT_SOURCE] = source["SimpleItem"].get("@Name", "")
+            event[EVENT_SOURCE_IDX] = source["SimpleItem"].get("@Value", "")
 
-        data = DATA.search(event_xml)
+        data = traverse(raw, DATA)
         if data:
-            event[EVENT_TYPE] = data.group(EVENT_TYPE)
-            event[EVENT_VALUE] = data.group(EVENT_VALUE)
+            event[EVENT_TYPE] = data["SimpleItem"].get("@Name", "")
+            event[EVENT_VALUE] = data["SimpleItem"].get("@Value", "")
 
         LOGGER.debug(event)
 

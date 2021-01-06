@@ -104,6 +104,7 @@ def test_parse_event_vmd4_change(event_manager):
 def test_audio_init(event_manager):
     """Verify that a new audio event can be managed."""
     event_manager.update(AUDIO_INIT)
+    # assert 0
 
     event = next(iter(event_manager.values()))
     assert event.topic == "tns1:AudioSource/tnsaxis:TriggerLevel"
