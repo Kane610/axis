@@ -1,8 +1,9 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
-import re
 from typing import Union
+
+import xmltodict
 
 from .api import APIItem, APIItems
 
@@ -18,6 +19,7 @@ CLASS_SOUND = "sound"
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
 EVENT_SOURCE_IDX = "source_idx"
+EVENT_TIMESTAMP = "timestamp"
 EVENT_TOPIC = "topic"
 EVENT_TYPE = "type"
 EVENT_VALUE = "value"
@@ -26,16 +28,32 @@ OPERATION_INITIALIZED = "Initialized"
 OPERATION_CHANGED = "Changed"
 OPERATION_DELETED = "Deleted"
 
-MESSAGE = re.compile(r'(?<=PropertyOperation)="(?P<operation>\w+)"')
-TOPIC = re.compile(r"(?<=<wsnt:Topic).*>(?P<topic>.*)(?=<\/wsnt:Topic>)")
-SOURCE = re.compile(
-    r'(?<=<tt:Source>).*Name="(?P<source>\w+)"'
-    + r'.*Value="(?P<source_idx>\w+)".*(?=<\/tt:Source>)'
-)
-DATA = re.compile(
-    r'(?<=<tt:Data>).*Name="(?P<type>\w*)"'
-    + r'.*Value="(?P<value>\w*)".*(?=<\/tt:Data>)'
-)
+NOTIFICATION_MESSAGE = ("MetadataStream", "Event", "NotificationMessage")
+MESSAGE = NOTIFICATION_MESSAGE + ("Message", "Message")
+TOPIC = NOTIFICATION_MESSAGE + ("Topic", "#text")
+TIMESTAMP = MESSAGE + ("@UtcTime",)
+OPERATION = MESSAGE + ("@PropertyOperation",)
+SOURCE = MESSAGE + ("Source",)
+DATA = MESSAGE + ("Data",)
+
+NAMESPACES = {
+    "http://www.onvif.org/ver10/schema": None,
+    "http://docs.oasis-open.org/wsn/b-2": None,
+}
+
+
+def traverse(data: dict, keys: tuple) -> Union[dict, str]:
+    """Traverse dictionary using keys to retrieve last item."""
+    head, *tail = keys
+    return traverse(data.get(head, {}), tail) if tail else data.get(head, "")
+
+
+def extract_name_value(data: dict) -> tuple:
+    """Extract name and value from a simple item, take first dictionary if it is a list."""
+    item = data.get("SimpleItem", {})
+    if isinstance(item, list):
+        item = item[0]
+    return (item.get("@Name", ""), item.get("@Value", ""))
 
 
 class EventManager(APIItems):
@@ -78,31 +96,26 @@ class EventManager(APIItems):
         return events
 
     @staticmethod
-    def parse_event_xml(event_data: bytes) -> dict:
+    def parse_event_xml(raw_bytes: bytes) -> dict:
         """Parse metadata xml."""
-        event_xml = event_data.decode()
-        message = MESSAGE.search(event_xml)
+        raw = xmltodict.parse(raw_bytes, process_namespaces=True, namespaces=NAMESPACES)
 
-        if not message:
+        if not raw.get("MetadataStream"):
             return {}
 
         event = {}
 
-        event[EVENT_OPERATION] = message.group(EVENT_OPERATION)
+        event[EVENT_TOPIC] = traverse(raw, TOPIC)
+        # event[EVENT_TIMESTAMP] = traverse(raw, TIMESTAMP)
+        event[EVENT_OPERATION] = traverse(raw, OPERATION)
 
-        topic = TOPIC.search(event_xml)
-        if topic:
-            event[EVENT_TOPIC] = topic.group(EVENT_TOPIC)
-
-        source = SOURCE.search(event_xml)
+        source = traverse(raw, SOURCE)
         if source:
-            event[EVENT_SOURCE] = source.group(EVENT_SOURCE)
-            event[EVENT_SOURCE_IDX] = source.group(EVENT_SOURCE_IDX)
+            event[EVENT_SOURCE], event[EVENT_SOURCE_IDX] = extract_name_value(source)
 
-        data = DATA.search(event_xml)
+        data = traverse(raw, DATA)
         if data:
-            event[EVENT_TYPE] = data.group(EVENT_TYPE)
-            event[EVENT_VALUE] = data.group(EVENT_VALUE)
+            event[EVENT_TYPE], event[EVENT_VALUE] = extract_name_value(data)
 
         LOGGER.debug(event)
 
@@ -110,7 +123,12 @@ class EventManager(APIItems):
 
 
 class AxisEvent(APIItem):
-    """Axis base event."""
+    """Axis base event.
+
+    TOPIC - some events disregards the initial way topics where used (a common string), this brings back the commonality to the topic.
+    CLASS - create a kinship between similar events.
+    TYPE - a more human readable string of event.
+    """
 
     BINARY = False
     TOPIC = None
@@ -129,8 +147,12 @@ class AxisEvent(APIItem):
 
     @property
     def id(self) -> str:
-        """Id of the event."""
-        return self.raw.get(EVENT_SOURCE_IDX, "")
+        """Id of the event.
+
+        -1 means ANY source.
+        """
+        index = self.raw.get(EVENT_SOURCE_IDX, "")
+        return index if index != "-1" else ""  # Regex returned empty string
 
     @property
     def state(self) -> str:
@@ -150,17 +172,7 @@ class AxisBinaryEvent(AxisEvent):
 
 
 class Audio(AxisBinaryEvent):
-    """Audio trigger event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:AudioSource/tnsaxis:TriggerLevel',
-        'source': 'channel',
-        'source_idx': '1',
-        'type': 'triggered',
-        'value': '0'
-    }
-    """
+    """Audio trigger event."""
 
     TOPIC = "tns1:AudioSource/tnsaxis:TriggerLevel"
     CLASS = CLASS_SOUND
@@ -168,17 +180,7 @@ class Audio(AxisBinaryEvent):
 
 
 class DayNight(AxisBinaryEvent):
-    """Day/Night vision trigger event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:VideoSource/tnsaxis:DayNightVision',
-        'source': 'VideoSourceConfigurationToken',
-        'source_idx': '1',
-        'type': 'day',
-        'value': '1'
-    }
-    """
+    """Day/Night vision trigger event."""
 
     TOPIC = "tns1:VideoSource/tnsaxis:DayNightVision"
     CLASS = CLASS_LIGHT
@@ -186,15 +188,7 @@ class DayNight(AxisBinaryEvent):
 
 
 class FenceGuard(AxisBinaryEvent):
-    """Fence Guard trigger event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile#',
-        'type': 'active',
-        'value': '1'
-    }
-    """
+    """Fence Guard trigger event."""
 
     TOPIC = "tnsaxis:CameraApplicationPlatform/FenceGuard"
     CLASS = CLASS_MOTION
@@ -207,17 +201,7 @@ class FenceGuard(AxisBinaryEvent):
 
 
 class Input(AxisBinaryEvent):
-    """Digital input event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:Device/tnsaxis:IO/Port',
-        'source': 'port',
-        'source_idx': '0',
-        'type': 'state',
-        'value': '0'
-    }
-    """
+    """Digital input event."""
 
     TOPIC = "tns1:Device/tnsaxis:IO/Port"
     CLASS = CLASS_INPUT
@@ -225,17 +209,7 @@ class Input(AxisBinaryEvent):
 
 
 class Light(AxisBinaryEvent):
-    """Light status event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:Device/tnsaxis:Light/Status',
-        'source': 'id',
-        'source_idx': '0',
-        'type': 'state',
-        'value': 'OFF'
-    }
-    """
+    """Light status event."""
 
     TOPIC = "tns1:Device/tnsaxis:Light/Status"
     CLASS = CLASS_LIGHT
@@ -248,15 +222,7 @@ class Light(AxisBinaryEvent):
 
 
 class LoiteringGuard(AxisBinaryEvent):
-    """Loitering Guard trigger event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera#Profile#',
-        'type': 'active',
-        'value': '0'
-    }
-    """
+    """Loitering Guard trigger event."""
 
     TOPIC = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
     CLASS = CLASS_MOTION
@@ -277,15 +243,7 @@ class Motion(AxisBinaryEvent):
 
 
 class MotionGuard(AxisBinaryEvent):
-    """Motion Guard trigger event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tnsaxis:CameraApplicationPlatform/MotionGuard/Camera#Profile#',
-        'type': 'active',
-        'value': '0'
-    }
-    """
+    """Motion Guard trigger event."""
 
     TOPIC = "tnsaxis:CameraApplicationPlatform/MotionGuard"
     CLASS = CLASS_MOTION
@@ -298,15 +256,7 @@ class MotionGuard(AxisBinaryEvent):
 
 
 class ObjectAnalytics(AxisBinaryEvent):
-    """Object Analytics trigger event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1',
-        'type': 'active',
-        'value': '0'
-    }
-    """
+    """Object Analytics trigger event."""
 
     TOPIC = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/"
     CLASS = CLASS_MOTION
@@ -319,17 +269,7 @@ class ObjectAnalytics(AxisBinaryEvent):
 
 
 class Pir(AxisBinaryEvent):
-    """Passive IR event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:Device/tnsaxis:Sensor/PIR',
-        'source': 'sensor',
-        'source_idx': '0',
-        'type': 'state',
-        'value': '0'
-    }
-    """
+    """Passive IR event."""
 
     TOPIC = "tns1:Device/tnsaxis:Sensor/PIR"
     CLASS = CLASS_MOTION
@@ -337,17 +277,7 @@ class Pir(AxisBinaryEvent):
 
 
 class PtzMove(AxisBinaryEvent):
-    """PTZ Move event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:PTZController/tnsaxis:Move/Channel_1',
-        'source': 'PTZConfigurationToken',
-        'source_idx': '0',
-        'type': 'is_moving',
-        'value': '0'
-    }
-    """
+    """PTZ Move event."""
 
     TOPIC = "tns1:PTZController/tnsaxis:Move"
     CLASS = CLASS_PTZ
@@ -355,17 +285,7 @@ class PtzMove(AxisBinaryEvent):
 
 
 class PtzPreset(AxisBinaryEvent):
-    """PTZ Move event.
-
-    {
-        "operation": "Initialized",
-        "topic": "tns1:PTZController/tnsaxis:PTZPresets/Channel_1",
-        "source": "PresetToken",
-        "source_idx": "0",
-        "type": "on_preset",
-        "value": "1",
-    }
-    """
+    """PTZ Move event."""
 
     TOPIC = "tns1:PTZController/tnsaxis:PTZPresets"
     CLASS = CLASS_PTZ
@@ -373,17 +293,7 @@ class PtzPreset(AxisBinaryEvent):
 
 
 class Relay(AxisBinaryEvent):
-    """Relay event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:Device/Trigger/Relay',
-        'source': 'RelayToken',
-        'source_idx': '0',
-        'type': 'LogicalState',
-        'value': 'inactive'
-    }
-    """
+    """Relay event."""
 
     TOPIC = "tns1:Device/Trigger/Relay"
     CLASS = CLASS_OUTPUT
@@ -396,17 +306,7 @@ class Relay(AxisBinaryEvent):
 
 
 class SupervisedInput(AxisBinaryEvent):
-    """Supervised input event.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:Device/tnsaxis:IO/SupervisedPort',
-        'source': 'port',
-        'source_idx': '0',
-        'type': 'state',
-        'value': '0'
-    }
-    """
+    """Supervised input event."""
 
     TOPIC = "tns1:Device/tnsaxis:IO/SupervisedPort"
     CLASS = CLASS_INPUT
@@ -414,17 +314,7 @@ class SupervisedInput(AxisBinaryEvent):
 
 
 class Vmd3(AxisBinaryEvent):
-    """Visual Motion Detection 3.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1',
-        'source': 'areaid',
-        'source_idx': '0',
-        'type': 'active',
-        'value': '1'
-    }
-    """
+    """Visual Motion Detection 3."""
 
     TOPIC = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
     CLASS = CLASS_MOTION
@@ -432,15 +322,7 @@ class Vmd3(AxisBinaryEvent):
 
 
 class Vmd4(AxisBinaryEvent):
-    """Visual Motion Detection 4.
-
-    {
-        'operation': 'Initialized',
-        'topic': 'tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile#',
-        'type': 'active',
-        'value': '1'
-    }
-    """
+    """Visual Motion Detection 4."""
 
     TOPIC = "tnsaxis:CameraApplicationPlatform/VMD"
     CLASS = CLASS_MOTION
@@ -471,7 +353,7 @@ EVENT_CLASSES = (
     Vmd4,
 )
 
-BLACK_LISTED_TOPICS = "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"
+BLACK_LISTED_TOPICS = ["tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"]
 
 
 def create_event(event_id: str, event: dict, request: object) -> AxisEvent:

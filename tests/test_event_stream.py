@@ -35,6 +35,8 @@ from .event_fixtures import (
     PTZ_PRESET_AT_3_TRUE,
     PTZ_PRESET_AT_3_FALSE,
     RELAY_INIT,
+    RULE_ENGINE_REGION_DETECTOR_INIT,
+    STORAGE_ALERT_INIT,
     VMD3_INIT,
     VMD4_ANY_INIT,
     VMD4_ANY_CHANGE,
@@ -48,181 +50,293 @@ def event_manager(axis_device) -> EventManager:
     return axis_device.event
 
 
-def test_parse_event_first_message(event_manager):
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        (FIRST_MESSAGE, {}),
+        (
+            PIR_INIT,
+            {
+                "operation": "Initialized",
+                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "source": "sensor",
+                "source_idx": "0",
+                "type": "state",
+                "value": "0",
+            },
+        ),
+        (
+            PIR_CHANGE,
+            {
+                "operation": "Changed",
+                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "source": "sensor",
+                "source_idx": "0",
+                "type": "state",
+                "value": "1",
+            },
+        ),
+        (
+            RULE_ENGINE_REGION_DETECTOR_INIT,
+            {
+                "operation": "Initialized",
+                "source": "VideoSource",
+                "source_idx": "0",
+                "topic": "tns1:RuleEngine/MotionRegionDetector/Motion",
+                "type": "State",
+                "value": "0",
+            },
+        ),
+        (
+            STORAGE_ALERT_INIT,
+            {
+                "operation": "Initialized",
+                "source": "disk_id",
+                "source_idx": "NetworkShare",
+                "topic": "tnsaxis:Storage/Alert",
+                "type": "overall_health",
+                "value": "-3",
+            },
+        ),
+        (
+            VMD4_ANY_INIT,
+            {
+                "operation": "Initialized",
+                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "type": "active",
+                "value": "0",
+            },
+        ),
+        (
+            VMD4_ANY_CHANGE,
+            {
+                "operation": "Changed",
+                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "type": "active",
+                "value": "1",
+            },
+        ),
+    ],
+)
+def test_parse_event_xml(event_manager, input: bytes, expected: dict):
     """Verify that first message doesn't do anything."""
-    assert not event_manager.parse_event_xml(FIRST_MESSAGE)
+    assert event_manager.parse_event_xml(input) == expected
 
 
-def test_parse_event_pir_init(event_manager):
-    """Verify that PIR init can be parsed correctly."""
-    pir = event_manager.parse_event_xml(PIR_INIT)
-    assert pir == {
-        "operation": "Initialized",
-        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
-        "source": "sensor",
-        "source_idx": "0",
-        "type": "state",
-        "value": "0",
-    }
-
-
-def test_parse_event_pir_change(event_manager):
-    """Verify that PIR change can be parsed correctly"""
-    pir = event_manager.parse_event_xml(PIR_CHANGE)
-    assert pir == {
-        "operation": "Changed",
-        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
-        "source": "sensor",
-        "source_idx": "0",
-        "type": "state",
-        "value": "1",
-    }
-
-
-def test_parse_event_vmd4_init(event_manager):
-    """Verify that VMD4 init can be parsed correctly."""
-    vmd = event_manager.parse_event_xml(VMD4_ANY_INIT)
-    assert vmd == {
-        "operation": "Initialized",
-        "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
-        "type": "active",
-        "value": "0",
-    }
-
-
-def test_parse_event_vmd4_change(event_manager):
-    """Verify that VMD4 change can be parsed correctly."""
-    vmd = event_manager.parse_event_xml(VMD4_ANY_CHANGE)
-    assert vmd == {
-        "operation": "Changed",
-        "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
-        "type": "active",
-        "value": "1",
-    }
-
-
-def test_audio_init(event_manager):
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        (
+            AUDIO_INIT,
+            {
+                "topic": "tns1:AudioSource/tnsaxis:TriggerLevel",
+                "source": "channel",
+                "source_idx": "1",
+                "class": "sound",
+                "type": "Sound",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            DAYNIGHT_INIT,
+            {
+                "topic": "tns1:VideoSource/tnsaxis:DayNightVision",
+                "source": "VideoSourceConfigurationToken",
+                "source_idx": "1",
+                "class": "light",
+                "type": "DayNight",
+                "state": "1",
+                "tripped": True,
+            },
+        ),
+        (
+            FENCE_GUARD_INIT,
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1",
+                "source": "",
+                "source_idx": "Camera1Profile1",
+                "class": "motion",
+                "type": "Fence Guard",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            LIGHT_STATUS_INIT,
+            {
+                "topic": "tns1:Device/tnsaxis:Light/Status",
+                "source": "id",
+                "source_idx": "0",
+                "class": "light",
+                "type": "Light",
+                "state": "OFF",
+                "tripped": False,
+            },
+        ),
+        (
+            LOITERING_GUARD_INIT,
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1",
+                "source": "",
+                "source_idx": "Camera1Profile1",
+                "class": "motion",
+                "type": "Loitering Guard",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            MOTION_GUARD_INIT,
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY",
+                "source": "",
+                "source_idx": "Camera1ProfileANY",
+                "class": "motion",
+                "type": "Motion Guard",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            OBJECT_ANALYTICS_INIT,
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                "source": "",
+                "source_idx": "Device1Scenario1",
+                "class": "motion",
+                "type": "Object Analytics",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            PIR_INIT,
+            {
+                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "source": "sensor",
+                "source_idx": "0",
+                "class": "motion",
+                "type": "PIR",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            PORT_0_INIT,
+            {
+                "topic": "tns1:Device/tnsaxis:IO/Port",
+                "source": "port",
+                "source_idx": "1",
+                "class": "input",
+                "type": "Input",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            PORT_ANY_INIT,
+            {
+                "topic": "tns1:Device/tnsaxis:IO/Port",
+                "source": "port",
+                "source_idx": "",
+                "class": "input",
+                "type": "Input",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            PTZ_MOVE_INIT,
+            {
+                "topic": "tns1:PTZController/tnsaxis:Move/Channel_1",
+                "source": "PTZConfigurationToken",
+                "source_idx": "1",
+                "class": "ptz",
+                "type": "is_moving",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            PTZ_PRESET_INIT_1,
+            {
+                "topic": "tns1:PTZController/tnsaxis:PTZPresets/Channel_1",
+                "source": "PresetToken",
+                "source_idx": "1",
+                "class": "ptz",
+                "type": "on_preset",
+                "state": "1",
+                "tripped": True,
+            },
+        ),
+        (
+            RELAY_INIT,
+            {
+                "topic": "tns1:Device/Trigger/Relay",
+                "source": "RelayToken",
+                "source_idx": "3",
+                "class": "output",
+                "type": "Relay",
+                "state": "inactive",
+                "tripped": False,
+            },
+        ),
+        (
+            VMD3_INIT,
+            {
+                "topic": "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1",
+                "source": "areaid",
+                "source_idx": "0",
+                "class": "motion",
+                "type": "VMD3",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+        (
+            VMD4_ANY_INIT,
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "source": "",
+                "source_idx": "Camera1ProfileANY",
+                "class": "motion",
+                "type": "VMD4",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
+    ],
+)
+def test_create_event(event_manager, input: bytes, expected: tuple):
     """Verify that a new audio event can be managed."""
-    event_manager.update(AUDIO_INIT)
+    event_manager.update(input)
 
     event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:AudioSource/tnsaxis:TriggerLevel"
-    assert event.source == "channel"
-    assert event.id == "1"
-    assert event.CLASS == "sound"
-    assert event.TYPE == "Sound"
-    assert event.state == "0"
+    assert event.topic == expected["topic"]
+    assert event.source == expected["source"]
+    assert event.id == expected["source_idx"]
+    assert event.CLASS == expected["class"]
+    assert event.TYPE == expected["type"]
+    assert event.state == expected["state"]
+    if event.BINARY:
+        assert event.is_tripped is expected["tripped"]
 
 
-def test_daynight_init(event_manager):
-    """Verify that a new day/night event can be managed."""
-    event_manager.update(DAYNIGHT_INIT)
+@pytest.mark.parametrize("input", [[], [{"operation": "unsupported"}, {}]])
+def test_do_not_create_event(event_manager, input: list):
+    """Verify the different controls in pre_processed_raw."""
+    event_manager.update(input)
+    assert len(event_manager.values()) == 0
+
+
+def test_vmd4_change(event_manager):
+    """Verify that a VMD4 event change can be managed."""
+    event_manager.update(VMD4_ANY_INIT)
+    event_manager.update(VMD4_ANY_CHANGE)
 
     event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:VideoSource/tnsaxis:DayNightVision"
-    assert event.source == "VideoSourceConfigurationToken"
-    assert event.id == "1"
-    assert event.CLASS == "light"
-    assert event.TYPE == "DayNight"
     assert event.state == "1"
-
-
-def test_fence_guard_init(event_manager):
-    """Verify that a new fence guard event can be managed."""
-    event_manager.update(FENCE_GUARD_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert event.topic == "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1"
-    assert event.source == ""
-    assert event.id == "Camera1Profile1"
-    assert event.CLASS == "motion"
-    assert event.TYPE == "Fence Guard"
-    assert event.state == "0"
-
-
-def test_light_status_init(event_manager):
-    """Verify that a new day/night event can be managed."""
-    event_manager.update(LIGHT_STATUS_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:Device/tnsaxis:Light/Status"
-    assert event.source == "id"
-    assert event.id == "0"
-    assert event.CLASS == "light"
-    assert event.TYPE == "Light"
-    assert event.state == "OFF"
-    assert event.is_tripped is False
-
-
-def test_loitering_guard_init(event_manager):
-    """Verify that a new loitering guard event can be managed."""
-    event_manager.update(LOITERING_GUARD_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert (
-        event.topic
-        == "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1"
-    )
-    assert event.source == ""
-    assert event.id == "Camera1Profile1"
-    assert event.CLASS == "motion"
-    assert event.TYPE == "Loitering Guard"
-    assert event.state == "0"
-
-
-def test_motion_guard_init(event_manager):
-    """Verify that a new loitering guard event can be managed."""
-    event_manager.update(MOTION_GUARD_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert (
-        event.topic == "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY"
-    )
-    assert event.source == ""
-    assert event.id == "Camera1ProfileANY"
-    assert event.CLASS == "motion"
-    assert event.TYPE == "Motion Guard"
-    assert event.state == "0"
-
-
-def test_object_analytics_init(event_manager):
-    """Verify that a new object analytics event can be managed."""
-    event_manager.update(OBJECT_ANALYTICS_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert (
-        event.topic
-        == "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1"
-    )
-    assert event.source == ""
-    assert event.id == "Device1Scenario1"
-    assert event.CLASS == "motion"
-    assert event.TYPE == "Object Analytics"
-    assert event.state == "0"
-
-
-def test_port_0_init(event_manager):
-    """Verify that a new day/night event can be managed."""
-    event_manager.update(PORT_0_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:Device/tnsaxis:IO/Port"
-    assert event.source == "port"
-    assert event.id == "1"
-    assert event.CLASS == "input"
-    assert event.TYPE == "Input"
-    assert event.state == "0"
-
-
-def test_port_any_init(event_manager):
-    """Verify that a new day/night event can be managed."""
-    event_manager.update(PORT_ANY_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:Device/tnsaxis:IO/Port"
-    assert event.CLASS == "input"
-    assert event.TYPE == "Input"
-    assert event.state == "0"
 
 
 def test_pir_init(event_manager):
@@ -231,15 +345,12 @@ def test_pir_init(event_manager):
     assert event_manager.values()
 
     event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:Device/tnsaxis:Sensor/PIR"
-    assert event.source == "sensor"
-    assert event.id == "0"
-    assert event.CLASS == "motion"
-    assert event.TYPE == "PIR"
     assert event.state == "0"
+    assert not event.is_tripped
 
     mock_callback = Mock()
     event.register_callback(mock_callback)
+    assert event.observers
 
     event_manager.update(PIR_CHANGE)
     assert event.state == "1"
@@ -248,15 +359,6 @@ def test_pir_init(event_manager):
 
     event.remove_callback(mock_callback)
     assert not event.observers
-
-
-def test_pir_change(event_manager):
-    """Verify that a PIR event change can be managed."""
-    event_manager.update(PIR_INIT)
-    event_manager.update(PIR_CHANGE)
-
-    event = next(iter(event_manager.values()))
-    assert event.state == "1"
 
 
 def test_ptz_preset(event_manager):
@@ -365,57 +467,11 @@ def test_ptz_move(event_manager):
     assert not event.observers
 
 
-def test_relay_init(event_manager):
-    """Verify that a new day/night event can be managed."""
-    event_manager.update(RELAY_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:Device/Trigger/Relay"
-    assert event.source == "RelayToken"
-    assert event.id == "3"
-    assert event.CLASS == "output"
-    assert event.TYPE == "Relay"
-    assert event.state == "inactive"
-
-
-def test_vmd3_init(event_manager):
-    """Verify that a new VMD3 event can be managed."""
-    event_manager.update(VMD3_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert event.topic == "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
-    assert event.source == "areaid"
-    assert event.id == "0"
-    assert event.CLASS == "motion"
-    assert event.TYPE == "VMD3"
-    assert event.state == "0"
-
-
-def test_vmd4_init(event_manager):
-    """Verify that a new VMD4 event can be managed."""
-    event_manager.update(VMD4_ANY_INIT)
-
-    event = next(iter(event_manager.values()))
-    assert event.topic == "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY"
-    assert not event.source
-    assert event.id == "Camera1ProfileANY"
-    assert event.CLASS == "motion"
-    assert event.TYPE == "VMD4"
-    assert event.state == "0"
-
-
-def test_vmd4_change(event_manager):
-    """Verify that a VMD4 event change can be managed."""
-    event_manager.update(VMD4_ANY_INIT)
-    event_manager.update(VMD4_ANY_CHANGE)
-
-    event = next(iter(event_manager.values()))
-    assert event.state == "1"
-
-
 def test_unsupported_event(event_manager):
     """Verify that unsupported events aren't created."""
+    event_manager.signal = Mock()
     event_manager.update(GLOBAL_SCENE_CHANGE)
+    event_manager.signal.assert_not_called()
 
     event = next(iter(event_manager.values()))
     assert event.BINARY is False
@@ -430,8 +486,11 @@ def test_unsupported_event(event_manager):
 
 def test_initialize_event_already_exist(event_manager):
     """Verify that initialize with an already existing event doesn't create."""
+    event_manager.signal = Mock()
     event_manager.update(VMD4_ANY_INIT)
-    assert event_manager.values()
+    assert len(event_manager.values()) == 1
+    event_manager.signal.assert_called_once()
 
     event_manager.update(VMD4_ANY_INIT)
     assert len(event_manager.values()) == 1
+    event_manager.signal.assert_called_once()
