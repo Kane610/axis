@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from packaging import version
+from typing import Optional
 
 import httpx
 import xmltodict
@@ -241,7 +242,13 @@ class Vapix:
 
         self.user_groups = UserGroups(user_groups, self.request)
 
-    async def request(self, method: str, path: str, **kwargs: dict) -> str:
+    async def request(
+        self,
+        method: str,
+        path: str,
+        kwargs_xmltodict: Optional[dict] = None,
+        **kwargs: dict,
+    ) -> str:
         """Make a request to the API."""
         url = self.config.url + path
 
@@ -255,15 +262,15 @@ class Vapix:
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)
 
             content_type = response.headers.get("Content-Type", "")
-
+            print(content_type)
             if "application/json" in content_type:
                 result = response.json()
                 if "error" in result:
                     return {}
                 return result
 
-            if "text/xml" in content_type:
-                return xmltodict.parse(response.text)
+            if "text/xml" in content_type or "application/soap+xml" in content_type:
+                return xmltodict.parse(response.text, **(kwargs_xmltodict or {}))
 
             if response.text.startswith("# Error:"):
                 return ""

@@ -1,19 +1,21 @@
 """Event service and action service APIs available in Axis network products."""
 
 import logging
-
-import xmltodict
+from typing import List, Union
 
 from .api import APIItem, APIItems
+from .event_stream import traverse
 
 _LOGGER = logging.getLogger(__name__)
 
 URL = "/vapix/services"
-HEADERS = {
+
+REQUEST_HEADERS = {
     "Content-Type": "application/soap+xml",
     "SOAPAction": "http://www.axis.com/vapix/ws/event1/GetEventInstances",
 }
-DATA = (
+
+REQUEST_DATA = (
     '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">'
     '<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
     'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
@@ -23,13 +25,58 @@ DATA = (
 )
 
 NAMESPACES = {
-    "http://www.onvif.org/ver10/schema": None,
-    "http://www.onvif.org/ver10/topics": None,
-    "http://docs.oasis-open.org/wsn/b-2": None,
     "http://docs.oasis-open.org/wsn/t-1": None,
-    "http://www.axis.com/2009/event/topics": None,
+    "http://www.onvif.org/ver10/topics": "tns1",
+    "http://www.axis.com/2009/event/topics": "tnsaxis",
     "http://www.axis.com/vapix/ws/event1": None,
 }
+
+EVENT_INSTANCE = (
+    "http://www.w3.org/2003/05/soap-envelope:Envelope",
+    "http://www.w3.org/2003/05/soap-envelope:Body",
+    "GetEventInstancesResponse",
+    "TopicSet",
+)
+
+
+def get_events(data: dict) -> List[dict]:
+    """Get all events.
+
+    Ignore keys with "@" while traversing structure. Indicates an attribute in value.
+    When @topic is reached, return event data and build topic structure.
+    """
+    events = []
+    for key, value in data.items():
+
+        if key.startswith("@"):  # Value is an attribute so skip
+            continue
+
+        if "@topic" in value:
+            m = value["MessageInstance"]
+            events.append(
+                {
+                    "topic": key,
+                    "is_available": value["@topic"] == "true",
+                    "is_application_data": value.get("@isApplicationData") == "true",
+                    "name": value.get("@NiceName", ""),
+                    "message": {
+                        "stateful": m.get("@isProperty", "false") == "true",
+                        "stateless": m.get("@isProperty", "false") == "false",
+                        "source": m.get("SourceInstance", {}).get(
+                            "SimpleItemInstance", {}
+                        ),
+                        "data": m.get("DataInstance", {}).get("SimpleItemInstance", {}),
+                    },
+                }
+            )
+            continue
+
+        event_list = get_events(value)
+        for event in event_list:
+            event["topic"] = f'{key}/{event["topic"]}'
+            events.append(event)
+
+    return events
 
 
 class EventInstances(APIItems):
@@ -40,59 +87,92 @@ class EventInstances(APIItems):
 
     async def update(self) -> None:
         """Prepare event."""
-        raw = await self._request("post", URL, headers=HEADERS, data=DATA)
+        raw = await self._request(
+            "post",
+            URL,
+            headers=REQUEST_HEADERS,
+            data=REQUEST_DATA,
+            kwargs_xmltodict={"process_namespaces": True, "namespaces": NAMESPACES},
+        )
         self.process_raw(raw)
 
     @staticmethod
-    def pre_process_raw(raw: bytes) -> dict:
+    def pre_process_raw(raw: dict) -> dict:
         """Return a dictionary of initialized or changed events."""
         if not raw:
             return {}
-        print(raw)
-        raw = xmltodict.parse(raw, process_namespaces=True, namespaces=NAMESPACES)
 
-        attributes = (
-            "http://www.w3.org/2003/05/soap-envelope:Envelope",
-            "http://www.w3.org/2003/05/soap-envelope:Body",
-            "GetEventInstancesResponse",
-            "TopicSet",  # Iterate until TopicSet?
-        )
-        for attribute in attributes:
-            raw = raw[attribute]
-        print(raw.keys())
-        topic_sets = (
-            "AudioSource",
-            "CameraApplicationPlatform",
-            "Device",
-            "LightControl",
-            "Media",
-            "PTZController",
-            "RecordingConfig",
-            "RuleEngine",
-            "Storage",
-            "UserAlarm",
-            "VideoSource",
-        )
+        raw_events = traverse(raw, EVENT_INSTANCE)
+        event_list = get_events(raw_events)
 
-        for topic in topic_sets:
-            # raw = raw[attribute]
-            print(topic, raw[topic].keys())
+        events = {}
+        for event in event_list:
+            topic = event["topic"]
+            source = event["message"]["source"]
+            if isinstance(source, list):
+                source = source[0]
+            id = f'{topic}_{source.get("Value", "")}'
+            events[id] = event
 
-        attrs = (
-            "CameraApplicationPlatform",
-            "VMD",
-            "Camera1Profile1",  # @NiceName
-            "MessageInstance",  # @topic
-            "DataInstance",  # @isProperty
-            "SimpleItemInstance",
-        )
-        for attr in attrs:
-            raw = raw[attr]
-            print(attr, raw.keys())
-            print(raw)
-
-        return {}
+        return events
 
 
 class EventInstance(APIItem):
-    """"""
+    """Events are emitted when the Axis product detects an occurrence of some kind,
+    for example motion in the camera’s field of view or a change of status from an I/O port.
+    The events can be used to trigger actions in the Axis product or in other systems
+    and can also be stored together with video and audio data for later access.
+    """
+
+    @property
+    def topic(self) -> str:
+        """Event topic."""
+        return self.raw["topic"]
+
+    @property
+    def is_available(self) -> str:
+        """Means the event is available."""
+        return self.raw["is_available"]
+
+    @property
+    def is_application_data(self) -> str:
+        """Indicates that event and/or data is produced for a specific system or application.
+
+        Events with isApplicationData=true are usually intended
+        to be used only by the specific system or application, that is,
+        they are not intended to be used as triggers in an action rule in the Axis product.
+        """
+        return self.raw["is_application_data"]
+
+    @property
+    def name(self) -> str:
+        """User-friendly and human-readable name describing the event."""
+        return self.raw["name"]
+
+    @property
+    def stateful(self) -> bool:
+        """A stateful event is a property (a state variable) with a number of states.
+
+        The event is always in one of its states.
+        Example: The Motion detection event is in state true when motion is detected
+        and in state false when motion is not detected.
+        """
+        return self.raw["message"]["stateful"]
+
+    @property
+    def stateless(self) -> bool:
+        """A stateless event is a momentary occurrence (a pulse).
+
+        Example: Storage device removed.
+        """
+        return self.raw["message"]["stateless"]
+
+    @property
+    def source(self) -> Union[dict, list, None]:
+        """A SourceInstance that provides information about the source of the event."""
+        return self.raw["message"]["source"]
+
+    @property
+    def data(self) -> Union[dict, list]:
+        """A DataInstance that specifies the event data."""
+        return self.raw["message"]["data"]
