@@ -1,4 +1,4 @@
-"""Test Axis view area API.
+"""Test Axis event instance API.
 
 pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_instances.py
 """
@@ -9,7 +9,11 @@ from axis.event_instances import EventInstances, URL
 import respx
 
 from .conftest import HOST
-from .event_fixtures import EVENT_INSTANCES, EVENT_INSTANCE_VMD4_PROFILE1
+from .event_fixtures import (
+    EVENT_INSTANCES,
+    EVENT_INSTANCE_PIR_SENSOR,
+    EVENT_INSTANCE_VMD4_PROFILE1,
+)
 
 
 @pytest.fixture
@@ -25,16 +29,41 @@ async def test_full_list_of_event_instances(event_instances):
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
     )
-
     await event_instances.update()
 
     assert len(event_instances) == 44
-    # assert 0
 
 
 @pytest.mark.parametrize(
     "response,id,topic_filter,expected",
     [
+        (
+            EVENT_INSTANCE_PIR_SENSOR,
+            "tns1:Device/tnsaxis:Sensor/PIR_0",
+            "onvif:Device/axis:Sensor/PIR",
+            {
+                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "is_available": True,
+                "is_application_data": False,
+                "name": "PIR sensor",
+                "message": {
+                    "stateful": True,
+                    "stateless": False,
+                    "source": {
+                        "@NiceName": "Sensor",
+                        "@Type": "x:d:int",
+                        "@Name": "sensor",
+                        "Value": "0",
+                    },
+                    "data": {
+                        "@NiceName": "Active",
+                        "@Type": "x:d:boolean",
+                        "@Name": "state",
+                        "@isPropertyState": "true",
+                    },
+                },
+            },
+        ),
         (
             EVENT_INSTANCE_VMD4_PROFILE1,
             "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1_",
@@ -55,7 +84,7 @@ async def test_full_list_of_event_instances(event_instances):
                     },
                 },
             },
-        )
+        ),
     ],
 )
 @respx.mock
@@ -70,8 +99,8 @@ async def test_single_event_instance(
     respx.post(f"http://{HOST}:80{URL}").respond(
         text=response, headers={"Content-Type": "application/soap+xml; charset=utf-8"}
     )
-
     await event_instances.update()
+
     assert len(event_instances) == 1
 
     assert id in event_instances
