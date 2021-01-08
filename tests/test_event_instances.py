@@ -33,11 +33,12 @@ async def test_full_list_of_event_instances(event_instances):
 
 
 @pytest.mark.parametrize(
-    "response,id,expected",
+    "response,id,topic_filter,expected",
     [
         (
             EVENT_INSTANCE_VMD4_PROFILE1,
             "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1_",
+            "axis:CameraApplicationPlatform/VMD/Camera1Profile1",
             {
                 "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1",
                 "is_available": True,
@@ -59,7 +60,11 @@ async def test_full_list_of_event_instances(event_instances):
 )
 @respx.mock
 async def test_single_event_instance(
-    event_instances: EventInstances, response: bytes, id: str, expected: dict
+    event_instances: EventInstances,
+    response: bytes,
+    id: str,
+    topic_filter: str,
+    expected: dict,
 ):
     """Test simple view area."""
     respx.post(f"http://{HOST}:80{URL}").respond(
@@ -73,6 +78,7 @@ async def test_single_event_instance(
     event = event_instances[id]
     event.raw == expected
     event.topic == expected["topic"]
+    event.topic_filter == topic_filter
     event.is_available == expected["is_available"]
     event.is_application_data == expected["is_application_data"]
     event.name == expected["name"]

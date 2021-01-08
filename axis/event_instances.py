@@ -1,12 +1,9 @@
 """Event service and action service APIs available in Axis network products."""
 
-import logging
 from typing import List, Union
 
 from .api import APIItem, APIItems
 from .event_stream import traverse
-
-_LOGGER = logging.getLogger(__name__)
 
 URL = "/vapix/services"
 
@@ -83,6 +80,7 @@ class EventInstances(APIItems):
     """Initialize new events and update states of existing events."""
 
     def __init__(self, request: object) -> None:
+        """Initialize class."""
         super().__init__({}, request, URL, EventInstance)
 
     async def update(self) -> None:
@@ -107,27 +105,38 @@ class EventInstances(APIItems):
 
         events = {}
         for event in event_list:
-            topic = event["topic"]
             source = event["message"]["source"]
             if isinstance(source, list):
                 source = source[0]
-            id = f'{topic}_{source.get("Value", "")}'
+            id = f'{event["topic"]}_{source.get("Value", "")}'
             events[id] = event
 
         return events
 
 
 class EventInstance(APIItem):
-    """Events are emitted when the Axis product detects an occurrence of some kind,
-    for example motion in the camera’s field of view or a change of status from an I/O port.
+    """Events are emitted when the Axis product detects an occurrence of some kind.
+
+    For example motion in camera field of view or a change of status from an I/O port.
     The events can be used to trigger actions in the Axis product or in other systems
     and can also be stored together with video and audio data for later access.
     """
 
     @property
     def topic(self) -> str:
-        """Event topic."""
+        """Event topic.
+
+        Event declaration namespae.
+        """
         return self.raw["topic"]
+
+    @property
+    def topic_filter(self) -> str:
+        """Event topic.
+
+        Event topic filter namespae.
+        """
+        return self.raw["topic"].replace("tns1", "onvif").replace("tnsaxis", "axis")
 
     @property
     def is_available(self) -> str:
@@ -136,7 +145,7 @@ class EventInstance(APIItem):
 
     @property
     def is_application_data(self) -> str:
-        """Indicates that event and/or data is produced for a specific system or application.
+        """Indicate event and/or data is produced for specific system or application.
 
         Events with isApplicationData=true are usually intended
         to be used only by the specific system or application, that is,
@@ -151,7 +160,7 @@ class EventInstance(APIItem):
 
     @property
     def stateful(self) -> bool:
-        """A stateful event is a property (a state variable) with a number of states.
+        """Stateful event is a property (a state variable) with a number of states.
 
         The event is always in one of its states.
         Example: The Motion detection event is in state true when motion is detected
@@ -161,7 +170,7 @@ class EventInstance(APIItem):
 
     @property
     def stateless(self) -> bool:
-        """A stateless event is a momentary occurrence (a pulse).
+        """Stateless event is a momentary occurrence (a pulse).
 
         Example: Storage device removed.
         """

@@ -262,7 +262,7 @@ class Vapix:
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)
 
             content_type = response.headers.get("Content-Type", "")
-            print(content_type)
+
             if "application/json" in content_type:
                 result = response.json()
                 if "error" in result:
