@@ -66,7 +66,7 @@ root.Output.NbrOfOutputs=1
     assert update_ports_route.call_count == 3
 
     assert ports["0"].id == "0"
-    assert ports["0"].configurable == "no"
+    assert ports["0"].configurable is False
     assert ports["0"].direction == "input"
     assert ports["0"].name == ""
 
@@ -75,19 +75,19 @@ root.Output.NbrOfOutputs=1
     assert not action_low_route.called
 
     assert ports["1"].id == "1"
-    assert ports["1"].configurable == "no"
+    assert ports["1"].configurable is False
     assert ports["1"].direction == "input"
     assert ports["1"].name == "PIR sensor"
     assert ports["1"].input_trig == "closed"
 
     assert ports["2"].id == "2"
-    assert ports["2"].configurable == "no"
+    assert ports["2"].configurable is False
     assert ports["2"].direction == "input"
     assert ports["2"].name == ""
     assert ports["2"].output_active == "closed"
 
     assert ports["3"].id == "3"
-    assert ports["3"].configurable == "no"
+    assert ports["3"].configurable is False
     assert ports["3"].direction == "output"
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"

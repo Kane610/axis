@@ -92,6 +92,9 @@ class Params(APIItems):
                 if parameter_value in ("true", "false"):  # Boolean values
                     item[attribute] = parameter_value == "true"
 
+                elif parameter_value in ("yes", "no"):  # Boolean values
+                    item[attribute] = parameter_value == "yes"
+
                 elif parameter_value.lstrip("-").isdigit():  # Positive/negative values
                     item[attribute] = int(parameter_value)
 
@@ -144,22 +147,63 @@ class Params(APIItems):
         await self.update(IMAGE)
 
     @property
-    def image_sources(self) -> list:
-        """Basic image source information."""
+    def image_sources(self) -> dict:
+        """Image source information."""
         if IMAGE not in self:
             return []
 
-        raw_sources = self.process_dynamic_group(
-            self[IMAGE],
-            "I",
-            ("Name", "Source"),
-            range(self.image_nbrofviews),
+        attributes = (
+            "Enabled",
+            "Name",
+            "Source",
+            "Appearance.ColorEnabled",
+            "Appearance.Compression",
+            "Appearance.MirrorEnabled",
+            "Appearance.Resolution",
+            "Appearance.Rotation",
+            "MPEG.Complexity",
+            "MPEG.ConfigHeaderInterval",
+            "MPEG.FrameSkipMode",
+            "MPEG.ICount",
+            "MPEG.PCount",
+            "MPEG.UserDataEnabled",
+            "MPEG.UserDataInterval",
+            "MPEG.ZChromaQPMode",
+            "MPEG.ZFpsMode",
+            "MPEG.ZGopMode",
+            "MPEG.ZMaxGopLength",
+            "MPEG.ZMinFps",
+            "MPEG.ZStrength",
+            "MPEG.H264.Profile",
+            "MPEG.H264.PSEnabled",
+            "Overlay.Enabled",
+            "Overlay.XPos",
+            "Overlay.YPos",
+            "Overlay.MaskWindows.Color",
+            "RateControl.MaxBitrate",
+            "RateControl.Mode",
+            "RateControl.Priority",
+            "RateControl.TargetBitrate",
+            "SizeControl.MaxFrameSize",
+            "Stream.Duration",
+            "Stream.FPS",
+            "Stream.NbrOfFrames",
+            "Text.BGColor",
+            "Text.ClockEnabled",
+            "Text.Color",
+            "Text.DateEnabled",
+            "Text.Position",
+            "Text.String",
+            "Text.TextEnabled",
+            "Text.TextSize",
         )
 
-        sources = []
-
-        for raw_source in raw_sources.values():  # Convert source keys to lower case
-            sources.append(dict((k.lower(), v) for k, v in raw_source.items()))
+        sources = self.process_dynamic_group(
+            self[IMAGE],
+            "I",
+            attributes,
+            range(self.image_nbrofviews),
+        )
 
         return sources
 
