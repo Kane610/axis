@@ -53,9 +53,9 @@ class Port:
         self._request = request
 
     @property
-    def configurable(self) -> str:
+    def configurable(self) -> bool:
         """The port is configurable or not."""
-        return self.raw.get("Configurable", "no")
+        return self.raw.get("Configurable", False)
 
     @property
     def direction(self) -> str:
