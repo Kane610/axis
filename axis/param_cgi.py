@@ -147,8 +147,8 @@ class Params(APIItems):
         await self.update(IMAGE)
 
     @property
-    def image_sources(self) -> list:
-        """Basic image source information."""
+    def image_sources(self) -> dict:
+        """Image source information."""
         if IMAGE not in self:
             return []
 
@@ -198,17 +198,12 @@ class Params(APIItems):
             "Text.TextSize",
         )
 
-        raw_sources = self.process_dynamic_group(
+        sources = self.process_dynamic_group(
             self[IMAGE],
             "I",
             attributes,
             range(self.image_nbrofviews),
         )
-
-        sources = []
-
-        for raw_source in raw_sources.values():  # Convert source keys to lower case
-            sources.append(dict((k.lower(), v) for k, v in raw_source.items()))
 
         return sources
 
