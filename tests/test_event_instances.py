@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_ins
 
 import pytest
 
-from axis.event_instances import EventInstances, URL
+from axis.event_instances import EventInstances, URL, get_events
 import respx
 
 from .conftest import HOST
@@ -25,7 +25,7 @@ def event_instances(axis_device) -> EventInstances:
 @respx.mock
 async def test_full_list_of_event_instances(event_instances):
     """Test simple view area."""
-    route = respx.post(f"http://{HOST}:80{URL}").respond(
+    respx.post(f"http://{HOST}:80{URL}").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
     )
@@ -115,3 +115,111 @@ async def test_single_event_instance(
     event.stateless == expected["message"]["stateless"]
     event.source == expected["message"]["source"]
     event.data == expected["message"]["data"]
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (
+            {
+                "tns1:Device": {
+                    "@NiceName": "Device",
+                    "tnsaxis:Sensor": {
+                        "@NiceName": "Device sensors",
+                        "PIR": {
+                            "@topic": "true",
+                            "@NiceName": "PIR sensor",
+                            "MessageInstance": {
+                                "@isProperty": "true",
+                                "SourceInstance": {
+                                    "SimpleItemInstance": {
+                                        "@NiceName": "Sensor",
+                                        "@Type": "xsd:int",
+                                        "@Name": "sensor",
+                                        "Value": "0",
+                                    }
+                                },
+                                "DataInstance": {
+                                    "SimpleItemInstance": {
+                                        "@NiceName": "Active",
+                                        "@Type": "xsd:boolean",
+                                        "@Name": "state",
+                                        "@isPropertyState": "true",
+                                    }
+                                },
+                            },
+                        },
+                    },
+                }
+            },
+            [
+                {
+                    "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                    "is_available": True,
+                    "is_application_data": False,
+                    "name": "PIR sensor",
+                    "message": {
+                        "stateful": True,
+                        "stateless": False,
+                        "source": {
+                            "@NiceName": "Sensor",
+                            "@Type": "xsd:int",
+                            "@Name": "sensor",
+                            "Value": "0",
+                        },
+                        "data": {
+                            "@NiceName": "Active",
+                            "@Type": "xsd:boolean",
+                            "@Name": "state",
+                            "@isPropertyState": "true",
+                        },
+                    },
+                }
+            ],
+        ),
+        (
+            {
+                "tnsaxis:CameraApplicationPlatform": {
+                    "VMD": {
+                        "@NiceName": "Video Motion Detection",
+                        "Camera1Profile1": {
+                            "@topic": "true",
+                            "@NiceName": "VMD 4: VMD 4 ACAP",
+                            "MessageInstance": {
+                                "@isProperty": "true",
+                                "DataInstance": {
+                                    "SimpleItemInstance": {
+                                        "@Type": "xsd:boolean",
+                                        "@Name": "active",
+                                        "@isPropertyState": "true",
+                                    }
+                                },
+                            },
+                        },
+                    }
+                }
+            },
+            [
+                {
+                    "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1",
+                    "is_available": True,
+                    "is_application_data": False,
+                    "name": "VMD 4: VMD 4 ACAP",
+                    "message": {
+                        "stateful": True,
+                        "stateless": False,
+                        "source": {},
+                        "data": {
+                            "@Type": "xsd:boolean",
+                            "@Name": "active",
+                            "@isPropertyState": "true",
+                        },
+                    },
+                }
+            ],
+        ),
+    ],
+)
+async def test_get_events(input: dict, output: list):
+    """Verify expected output of get_events."""
+    assert get_events(input) == output

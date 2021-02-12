@@ -21,6 +21,7 @@ REQUEST_DATA = (
     "</s:Envelope>"
 )
 
+# Namespace filter for xmltodict
 NAMESPACES = {
     "http://docs.oasis-open.org/wsn/t-1": None,
     "http://www.onvif.org/ver10/topics": "tns1",
@@ -28,6 +29,13 @@ NAMESPACES = {
     "http://www.axis.com/vapix/ws/event1": None,
 }
 
+XMLTODICT_KWARGS = {
+    "dict_constructor": dict,  # Use dict rather than ordered_dict
+    "namespaces": NAMESPACES,  # Replace or remove defined namespaces
+    "process_namespaces": True,
+}
+
+# Initial layers of event instance dictionary
 EVENT_INSTANCE = (
     "http://www.w3.org/2003/05/soap-envelope:Envelope",
     "http://www.w3.org/2003/05/soap-envelope:Body",
@@ -90,7 +98,7 @@ class EventInstances(APIItems):
             URL,
             headers=REQUEST_HEADERS,
             data=REQUEST_DATA,
-            kwargs_xmltodict={"process_namespaces": True, "namespaces": NAMESPACES},
+            kwargs_xmltodict=XMLTODICT_KWARGS,
         )
         self.process_raw(raw)
 
