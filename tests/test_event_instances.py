@@ -12,6 +12,7 @@ from .conftest import HOST
 from .event_fixtures import (
     EVENT_INSTANCES,
     EVENT_INSTANCE_PIR_SENSOR,
+    EVENT_INSTANCE_STORAGE_ALERT,
     EVENT_INSTANCE_VMD4_PROFILE1,
 )
 
@@ -35,11 +36,10 @@ async def test_full_list_of_event_instances(event_instances):
 
 
 @pytest.mark.parametrize(
-    "response,id,topic_filter,expected",
+    "response,topic_filter,expected",
     [
         (
             EVENT_INSTANCE_PIR_SENSOR,
-            "tns1:Device/tnsaxis:Sensor/PIR_0",
             "onvif:Device/axis:Sensor/PIR",
             {
                 "topic": "tns1:Device/tnsaxis:Sensor/PIR",
@@ -51,13 +51,13 @@ async def test_full_list_of_event_instances(event_instances):
                     "stateless": False,
                     "source": {
                         "@NiceName": "Sensor",
-                        "@Type": "x:d:int",
+                        "@Type": "xsd:int",
                         "@Name": "sensor",
                         "Value": "0",
                     },
                     "data": {
                         "@NiceName": "Active",
-                        "@Type": "x:d:boolean",
+                        "@Type": "xsd:boolean",
                         "@Name": "state",
                         "@isPropertyState": "true",
                     },
@@ -65,8 +65,46 @@ async def test_full_list_of_event_instances(event_instances):
             },
         ),
         (
+            EVENT_INSTANCE_STORAGE_ALERT,
+            "axis:Storage/Alert",
+            {
+                "topic": "tnsaxis:Storage/Alert",
+                "is_available": True,
+                "is_application_data": False,
+                "name": "Storage alert",
+                "message": {
+                    "stateful": True,
+                    "stateless": False,
+                    "source": {
+                        "@NiceName": "Disk",
+                        "@Type": "xsd:string",
+                        "@Name": "disk_id",
+                        "Value": ["SD_DISK", "NetworkShare"],
+                    },
+                    "data": [
+                        {
+                            "@NiceName": "Temperature",
+                            "@Type": "xsd:int",
+                            "@Name": "temperature",
+                        },
+                        {
+                            "@isPropertyState": "true",
+                            "@NiceName": "Alert",
+                            "@Type": "xsd:boolean",
+                            "@Name": "alert",
+                        },
+                        {"@NiceName": "Wear", "@Type": "xsd:int", "@Name": "wear"},
+                        {
+                            "@NiceName": "Overall Health",
+                            "@Type": "xsd:int",
+                            "@Name": "overall_health",
+                        },
+                    ],
+                },
+            },
+        ),
+        (
             EVENT_INSTANCE_VMD4_PROFILE1,
-            "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1_",
             "axis:CameraApplicationPlatform/VMD/Camera1Profile1",
             {
                 "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1",
@@ -89,11 +127,7 @@ async def test_full_list_of_event_instances(event_instances):
 )
 @respx.mock
 async def test_single_event_instance(
-    event_instances: EventInstances,
-    response: bytes,
-    id: str,
-    topic_filter: str,
-    expected: dict,
+    event_instances: EventInstances, response: bytes, topic_filter: str, expected: dict
 ):
     """Test simple view area."""
     respx.post(f"http://{HOST}:80{URL}").respond(
@@ -103,18 +137,18 @@ async def test_single_event_instance(
 
     assert len(event_instances) == 1
 
-    assert id in event_instances
-    event = event_instances[id]
-    event.raw == expected
-    event.topic == expected["topic"]
-    event.topic_filter == topic_filter
-    event.is_available == expected["is_available"]
-    event.is_application_data == expected["is_application_data"]
-    event.name == expected["name"]
-    event.stateful == expected["message"]["stateful"]
-    event.stateless == expected["message"]["stateless"]
-    event.source == expected["message"]["source"]
-    event.data == expected["message"]["data"]
+    event = event_instances[expected["topic"]]
+
+    assert event.raw == expected
+    assert event.topic == expected["topic"]
+    assert event.topic_filter == topic_filter
+    assert event.is_available == expected["is_available"]
+    assert event.is_application_data == expected["is_application_data"]
+    assert event.name == expected["name"]
+    assert event.stateful == expected["message"]["stateful"]
+    assert event.stateless == expected["message"]["stateless"]
+    assert event.source == expected["message"]["source"]
+    assert event.data == expected["message"]["data"]
 
 
 @pytest.mark.parametrize(

@@ -111,15 +111,7 @@ class EventInstances(APIItems):
         raw_events = traverse(raw, EVENT_INSTANCE)
         event_list = get_events(raw_events)
 
-        events = {}
-        for event in event_list:
-            source = event["message"]["source"]
-            if isinstance(source, list):
-                source = source[0]
-            id = f'{event["topic"]}_{source.get("Value", "")}'
-            events[id] = event
-
-        return events
+        return {event["topic"]: event for event in event_list}
 
 
 class EventInstance(APIItem):
