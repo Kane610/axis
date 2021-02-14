@@ -57,26 +57,11 @@ def get_events(data: dict) -> List[dict]:
             continue
 
         if "@topic" in value:
-            m = value["MessageInstance"]
-            events.append(
-                {
-                    "topic": key,
-                    "is_available": value["@topic"] == "true",
-                    "is_application_data": value.get("@isApplicationData") == "true",
-                    "name": value.get("@NiceName", ""),
-                    "message": {
-                        "stateful": m.get("@isProperty", "false") == "true",
-                        "stateless": m.get("@isProperty", "false") == "false",
-                        "source": m.get("SourceInstance", {}).get(
-                            "SimpleItemInstance", {}
-                        ),
-                        "data": m.get("DataInstance", {}).get("SimpleItemInstance", {}),
-                    },
-                }
-            )
+            events.append({"topic": key, "data": value})
             continue
 
         event_list = get_events(value)
+
         for event in event_list:
             event["topic"] = f'{key}/{event["topic"]}'
             events.append(event)
@@ -141,7 +126,7 @@ class EventInstance(APIItem):
     @property
     def is_available(self) -> str:
         """Means the event is available."""
-        return self.raw["is_available"]
+        return self.raw["data"]["@topic"] == "true"
 
     @property
     def is_application_data(self) -> str:
@@ -151,12 +136,12 @@ class EventInstance(APIItem):
         to be used only by the specific system or application, that is,
         they are not intended to be used as triggers in an action rule in the Axis product.
         """
-        return self.raw["is_application_data"]
+        return self.raw["data"].get("@isApplicationData") == "true"
 
     @property
     def name(self) -> str:
         """User-friendly and human-readable name describing the event."""
-        return self.raw["name"]
+        return self.raw["data"].get("@NiceName", "")
 
     @property
     def stateful(self) -> bool:
@@ -166,7 +151,7 @@ class EventInstance(APIItem):
         Example: The Motion detection event is in state true when motion is detected
         and in state false when motion is not detected.
         """
-        return self.raw["message"]["stateful"]
+        return self.raw["data"]["MessageInstance"].get("@isProperty") == "true"
 
     @property
     def stateless(self) -> bool:
@@ -174,14 +159,16 @@ class EventInstance(APIItem):
 
         Example: Storage device removed.
         """
-        return self.raw["message"]["stateless"]
+        return self.raw["data"]["MessageInstance"].get("@isProperty") != "true"
 
     @property
-    def source(self) -> Union[dict, list, None]:
+    def source(self) -> Union[dict, list]:
         """A SourceInstance that provides information about the source of the event."""
-        return self.raw["message"]["source"]
+        message = self.raw["data"]["MessageInstance"]
+        return message.get("SourceInstance", {}).get("SimpleItemInstance", {})
 
     @property
     def data(self) -> Union[dict, list]:
         """A DataInstance that specifies the event data."""
-        return self.raw["message"]["data"]
+        message = self.raw["data"]["MessageInstance"]
+        return message.get("DataInstance", {}).get("SimpleItemInstance", {})

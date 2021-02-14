@@ -36,13 +36,13 @@ async def test_full_list_of_event_instances(event_instances):
 
 
 @pytest.mark.parametrize(
-    "response,topic_filter,expected",
+    "response,expected",
     [
         (
             EVENT_INSTANCE_PIR_SENSOR,
-            "onvif:Device/axis:Sensor/PIR",
             {
                 "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "topic_filter": "onvif:Device/axis:Sensor/PIR",
                 "is_available": True,
                 "is_application_data": False,
                 "name": "PIR sensor",
@@ -66,9 +66,9 @@ async def test_full_list_of_event_instances(event_instances):
         ),
         (
             EVENT_INSTANCE_STORAGE_ALERT,
-            "axis:Storage/Alert",
             {
                 "topic": "tnsaxis:Storage/Alert",
+                "topic_filter": "axis:Storage/Alert",
                 "is_available": True,
                 "is_application_data": False,
                 "name": "Storage alert",
@@ -105,9 +105,9 @@ async def test_full_list_of_event_instances(event_instances):
         ),
         (
             EVENT_INSTANCE_VMD4_PROFILE1,
-            "axis:CameraApplicationPlatform/VMD/Camera1Profile1",
             {
                 "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1",
+                "topic_filter": "axis:CameraApplicationPlatform/VMD/Camera1Profile1",
                 "is_available": True,
                 "is_application_data": False,
                 "name": "VMD 4: VMD 4 ACAP",
@@ -127,7 +127,7 @@ async def test_full_list_of_event_instances(event_instances):
 )
 @respx.mock
 async def test_single_event_instance(
-    event_instances: EventInstances, response: bytes, topic_filter: str, expected: dict
+    event_instances: EventInstances, response: bytes, expected: dict
 ):
     """Test simple view area."""
     respx.post(f"http://{HOST}:80{URL}").respond(
@@ -139,9 +139,8 @@ async def test_single_event_instance(
 
     event = event_instances[expected["topic"]]
 
-    assert event.raw == expected
     assert event.topic == expected["topic"]
-    assert event.topic_filter == topic_filter
+    assert event.topic_filter == expected["topic_filter"]
     assert event.is_available == expected["is_available"]
     assert event.is_application_data == expected["is_application_data"]
     assert event.name == expected["name"]
@@ -189,23 +188,27 @@ async def test_single_event_instance(
             [
                 {
                     "topic": "tns1:Device/tnsaxis:Sensor/PIR",
-                    "is_available": True,
-                    "is_application_data": False,
-                    "name": "PIR sensor",
-                    "message": {
-                        "stateful": True,
-                        "stateless": False,
-                        "source": {
-                            "@NiceName": "Sensor",
-                            "@Type": "xsd:int",
-                            "@Name": "sensor",
-                            "Value": "0",
-                        },
-                        "data": {
-                            "@NiceName": "Active",
-                            "@Type": "xsd:boolean",
-                            "@Name": "state",
-                            "@isPropertyState": "true",
+                    "data": {
+                        "@topic": "true",
+                        "@NiceName": "PIR sensor",
+                        "MessageInstance": {
+                            "@isProperty": "true",
+                            "SourceInstance": {
+                                "SimpleItemInstance": {
+                                    "@NiceName": "Sensor",
+                                    "@Type": "xsd:int",
+                                    "@Name": "sensor",
+                                    "Value": "0",
+                                }
+                            },
+                            "DataInstance": {
+                                "SimpleItemInstance": {
+                                    "@NiceName": "Active",
+                                    "@Type": "xsd:boolean",
+                                    "@Name": "state",
+                                    "@isPropertyState": "true",
+                                }
+                            },
                         },
                     },
                 }
@@ -236,17 +239,18 @@ async def test_single_event_instance(
             [
                 {
                     "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1",
-                    "is_available": True,
-                    "is_application_data": False,
-                    "name": "VMD 4: VMD 4 ACAP",
-                    "message": {
-                        "stateful": True,
-                        "stateless": False,
-                        "source": {},
-                        "data": {
-                            "@Type": "xsd:boolean",
-                            "@Name": "active",
-                            "@isPropertyState": "true",
+                    "data": {
+                        "@topic": "true",
+                        "@NiceName": "VMD 4: VMD 4 ACAP",
+                        "MessageInstance": {
+                            "@isProperty": "true",
+                            "DataInstance": {
+                                "SimpleItemInstance": {
+                                    "@Type": "xsd:boolean",
+                                    "@Name": "active",
+                                    "@isPropertyState": "true",
+                                }
+                            },
                         },
                     },
                 }
