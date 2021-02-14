@@ -56,14 +56,14 @@ def get_events(data: dict) -> List[dict]:
         if key.startswith("@"):  # Value is an attribute so skip
             continue
 
-        if "@topic" in value:
+        if "@topic" in value:  # Designates the end of the topic structure
             events.append({"topic": key, "data": value})
             continue
 
-        event_list = get_events(value)
+        event_list = get_events(value)  # Recursive call
 
         for event in event_list:
-            event["topic"] = f'{key}/{event["topic"]}'
+            event["topic"] = f'{key}/{event["topic"]}'  # Compose the topic
             events.append(event)
 
     return events
@@ -93,8 +93,8 @@ class EventInstances(APIItems):
         if not raw:
             return {}
 
-        raw_events = traverse(raw, EVENT_INSTANCE)
-        event_list = get_events(raw_events)
+        raw_events = traverse(raw, EVENT_INSTANCE)  # Move past the irrelevant keys
+        event_list = get_events(raw_events)  # Create topic/data dictionary of events
 
         return {event["topic"]: event for event in event_list}
 
