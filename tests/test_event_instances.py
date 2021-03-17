@@ -19,13 +19,13 @@ from .event_fixtures import (
 
 @pytest.fixture
 def event_instances(axis_device) -> EventInstances:
-    """Returns the view_areas mock object."""
+    """Returns the event_instances mock object."""
     return EventInstances(axis_device.vapix.request)
 
 
 @respx.mock
 async def test_full_list_of_event_instances(event_instances):
-    """Test simple view area."""
+    """Test loading of event instances work."""
     respx.post(f"http://{HOST}:80{URL}").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
@@ -129,7 +129,7 @@ async def test_full_list_of_event_instances(event_instances):
 async def test_single_event_instance(
     event_instances: EventInstances, response: bytes, expected: dict
 ):
-    """Test simple view area."""
+    """Verify expected outcome from different event instances."""
     respx.post(f"http://{HOST}:80{URL}").respond(
         text=response, headers={"Content-Type": "application/soap+xml; charset=utf-8"}
     )

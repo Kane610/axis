@@ -22,6 +22,7 @@ from .applications.vmd4 import Vmd4
 from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
 from .configuration import Configuration
 from .errors import raise_error, PathNotFound, RequestError, Unauthorized
+from .event_instances import EventInstances
 from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
 from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
 from .param_cgi import Params
@@ -47,6 +48,7 @@ class Vapix:
         self.api_discovery = None
         self.applications = None
         self.basic_device_info = None
+        self.event_instances = None
         self.fence_guard = None
         self.light_control = None
         self.loitering_guard = None
@@ -210,6 +212,10 @@ class Vapix:
 
         if tasks:
             await asyncio.gather(*tasks)
+
+    async def initialize_event_instances(self) -> None:
+        """Setup event instances of what events are supported by the device."""
+        await self._initialize_api_attribute(EventInstances, "event_instances")
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

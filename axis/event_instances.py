@@ -1,6 +1,6 @@
 """Event service and action service APIs available in Axis network products."""
 
-from typing import List, Union
+from typing import Callable, List, Optional, Union
 
 from .api import APIItem, APIItems
 from .event_stream import traverse
@@ -72,12 +72,12 @@ def get_events(data: dict) -> List[dict]:
 class EventInstances(APIItems):
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, request: Callable[..., Optional[dict]]) -> None:
         """Initialize class."""
         super().__init__({}, request, URL, EventInstance)
 
     async def update(self) -> None:
-        """Prepare event."""
+        """Retrieve event instances from device."""
         raw = await self._request(
             "post",
             URL,
@@ -89,7 +89,7 @@ class EventInstances(APIItems):
 
     @staticmethod
     def pre_process_raw(raw: dict) -> dict:
-        """Return a dictionary of initialized or changed events."""
+        """Return a dictionary of events."""
         if not raw:
             return {}
 
@@ -124,12 +124,12 @@ class EventInstance(APIItem):
         return self.raw["topic"].replace("tns1", "onvif").replace("tnsaxis", "axis")
 
     @property
-    def is_available(self) -> str:
+    def is_available(self) -> bool:
         """Means the event is available."""
         return self.raw["data"]["@topic"] == "true"
 
     @property
-    def is_application_data(self) -> str:
+    def is_application_data(self) -> bool:
         """Indicate event and/or data is produced for specific system or application.
 
         Events with isApplicationData=true are usually intended
@@ -163,12 +163,12 @@ class EventInstance(APIItem):
 
     @property
     def source(self) -> Union[dict, list]:
-        """A SourceInstance that provides information about the source of the event."""
+        """Source instance providing information about source of the event."""
         message = self.raw["data"]["MessageInstance"]
         return message.get("SourceInstance", {}).get("SimpleItemInstance", {})
 
     @property
     def data(self) -> Union[dict, list]:
-        """A DataInstance that specifies the event data."""
+        """Data instance providing information about data of the event."""
         message = self.raw["data"]["MessageInstance"]
         return message.get("DataInstance", {}).get("SimpleItemInstance", {})
