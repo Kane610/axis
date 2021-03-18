@@ -32,6 +32,7 @@ from .test_basic_device_info import (
 )
 from .applications.test_vmd4 import response_get_configuration as vmd4_response
 from .conftest import HOST
+from .event_fixtures import EVENT_INSTANCES
 from .test_light_control import response_getLightInformation as light_control_response
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi as param_cgi_response
@@ -323,6 +324,19 @@ async def test_initialize_applications_not_running(vapix):
     assert vapix.fence_guard is None
     assert vapix.motion_guard is None
     assert vapix.vmd4 is None
+
+
+@respx.mock
+async def test_initialize_event_instances(vapix):
+    """Verify you can list and retrieve descriptions of applications."""
+    respx.post(f"http://{HOST}:80/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await vapix.initialize_event_instances()
+
+    assert len(vapix.event_instances) == 44
 
 
 @respx.mock

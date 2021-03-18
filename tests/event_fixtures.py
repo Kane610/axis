@@ -59,6 +59,9 @@ RULE_ENGINE_REGION_DETECTOR_INIT = b'<?xml version="1.0" encoding="UTF-8"?>\n<tt
 # Event with data in a list
 STORAGE_ALERT_INIT = b'<?xml version="1.0" encoding="UTF-8"?>\n<tt:MetadataStream xmlns:tt="http://www.onvif.org/ver10/schema">\n<tt:Event><wsnt:NotificationMessage xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:tnsaxis="http://www.axis.com/2009/event/topics" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:wsa5="http://www.w3.org/2005/08/addressing"><wsnt:Topic Dialect="http://docs.oasis-open.org/wsn/t-1/TopicExpression/Simple">tnsaxis:Storage/Alert</wsnt:Topic><wsnt:ProducerReference><wsa5:Address>uri://755cc9bb-cf3a-410b-bd1b-0ec97c6d6256/ProducerReference</wsa5:Address></wsnt:ProducerReference><wsnt:Message><tt:Message UtcTime="2020-06-02T20:35:42.477710Z" PropertyOperation="Initialized"><tt:Source><tt:SimpleItem Name="disk_id" Value="NetworkShare"/></tt:Source><tt:Key></tt:Key><tt:Data><tt:SimpleItem Name="overall_health" Value="-3"/><tt:SimpleItem Name="alert" Value="0"/><tt:SimpleItem Name="wear" Value="-3"/><tt:SimpleItem Name="temperature" Value="-3"/></tt:Data></tt:Message></wsnt:Message></wsnt:NotificationMessage></tt:Event></tt:MetadataStream>\n'
 
+
+# Event instances
+
 EVENT_INSTANCES = """<?xml version="1.0" encoding="UTF-8"?>\n
 <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope" xmlns:SOAP-ENC="http://www.w3.org/2003/05/soap-encoding" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:c14n="http://www.w3.org/2001/10/xml-exc-c14n#" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsa5="http://www.w3.org/2005/08/addressing" xmlns:xmime="http://tempuri.org/xmime.xsd" xmlns:xop="http://www.w3.org/2004/08/xop/include" xmlns:wsrfbf="http://docs.oasis-open.org/wsrf/bf-2" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1" xmlns:tt="http://www.onvif.org/ver10/schema" xmlns:acert="http://www.axis.com/vapix/ws/cert" xmlns:wsrfr="http://docs.oasis-open.org/wsrf/r-2" xmlns:aa="http://www.axis.com/vapix/ws/action1" xmlns:acertificates="http://www.axis.com/vapix/ws/certificates" xmlns:aentry="http://www.axis.com/vapix/ws/entry" xmlns:aev="http://www.axis.com/vapix/ws/event1" xmlns:aeva="http://www.axis.com/vapix/ws/embeddedvideoanalytics1" xmlns:ali1="http://www.axis.com/vapix/ws/light/CommonBinding" xmlns:ali2="http://www.axis.com/vapix/ws/light/IntensityBinding" xmlns:ali3="http://www.axis.com/vapix/ws/light/AngleOfIlluminationBinding" xmlns:ali4="http://www.axis.com/vapix/ws/light/DayNightSynchronizeBinding" xmlns:ali="http://www.axis.com/vapix/ws/light" xmlns:apc="http://www.axis.com/vapix/ws/panopsiscalibration1" xmlns:arth="http://www.axis.com/vapix/ws/recordedtour1" xmlns:asd="http://www.axis.com/vapix/ws/shockdetection" xmlns:aweb="http://www.axis.com/vapix/ws/webserver" xmlns:tan1="http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding" xmlns:tan2="http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding" xmlns:tan="http://www.onvif.org/ver20/analytics/wsdl" xmlns:tds="http://www.onvif.org/ver10/device/wsdl" xmlns:tev1="http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding" xmlns:tev2="http://www.onvif.org/ver10/events/wsdl/EventBinding" xmlns:tev3="http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:tev4="http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding" xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:timg="http://www.onvif.org/ver20/imaging/wsdl" xmlns:tmd="http://www.onvif.org/ver10/deviceIO/wsdl" xmlns:tptz="http://www.onvif.org/ver20/ptz/wsdl" xmlns:tr2="http://www.onvif.org/ver20/media/wsdl" xmlns:trc="http://www.onvif.org/ver10/recording/wsdl" xmlns:trp="http://www.onvif.org/ver10/replay/wsdl" xmlns:trt="http://www.onvif.org/ver10/media/wsdl" xmlns:tse="http://www.onvif.org/ver10/search/wsdl" xmlns:ter="http://www.onvif.org/ver10/error" xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:tnsaxis="http://www.axis.com/2009/event/topics">
   <SOAP-ENV:Body>
@@ -610,6 +613,87 @@ EVENT_INSTANCES = """<?xml version="1.0" encoding="UTF-8"?>\n
             </aev:MessageInstance>
           </tnsaxis:TriggerLevel>
         </tns1:AudioSource>
+      </wstop:TopicSet>
+    </aev:GetEventInstancesResponse>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>"""
+
+EVENT_INSTANCE_PIR_SENSOR = """<?xml version="1.0" encoding="UTF-8"?>\n
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope" xmlns:SOAP-ENC="http://www.w3.org/2003/05/soap-encoding" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:c14n="http://www.w3.org/2001/10/xml-exc-c14n#" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsa5="http://www.w3.org/2005/08/addressing" xmlns:xmime="http://tempuri.org/xmime.xsd" xmlns:xop="http://www.w3.org/2004/08/xop/include" xmlns:wsrfbf="http://docs.oasis-open.org/wsrf/bf-2" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1" xmlns:tt="http://www.onvif.org/ver10/schema" xmlns:acert="http://www.axis.com/vapix/ws/cert" xmlns:wsrfr="http://docs.oasis-open.org/wsrf/r-2" xmlns:aa="http://www.axis.com/vapix/ws/action1" xmlns:acertificates="http://www.axis.com/vapix/ws/certificates" xmlns:aentry="http://www.axis.com/vapix/ws/entry" xmlns:aev="http://www.axis.com/vapix/ws/event1" xmlns:aeva="http://www.axis.com/vapix/ws/embeddedvideoanalytics1" xmlns:ali1="http://www.axis.com/vapix/ws/light/CommonBinding" xmlns:ali2="http://www.axis.com/vapix/ws/light/IntensityBinding" xmlns:ali3="http://www.axis.com/vapix/ws/light/AngleOfIlluminationBinding" xmlns:ali4="http://www.axis.com/vapix/ws/light/DayNightSynchronizeBinding" xmlns:ali="http://www.axis.com/vapix/ws/light" xmlns:apc="http://www.axis.com/vapix/ws/panopsiscalibration1" xmlns:arth="http://www.axis.com/vapix/ws/recordedtour1" xmlns:asd="http://www.axis.com/vapix/ws/shockdetection" xmlns:aweb="http://www.axis.com/vapix/ws/webserver" xmlns:tan1="http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding" xmlns:tan2="http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding" xmlns:tan="http://www.onvif.org/ver20/analytics/wsdl" xmlns:tds="http://www.onvif.org/ver10/device/wsdl" xmlns:tev1="http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding" xmlns:tev2="http://www.onvif.org/ver10/events/wsdl/EventBinding" xmlns:tev3="http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:tev4="http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding" xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:timg="http://www.onvif.org/ver20/imaging/wsdl" xmlns:tmd="http://www.onvif.org/ver10/deviceIO/wsdl" xmlns:tptz="http://www.onvif.org/ver20/ptz/wsdl" xmlns:tr2="http://www.onvif.org/ver20/media/wsdl" xmlns:trc="http://www.onvif.org/ver10/recording/wsdl" xmlns:trp="http://www.onvif.org/ver10/replay/wsdl" xmlns:trt="http://www.onvif.org/ver10/media/wsdl" xmlns:tse="http://www.onvif.org/ver10/search/wsdl" xmlns:ter="http://www.onvif.org/ver10/error" xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:tnsaxis="http://www.axis.com/2009/event/topics">
+  <SOAP-ENV:Body>
+    <aev:GetEventInstancesResponse>
+      <wstop:TopicSet>
+        <tns1:Device aev:NiceName="Device">
+          <tnsaxis:Sensor aev:NiceName="Device sensors">
+            <PIR wstop:topic="true" aev:NiceName="PIR sensor">
+              <aev:MessageInstance aev:isProperty="true">
+                <aev:SourceInstance>
+                  <aev:SimpleItemInstance aev:NiceName="Sensor" Type="xsd:int" Name="sensor">
+                    <aev:Value>0</aev:Value>
+                  </aev:SimpleItemInstance>
+                </aev:SourceInstance>
+                <aev:DataInstance>
+                  <aev:SimpleItemInstance aev:NiceName="Active" Type="xsd:boolean" Name="state" isPropertyState="true"/>
+                </aev:DataInstance>
+              </aev:MessageInstance>
+            </PIR>
+          </tnsaxis:Sensor>
+        </tns1:Device>
+      </wstop:TopicSet>
+    </aev:GetEventInstancesResponse>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>"""
+
+# Multiple sources
+EVENT_INSTANCE_STORAGE_ALERT = """<?xml version="1.0" encoding="UTF-8"?>\n
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope" xmlns:SOAP-ENC="http://www.w3.org/2003/05/soap-encoding" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:c14n="http://www.w3.org/2001/10/xml-exc-c14n#" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsa5="http://www.w3.org/2005/08/addressing" xmlns:xmime="http://tempuri.org/xmime.xsd" xmlns:xop="http://www.w3.org/2004/08/xop/include" xmlns:wsrfbf="http://docs.oasis-open.org/wsrf/bf-2" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1" xmlns:tt="http://www.onvif.org/ver10/schema" xmlns:acert="http://www.axis.com/vapix/ws/cert" xmlns:wsrfr="http://docs.oasis-open.org/wsrf/r-2" xmlns:aa="http://www.axis.com/vapix/ws/action1" xmlns:acertificates="http://www.axis.com/vapix/ws/certificates" xmlns:aentry="http://www.axis.com/vapix/ws/entry" xmlns:aev="http://www.axis.com/vapix/ws/event1" xmlns:aeva="http://www.axis.com/vapix/ws/embeddedvideoanalytics1" xmlns:ali1="http://www.axis.com/vapix/ws/light/CommonBinding" xmlns:ali2="http://www.axis.com/vapix/ws/light/IntensityBinding" xmlns:ali3="http://www.axis.com/vapix/ws/light/AngleOfIlluminationBinding" xmlns:ali4="http://www.axis.com/vapix/ws/light/DayNightSynchronizeBinding" xmlns:ali="http://www.axis.com/vapix/ws/light" xmlns:apc="http://www.axis.com/vapix/ws/panopsiscalibration1" xmlns:arth="http://www.axis.com/vapix/ws/recordedtour1" xmlns:asd="http://www.axis.com/vapix/ws/shockdetection" xmlns:aweb="http://www.axis.com/vapix/ws/webserver" xmlns:tan1="http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding" xmlns:tan2="http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding" xmlns:tan="http://www.onvif.org/ver20/analytics/wsdl" xmlns:tds="http://www.onvif.org/ver10/device/wsdl" xmlns:tev1="http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding" xmlns:tev2="http://www.onvif.org/ver10/events/wsdl/EventBinding" xmlns:tev3="http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:tev4="http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding" xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:timg="http://www.onvif.org/ver20/imaging/wsdl" xmlns:tmd="http://www.onvif.org/ver10/deviceIO/wsdl" xmlns:tptz="http://www.onvif.org/ver20/ptz/wsdl" xmlns:tr2="http://www.onvif.org/ver20/media/wsdl" xmlns:trc="http://www.onvif.org/ver10/recording/wsdl" xmlns:trp="http://www.onvif.org/ver10/replay/wsdl" xmlns:trt="http://www.onvif.org/ver10/media/wsdl" xmlns:tse="http://www.onvif.org/ver10/search/wsdl" xmlns:ter="http://www.onvif.org/ver10/error" xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:tnsaxis="http://www.axis.com/2009/event/topics">
+  <SOAP-ENV:Body>
+    <aev:GetEventInstancesResponse>
+      <wstop:TopicSet>
+        <tnsaxis:Storage aev:NiceName="Storage">
+          <Alert wstop:topic="true" aev:NiceName="Storage alert">
+            <aev:MessageInstance aev:isProperty="true">
+              <aev:SourceInstance>
+                <aev:SimpleItemInstance aev:NiceName="Disk" Type="xsd:string" Name="disk_id">
+                  <aev:Value>SD_DISK</aev:Value>
+                  <aev:Value>NetworkShare</aev:Value>
+                </aev:SimpleItemInstance>
+              </aev:SourceInstance>
+              <aev:DataInstance>
+                <aev:SimpleItemInstance aev:NiceName="Temperature" Type="xsd:int" Name="temperature">
+                </aev:SimpleItemInstance>
+                <aev:SimpleItemInstance isPropertyState="true" aev:NiceName="Alert" Type="xsd:boolean" Name="alert">
+                </aev:SimpleItemInstance>
+                <aev:SimpleItemInstance aev:NiceName="Wear" Type="xsd:int" Name="wear">
+                </aev:SimpleItemInstance>
+                <aev:SimpleItemInstance aev:NiceName="Overall Health" Type="xsd:int" Name="overall_health">
+                </aev:SimpleItemInstance>
+              </aev:DataInstance>
+            </aev:MessageInstance>
+          </Alert>
+        </tnsaxis:Storage>
+      </wstop:TopicSet>
+    </aev:GetEventInstancesResponse>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>"""
+
+# No source instance
+EVENT_INSTANCE_VMD4_PROFILE1 = """<?xml version="1.0" encoding="UTF-8"?>\n
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope" xmlns:SOAP-ENC="http://www.w3.org/2003/05/soap-encoding" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:c14n="http://www.w3.org/2001/10/xml-exc-c14n#" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsa5="http://www.w3.org/2005/08/addressing" xmlns:xmime="http://tempuri.org/xmime.xsd" xmlns:xop="http://www.w3.org/2004/08/xop/include" xmlns:wsrfbf="http://docs.oasis-open.org/wsrf/bf-2" xmlns:wstop="http://docs.oasis-open.org/wsn/t-1" xmlns:tt="http://www.onvif.org/ver10/schema" xmlns:acert="http://www.axis.com/vapix/ws/cert" xmlns:wsrfr="http://docs.oasis-open.org/wsrf/r-2" xmlns:aa="http://www.axis.com/vapix/ws/action1" xmlns:acertificates="http://www.axis.com/vapix/ws/certificates" xmlns:aentry="http://www.axis.com/vapix/ws/entry" xmlns:aev="http://www.axis.com/vapix/ws/event1" xmlns:aeva="http://www.axis.com/vapix/ws/embeddedvideoanalytics1" xmlns:ali1="http://www.axis.com/vapix/ws/light/CommonBinding" xmlns:ali2="http://www.axis.com/vapix/ws/light/IntensityBinding" xmlns:ali3="http://www.axis.com/vapix/ws/light/AngleOfIlluminationBinding" xmlns:ali4="http://www.axis.com/vapix/ws/light/DayNightSynchronizeBinding" xmlns:ali="http://www.axis.com/vapix/ws/light" xmlns:apc="http://www.axis.com/vapix/ws/panopsiscalibration1" xmlns:arth="http://www.axis.com/vapix/ws/recordedtour1" xmlns:asd="http://www.axis.com/vapix/ws/shockdetection" xmlns:aweb="http://www.axis.com/vapix/ws/webserver" xmlns:tan1="http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding" xmlns:tan2="http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding" xmlns:tan="http://www.onvif.org/ver20/analytics/wsdl" xmlns:tds="http://www.onvif.org/ver10/device/wsdl" xmlns:tev1="http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding" xmlns:tev2="http://www.onvif.org/ver10/events/wsdl/EventBinding" xmlns:tev3="http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:tev4="http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding" xmlns:tev="http://www.onvif.org/ver10/events/wsdl" xmlns:timg="http://www.onvif.org/ver20/imaging/wsdl" xmlns:tmd="http://www.onvif.org/ver10/deviceIO/wsdl" xmlns:tptz="http://www.onvif.org/ver20/ptz/wsdl" xmlns:tr2="http://www.onvif.org/ver20/media/wsdl" xmlns:trc="http://www.onvif.org/ver10/recording/wsdl" xmlns:trp="http://www.onvif.org/ver10/replay/wsdl" xmlns:trt="http://www.onvif.org/ver10/media/wsdl" xmlns:tse="http://www.onvif.org/ver10/search/wsdl" xmlns:ter="http://www.onvif.org/ver10/error" xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:tnsaxis="http://www.axis.com/2009/event/topics">
+  <SOAP-ENV:Body>
+    <aev:GetEventInstancesResponse>
+      <wstop:TopicSet>
+        <tnsaxis:CameraApplicationPlatform>
+          <VMD aev:NiceName="Video Motion Detection">
+            <Camera1Profile1 wstop:topic="true" aev:NiceName="VMD 4: VMD 4 ACAP">
+              <aev:MessageInstance aev:isProperty="true">
+                <aev:DataInstance>
+                  <aev:SimpleItemInstance Type="xsd:boolean" Name="active" isPropertyState="true"/>
+                </aev:DataInstance>
+              </aev:MessageInstance>
+            </Camera1Profile1>
+          </VMD>
+        </tnsaxis:CameraApplicationPlatform>
       </wstop:TopicSet>
     </aev:GetEventInstancesResponse>
   </SOAP-ENV:Body>
