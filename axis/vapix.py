@@ -267,15 +267,15 @@ class Vapix:
 
             LOGGER.debug("Response: %s from %s", response.text, self.config.host)
 
-            content_type = response.headers.get("Content-Type", "")
+            content_type = response.headers.get("Content-Type", "").split(";")[0]
 
-            if "application/json" in content_type:
+            if content_type == "application/json":
                 result = response.json()
                 if "error" in result:
                     return {}
                 return result
 
-            if "text/xml" in content_type or "application/soap+xml" in content_type:
+            if content_type in ["text/xml", "application/soap+xml"]:
                 return xmltodict.parse(response.text, **(kwargs_xmltodict or {}))
 
             if response.text.startswith("# Error:"):
