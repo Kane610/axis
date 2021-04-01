@@ -36,6 +36,8 @@ from .user_groups import UNKNOWN, URL as USER_GROUPS_URL, UserGroups
 
 LOGGER = logging.getLogger(__name__)
 
+TIME_OUT = 15
+
 
 class Vapix:
     """Vapix parameter request."""
@@ -261,7 +263,7 @@ class Vapix:
         LOGGER.debug("%s %s", url, kwargs)
         try:
             response = await self.config.session.request(
-                method, url, auth=self.auth, **kwargs
+                method, url, auth=self.auth, timeout=TIME_OUT, **kwargs
             )
             response.raise_for_status()
 
@@ -286,9 +288,8 @@ class Vapix:
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
-        except httpx.TimeoutException as errt:
-            LOGGER.debug("%s", errt)
-            raise RequestError("Timeout: {}".format(errt))
+        except httpx.TimeoutException:
+            raise RequestError("Timeout")
 
         except httpx.TransportError as errc:
             LOGGER.debug("%s", errc)
