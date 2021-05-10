@@ -82,7 +82,8 @@ class EventInstances(APIItems):
             "post",
             URL,
             headers=REQUEST_HEADERS,
-            data=REQUEST_DATA,
+            content=REQUEST_DATA,
+            # data=REQUEST_DATA,
             kwargs_xmltodict=XMLTODICT_KWARGS,
         )
         self.process_raw(raw)

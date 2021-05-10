@@ -1,7 +1,7 @@
 pytest
 pytest-cov
 pytest-asyncio
-respx
-# respx==0.16.2
+httpx==0.18.1
+respx==0.17.0
 flake8==3.9.1
 black==21.5b0
