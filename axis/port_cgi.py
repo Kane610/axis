@@ -7,7 +7,6 @@ General purpose I/O service API. Extends I/O port API with support for
     supervised I/Os and relay connectors.
 Virtual input API.
 """
-import re
 
 from urllib.parse import quote
 
