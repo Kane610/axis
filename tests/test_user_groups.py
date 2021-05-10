@@ -19,6 +19,7 @@ def user_groups(axis_device) -> UserGroups:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_empty_response(user_groups):
     """Test get_supported_versions"""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -35,6 +36,7 @@ async def test_empty_response(user_groups):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_root_user(user_groups):
     """Test get_supported_versions"""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -52,6 +54,7 @@ async def test_root_user(user_groups):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_admin_user(user_groups):
     """Test get_supported_versions"""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -68,6 +71,7 @@ async def test_admin_user(user_groups):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_operator_user(user_groups):
     """Test get_supported_versions"""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -84,6 +88,7 @@ async def test_operator_user(user_groups):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_viewer_user(user_groups):
     """Test get_supported_versions"""
     respx.get(f"http://{HOST}:80{URL}").respond(

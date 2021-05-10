@@ -20,6 +20,7 @@ def motion_guard(axis_device) -> MotionGuard:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_empty_configuration(motion_guard):
     """Test empty get_configuration"""
     route = respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
@@ -40,6 +41,7 @@ async def test_get_empty_configuration(motion_guard):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_configuration(motion_guard):
     """Test get_configuration"""
     respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(

@@ -21,6 +21,7 @@ def ports(axis_device) -> Ports:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_ports(ports):
     """Test that different types of ports work."""
     update_ports_route = respx.route(
@@ -107,6 +108,7 @@ root.Output.NbrOfOutputs=1
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_no_ports(ports):
     """Test that no ports also work."""
     route = respx.route(url__startswith=f"http://{HOST}:80/axis-cgi/param.cgi").respond(

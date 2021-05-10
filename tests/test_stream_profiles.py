@@ -20,6 +20,7 @@ def stream_profiles(axis_device) -> StreamProfiles:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_list_stream_profiles(stream_profiles):
     """Test get_supported_versions"""
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
@@ -47,6 +48,7 @@ async def test_list_stream_profiles(stream_profiles):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_list_stream_profiles_no_profiles(stream_profiles):
     """Test get_supported_versions"""
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
@@ -64,6 +66,7 @@ async def test_list_stream_profiles_no_profiles(stream_profiles):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_supported_versions(stream_profiles):
     """Test get_supported_versions"""
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(

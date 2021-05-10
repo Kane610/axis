@@ -19,6 +19,7 @@ def applications(axis_device) -> Applications:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_no_application(applications):
     """Test update applicatios call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
@@ -33,6 +34,7 @@ async def test_update_no_application(applications):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_single_application(applications):
     """Test update applications call."""
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
@@ -59,6 +61,7 @@ async def test_update_single_application(applications):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_multiple_applications(applications):
     """Test update applicatios call."""
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
@@ -171,6 +174,7 @@ async def test_update_multiple_applications(applications):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_list_single_application(applications):
     """Test list applications call.
 
@@ -191,6 +195,7 @@ async def test_list_single_application(applications):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_list_multiple_applications(applications):
     """Test list applications call.
 

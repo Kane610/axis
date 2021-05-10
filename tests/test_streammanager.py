@@ -24,6 +24,7 @@ def stream_manager(axis_device) -> StreamManager:
     return axis_device.stream
 
 
+@pytest.mark.asyncio
 async def test_stream_url(stream_manager):
     """Verify stream url."""
     assert stream_manager.video_query == 0
@@ -43,6 +44,7 @@ async def test_stream_url(stream_manager):
 
 
 @patch("axis.streammanager.RTSPClient")
+@pytest.mark.asyncio
 async def test_initialize_stream(rtsp_client, stream_manager):
     """Test stream commands."""
     rtsp_client.return_value.start = AsyncMock()

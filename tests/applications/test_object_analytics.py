@@ -20,6 +20,7 @@ def object_analytics(axis_device) -> ObjectAnalytics:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_no_configuration(object_analytics):
     """Test no response from get_configuration"""
     route = respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
@@ -41,6 +42,7 @@ async def test_get_no_configuration(object_analytics):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_empty_configuration(object_analytics):
     """Test empty get_configuration"""
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
@@ -52,6 +54,7 @@ async def test_get_empty_configuration(object_analytics):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_configuration(object_analytics):
     """Test get_configuration"""
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(

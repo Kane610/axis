@@ -27,6 +27,7 @@ def mqtt_client(axis_device) -> MqttClient:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_client_config_simple(mqtt_client):
     """Test simple MQTT client configuration."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
@@ -59,6 +60,7 @@ async def test_client_config_simple(mqtt_client):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_client_config_advanced(mqtt_client):
     """Test advanced MQTT client configuration."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
@@ -143,6 +145,7 @@ async def test_client_config_advanced(mqtt_client):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_activate_client(mqtt_client):
     """Test activate client method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
@@ -161,6 +164,7 @@ async def test_activate_client(mqtt_client):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_deactivate_client(mqtt_client):
     """Test deactivate client method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
@@ -179,6 +183,7 @@ async def test_deactivate_client(mqtt_client):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_client_status(mqtt_client):
     """Test get client status method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
@@ -197,6 +202,7 @@ async def test_get_client_status(mqtt_client):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_event_publication_config(mqtt_client):
     """Test get event publication config method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi").respond(
@@ -243,6 +249,7 @@ async def test_get_event_publication_config(mqtt_client):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_configure_event_publication_all_topics(mqtt_client):
     """Test configure event publication method with all topics."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi")
@@ -261,6 +268,7 @@ async def test_configure_event_publication_all_topics(mqtt_client):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_configure_event_publication_specific_topics(mqtt_client):
     """Test configure event publication method with specific topics."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi")
@@ -289,6 +297,7 @@ async def test_configure_event_publication_specific_topics(mqtt_client):
     }
 
 
+@pytest.mark.asyncio
 async def test_convert_json_to_event():
     """Verify conversion from json to event."""
     event = mqtt_json_to_event(
