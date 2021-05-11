@@ -49,6 +49,7 @@ def test_get_users_low_privileges(axis_device):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_create(users):
     """Verify that you can create users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
@@ -92,6 +93,7 @@ async def test_create(users):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_modify(users):
     """Verify that you can modify users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
@@ -152,6 +154,7 @@ async def test_modify(users):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_delete(users):
     """Verify that you can delete users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")

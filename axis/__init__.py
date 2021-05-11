@@ -1,2 +1,2 @@
-from .device import AxisDevice
-from .errors import *
+from .device import AxisDevice  # noqa
+from .errors import *  # noqa

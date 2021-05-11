@@ -1,1 +1,1 @@
-from .applications import *
+from .applications import *  # noqa

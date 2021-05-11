@@ -13,6 +13,7 @@ setup(
     url="https://github.com/Kane610/axis",
     download_url="https://github.com/Kane610/axis/archive/v44.tar.gz",
     install_requires=["attrs", "packaging", "httpx", "xmltodict"],
+    tests_require=["pytest", "pytest-asyncio", "respx"],
     keywords=["axis", "vapix", "onvif", "event stream", "homeassistant"],
     classifiers=["Natural Language :: English", "Programming Language :: Python :: 3"],
 )

@@ -20,6 +20,7 @@ def vmd4(axis_device) -> Vmd4:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_empty_configuration(vmd4):
     """Test empty get_configuration"""
     route = respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
@@ -40,6 +41,7 @@ async def test_get_empty_configuration(vmd4):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_configuration(vmd4):
     """Test get_supported_versions"""
     respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
@@ -73,6 +75,7 @@ async def test_get_configuration(vmd4):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_configuration_error(vmd4):
     """Test empty get_configuration.
 

@@ -24,6 +24,7 @@ def event_instances(axis_device) -> EventInstances:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_full_list_of_event_instances(event_instances):
     """Test loading of event instances work."""
     respx.post(f"http://{HOST}:80{URL}").respond(
@@ -126,6 +127,7 @@ async def test_full_list_of_event_instances(event_instances):
     ],
 )
 @respx.mock
+@pytest.mark.asyncio
 async def test_single_event_instance(
     event_instances: EventInstances, response: bytes, expected: dict
 ):
@@ -258,6 +260,6 @@ async def test_single_event_instance(
         ),
     ],
 )
-async def test_get_events(input: dict, output: list):
+def test_get_events(input: dict, output: list):
     """Verify expected output of get_events."""
     assert get_events(input) == output

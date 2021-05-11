@@ -20,6 +20,7 @@ def view_areas(axis_device) -> ViewAreas:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_list_view_areas(view_areas):
     """Test simple view area."""
     route = respx.post(f"http://{HOST}:80{URL_INFO}").respond(
@@ -241,6 +242,7 @@ async def test_list_view_areas(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_supported_versions(view_areas):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80{URL_INFO}").respond(
@@ -264,6 +266,7 @@ async def test_get_supported_versions(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_set_geometry_of_view_area(view_areas):
     """Test simple view area."""
     respx.post(f"http://{HOST}:80{URL_CONFIG}").respond(
@@ -334,6 +337,7 @@ async def test_set_geometry_of_view_area(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_set_geometry_of_view_area_using_view_area(view_areas):
     """Test simple view area."""
     respx.post(f"http://{HOST}:80{URL_INFO}").respond(
@@ -437,6 +441,7 @@ async def test_set_geometry_of_view_area_using_view_area(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_reset_geometry_of_view_area(view_areas):
     """Test simple view area."""
     respx.post(f"http://{HOST}:80{URL_CONFIG}").respond(
@@ -505,6 +510,7 @@ async def test_reset_geometry_of_view_area(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_reset_geometry_of_view_area_using_view_area(view_areas):
     """Test simple view area."""
     respx.post(f"http://{HOST}:80{URL_INFO}").respond(
@@ -604,6 +610,7 @@ async def test_reset_geometry_of_view_area_using_view_area(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_get_supported_config_versions(view_areas):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80{URL_CONFIG}").respond(
@@ -627,6 +634,7 @@ async def test_get_supported_config_versions(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_general_error_101(view_areas):
     """Test handling error 101.
 
@@ -650,6 +658,7 @@ async def test_general_error_101(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_general_error_102(view_areas):
     """Test handling error 102.
 
@@ -673,6 +682,7 @@ async def test_general_error_102(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_general_error_103(view_areas):
     """Test handling error 103.
 
@@ -696,6 +706,7 @@ async def test_general_error_103(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_method_specific_error_200(view_areas):
     """Test handling error 200.
 
@@ -717,6 +728,7 @@ async def test_method_specific_error_200(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_method_specific_error_201(view_areas):
     """Test handling error 201.
 
@@ -738,6 +750,7 @@ async def test_method_specific_error_201(view_areas):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_method_specific_error_202(view_areas):
     """Test handling error 202.
 

@@ -19,6 +19,7 @@ def params(axis_device) -> Params:
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_params(params):
     """Verify that you can list parameters."""
     route = respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
@@ -167,6 +168,7 @@ async def test_params(params):
     assert params.system_serialnumber == "ACCC12345678"
 
 
+@pytest.mark.asyncio
 async def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
@@ -175,6 +177,7 @@ async def test_params_empty_raw(params):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_brand(params):
     """Verify that update brand works."""
     route = respx.get(
@@ -199,6 +202,7 @@ async def test_update_brand(params):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_image(params):
     """Verify that update brand works."""
     route = respx.get(
@@ -308,6 +312,7 @@ async def test_update_image(params):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_ports(params):
     """Verify that update brand works."""
     input_route = respx.get(
@@ -360,6 +365,7 @@ root.IOPort.I0.Input.Trig=closed
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_properties(params):
     """Verify that update properties works."""
     route = respx.get(
@@ -417,6 +423,7 @@ async def test_update_properties(params):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_ptz(params):
     """Verify that update ptz works."""
     route = respx.get(
@@ -520,6 +527,7 @@ async def test_update_ptz(params):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_update_stream_profiles(params):
     """Verify that update properties works."""
     route = respx.get(
@@ -548,6 +556,7 @@ async def test_update_stream_profiles(params):
 
 
 @respx.mock
+@pytest.mark.asyncio
 async def test_stream_profiles_empty_response(params):
     """Verify that update properties works."""
     respx.get(
