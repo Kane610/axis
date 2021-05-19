@@ -6,7 +6,7 @@ when it detects a moving object, such as a person or vehicle, crossing a user-de
 virtual line.
 """
 
-from .api import ApplicationAPIItems, ApplicationAPIItem
+from .api import ApplicationAPIItem, ApplicationAPIItems
 
 URL = "/local/fenceguard/control.cgi"
 

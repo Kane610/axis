@@ -2,37 +2,37 @@
 
 import asyncio
 import logging
-from packaging import version
 from typing import Optional
 
 import httpx
+from packaging import version
 import xmltodict
 
 from .api_discovery import ApiDiscovery
 from .applications import (
     APPLICATION_STATE_RUNNING,
-    Applications,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
+    Applications,
 )
 from .applications.fence_guard import FenceGuard
 from .applications.loitering_guard import LoiteringGuard
 from .applications.motion_guard import MotionGuard
 from .applications.object_analytics import ObjectAnalytics
 from .applications.vmd4 import Vmd4
-from .basic_device_info import BasicDeviceInfo, API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID
+from .basic_device_info import API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID, BasicDeviceInfo
 from .configuration import Configuration
-from .errors import raise_error, PathNotFound, RequestError, Unauthorized
+from .errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .event_instances import EventInstances
-from .light_control import LightControl, API_DISCOVERY_ID as LIGHT_CONTROL_ID
-from .mqtt import MqttClient, API_DISCOVERY_ID as MQTT_ID
+from .light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
+from .mqtt import API_DISCOVERY_ID as MQTT_ID, MqttClient
 from .param_cgi import Params
-from .port_management import IoPortManagement, API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID
 from .port_cgi import Ports
+from .port_management import API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID, IoPortManagement
 from .ptz import PtzControl
 from .pwdgrp_cgi import Users
-from .stream_profiles import StreamProfiles, API_DISCOVERY_ID as STREAM_PROFILES_ID
-from .view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
+from .stream_profiles import API_DISCOVERY_ID as STREAM_PROFILES_ID, StreamProfiles
 from .user_groups import UNKNOWN, URL as USER_GROUPS_URL, UserGroups
+from .view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
 
 LOGGER = logging.getLogger(__name__)
 

@@ -5,3 +5,4 @@ httpx==0.18.1
 respx==0.17.0
 flake8==3.9.2
 black==21.5b1
+isort==5.8.0

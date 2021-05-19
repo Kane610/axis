@@ -15,7 +15,7 @@ comment: The comment field of the account.
 import re
 from typing import Optional
 
-from .api import APIItems, APIItem
+from .api import APIItem, APIItems
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 

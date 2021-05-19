@@ -23,12 +23,15 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-      - name: Lint with flake8
+      - name: Lint with Flake8
         run: |
           flake8 axis
-      - name: Check formatting with black
+      - name: Check formatting with Black
         run: |
           black axis --check
+      - name: Check import order with isort
+        run: |
+          isort axis --check-only
       - name: Test with pytest
         run: |
           pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=axis --cov-report=xml --cov-report=html

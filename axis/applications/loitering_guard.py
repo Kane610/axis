@@ -4,7 +4,7 @@ AXIS Loitering Guard tracks moving objects such as people and vehicles,
 and triggers an alarm if they have been in a predefined area for too long.
 """
 
-from .api import ApplicationAPIItems, ApplicationAPIItem
+from .api import ApplicationAPIItem, ApplicationAPIItems
 
 URL = "/local/loiteringguard/control.cgi"
 
