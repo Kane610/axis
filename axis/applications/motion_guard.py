@@ -5,7 +5,7 @@ and triggers an alarm whenever an object, such as a person or vehicle,
 moves within predefined areas in a camera’s field of view.
 """
 
-from .api import ApplicationAPIItems, ApplicationAPIItem
+from .api import ApplicationAPIItem, ApplicationAPIItems
 
 URL = "/local/motionguard/control.cgi"
 

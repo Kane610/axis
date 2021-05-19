@@ -3,9 +3,9 @@
 import logging
 
 from .configuration import Configuration
-from .vapix import Vapix
-from .streammanager import StreamManager
 from .event_stream import EventManager
+from .streammanager import StreamManager
+from .vapix import Vapix
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -1,7 +1,8 @@
 """MQTT Client api."""
 
-import attr
 import json
+
+import attr
 
 from .api import APIItem, APIItems, Body
 from .event_stream import OPERATION_CHANGED

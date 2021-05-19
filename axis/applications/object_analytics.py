@@ -5,7 +5,7 @@ AXIS Object Analytics.
 
 import attr
 
-from .api import Body, ApplicationAPIItems, ApplicationAPIItem
+from .api import ApplicationAPIItem, ApplicationAPIItems, Body
 
 URL = "/local/objectanalytics/control.cgi"
 

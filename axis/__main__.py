@@ -1,12 +1,13 @@
 """Read events and parameters from your Axis device."""
 
-import asyncio
 import argparse
-import async_timeout
+import asyncio
 import logging
 
-import axis
+import async_timeout
 from httpx import AsyncClient
+
+import axis
 
 LOGGER = logging.getLogger(__name__)
 

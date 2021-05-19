@@ -1,7 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import attr
-
 from httpx import AsyncClient
 
 

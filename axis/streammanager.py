@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from .configuration import Configuration
-from .rtsp import RTSPClient, SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED
+from .rtsp import SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED, RTSPClient
 
 _LOGGER = logging.getLogger(__name__)
 
