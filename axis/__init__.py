@@ -1,2 +1,2 @@
-from .device import AxisDevice  # noqa
-from .errors import *  # noqa
+from .device import AxisDevice  # noqa: F401
+from .errors import *  # noqa: F401, F403
