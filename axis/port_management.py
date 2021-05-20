@@ -45,9 +45,11 @@ class IoPortManagement(APIItems):
     """I/O port management for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize I/O port manager."""
         super().__init__({}, request, URL, Port)
 
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self.get_ports()
         self.process_raw(raw)
 
@@ -64,7 +66,7 @@ class IoPortManagement(APIItems):
         return {port["port"]: port for port in ports}
 
     async def get_ports(self) -> dict:
-        """This CGI method can be used to retrieve information about all ports on the device and their capabilities."""
+        """Retrieve information about all ports on the device and their capabilities."""
         return await self._request(
             "post",
             URL,
@@ -75,7 +77,7 @@ class IoPortManagement(APIItems):
         )
 
     async def set_ports(self, ports: list) -> None:
-        """Configures anything from one to several ports.
+        """Configure one or more ports.
 
         Some of the available options are:
         * Setting a nice name that can be used in the user interface.
@@ -94,7 +96,7 @@ class IoPortManagement(APIItems):
         )
 
     async def set_state_sequence(self, sequence: PortSequence) -> None:
-        """Applies a sequence of state changes with a delay in milliseconds between states."""
+        """Apply a sequence of state changes with a delay in milliseconds between states."""
         await self._request(
             "post",
             URL,
@@ -102,7 +104,7 @@ class IoPortManagement(APIItems):
         )
 
     async def get_supported_versions(self) -> dict:
-        """This CGI method can be used to retrieve a list of supported API versions."""
+        """Retrieve a list of supported API versions."""
         return await self._request(
             "post",
             URL,
@@ -136,7 +138,7 @@ class Port(APIItem):
 
     @property
     def normalState(self) -> str:
-        """Normal state of port.
+        """Port normal state.
 
         <open|closed>.
         """

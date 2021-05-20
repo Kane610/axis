@@ -27,10 +27,12 @@ class Ports(APIItems):
     """Represents all ports of io/port.cgi."""
 
     def __init__(self, param_cgi: object, request: str) -> None:
+        """Initialize port cgi manager."""
         self.param_cgi = param_cgi
         super().__init__(self.param_cgi.ports, request, None, Port)
 
     async def update(self) -> None:
+        """Refresh data."""
         await self.param_cgi.update_ports()
         self.process_raw(self.param_cgi.ports)
 
@@ -47,18 +49,19 @@ class Port:
     """Represents a port."""
 
     def __init__(self, id: str, raw: dict, request: object) -> None:
+        """Initialize port."""
         self.id = id
         self.raw = raw
         self._request = request
 
     @property
     def configurable(self) -> bool:
-        """The port is configurable or not."""
+        """Is port configurable."""
         return self.raw.get("Configurable", False)
 
     @property
     def direction(self) -> str:
-        """The port is configured to act as input or output.
+        """Port is configured to act as input or output.
 
         Read-only for non-configurable ports.
         """
@@ -66,7 +69,7 @@ class Port:
 
     @property
     def input_trig(self) -> str:
-        """Determines when to trig.
+        """When port should trigger.
 
         closed=The input port triggers when the circuit is closed.
         open=The input port triggers when the circuit is open.
@@ -82,7 +85,7 @@ class Port:
 
     @property
     def output_active(self) -> str:
-        """The active state of the output.
+        """When is output port state active.
 
         closed=The output port is active when the circuit is closed.
         open=The output port is active when the circuit is open.

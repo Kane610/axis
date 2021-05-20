@@ -40,6 +40,7 @@ class Users(APIItems):
     """Represents all users of a device."""
 
     def __init__(self, raw: str, request: object) -> None:
+        """Initialize user manager."""
         super().__init__(raw, request, URL_GET, User)
 
     async def update(self) -> None:
@@ -121,20 +122,25 @@ class User(APIItem):
 
     @property
     def name(self) -> str:
+        """User name."""
         return self.id
 
     @property
     def admin(self) -> bool:
+        """Is user part of admin group."""
         return self.raw[ADMIN]
 
     @property
     def operator(self) -> bool:
+        """Is user part of operator group."""
         return self.raw[OPERATOR]
 
     @property
     def viewer(self) -> bool:
+        """Is user part of viewer group."""
         return self.raw[VIEWER]
 
     @property
     def ptz(self) -> bool:
+        """Is user part of PTZ group."""
         return self.raw[PTZ]
