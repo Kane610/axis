@@ -17,9 +17,10 @@ PARAM_CGI_VALUE = "2.13"
 
 
 class LoiteringGuard(ApplicationAPIItems):
-    """Loitering Guard application on Axis devices"""
+    """Loitering Guard application on Axis devices."""
 
     APPLICATION_NAME = APPLICATION_NAME
 
     def __init__(self, request: object) -> None:
+        """Initialize loitering guard manager."""
         super().__init__(request, URL, ApplicationAPIItem, API_VERSION)

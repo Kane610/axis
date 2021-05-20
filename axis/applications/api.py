@@ -11,11 +11,12 @@ class ApplicationAPIItems(APIItems):
     def __init__(
         self, request: object, path: str, item_cls: object, api_version: str
     ) -> None:
+        """Initialize API items."""
         self._api_version = api_version
         super().__init__({}, request, path, item_cls)
 
     async def update(self) -> None:
-        """No update method."""
+        """Refresh data."""
         raw = await self.get_configuration()
         self.process_raw(raw)
 
@@ -32,7 +33,7 @@ class ApplicationAPIItems(APIItems):
         return profiles
 
     async def get_configuration(self) -> dict:
-        """Current configuration of application."""
+        """Retrieve configuration of application."""
         return await self._request(
             "post",
             self._path,
@@ -53,7 +54,7 @@ class ApplicationAPIItem(APIItem):
 
     @property
     def filters(self) -> list:
-        """An array of exclude filters."""
+        """Array of exclude filters."""
         return self.raw["filters"]
 
     @property
@@ -68,10 +69,10 @@ class ApplicationAPIItem(APIItem):
 
     @property
     def triggers(self) -> list:
-        """An array of triggers."""
+        """Array of triggers."""
         return self.raw["triggers"]
 
     @property
     def uid(self) -> int:
-        """Unique ID of profile."""
+        """Profile ID."""
         return self.raw["uid"]
