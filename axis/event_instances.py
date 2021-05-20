@@ -1,4 +1,4 @@
-"""Event service and action service APIs available in Axis network products."""
+"""Event service and action service APIs available in Axis network device."""
 
 from typing import Callable, List, Optional, Union
 
@@ -163,12 +163,12 @@ class EventInstance(APIItem):
 
     @property
     def source(self) -> Union[dict, list]:
-        """Source instance providing information about source of the event."""
+        """Event source information."""
         message = self.raw["data"]["MessageInstance"]
         return message.get("SourceInstance", {}).get("SimpleItemInstance", {})
 
     @property
     def data(self) -> Union[dict, list]:
-        """Data instance providing information about data of the event."""
+        """Event data description."""
         message = self.raw["data"]["MessageInstance"]
         return message.get("DataInstance", {}).get("SimpleItemInstance", {})
