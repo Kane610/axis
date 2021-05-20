@@ -89,7 +89,7 @@ class Vapix:
 
     @property
     def serial_number(self) -> str:
-        """Serial number of device."""
+        """Device serial number."""
         if self.basic_device_info:
             return self.basic_device_info.serialnumber
         return self.params.system_serialnumber
@@ -216,7 +216,7 @@ class Vapix:
             await asyncio.gather(*tasks)
 
     async def initialize_event_instances(self) -> None:
-        """Setup event instances of what events are supported by the device."""
+        """Initialize event instances of what events are supported by the device."""
         await self._initialize_api_attribute(EventInstances, "event_instances")
 
     async def initialize_users(self) -> None:
