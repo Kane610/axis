@@ -20,6 +20,7 @@ class BasicDeviceInfo(APIItems):
     """Basic device information for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize basic device information manager."""
         super().__init__({}, request, URL, APIItem)
 
     def __getitem__(self, obj_id: str) -> Optional[Any]:
@@ -27,6 +28,7 @@ class BasicDeviceInfo(APIItems):
         return self._items[obj_id].raw
 
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self.get_all_properties()
         self.process_raw(raw)
 
@@ -59,70 +61,112 @@ class BasicDeviceInfo(APIItems):
 
     @property
     def architecture(self) -> str:
-        """ApiVersion 1.1"""
+        """SOC architecture.
+
+        ApiVersion 1.1.
+        """
         return self["Architecture"]
 
     @property
     def brand(self) -> str:
-        """ApiVersion 1.1"""
+        """Device branding.
+
+        ApiVersion 1.1.
+        """
         return self["Brand"]
 
     @property
     def builddate(self) -> str:
-        """ApiVersion 1.1"""
+        """Firmware build date.
+
+        ApiVersion 1.1.
+        """
         return self["BuildDate"]
 
     @property
     def hardwareid(self) -> str:
-        """ApiVersion 1.1"""
+        """Device hardware ID.
+
+        ApiVersion 1.1.
+        """
         return self["HardwareID"]
 
     @property
     def prodfullname(self) -> str:
-        """ApiVersion 1.1"""
+        """Device product full name.
+
+        ApiVersion 1.1.
+        """
         return self["ProdFullName"]
 
     @property
     def prodnbr(self) -> str:
-        """ApiVersion 1.1"""
+        """Device product number.
+
+        ApiVersion 1.1.
+        """
         return self["ProdNbr"]
 
     @property
     def prodshortname(self) -> str:
-        """ApiVersion 1.1"""
+        """Device product short name.
+
+        ApiVersion 1.1.
+        """
         return self["ProdShortName"]
 
     @property
     def prodtype(self) -> str:
-        """ApiVersion 1.1"""
+        """Device product type.
+
+        ApiVersion 1.1.
+        """
         return self["ProdType"]
 
     @property
     def prodvariant(self) -> str:
-        """ApiVersion 1.1"""
+        """Device product variant.
+
+        ApiVersion 1.1.
+        """
         return self["ProdVariant"]
 
     @property
     def serialnumber(self) -> str:
-        """ApiVersion 1.1"""
+        """Device serial number.
+
+        ApiVersion 1.1.
+        """
         return self["SerialNumber"]
 
     @property
     def soc(self) -> str:
-        """ApiVersion 1.1"""
+        """System on chip variant.
+
+        ApiVersion 1.1.
+        """
         return self["Soc"]
 
     @property
     def socserialnumber(self) -> str:
-        """ApiVersion 1.1"""
+        """SOC serial number.
+
+        ApiVersion 1.1.
+        """
         return self["SocSerialNumber"]
 
     @property
     def version(self) -> str:
-        """ApiVersion 1.1"""
+        """Firmware version.
+
+        ApiVersion 1.1.
+        """
         return self["Version"]
 
     @property
     def weburl(self) -> str:
-        """ApiVersion 1.1"""
+        """Device home page URL.
+
+        ApiVersion 1.1.
+        """
         return self["WebURL"]

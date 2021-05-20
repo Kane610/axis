@@ -41,9 +41,11 @@ class Params(APIItems):
     """Represents all parameters of param.cgi."""
 
     def __init__(self, request: object) -> None:
+        """Initialize parameter manager."""
         super().__init__("", request, URL_GET, Param)
 
     async def update(self, group: str = "") -> None:
+        """Refresh data."""
         path = URL_GET + (f"&group={group}" if group else "")
         raw = await self._request("get", path)
         self.process_raw(raw)
@@ -114,30 +116,37 @@ class Params(APIItems):
 
     @property
     def brand(self) -> str:
+        """Device branding."""
         return self[BRAND]["Brand"]
 
     @property
     def prodfullname(self) -> str:
+        """Device product full name."""
         return self[BRAND]["ProdFullName"]
 
     @property
     def prodnbr(self) -> str:
+        """Device product number."""
         return self[BRAND]["ProdNbr"]
 
     @property
     def prodshortname(self) -> str:
+        """Device product short name."""
         return self[BRAND]["ProdShortName"]
 
     @property
     def prodtype(self) -> str:
+        """Device product type."""
         return self[BRAND]["ProdType"]
 
     @property
     def prodvariant(self) -> str:
+        """Device product variant."""
         return self[BRAND]["ProdVariant"]
 
     @property
     def weburl(self) -> str:
+        """Device home page URL."""
         return self[BRAND]["WebURL"]
 
     # Image
@@ -264,19 +273,22 @@ class Params(APIItems):
 
     @property
     def api_http_version(self) -> str:
+        """HTTP API version."""
         return self[PROPERTIES]["API.HTTP.Version"]
 
     @property
     def api_metadata(self) -> str:
+        """Support metadata API."""
         return self[PROPERTIES]["API.Metadata.Metadata"]
 
     @property
     def api_metadata_version(self) -> str:
+        """Metadata API version."""
         return self[PROPERTIES]["API.Metadata.Version"]
 
     @property
     def api_ptz_presets_version(self) -> Union[str, bool]:
-        """The index for the preset that is the device's home position at start-up.
+        """Preset index for device home position at start-up.
 
         As of version 2.00 of the PTZ preset API Properties.API.PTZ.Presets.Version=2.00
         adding, updating and removing presets using param.cgi is no longer supported.
@@ -293,47 +305,57 @@ class Params(APIItems):
 
     @property
     def firmware_builddate(self) -> str:
+        """Firmware build date."""
         return self[PROPERTIES]["Firmware.BuildDate"]
 
     @property
     def firmware_buildnumber(self) -> str:
+        """Firmware build number."""
         return self[PROPERTIES]["Firmware.BuildNumber"]
 
     @property
     def firmware_version(self) -> str:
+        """Firmware version."""
         return self[PROPERTIES]["Firmware.Version"]
 
     @property
     def image_format(self) -> str:
+        """Supported image formats."""
         return self[PROPERTIES].get("Image.Format")
 
     @property
     def image_nbrofviews(self) -> int:
-        """Number of supported view areas."""
+        """Amount of supported view areas."""
         return int(self[PROPERTIES]["Image.NbrOfViews"])
 
     @property
     def image_resolution(self) -> str:
+        """Supported image resolutions."""
         return self[PROPERTIES]["Image.Resolution"]
 
     @property
     def image_rotation(self) -> str:
+        """Supported image rotations."""
         return self[PROPERTIES]["Image.Rotation"]
 
     @property
     def light_control(self) -> bool:
+        """Support light control."""
         return self.get(PROPERTIES, {}).get("LightControl.LightControl2") == "yes"
 
     @property
     def ptz(self) -> bool:
+        """Support PTZ control."""
         return self.get(PROPERTIES, {}).get("PTZ.PTZ") == "yes"
 
     @property
     def digital_ptz(self) -> bool:
+        """Support digital PTZ control."""
         return self[PROPERTIES].get("PTZ.DigitalPTZ") == "yes"
 
     @property
     def system_serialnumber(self) -> str:
+        """Device serial number."""
         return self[PROPERTIES]["System.SerialNumber"]
 
     # PTZ
@@ -344,17 +366,20 @@ class Params(APIItems):
 
     @property
     def ptz_camera_default(self) -> int:
-        """The video channel used if the camera parameter is omitted in HTTP requests."""
+        """PTZ default video channel.
+
+        When camera parameter is omitted in HTTP requests.
+        """
         return int(self[PTZ]["CameraDefault"])
 
     @property
     def ptz_number_of_cameras(self) -> int:
-        """Number of video channels."""
+        """Amount of video channels."""
         return int(self[PTZ]["NbrOfCameras"])
 
     @property
     def ptz_number_of_serial_ports(self) -> int:
-        """Number of serial ports."""
+        """Amount of serial ports."""
         return int(self[PTZ]["NbrOfSerPorts"])
 
     @property

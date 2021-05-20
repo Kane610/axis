@@ -147,7 +147,7 @@ class AxisEvent(APIItem):
 
     @property
     def id(self) -> str:
-        """Id of the event.
+        """ID of the event.
 
         -1 means ANY source.
         """
@@ -196,7 +196,7 @@ class FenceGuard(AxisBinaryEvent):
 
     @property
     def id(self) -> str:
-        """Id of the event."""
+        """ID of the event."""
         return self.topic.split("/")[-1]
 
 
@@ -230,7 +230,7 @@ class LoiteringGuard(AxisBinaryEvent):
 
     @property
     def id(self) -> str:
-        """Id of the event."""
+        """ID of the event."""
         return self.topic.split("/")[-1]
 
 
@@ -251,7 +251,7 @@ class MotionGuard(AxisBinaryEvent):
 
     @property
     def id(self) -> str:
-        """Id of the event."""
+        """ID of the event."""
         return self.topic.split("/")[-1]
 
 
@@ -264,7 +264,7 @@ class ObjectAnalytics(AxisBinaryEvent):
 
     @property
     def id(self) -> str:
-        """Id of the event."""
+        """ID of the event."""
         return self.topic.split("/")[-1]
 
 
@@ -330,7 +330,7 @@ class Vmd4(AxisBinaryEvent):
 
     @property
     def id(self) -> str:
-        """Id of the event."""
+        """ID of the event."""
         return self.topic.split("/")[-1]
 
 

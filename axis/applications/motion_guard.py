@@ -18,9 +18,10 @@ PARAM_CGI_VALUE = "2.13"
 
 
 class MotionGuard(ApplicationAPIItems):
-    """Motion Guard application on Axis devices"""
+    """Motion Guard application on Axis devices."""
 
     APPLICATION_NAME = APPLICATION_NAME
 
     def __init__(self, request: object) -> None:
+        """Initialize motion guard manager."""
         super().__init__(request, URL, ApplicationAPIItem, API_VERSION)

@@ -98,9 +98,11 @@ class ViewAreas(APIItems):
     """View areas for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize view area manager."""
         super().__init__({}, request, URL, ViewArea)
 
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self.list()
         self.process_raw(raw)
 
@@ -111,7 +113,7 @@ class ViewAreas(APIItems):
         return {api["id"]: api for api in view_area_data}
 
     async def list(self) -> dict:
-        """This API method can be used to list the content of a view area.
+        """List the content of a view area.
 
         It is possible to list either one or multiple profiles and if the parameter
         streamProfileName is the empty list [] all available stream profiles will be listed.
@@ -127,7 +129,7 @@ class ViewAreas(APIItems):
         )
 
     async def get_supported_versions(self) -> dict:
-        """This CGI method can be used to retrieve a list of supported API versions.
+        """Retrieve a list of supported API versions.
 
         Request info.cgi
         Security level: Viewer
@@ -202,7 +204,7 @@ class ViewAreas(APIItems):
         self.process_raw(raw)
 
     async def get_supported_config_versions(self) -> dict:
-        """This CGI method can be used to retrieve a list of supported API versions.
+        """Retrieve a list of supported API versions.
 
         Request info.cgi
         Security level: Viewer

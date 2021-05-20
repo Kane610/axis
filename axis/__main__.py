@@ -13,6 +13,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def event_handler(action, event):
+    """Receive and print events from RTSP stream."""
     LOGGER.info(f"{action} {event}")
 
 
@@ -48,7 +49,7 @@ async def axis_device(host, port, username, password):
 
 
 async def main(host, port, username, password, params, events):
-    """Main function."""
+    """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
 
     device = await axis_device(host, port, username, password)

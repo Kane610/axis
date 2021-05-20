@@ -25,6 +25,7 @@ class APIItems:
     """Base class for a map of API Items."""
 
     def __init__(self, raw, request, path, item_cls) -> None:
+        """Initialize API items."""
         self._request = request
         self._path = path
         self._item_cls = item_cls
@@ -33,6 +34,7 @@ class APIItems:
         LOGGER.debug(pformat(raw))
 
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self._request("get", self._path)
         self.process_raw(raw)
 
@@ -57,26 +59,33 @@ class APIItems:
         return new_items
 
     def items(self) -> dict:
+        """Return items."""
         return self._items.items()
 
     def keys(self) -> str:
+        """Return item keys."""
         return self._items.keys()
 
     def values(self):
+        """Return item values."""
         return self._items.values()
 
     def get(self, obj_id: str, default: Optional[Any] = None):
+        """Get item value based on key, return default if no match."""
         if obj_id in self:
             return self[obj_id]
         return default
 
     def __getitem__(self, obj_id: str):
+        """Get item value based on key."""
         return self._items[obj_id]
 
     def __iter__(self):
+        """Allow iterate over items."""
         return iter(self._items)
 
     def __contains__(self, obj_id: str):
+        """Validate membership of item ID."""
         return obj_id in self._items
 
     def __len__(self) -> int:
@@ -95,6 +104,7 @@ class APIItem:
     """Base class for all end points using APIItems class."""
 
     def __init__(self, id: str, raw: dict, request: object) -> None:
+        """Initialize API item."""
         self._id = id
         self._raw = raw
         self._request = request

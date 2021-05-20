@@ -22,10 +22,11 @@ class Applications(APIItems):
     """Applications on Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize applications manager."""
         super().__init__({}, request, URL, Application)
 
     async def update(self) -> None:
-        """No update method"""
+        """Refresh data."""
         raw = await self.list()
         self.process_raw(raw)
 
@@ -52,7 +53,7 @@ class Applications(APIItems):
         return applications
 
     async def list(self) -> dict:
-        """The applications/list.cgi is used to list information about installed applications."""
+        """Retrieve information about installed applications."""
         return await self._request("post", URL_LIST)
 
 

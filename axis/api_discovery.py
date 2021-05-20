@@ -17,9 +17,11 @@ class ApiDiscovery(APIItems):
     """API Discovery for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize API discovery manager."""
         super().__init__({}, request, URL, Api)
 
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self.get_api_list()
         self.process_raw(raw)
 

@@ -18,9 +18,11 @@ class LightControl(APIItems):
     """Light control for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize light control manager."""
         super().__init__({}, request, URL, Light)
 
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self.get_light_information()
         self.process_raw(raw)
 
@@ -339,7 +341,7 @@ class Light(APIItem):
 
     @property
     def synchronize_day_night_mode(self) -> bool:
-        """Synchronized with day night mode."""
+        """Will synchronize with day night mode."""
         return self.raw["synchronizeDayNightMode"]
 
     @property
@@ -359,7 +361,7 @@ class Light(APIItem):
 
     @property
     def number_of_leds(self) -> int:
-        """Number of LEDs."""
+        """Amount of LEDs."""
         return self.raw["nrOfLEDs"]
 
     @property

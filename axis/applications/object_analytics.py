@@ -18,11 +18,12 @@ PARAM_CGI_VALUE = "2.13"
 
 
 class ObjectAnalytics(ApplicationAPIItems):
-    """Object Analytics application on Axis devices"""
+    """Object Analytics application on Axis devices."""
 
     APPLICATION_NAME = APPLICATION_NAME
 
     def __init__(self, request: object) -> None:
+        """Initialize object analyticz manager."""
         super().__init__(request, URL, ObjectAnalyticsScenario, API_VERSION)
 
     @staticmethod
@@ -38,7 +39,7 @@ class ObjectAnalytics(ApplicationAPIItems):
         return scenarios
 
     async def get_configuration(self) -> dict:
-        """Current configuration of application."""
+        """Retrieve configuration of application."""
         return await self._request(
             "post",
             self._path,
@@ -78,5 +79,5 @@ class ObjectAnalyticsScenario(ApplicationAPIItem):
 
     @property
     def uid(self) -> int:
-        """Unique ID of scenario."""
+        """Scenario ID."""
         return self.raw["id"]

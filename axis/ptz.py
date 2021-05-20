@@ -236,7 +236,7 @@ class PtzControl:
         return await self._request("post", URL, data=data)
 
     async def query(self, query: str) -> str:
-        """Returns the current status.
+        """Retrieve current status.
 
         limits = PTZ limits for the Axis product.
         mode = Products with Panopsis technology: The current mode (overview or normal).
@@ -255,5 +255,5 @@ class PtzControl:
         return await self._request("post", URL, data={"whoami": 1})
 
     async def available_ptz_commands(self) -> str:
-        """Description of available PTZ commands."""
+        """Available PTZ commands."""
         return await self._request("post", URL, data={"info": 1})

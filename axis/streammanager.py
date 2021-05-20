@@ -19,7 +19,7 @@ class StreamManager:
     """Setup, start, stop and retry stream."""
 
     def __init__(self, config: Configuration) -> None:
-        """Setup stream manager."""
+        """Initialize stream manager."""
         self.config = config
         self.video = None  # Unsupported
         self.audio = None  # Unsupported

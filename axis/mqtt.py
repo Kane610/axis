@@ -90,10 +90,11 @@ class MqttClient(APIItems):
     """MQTT Client for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize MQTT client manager."""
         super().__init__({}, request, URL_CLIENT, Client)
 
     async def update(self) -> None:
-        """No update method"""
+        """No update method."""
 
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""
@@ -154,4 +155,4 @@ class MqttClient(APIItems):
 
 
 class Client(APIItem):
-    """ """
+    """MQTT client."""

@@ -40,6 +40,7 @@ ERRORS = {401: Unauthorized, 404: PathNotFound, 405: MethodNotAllowed}
 
 
 def raise_error(error):
+    """Raise error."""
     type = error
     cls = ERRORS.get(type, AxisException)
     raise cls("{}".format(type))

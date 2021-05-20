@@ -19,9 +19,10 @@ PARAM_CGI_VALUE = "2.13"
 
 
 class FenceGuard(ApplicationAPIItems):
-    """Fence Guard application on Axis devices"""
+    """Fence Guard application on Axis devices."""
 
     APPLICATION_NAME = APPLICATION_NAME
 
     def __init__(self, request: object) -> None:
+        """Initialize fence guard manager."""
         super().__init__(request, URL, ApplicationAPIItem, API_VERSION)

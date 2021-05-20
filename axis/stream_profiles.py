@@ -22,9 +22,11 @@ class StreamProfiles(APIItems):
     """Stream profiles for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize stream profiles manager."""
         super().__init__({}, request, URL, StreamProfile)
 
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self.list()
         self.process_raw(raw)
 
@@ -41,7 +43,7 @@ class StreamProfiles(APIItems):
         return {profile["name"]: profile for profile in profiles}
 
     async def list(self, params: list = []) -> dict:
-        """This API method can be used to list the content of a stream profile.
+        """List the content of a stream profile.
 
         It is possible to list either one or multiple profiles and if the parameter
         streamProfileName is the empty list [] all available stream profiles will be listed.
@@ -55,7 +57,7 @@ class StreamProfiles(APIItems):
         )
 
     async def get_supported_versions(self) -> dict:
-        """This CGI method can be used to retrieve a list of supported API versions."""
+        """Retrieve a list of supported API versions."""
         return await self._request(
             "post",
             URL,
@@ -76,10 +78,10 @@ class StreamProfile(APIItem):
 
     @property
     def description(self) -> str:
-        """Description of API."""
+        """Stream profile description."""
         return self.raw["description"]
 
     @property
     def parameters(self) -> str:
-        """Parameters of API."""
+        """Parameters of stream profile."""
         return self.raw["parameters"]
