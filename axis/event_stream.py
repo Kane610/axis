@@ -1,9 +1,9 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
-from typing import Union
+from typing import Any, Callable, Optional, Union
 
-import xmltodict
+import xmltodict  # type: ignore[import]
 
 from .api import APIItem, APIItems
 
@@ -45,7 +45,9 @@ NAMESPACES = {
 def traverse(data: dict, keys: tuple) -> Union[dict, str]:
     """Traverse dictionary using keys to retrieve last item."""
     head, *tail = keys
-    return traverse(data.get(head, {}), tail) if tail else data.get(head, "")
+    return (
+        traverse(data.get(head, {}), tail) if tail else data.get(head, "")
+    )  # data.get(head, {})??
 
 
 def extract_name_value(data: dict) -> tuple:
@@ -59,21 +61,24 @@ def extract_name_value(data: dict) -> tuple:
 class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, signal: object) -> None:
+    def __init__(self, signal: Optional[Callable]) -> None:
         """Ready information about events."""
         super().__init__({}, None, "", create_event)
         self.signal = signal
 
-    def update(self, raw: Union[bytes, list]) -> None:
+    def update(self, raw: Union[bytes, list]) -> None:  # type: ignore[override]
         """Prepare event."""
         new_events = self.process_raw(raw)
 
         for new_event in new_events:
-            if self[new_event].TOPIC:  # Don't signal on unsupported events
-                self.signal(OPERATION_INITIALIZED, new_event)
+            # Don't signal on unsupported events
+            if self[new_event].TOPIC:  # type: ignore[attr-defined]
+                self.signal(
+                    OPERATION_INITIALIZED, new_event
+                )  # signal should never be None
 
     @staticmethod
-    def pre_process_raw(raw: Union[bytes, list]) -> dict:
+    def pre_process_raw(raw: Union[bytes, list]) -> dict:  # type: ignore[override]
         """Return a dictionary of initialized or changed events."""
         if not raw:
             return {}
@@ -111,11 +116,11 @@ class EventManager(APIItems):
 
         source = traverse(raw, SOURCE)
         if source:
-            event[EVENT_SOURCE], event[EVENT_SOURCE_IDX] = extract_name_value(source)
+            event[EVENT_SOURCE], event[EVENT_SOURCE_IDX] = extract_name_value(source)  # type: ignore[arg-type]
 
         data = traverse(raw, DATA)
         if data:
-            event[EVENT_TYPE], event[EVENT_VALUE] = extract_name_value(data)
+            event[EVENT_TYPE], event[EVENT_VALUE] = extract_name_value(data)  # type: ignore[arg-type]
 
         LOGGER.debug(event)
 
@@ -131,9 +136,9 @@ class AxisEvent(APIItem):
     """
 
     BINARY = False
-    TOPIC = None
-    CLASS = None
-    TYPE = None
+    TOPIC: Optional[str] = None
+    CLASS: Optional[str] = None
+    TYPE: Optional[str] = None
 
     @property
     def topic(self) -> str:
@@ -356,7 +361,7 @@ EVENT_CLASSES = (
 BLACK_LISTED_TOPICS = ["tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"]
 
 
-def create_event(event_id: str, event: dict, request: object) -> AxisEvent:
+def create_event(event_id: str, event: dict, request: Callable[..., Any]) -> AxisEvent:
     """Simplify creating event by not needing to know type."""
     for event_class in EVENT_CLASSES:
         if event[EVENT_TOPIC] in BLACK_LISTED_TOPICS:

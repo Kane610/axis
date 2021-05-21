@@ -43,7 +43,7 @@ class ViewArea(APIItem):
     """View area object."""
 
     @property
-    def id(self) -> int:
+    def id(self) -> int:  # type: ignore[override]
         """Identity of view area."""
         return self.raw["id"]
 
