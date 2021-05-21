@@ -3,8 +3,9 @@
 AXIS Object Analytics.
 """
 
-import attr
 from typing import Optional
+
+import attr
 
 from .api import ApplicationAPIItem, ApplicationAPIItems, Body
 
