@@ -55,7 +55,7 @@ class ObjectAnalyticsScenario(ApplicationAPIItem):
     """Object Analytics Scenario."""
 
     @property
-    def camera(self) -> list:  # type: ignore
+    def camera(self) -> list:  # type: ignore[override]
         """Camera ID."""
         return self.raw["devices"]
 

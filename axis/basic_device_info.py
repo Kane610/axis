@@ -4,8 +4,6 @@ AXIS Basic device information API can be used to retrieve simple information abo
 This information is used to identify basic properties of the product.
 """
 
-from typing import Any, Optional
-
 import attr
 
 from .api import APIItem, APIItems, Body
@@ -23,7 +21,7 @@ class BasicDeviceInfo(APIItems):
         """Initialize basic device information manager."""
         super().__init__({}, request, URL, APIItem)
 
-    def __getitem__(self, obj_id: str) -> Optional[Any]:
+    def __getitem__(self, obj_id: str) -> str:  # type: ignore[override]
         """self["string"] will return self._item["string"].raw."""
         return self._items[obj_id].raw
 
