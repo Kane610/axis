@@ -19,7 +19,7 @@ class UserGroups(APIItems):
         super().__init__(raw, request, URL, APIItem)
 
     @staticmethod
-    def pre_process_raw(raw: str) -> dict:
+    def pre_process_raw(raw: str) -> dict:  # type: ignore[override]
         """Process raw group list to generate a full list of what is and isnt supported."""
         raw_list = raw.splitlines()
 
@@ -43,19 +43,19 @@ class UserGroups(APIItems):
     @property
     def admin(self) -> bool:
         """Is user admin."""
-        return self[ADMIN].raw
+        return self[ADMIN].raw  # type: ignore[return-value]
 
     @property
     def operator(self) -> bool:
         """Is user operator."""
-        return self[OPERATOR].raw
+        return self[OPERATOR].raw  # type: ignore[return-value]
 
     @property
     def viewer(self) -> bool:
         """Is user viewer."""
-        return self[VIEWER].raw
+        return self[VIEWER].raw  # type: ignore[return-value]
 
     @property
     def ptz(self) -> bool:
         """Is user ptz."""
-        return self[PTZ].raw
+        return self[PTZ].raw  # type: ignore[return-value]

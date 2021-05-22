@@ -27,7 +27,7 @@ class Body:
     method: str = attr.ib()
     apiVersion: str = attr.ib()
     context: str = attr.ib(default=CONTEXT)
-    params: dict = attr.ib(factory=dict)
+    params: Any = attr.ib(factory=dict)
 
 
 class APIItem:

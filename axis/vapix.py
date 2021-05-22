@@ -2,11 +2,11 @@
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Callable, Optional, Union
 
-import httpx
+import httpx  # type: ignore[import]
 from packaging import version
-import xmltodict
+import xmltodict  # type: ignore[import]
 
 from .api_discovery import ApiDiscovery
 from .applications import (
@@ -47,52 +47,52 @@ class Vapix:
         self.config = config
         self.auth = httpx.DigestAuth(self.config.username, self.config.password)
 
-        self.api_discovery = None
-        self.applications = None
-        self.basic_device_info = None
-        self.event_instances = None
-        self.fence_guard = None
-        self.light_control = None
-        self.loitering_guard = None
-        self.motion_guard = None
-        self.mqtt = None
-        self.object_analytics = None
-        self.params = None
-        self.ports = None
-        self.ptz = None
-        self.stream_profiles = None
-        self.user_groups = None
-        self.users = None
-        self.view_areas = None
-        self.vmd4 = None
+        self.api_discovery: Optional[ApiDiscovery] = None
+        self.applications: Optional[Applications] = None
+        self.basic_device_info: Optional[BasicDeviceInfo] = None
+        self.event_instances: Optional[EventInstances] = None
+        self.fence_guard: Optional[FenceGuard] = None
+        self.light_control: Optional[LightControl] = None
+        self.loitering_guard: Optional[LoiteringGuard] = None
+        self.motion_guard: Optional[MotionGuard] = None
+        self.mqtt: Optional[MqttClient] = None
+        self.object_analytics: Optional[ObjectAnalytics] = None
+        self.params: Optional[Params] = None
+        self.ports: Union[IoPortManagement, Ports, None] = None
+        self.ptz: Optional[PtzControl] = None
+        self.stream_profiles: Optional[StreamProfiles] = None
+        self.user_groups: Optional[UserGroups] = None
+        self.users: Optional[Users] = None
+        self.view_areas: Optional[ViewAreas] = None
+        self.vmd4: Optional[Vmd4] = None
 
     @property
     def firmware_version(self) -> str:
         """Firmware version of device."""
         if self.basic_device_info:
             return self.basic_device_info.version
-        return self.params.firmware_version
+        return self.params.firmware_version  # type: ignore[union-attr]
 
     @property
     def product_number(self) -> str:
         """Product number of device."""
         if self.basic_device_info:
             return self.basic_device_info.prodnbr
-        return self.params.prodnbr
+        return self.params.prodnbr  # type: ignore[union-attr]
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
         if self.basic_device_info:
             return self.basic_device_info.prodtype
-        return self.params.prodtype
+        return self.params.prodtype  # type: ignore[union-attr]
 
     @property
     def serial_number(self) -> str:
         """Device serial number."""
         if self.basic_device_info:
             return self.basic_device_info.serialnumber
-        return self.params.system_serialnumber
+        return self.params.system_serialnumber  # type: ignore[union-attr]
 
     @property
     def access_rights(self) -> str:
@@ -106,7 +106,7 @@ class Vapix:
         """List streaming profiles."""
         if self.stream_profiles:
             return list(self.stream_profiles.values())
-        return self.params.stream_profiles()
+        return self.params.stream_profiles()  # type: ignore[union-attr]
 
     async def initialize(self) -> None:
         """Initialize Vapix functions."""
@@ -114,7 +114,9 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
-    async def _initialize_api_attribute(self, api_class: object, api_attr: str) -> None:
+    async def _initialize_api_attribute(
+        self, api_class: Callable, api_attr: str
+    ) -> None:
         """Initialize API and load data."""
         api_instance = api_class(self.request)
         try:
@@ -206,8 +208,8 @@ class Vapix:
             (Vmd4, "vmd4"),
         ):
             if (
-                app_class.APPLICATION_NAME in self.applications
-                and self.applications[app_class.APPLICATION_NAME].status
+                app_class.APPLICATION_NAME in self.applications  # type: ignore[attr-defined]
+                and self.applications[app_class.APPLICATION_NAME].status  # type: ignore[attr-defined]
                 == APPLICATION_STATE_RUNNING
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
@@ -235,16 +237,16 @@ class Vapix:
         if self.users and self.config.username in self.users:
             user = self.users[self.config.username]
             user_groups = (
-                f"{user.name}\n"
-                + ("admin " if user.admin else "")
-                + ("operator " if user.operator else "")
-                + ("viewer " if user.viewer else "")
-                + ("ptz" if user.ptz else "")
+                f"{user.name}\n"  # type: ignore[attr-defined]
+                + ("admin " if user.admin else "")  # type: ignore[attr-defined]
+                + ("operator " if user.operator else "")  # type: ignore[attr-defined]
+                + ("viewer " if user.viewer else "")  # type: ignore[attr-defined]
+                + ("ptz" if user.ptz else "")  # type: ignore[attr-defined]
             )
 
         else:
             try:
-                user_groups = await self.request("get", USER_GROUPS_URL)
+                user_groups = await self.request("get", USER_GROUPS_URL)  # type: ignore[assignment]
             except PathNotFound:
                 user_groups = ""
 
@@ -256,7 +258,7 @@ class Vapix:
         path: str,
         kwargs_xmltodict: Optional[dict] = None,
         **kwargs: dict,
-    ) -> str:
+    ) -> Union[dict, str]:
         """Make a request to the API."""
         url = self.config.url + path
 
@@ -298,3 +300,5 @@ class Vapix:
         except httpx.RequestError as err:
             LOGGER.debug("%s", err)
             raise RequestError("Unknown error: {}".format(err))
+
+        return {}

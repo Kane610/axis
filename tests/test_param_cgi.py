@@ -173,7 +173,7 @@ async def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
 
-    assert params.image_sources == []
+    assert params.image_sources == {}
 
 
 @respx.mock

@@ -5,7 +5,7 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
-from typing import Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 URL = "/axis-cgi/com/ptz.cgi"
 
@@ -64,7 +64,7 @@ def limit(
 class PtzControl:
     """Configure and control the PTZ functionality."""
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, request: Callable) -> None:
         """Initialize PTZ control."""
         self._request = request
 
@@ -166,7 +166,7 @@ class PtzControl:
             on = Bright mode.
             off = Normal mode.
         """
-        data = {}
+        data: Dict[str, Optional[Union[float, int, str]]] = {}
         if camera:
             data["camera"] = camera
         if center:
@@ -213,7 +213,7 @@ class PtzControl:
             ("imagerotation", imagerotation, (0, 90, 180, 270)),
             ("move", move, SUPPORTED_MOVES),
         ):
-            if value in supported_commands:
+            if value in supported_commands:  # type: ignore[operator]
                 data[key] = value
 
         if continuouspantiltmove:
@@ -231,7 +231,7 @@ class PtzControl:
             data["gotodevicepreset"] = gotodevicepreset
 
         if len(data) == 0 or (len(data) == 1 and "camera" in data):
-            return
+            return None
 
         return await self._request("post", URL, data=data)
 
@@ -247,7 +247,7 @@ class PtzControl:
         speed = Values for pan/tilt speed.
         """
         if query not in SUPPORTED_QUERIES:
-            return
+            return ""
         return await self._request("post", URL, data={"query": query})
 
     async def configured_device_driver(self) -> str:
