@@ -47,12 +47,12 @@ class DoorControl(APIItems):
             json={"tdc:GetDoorInfoList": {}},
         )
 
-    async def get_door_info(self, door_token: str) -> dict:
+    async def get_door_info(self, door_tokens: list) -> dict:
         """List the door information."""
         return await self._request(
             "post",
             URL,
-            json={"tdc:GetDoorInfo": {"Token": door_token}}
+            json={"tdc:GetDoorInfo": {"Token": door_tokens}}
         )
 
     async def get_door_state(self, door_token: str) -> dict:

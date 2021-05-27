@@ -91,7 +91,7 @@ async def test_update(door_control):
     assert item2.id == "Axis-accc8ee70fbe:1614733258.565014000"
     assert item2.door_token == "Axis-accc8ee70fbe:1614733258.565014000"
     assert item2.door_name == "North Gym Door"
-    assert item2.description == "North Gym Door Description"
+    assert item2.door_description == "North Gym Door Description"
     # TODO: Check to see that comparing dict using "==" actually does what I want it to do
     assert item2.door_capabilities == {}
 
@@ -126,579 +126,364 @@ async def test_get_service_capabilities(door_control):
 
 
 @respx.mock
-async def test_get_light_information(light_control):
-    """Test get light information API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
+async def test_get_door_info_list(door_control):
+    """Test get door list."""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
         json={
-            "apiVersion": "1.1",
-            "method": "getLightInformation",
-            "data": {
-                "items": [
-                    {
-                        "lightID": "led0",
-                        "lightType": "IR",
-                        "enabled": True,
-                        "synchronizeDayNightMode": True,
-                        "lightState": False,
-                        "automaticIntensityMode": False,
-                        "automaticAngleOfIlluminationMode": False,
-                        "nrOfLEDs": 1,
-                        "error": False,
-                        "errorInfo": "",
+            "DoorInfo": [
+                {
+                    "token": "Axis-accc8ea9abac:1550808050.595717000",
+                    "Name": "Main Door",
+                    "Description": "",
+                    "Capabilities": {
+                        "Access": True,
+                        "Lock": True,
+                        "Unlock": True,
+                        "Block": True,
+                        "DoubleLock": True,
+                        "LockDown": True,
+                        "LockOpen": True,
+                        "DoorMonitor": True,
+                        "LockMonitor": False,
+                        "DoubleLockMonitor": False,
+                        "Alarm": True,
+                        "Tamper": False,
+                        "Warning": True,
+                        "Configurable": True
                     }
-                ]
-            },
-        },
+                },
+                {
+                    "token": "Axis-accc8ee70fbe:1614733258.565014000",
+                    "Name": "North Gym Door",
+                    "Description": "",
+                    "Capabilities": {}
+                }
+            ]
+        }
     )
 
-    response = await light_control.get_light_information()
+    response = await door_control.get_door_info_list()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getLightInformation",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-    }
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:GetDoorInfoList": {}}
 
-    assert response["data"] == {
-        "items": [
-            {
-                "lightID": "led0",
-                "lightType": "IR",
-                "enabled": True,
-                "synchronizeDayNightMode": True,
-                "lightState": False,
-                "automaticIntensityMode": False,
-                "automaticAngleOfIlluminationMode": False,
-                "nrOfLEDs": 1,
-                "error": False,
-                "errorInfo": "",
+    assert response["DoorInfo"] == [
+        {
+            "token": "Axis-accc8ea9abac:1550808050.595717000",
+            "Name": "Main Door",
+            "Description": "",
+            "Capabilities": {
+                "Access": True,
+                "Lock": True,
+                "Unlock": True,
+                "Block": True,
+                "DoubleLock": True,
+                "LockDown": True,
+                "LockOpen": True,
+                "DoorMonitor": True,
+                "LockMonitor": False,
+                "DoubleLockMonitor": False,
+                "Alarm": True,
+                "Tamper": False,
+                "Warning": True,
+                "Configurable": True
             }
-        ]
-    }
+        },
+        {
+            "token": "Axis-accc8ee70fbe:1614733258.565014000",
+            "Name": "North Gym Door",
+            "Description": "",
+            "Capabilities": {}
+        }
+    ]
 
 
 @respx.mock
-async def test_activate_light(light_control):
-    """Test activating light API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
+async def test_get_door_info(door_control):
+    """Test get door info from token(s)."""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
         json={
-            "apiVersion": "1.1",
-            "method": "activateLight",
-            "data": {},
-        },
+            "DoorInfo": [
+                {
+                    "token": "Axis-accc8ea9abac:1550808050.595717000",
+                    "Name": "Main Door",
+                    "Description": "",
+                    "Capabilities": {
+                        "Access": True,
+                        "Lock": True,
+                        "Unlock": True,
+                        "Block": True,
+                        "DoubleLock": True,
+                        "LockDown": True,
+                        "LockOpen": True,
+                        "DoorMonitor": True,
+                        "LockMonitor": False,
+                        "DoubleLockMonitor": False,
+                        "Alarm": True,
+                        "Tamper": False,
+                        "Warning": True,
+                        "Configurable": True
+                    }
+                }
+            ]
+        }
     )
 
-    await light_control.activate_light("led0")
+    tokens = ["Axis-accc8ea9abac:1550808050.595717000"]
+
+    response = await door_control.get_door_info(tokens)
 
     assert route.called
     assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
     assert json.loads(route.calls.last.request.content) == {
-        "method": "activateLight",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
+        "tdc:GetDoorInfo": {"Token": tokens}
     }
 
-
-@respx.mock
-async def test_deactivate_light(light_control):
-    """Test deactivating light API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "deactivateLight",
-            "data": {},
-        },
-    )
-
-    await light_control.deactivate_light("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "deactivateLight",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-
-@respx.mock
-async def test_enable_light(light_control):
-    """Test enabling light API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "enableLight",
-            "data": {},
-        },
-    )
-
-    await light_control.enable_light("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "enableLight",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-
-@respx.mock
-async def test_disable_light(light_control):
-    """Test disabling light API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "disableLight",
-            "data": {},
-        },
-    )
-
-    await light_control.disable_light("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "disableLight",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-
-@respx.mock
-async def test_get_light_status(light_control):
-    """Test get light status API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "getLightStatus",
-            "data": {"status": False},
-        },
-    )
-
-    response = await light_control.get_light_status("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getLightStatus",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {"status": False}
-
-
-@respx.mock
-async def test_set_automatic_intensity_mode(light_control):
-    """Test set automatic intensity mode API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "setAutomaticIntensityMode",
-            "data": {},
-        },
-    )
-
-    await light_control.set_automatic_intensity_mode("led0", True)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "setAutomaticIntensityMode",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0", "enabled": True},
-    }
-
-
-@respx.mock
-async def test_get_manual_intensity(light_control):
-    """Test get valid intensity API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "getManualIntensity",
-            "data": {"intensity": 1000},
-        },
-    )
-
-    response = await light_control.get_manual_intensity("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getManualIntensity",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {"intensity": 1000}
-
-
-@respx.mock
-async def test_set_manual_intensity(light_control):
-    """Test set manual intensity API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "setManualIntensity",
-            "data": {},
-        },
-    )
-
-    await light_control.set_manual_intensity("led0", 1000)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "setManualIntensity",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0", "intensity": 1000},
-    }
-
-
-@respx.mock
-async def test_get_valid_intensity(light_control):
-    """Test get valid intensity API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "getValidIntensity",
-            "data": {"ranges": [{"low": 0, "high": 1000}]},
-        },
-    )
-
-    response = await light_control.get_valid_intensity("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getValidIntensity",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {"ranges": [{"low": 0, "high": 1000}]}
-
-
-@respx.mock
-async def test_set_individual_intensity(light_control):
-    """Test set individual intensity API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "setIndividualIntensity",
-            "data": {},
-        },
-    )
-
-    await light_control.set_individual_intensity("led0", 1, 1000)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "setIndividualIntensity",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0", "LEDID": 1, "intensity": 1000},
-    }
-
-
-@respx.mock
-async def test_get_individual_intensity(light_control):
-    """Test get individual intensity API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "getIndividualIntensity",
-            "data": {"intensity": 1000},
-        },
-    )
-
-    response = await light_control.get_individual_intensity("led0", 1)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getIndividualIntensity",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0", "LEDID": 1},
-    }
-
-    assert response["data"] == {"intensity": 1000}
-
-
-@respx.mock
-async def test_get_current_intensity(light_control):
-    """Test get current intensity API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "getCurrentIntensity",
-            "data": {"intensity": 1000},
-        },
-    )
-
-    response = await light_control.get_current_intensity("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getCurrentIntensity",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {"intensity": 1000}
-
-
-@respx.mock
-async def test_set_automatic_angle_of_illumination_mode(light_control):
-    """Test set automatic angle of illumination mode API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "setAutomaticAngleOfIlluminationMode",
-            "data": {},
-        },
-    )
-
-    await light_control.set_automatic_angle_of_illumination_mode("led0", True)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "setAutomaticAngleOfIlluminationMode",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0", "enabled": True},
-    }
-
-
-@respx.mock
-async def test_get_valid_angle_of_illumination(light_control):
-    """Test get valid angle of illumination API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.0",
-            "context": "my context",
-            "method": "getValidAngleOfIllumination",
-            "data": {"ranges": [{"low": 10, "high": 30}, {"low": 20, "high": 50}]},
-        },
-    )
-
-    response = await light_control.get_valid_angle_of_illumination("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getValidAngleOfIllumination",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {
-        "ranges": [{"low": 10, "high": 30}, {"low": 20, "high": 50}]
-    }
-
-
-@respx.mock
-async def test_set_manual_angle_of_illumination(light_control):
-    """Test set manual angle of illumination API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "setManualAngleOfIllumination",
-            "data": {},
-        },
-    )
-
-    await light_control.set_manual_angle_of_illumination("led0", 30)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "setManualAngleOfIllumination",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0", "angleOfIllumination": 30},
-    }
-
-
-@respx.mock
-async def test_get_manual_angle_of_illumination(light_control):
-    """Test get manual angle of illumination API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.0",
-            "context": "my context",
-            "method": "getManualAngleOfIllumination",
-            "data": {"angleOfIllumination": 30},
-        },
-    )
-
-    response = await light_control.get_manual_angle_of_illumination("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getManualAngleOfIllumination",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {"angleOfIllumination": 30}
-
-
-@respx.mock
-async def test_get_current_angle_of_illumination(light_control):
-    """Test get current angle of illumination API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.0",
-            "context": "my context",
-            "method": "getCurrentAngleOfIllumination",
-            "data": {"angleOfIllumination": 20},
-        },
-    )
-
-    response = await light_control.get_current_angle_of_illumination("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getCurrentAngleOfIllumination",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {"angleOfIllumination": 20}
-
-
-@respx.mock
-async def test_set_light_synchronization_day_night_mode(light_control):
-    """Test set light synchronization day night mode API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "method": "setLightSynchronizationDayNightMode",
-            "data": {},
-        },
-    )
-
-    await light_control.set_light_synchronization_day_night_mode("led0", True)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "setLightSynchronizationDayNightMode",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0", "enabled": True},
-    }
-
-
-@respx.mock
-async def test_get_light_synchronization_day_night_mode(light_control):
-    """Test get light synchronization day night mode API."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "apiVersion": "1.1",
-            "context": "my context",
-            "method": "getLightSynchronizeDayNightMode",
-            "data": {"enabled": True},
-        },
-    )
-
-    response = await light_control.get_light_synchronization_day_night_mode("led0")
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getLightSynchronizationDayNightMode",
-        "apiVersion": "1.1",
-        "context": "Axis library",
-        "params": {"lightID": "led0"},
-    }
-
-    assert response["data"] == {"enabled": True}
-
-
-@respx.mock
-async def test_get_supported_versions(light_control):
-    """Test get supported versions api."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
-        json={
-            "method": "getSupportedVersions",
-            "data": {"apiVersions": ["1.1"]},
-        },
-    )
-
-    response = await light_control.get_supported_versions()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getSupportedVersions"
-    }
-
-    assert response["data"] == {"apiVersions": ["1.1"]}
-
-
-response_getLightInformation = {
-    "apiVersion": "1.1",
-    "method": "getLightInformation",
-    "data": {
-        "items": [
-            {
-                "lightID": "led0",
-                "lightType": "IR",
-                "enabled": True,
-                "synchronizeDayNightMode": True,
-                "lightState": False,
-                "automaticIntensityMode": False,
-                "automaticAngleOfIlluminationMode": False,
-                "nrOfLEDs": 1,
-                "error": False,
-                "errorInfo": "",
+    assert response["DoorInfo"] == [
+        {
+            "token": "Axis-accc8ea9abac:1550808050.595717000",
+            "Name": "Main Door",
+            "Description": "",
+            "Capabilities": {
+                "Access": True,
+                "Lock": True,
+                "Unlock": True,
+                "Block": True,
+                "DoubleLock": True,
+                "LockDown": True,
+                "LockOpen": True,
+                "DoorMonitor": True,
+                "LockMonitor": False,
+                "DoubleLockMonitor": False,
+                "Alarm": True,
+                "Tamper": False,
+                "Warning": True,
+                "Configurable": True
             }
-        ]
-    },
-}
+        }
+    ]
+
+
+@respx.mock
+async def test_get_door_state(door_control):
+    """Test get door state(s)."""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={
+            "DoorState": {
+                "DoorPhysicalState": "Closed",
+                "Alarm": "Normal",
+                "DoorMode": "Locked"
+            }
+        }
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.get_door_state(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {
+        "tdc:GetDoorState": {"Token": token}
+    }
+
+    assert response["DoorState"] == {
+        "DoorPhysicalState": "Closed",
+        "Alarm": "Normal",
+        "DoorMode": "Locked"
+    }
+
+
+@respx.mock
+async def test_access_door(door_control):
+    """Test access door """
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.access_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:AccessDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_lock_door(door_control):
+    """Test lock door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.lock_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:LockDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_unlock_door(door_control):
+    """Test unlock door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.unlock_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:UnlockDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_block_door(door_control):
+    """Test block door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.block_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:BlockDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_lock_down_door(door_control):
+    """Test lock down door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.lock_down_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:LockDownDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_lock_down_release_door(door_control):
+    """Test lock down release door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.lock_down_release_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:LockDownReleaseDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_lock_open_door(door_control):
+    """Test lock  open door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.lock_open_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:LockOpenDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_lock_open_release_door(door_control):
+    """Test lock open release door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.lock_open_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:LockOpenReleaseDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_double_lock_door(door_control):
+    """Test double lock door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.double_lock_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:DoubleLockDoor": {"Token": token}}
+
+    assert response == {}
+
+
+@respx.mock
+async def test_release_door(door_control):
+    """Test release door"""
+    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
+        json={}
+    )
+
+    token = "Axis-accc8ea9abac:1550808050.595717000"
+
+    response = await door_control.release_door(token)
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
+    assert json.loads(route.calls.last.request.content) == {"tdc:ReleaseDoor": {"Token": token}}
+
+    assert response == {}
+
