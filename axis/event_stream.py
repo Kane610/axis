@@ -42,12 +42,10 @@ NAMESPACES = {
 }
 
 
-def traverse(data: dict, keys: tuple) -> Union[dict, str]:
+def traverse(data: dict, keys: Union[tuple, list]) -> dict:
     """Traverse dictionary using keys to retrieve last item."""
     head, *tail = keys
-    return (
-        traverse(data.get(head, {}), tail) if tail else data.get(head, "")
-    )  # data.get(head, {})??
+    return traverse(data.get(head, {}), tail) if tail else data.get(head, {})
 
 
 def extract_name_value(data: dict) -> tuple:
@@ -61,7 +59,7 @@ def extract_name_value(data: dict) -> tuple:
 class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, signal: Optional[Callable]) -> None:
+    def __init__(self, signal: Callable) -> None:
         """Ready information about events."""
         super().__init__({}, None, "", create_event)
         self.signal = signal

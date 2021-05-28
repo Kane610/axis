@@ -341,7 +341,7 @@ class Params(APIItems):
     @property
     def light_control(self) -> bool:
         """Support light control."""
-        return self.get(PROPERTIES, {}).get("LightControl.LightControl2") == "yes"  # type: ignore[attr-defined]
+        return self.get(PROPERTIES, {}).get("LightControl.LightControl2") == "yes"
 
     @property
     def ptz(self) -> bool:

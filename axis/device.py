@@ -21,7 +21,7 @@ class AxisDevice:
         self.stream = StreamManager(self.config)
         self.event: Optional[EventManager] = None
 
-    def enable_events(self, event_callback: Optional[Callable] = None) -> None:
+    def enable_events(self, event_callback: Callable) -> None:
         """Enable events for stream."""
         self.event = EventManager(event_callback)
         # Event should be changed to a callback

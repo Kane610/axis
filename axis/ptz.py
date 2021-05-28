@@ -183,7 +183,7 @@ class PtzControl:
             if imageheight:
                 data["imageheight"] = imageheight
 
-        for key, value, minimum, maximum in (
+        for key, limit_value, minimum, maximum in (
             ("pan", pan, -180, 180),
             ("tilt", tilt, -180, 180),
             ("zoom", zoom, 1, 9999),
@@ -202,10 +202,10 @@ class PtzControl:
             ("continuousbrightnessmove", continuousbrightnessmove, -100, 100),
             ("speed", speed, 1, 100),
         ):
-            if value is not None:
-                data[key] = limit(value, minimum, maximum)
+            if limit_value is not None:
+                data[key] = limit(limit_value, minimum, maximum)
 
-        for key, value, supported_commands in (
+        for key, command_value, supported_commands in (
             ("autofocus", autofocus, (ON, OFF)),
             ("autoiris", autoiris, (ON, OFF)),
             ("backlight", backlight, (ON, OFF)),
@@ -213,8 +213,8 @@ class PtzControl:
             ("imagerotation", imagerotation, (0, 90, 180, 270)),
             ("move", move, SUPPORTED_MOVES),
         ):
-            if value in supported_commands:  # type: ignore[operator]
-                data[key] = value
+            if command_value in supported_commands:  # type: ignore[operator]
+                data[key] = command_value
 
         if continuouspantiltmove:
             pan_speed, tilt_speed = continuouspantiltmove
