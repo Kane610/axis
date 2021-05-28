@@ -344,11 +344,6 @@ class Params(APIItems):
         return self.get(PROPERTIES, {}).get("LightControl.LightControl2") == "yes"
 
     @property
-    def door_control(self) -> bool:
-        """FIXME: Figure out a different way to determine if door control is supported """
-        return self.get(BRAND, {}).get("ProdNbr") == "A1001"
-
-    @property
     def ptz(self) -> bool:
         """Support PTZ control."""
         return self.get(PROPERTIES, {}).get("PTZ.PTZ") == "yes"
