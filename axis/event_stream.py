@@ -71,9 +71,7 @@ class EventManager(APIItems):
         for new_event in new_events:
             # Don't signal on unsupported events
             if self[new_event].TOPIC:  # type: ignore[attr-defined]
-                self.signal(
-                    OPERATION_INITIALIZED, new_event
-                )  # signal should never be None
+                self.signal(OPERATION_INITIALIZED, new_event)
 
     @staticmethod
     def pre_process_raw(raw: Union[bytes, list]) -> dict:  # type: ignore[override]
