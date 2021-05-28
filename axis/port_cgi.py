@@ -8,8 +8,8 @@ General purpose I/O service API. Extends I/O port API with support for
 Virtual input API.
 """
 
-from urllib.parse import quote
 from typing import Callable
+from urllib.parse import quote
 
 from .api import APIItems
 from .param_cgi import Params
