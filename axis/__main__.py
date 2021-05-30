@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import logging
 
-import async_timeout
+import async_timeout  # type: ignore[import]
 from httpx import AsyncClient  # type: ignore[import]
 
 import axis
