@@ -265,7 +265,7 @@ class Vapix:
         LOGGER.debug("%s %s", url, kwargs)
         try:
             response = await self.config.session.request(
-                method, url, auth=self.auth, timeout=TIME_OUT, **kwargs
+                method, url, auth=self.auth, timeout=TIME_OUT, **kwargs  # type: ignore [arg-type]
             )
             response.raise_for_status()
 
