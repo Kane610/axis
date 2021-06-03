@@ -13,6 +13,37 @@ URL = "/vapix/doorcontrol"
 API_DISCOVERY_ID = "door-control"
 API_VERSION = "1.0"
 
+CAPABILITY_ACCESS = "access"
+CAPABILITY_LOCK = "lock"
+CAPABILITY_UNLOCK = "unlock"
+CAPABILITY_BLOCK = "block"
+CAPABILITY_DOUBLE_LOCK = "doublelock"
+CAPABILITY_LOCK_DOWN = "lockdown"
+CAPABILITY_LOCK_OPEN = "lockopen"
+CAPABILITY_DOOR_MONITOR = "doormonitor"
+CAPABILITY_LOCK_MONITOR = "lockmonitor"
+CAPABILITY_DOUBLE_LOCK_MONITOR = "doublelockmonitor"
+CAPABILITY_ALARM = "alarm"
+CAPABILITY_TAMPER = "tamper"
+CAPABILITY_WARNING = "warning"
+CAPABILITY_CONFIGURABLE = "configurable"
+
+SUPPORTED_CAPABILITIES = (
+    CAPABILITY_ACCESS,
+    CAPABILITY_LOCK,
+    CAPABILITY_UNLOCK,
+    CAPABILITY_BLOCK,
+    CAPABILITY_DOUBLE_LOCK,
+    CAPABILITY_LOCK_DOWN,
+    CAPABILITY_LOCK_OPEN,
+    CAPABILITY_DOOR_MONITOR,
+    CAPABILITY_LOCK_MONITOR,
+    CAPABILITY_DOUBLE_LOCK_MONITOR,
+    CAPABILITY_ALARM,
+    CAPABILITY_TAMPER,
+    CAPABILITY_WARNING,
+    CAPABILITY_CONFIGURABLE
+)
 
 class DoorControl(APIItems):
     """Door control for Axis devices."""
@@ -169,3 +200,5 @@ class Door(APIItem):
     def door_capabilities(self) -> dict:
         """Capabilities of Door."""
         return self.raw["Capabilities"]
+
+#TODO: add method to show what this supports?
