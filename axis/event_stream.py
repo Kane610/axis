@@ -132,9 +132,9 @@ class AxisEvent(APIItem):
     """
 
     BINARY = False
-    TOPIC: Optional[str] = None
-    CLASS: Optional[str] = None
-    TYPE: Optional[str] = None
+    TOPIC = ""
+    CLASS = ""
+    TYPE = ""
 
     @property
     def topic(self) -> str:

@@ -475,9 +475,9 @@ def test_unsupported_event(event_manager):
 
     event = next(iter(event_manager.values()))
     assert event.BINARY is False
-    assert event.TOPIC is None
-    assert event.CLASS is None
-    assert event.TYPE is None
+    assert not event.TOPIC
+    assert not event.CLASS
+    assert not event.TYPE
     assert event.topic == "tns1:VideoSource/GlobalSceneChange/ImagingService"
     assert event.source == "Source"
     assert event.id == "0"
