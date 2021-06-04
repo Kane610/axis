@@ -215,8 +215,8 @@ async def test_list_view_areas(view_areas):
 
     assert len(view_areas) == 8
 
-    view_area = view_areas[1000001]
-    assert view_area.id == 1000001
+    view_area = view_areas["1000001"]
+    assert view_area.id == "1000001"
     assert view_area.source == 0
     assert view_area.camera == 1
     assert view_area.configurable
@@ -310,8 +310,8 @@ async def test_set_geometry_of_view_area(view_areas):
 
     assert len(view_areas) == 1
 
-    view_area = view_areas[1000001]
-    assert view_area.id == 1000001
+    view_area = view_areas["1000001"]
+    assert view_area.id == "1000001"
     assert view_area.source == 0
     assert view_area.camera == 1
     assert view_area.configurable
@@ -410,12 +410,12 @@ async def test_set_geometry_of_view_area_using_view_area(view_areas):
 
     geometry = Geometry(1, 2000, 2, 1000)
 
-    await view_areas.set_geometry(geometry, view_area=view_areas[1000001])
+    await view_areas.set_geometry(geometry, view_area=view_areas["1000001"])
 
     assert len(view_areas) == 1
 
-    view_area = view_areas[1000001]
-    assert view_area.id == 1000001
+    view_area = view_areas["1000001"]
+    assert view_area.id == "1000001"
     assert view_area.source == 0
     assert view_area.camera == 1
     assert view_area.configurable
@@ -483,8 +483,8 @@ async def test_reset_geometry_of_view_area(view_areas):
 
     assert len(view_areas) == 1
 
-    view_area = view_areas[1000001]
-    assert view_area.id == 1000001
+    view_area = view_areas["1000001"]
+    assert view_area.id == "1000001"
     assert view_area.source == 0
     assert view_area.camera == 1
     assert view_area.configurable
@@ -581,10 +581,10 @@ async def test_reset_geometry_of_view_area_using_view_area(view_areas):
 
     assert len(view_areas) == 1
 
-    await view_areas.reset_geometry(view_area=view_areas[1000001])
+    await view_areas.reset_geometry(view_area=view_areas["1000001"])
 
-    view_area = view_areas[1000001]
-    assert view_area.id == 1000001
+    view_area = view_areas["1000001"]
+    assert view_area.id == "1000001"
     assert view_area.source == 0
     assert view_area.camera == 1
     assert view_area.configurable
