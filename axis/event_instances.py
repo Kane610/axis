@@ -93,10 +93,8 @@ class EventInstances(APIItems):
         if not raw:
             return {}
 
-        # Move past the irrelevant keys
-        raw_events = traverse(raw, EVENT_INSTANCE)
-        # Create topic/data dictionary of events
-        event_list = get_events(raw_events)  # type: ignore[arg-type]
+        raw_events = traverse(raw, EVENT_INSTANCE)  # Move past the irrelevant keys
+        event_list = get_events(raw_events)  # Create topic/data dictionary of events
 
         return {event["topic"]: event for event in event_list}
 
