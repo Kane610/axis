@@ -522,6 +522,7 @@ class Params(APIItems):
         """Maximum number of supported stream profiles."""
         return int(self.get(STREAM_PROFILES, {}).get("MaxGroups", 0))
 
+    @property
     def stream_profiles(self) -> list:
         """Return a list of stream profiles."""
         if STREAM_PROFILES not in self:

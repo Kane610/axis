@@ -106,7 +106,7 @@ class Vapix:
         """List streaming profiles."""
         if self.stream_profiles:
             return list(self.stream_profiles.values())
-        return self.params.stream_profiles()  # type: ignore[union-attr]
+        return self.params.stream_profiles  # type: ignore[union-attr]
 
     async def initialize(self) -> None:
         """Initialize Vapix functions."""
