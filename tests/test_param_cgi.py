@@ -173,7 +173,7 @@ async def test_params_empty_raw(params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
 
-    assert params.image_sources == []
+    assert params.image_sources == {}
 
 
 @respx.mock
@@ -543,7 +543,7 @@ async def test_update_stream_profiles(params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    profiles = params.stream_profiles()
+    profiles = params.stream_profiles
 
     assert params.stream_profiles_max_groups == 26
     assert len(profiles) == 2
@@ -568,7 +568,7 @@ async def test_stream_profiles_empty_response(params):
 
     await params.update_stream_profiles()
 
-    profiles = params.stream_profiles()
+    profiles = params.stream_profiles
 
     assert params.stream_profiles_max_groups == 0
     assert len(profiles) == 0

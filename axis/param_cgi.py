@@ -6,7 +6,7 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
 import asyncio
-from typing import Any, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 from .api import APIItem, APIItems
 from .stream_profiles import StreamProfile
@@ -40,7 +40,7 @@ SUPPORTED_GROUPS = [
 class Params(APIItems):
     """Represents all parameters of param.cgi."""
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, request: Callable) -> None:
         """Initialize parameter manager."""
         super().__init__("", request, URL_GET, Param)
 
@@ -51,9 +51,9 @@ class Params(APIItems):
         self.process_raw(raw)
 
     @staticmethod
-    def pre_process_raw(raw: str) -> dict:
+    def pre_process_raw(raw: str) -> dict:  # type: ignore[override]
         """Return a dictionary of parameter groups."""
-        params = {}
+        params: Dict[str, Dict[str, str]] = {}
         for raw_line in raw.splitlines():  # root.group.parameter..=value
             split_line = raw_line.split(".", 2)  # root, group, parameter..=value
             group = ".".join(split_line[:2])  # root.group
@@ -117,37 +117,37 @@ class Params(APIItems):
     @property
     def brand(self) -> str:
         """Device branding."""
-        return self[BRAND]["Brand"]
+        return self[BRAND]["Brand"]  # type: ignore
 
     @property
     def prodfullname(self) -> str:
         """Device product full name."""
-        return self[BRAND]["ProdFullName"]
+        return self[BRAND]["ProdFullName"]  # type: ignore
 
     @property
     def prodnbr(self) -> str:
         """Device product number."""
-        return self[BRAND]["ProdNbr"]
+        return self[BRAND]["ProdNbr"]  # type: ignore
 
     @property
     def prodshortname(self) -> str:
         """Device product short name."""
-        return self[BRAND]["ProdShortName"]
+        return self[BRAND]["ProdShortName"]  # type: ignore
 
     @property
     def prodtype(self) -> str:
         """Device product type."""
-        return self[BRAND]["ProdType"]
+        return self[BRAND]["ProdType"]  # type: ignore
 
     @property
     def prodvariant(self) -> str:
         """Device product variant."""
-        return self[BRAND]["ProdVariant"]
+        return self[BRAND]["ProdVariant"]  # type: ignore
 
     @property
     def weburl(self) -> str:
         """Device home page URL."""
-        return self[BRAND]["WebURL"]
+        return self[BRAND]["WebURL"]  # type: ignore
 
     # Image
 
@@ -159,7 +159,7 @@ class Params(APIItems):
     def image_sources(self) -> dict:
         """Image source information."""
         if IMAGE not in self:
-            return []
+            return {}
 
         attributes = (
             "Enabled",
@@ -208,7 +208,7 @@ class Params(APIItems):
         )
 
         sources = self.process_dynamic_group(
-            self[IMAGE],
+            self[IMAGE],  # type: ignore[arg-type]
             "I",
             attributes,
             range(self.image_nbrofviews),
@@ -229,12 +229,12 @@ class Params(APIItems):
     @property
     def nbrofinput(self) -> int:
         """Match the number of configured inputs."""
-        return int(self[INPUT]["NbrOfInputs"])
+        return int(self[INPUT]["NbrOfInputs"])  # type: ignore
 
     @property
     def nbrofoutput(self) -> int:
         """Match the number of configured outputs."""
-        return int(self[OUTPUT]["NbrOfOutputs"])
+        return int(self[OUTPUT]["NbrOfOutputs"])  # type: ignore
 
     @property
     def ports(self) -> dict:
@@ -257,7 +257,7 @@ class Params(APIItems):
         )
 
         ports = self.process_dynamic_group(
-            self[IOPORT],
+            self[IOPORT],  # type: ignore[arg-type]
             "I",
             attributes,
             range(self.nbrofinput + self.nbrofoutput),
@@ -274,17 +274,17 @@ class Params(APIItems):
     @property
     def api_http_version(self) -> str:
         """HTTP API version."""
-        return self[PROPERTIES]["API.HTTP.Version"]
+        return self[PROPERTIES]["API.HTTP.Version"]  # type: ignore
 
     @property
     def api_metadata(self) -> str:
         """Support metadata API."""
-        return self[PROPERTIES]["API.Metadata.Metadata"]
+        return self[PROPERTIES]["API.Metadata.Metadata"]  # type: ignore
 
     @property
     def api_metadata_version(self) -> str:
         """Metadata API version."""
-        return self[PROPERTIES]["API.Metadata.Version"]
+        return self[PROPERTIES]["API.Metadata.Version"]  # type: ignore
 
     @property
     def api_ptz_presets_version(self) -> Union[str, bool]:
@@ -293,7 +293,7 @@ class Params(APIItems):
         As of version 2.00 of the PTZ preset API Properties.API.PTZ.Presets.Version=2.00
         adding, updating and removing presets using param.cgi is no longer supported.
         """
-        return self[PROPERTIES].get("API.PTZ.Presets.Version", False)
+        return self[PROPERTIES].get("API.PTZ.Presets.Version", False)  # type: ignore[attr-defined]
 
     @property
     def embedded_development(self) -> str:
@@ -306,37 +306,37 @@ class Params(APIItems):
     @property
     def firmware_builddate(self) -> str:
         """Firmware build date."""
-        return self[PROPERTIES]["Firmware.BuildDate"]
+        return self[PROPERTIES]["Firmware.BuildDate"]  # type: ignore
 
     @property
     def firmware_buildnumber(self) -> str:
         """Firmware build number."""
-        return self[PROPERTIES]["Firmware.BuildNumber"]
+        return self[PROPERTIES]["Firmware.BuildNumber"]  # type: ignore
 
     @property
     def firmware_version(self) -> str:
         """Firmware version."""
-        return self[PROPERTIES]["Firmware.Version"]
+        return self[PROPERTIES]["Firmware.Version"]  # type: ignore
 
     @property
     def image_format(self) -> str:
         """Supported image formats."""
-        return self[PROPERTIES].get("Image.Format")
+        return self[PROPERTIES].get("Image.Format", "")  # type: ignore[attr-defined]
 
     @property
     def image_nbrofviews(self) -> int:
         """Amount of supported view areas."""
-        return int(self[PROPERTIES]["Image.NbrOfViews"])
+        return int(self[PROPERTIES]["Image.NbrOfViews"])  # type: ignore
 
     @property
     def image_resolution(self) -> str:
         """Supported image resolutions."""
-        return self[PROPERTIES]["Image.Resolution"]
+        return self[PROPERTIES]["Image.Resolution"]  # type: ignore
 
     @property
     def image_rotation(self) -> str:
         """Supported image rotations."""
-        return self[PROPERTIES]["Image.Rotation"]
+        return self[PROPERTIES]["Image.Rotation"]  # type: ignore
 
     @property
     def light_control(self) -> bool:
@@ -351,12 +351,12 @@ class Params(APIItems):
     @property
     def digital_ptz(self) -> bool:
         """Support digital PTZ control."""
-        return self[PROPERTIES].get("PTZ.DigitalPTZ") == "yes"
+        return self[PROPERTIES].get("PTZ.DigitalPTZ") == "yes"  # type: ignore[attr-defined]
 
     @property
     def system_serialnumber(self) -> str:
         """Device serial number."""
-        return self[PROPERTIES]["System.SerialNumber"]
+        return self[PROPERTIES]["System.SerialNumber"]  # type: ignore
 
     # PTZ
 
@@ -370,17 +370,17 @@ class Params(APIItems):
 
         When camera parameter is omitted in HTTP requests.
         """
-        return int(self[PTZ]["CameraDefault"])
+        return int(self[PTZ]["CameraDefault"])  # type: ignore
 
     @property
     def ptz_number_of_cameras(self) -> int:
         """Amount of video channels."""
-        return int(self[PTZ]["NbrOfCameras"])
+        return int(self[PTZ]["NbrOfCameras"])  # type: ignore
 
     @property
     def ptz_number_of_serial_ports(self) -> int:
         """Amount of serial ports."""
-        return int(self[PTZ]["NbrOfSerPorts"])
+        return int(self[PTZ]["NbrOfSerPorts"])  # type: ignore
 
     @property
     def ptz_limits(self) -> dict:
@@ -411,7 +411,10 @@ class Params(APIItems):
             "MinZoom",
         )
         return self.process_dynamic_group(
-            self[PTZ], "Limit.L", attributes, range(1, self.ptz_number_of_cameras + 1)
+            self[PTZ],  # type: ignore[arg-type]
+            "Limit.L",
+            attributes,
+            range(1, self.ptz_number_of_cameras + 1),
         )
 
     @property
@@ -462,7 +465,10 @@ class Params(APIItems):
             "SpeedCtl",
         )
         return self.process_dynamic_group(
-            self[PTZ], "Support.S", attributes, range(1, self.ptz_number_of_cameras + 1)
+            self[PTZ],  # type: ignore[arg-type]
+            "Support.S",
+            attributes,
+            range(1, self.ptz_number_of_cameras + 1),
         )
 
     @property
@@ -499,7 +505,10 @@ class Params(APIItems):
             "ZoomEnabled",
         )
         return self.process_dynamic_group(
-            self[PTZ], "Various.V", attributes, range(1, self.ptz_number_of_cameras + 1)
+            self[PTZ],  # type: ignore[arg-type]
+            "Various.V",
+            attributes,
+            range(1, self.ptz_number_of_cameras + 1),
         )
 
     # Stream profiles
@@ -513,13 +522,14 @@ class Params(APIItems):
         """Maximum number of supported stream profiles."""
         return int(self.get(STREAM_PROFILES, {}).get("MaxGroups", 0))
 
+    @property
     def stream_profiles(self) -> list:
         """Return a list of stream profiles."""
         if STREAM_PROFILES not in self:
             return []
 
         raw_profiles = self.process_dynamic_group(
-            self[STREAM_PROFILES],
+            self[STREAM_PROFILES],  # type: ignore[arg-type]
             "S",
             ("Name", "Description", "Parameters"),
             range(self.stream_profiles_max_groups),

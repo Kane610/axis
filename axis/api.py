@@ -2,7 +2,16 @@
 
 import logging
 from pprint import pformat
-from typing import Any, Optional
+from typing import (
+    Any,
+    Callable,
+    ItemsView,
+    Iterator,
+    KeysView,
+    List,
+    Optional,
+    ValuesView,
+)
 
 import attr
 
@@ -18,7 +27,45 @@ class Body:
     method: str = attr.ib()
     apiVersion: str = attr.ib()
     context: str = attr.ib(default=CONTEXT)
-    params: dict = attr.ib(factory=dict)
+    params: Any = attr.ib(factory=dict)
+
+
+class APIItem:
+    """Base class for all end points using APIItems class."""
+
+    def __init__(self, id: str, raw: dict, request: Callable) -> None:
+        """Initialize API item."""
+        self._id = id
+        self._raw = raw
+        self._request = request
+
+        self.observers: List[Callable] = []
+
+    @property
+    def id(self) -> str:
+        """Read only ID."""
+        return self._id
+
+    @property
+    def raw(self) -> dict:
+        """Read only raw data."""
+        return self._raw
+
+    def update(self, raw: dict) -> None:
+        """Update raw data and signal new data is available."""
+        self._raw = raw
+
+        for observer in self.observers:
+            observer()
+
+    def register_callback(self, callback: Callable) -> None:
+        """Register callback for state updates."""
+        self.observers.append(callback)
+
+    def remove_callback(self, observer: Callable) -> None:
+        """Remove observer."""
+        if observer in self.observers:
+            self.observers.remove(observer)
 
 
 class APIItems:
@@ -29,7 +76,7 @@ class APIItems:
         self._request = request
         self._path = path
         self._item_cls = item_cls
-        self._items = {}
+        self._items: dict = {}
         self.process_raw(raw)
         LOGGER.debug(pformat(raw))
 
@@ -58,15 +105,15 @@ class APIItems:
 
         return new_items
 
-    def items(self) -> dict:
+    def items(self) -> ItemsView[str, APIItem]:
         """Return items."""
         return self._items.items()
 
-    def keys(self) -> str:
+    def keys(self) -> KeysView[str]:
         """Return item keys."""
         return self._items.keys()
 
-    def values(self):
+    def values(self) -> ValuesView[APIItem]:
         """Return item values."""
         return self._items.values()
 
@@ -76,15 +123,15 @@ class APIItems:
             return self[obj_id]
         return default
 
-    def __getitem__(self, obj_id: str):
+    def __getitem__(self, obj_id: str) -> APIItem:
         """Get item value based on key."""
         return self._items[obj_id]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """Allow iterate over items."""
         return iter(self._items)
 
-    def __contains__(self, obj_id: str):
+    def __contains__(self, obj_id: str) -> bool:
         """Validate membership of item ID."""
         return obj_id in self._items
 
@@ -98,41 +145,3 @@ class APIItems:
         Needs to define this because __len__ asserts false on length 0.
         """
         return True
-
-
-class APIItem:
-    """Base class for all end points using APIItems class."""
-
-    def __init__(self, id: str, raw: dict, request: object) -> None:
-        """Initialize API item."""
-        self._id = id
-        self._raw = raw
-        self._request = request
-
-        self.observers = []
-
-    @property
-    def id(self) -> str:
-        """Read only ID."""
-        return self._id
-
-    @property
-    def raw(self) -> dict:
-        """Read only raw data."""
-        return self._raw
-
-    def update(self, raw: dict) -> None:
-        """Update raw data and signal new data is available."""
-        self._raw = raw
-
-        for observer in self.observers:
-            observer()
-
-    def register_callback(self, callback: object) -> None:
-        """Register callback for state updates."""
-        self.observers.append(callback)
-
-    def remove_callback(self, observer: object) -> None:
-        """Remove observer."""
-        if observer in self.observers:
-            self.observers.remove(observer)

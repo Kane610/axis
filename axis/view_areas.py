@@ -43,11 +43,6 @@ class ViewArea(APIItem):
     """View area object."""
 
     @property
-    def id(self) -> int:
-        """Identity of view area."""
-        return self.raw["id"]
-
-    @property
     def source(self) -> int:
         """Image source that created view area."""
         return self.raw["source"]
@@ -110,7 +105,7 @@ class ViewAreas(APIItems):
     def pre_process_raw(raw: dict) -> dict:
         """Return a dictionary of view areas."""
         view_area_data = raw.get("data", {}).get("viewAreas", [])
-        return {api["id"]: api for api in view_area_data}
+        return {str(api["id"]): api for api in view_area_data}
 
     async def list(self) -> dict:
         """List the content of a view area.
@@ -156,7 +151,7 @@ class ViewAreas(APIItems):
         Method: POST
         """
         if view_area:
-            view_area_id = view_area.id
+            view_area_id = int(view_area.id)
 
         raw = await self._request(
             "post",
@@ -188,7 +183,7 @@ class ViewAreas(APIItems):
         Method: POST
         """
         if view_area:
-            view_area_id = view_area.id
+            view_area_id = int(view_area.id)
 
         raw = await self._request(
             "post",

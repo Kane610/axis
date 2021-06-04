@@ -4,8 +4,8 @@ import argparse
 import asyncio
 import logging
 
-import async_timeout
-from httpx import AsyncClient
+import async_timeout  # type: ignore[import]
+from httpx import AsyncClient  # type: ignore[import]
 
 import axis
 
@@ -17,7 +17,9 @@ def event_handler(action, event):
     LOGGER.info(f"{action} {event}")
 
 
-async def axis_device(host, port, username, password):
+async def axis_device(
+    host: str, port: int, username: str, password: str
+) -> axis.AxisDevice:
     """Create a Axis device."""
     session = AsyncClient(verify=False)
     device = axis.AxisDevice(
@@ -48,7 +50,9 @@ async def axis_device(host, port, username, password):
     return device
 
 
-async def main(host, port, username, password, params, events):
+async def main(
+    host: str, port: int, username: str, password: str, params: bool, events: bool
+) -> None:
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
 

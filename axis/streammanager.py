@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import Callable, List, Optional
 
 from .configuration import Configuration
 from .rtsp import SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED, RTSPClient
@@ -24,9 +25,9 @@ class StreamManager:
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = None
-        self.stream = None
+        self.stream: Optional[RTSPClient] = None
 
-        self.connection_status_callback = []
+        self.connection_status_callback: List[Callable] = []
 
     @property
     def stream_url(self) -> str:
@@ -62,8 +63,8 @@ class StreamManager:
         Playing - Connection is healthy.
         Retry - if there is no connection to device.
         """
-        if signal == SIGNAL_DATA:
-            self.event.update(self.data)
+        if signal == SIGNAL_DATA and self.event:
+            self.event(self.data)
 
         elif signal == SIGNAL_FAILED:
             self.retry()
@@ -75,7 +76,7 @@ class StreamManager:
     @property
     def data(self) -> str:
         """Get stream data."""
-        return self.stream.rtp.data
+        return self.stream.rtp.data  # type: ignore[union-attr]
 
     @property
     def state(self) -> str:

@@ -13,7 +13,7 @@ sgrp: Colon separated existing secondary group names of the account.
 comment: The comment field of the account.
 """
 import re
-from typing import Optional
+from typing import Dict, Optional
 
 from .api import APIItem, APIItems
 
@@ -49,7 +49,7 @@ class Users(APIItems):
         self.process_raw(users)
 
     @staticmethod
-    def pre_process_raw(raw: str) -> dict:
+    def pre_process_raw(raw: str) -> dict:  # type: ignore[override]
         """Pre-process raw string.
 
         Prepare users to work with APIItems.
@@ -58,7 +58,9 @@ class Users(APIItems):
         if "=" not in raw:
             return {}
 
-        raw_dict = dict(group.split("=", 1) for group in raw.splitlines())
+        raw_dict: Dict[str, str] = dict(
+            group.split("=", 1) for group in raw.splitlines()  # type: ignore
+        )
 
         raw_users = ["root"] + REGEX_STRING.findall(raw_dict["users"])
 

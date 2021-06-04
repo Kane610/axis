@@ -86,7 +86,7 @@ async def test_initialize_stream(rtsp_client, stream_manager):
 
     # Signal new data is available through event callbacks update method
     stream_manager.session_callback(SIGNAL_DATA)
-    mock_event_callback.update.assert_called_with("Summerwheen")
+    mock_event_callback.assert_called_with("Summerwheen")
 
     # Signal state is playing on the connection status callbacks
     stream_manager.session_callback(SIGNAL_PLAYING)

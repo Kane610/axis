@@ -3,6 +3,8 @@
 AXIS Object Analytics.
 """
 
+from typing import Optional
+
 import attr
 
 from .api import ApplicationAPIItem, ApplicationAPIItems, Body
@@ -53,7 +55,7 @@ class ObjectAnalyticsScenario(ApplicationAPIItem):
     """Object Analytics Scenario."""
 
     @property
-    def camera(self) -> list:
+    def camera(self) -> list:  # type: ignore[override]
         """Camera ID."""
         return self.raw["devices"]
 
@@ -63,7 +65,7 @@ class ObjectAnalyticsScenario(ApplicationAPIItem):
         return self.raw["objectClassifications"]
 
     @property
-    def perspectives(self) -> list:
+    def perspectives(self) -> Optional[list]:
         """Perspectives for improve triggers based on heights."""
         return self.raw.get("perspectives")
 
