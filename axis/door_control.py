@@ -4,9 +4,7 @@ The Axis Door control API makes it possible to control the behavior and function
 of physical access controls in the Axis devices (e.g. A1001, A1601)
 """
 
-import attr
-
-from .api import APIItem, APIItems, Body
+from .api import APIItem, APIItems
 
 URL = "/vapix/doorcontrol"
 
@@ -44,6 +42,7 @@ SUPPORTED_CAPABILITIES = (
     CAPABILITY_WARNING,
     CAPABILITY_CONFIGURABLE
 )
+
 
 class DoorControl(APIItems):
     """Door control for Axis devices."""
@@ -201,4 +200,4 @@ class Door(APIItem):
         """Capabilities of Door."""
         return self.raw["Capabilities"]
 
-#TODO: add method to show what this supports?
+# TODO: add method to show what this supports?

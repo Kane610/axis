@@ -486,4 +486,3 @@ async def test_release_door(door_control):
     assert json.loads(route.calls.last.request.content) == {"tdc:ReleaseDoor": {"Token": token}}
 
     assert response == {}
-
