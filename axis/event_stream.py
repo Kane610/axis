@@ -1,7 +1,7 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import logging
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Union
 
 import xmltodict  # type: ignore[import]
 
