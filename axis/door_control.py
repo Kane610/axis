@@ -11,20 +11,20 @@ URL = "/vapix/doorcontrol"
 API_DISCOVERY_ID = "door-control"
 API_VERSION = "1.0"
 
-CAPABILITY_ACCESS = "access"
-CAPABILITY_LOCK = "lock"
-CAPABILITY_UNLOCK = "unlock"
-CAPABILITY_BLOCK = "block"
-CAPABILITY_DOUBLE_LOCK = "doublelock"
-CAPABILITY_LOCK_DOWN = "lockdown"
-CAPABILITY_LOCK_OPEN = "lockopen"
-CAPABILITY_DOOR_MONITOR = "doormonitor"
-CAPABILITY_LOCK_MONITOR = "lockmonitor"
-CAPABILITY_DOUBLE_LOCK_MONITOR = "doublelockmonitor"
-CAPABILITY_ALARM = "alarm"
-CAPABILITY_TAMPER = "tamper"
-CAPABILITY_WARNING = "warning"
-CAPABILITY_CONFIGURABLE = "configurable"
+CAPABILITY_ACCESS = "Access"
+CAPABILITY_LOCK = "Lock"
+CAPABILITY_UNLOCK = "Unlock"
+CAPABILITY_BLOCK = "Block"
+CAPABILITY_DOUBLE_LOCK = "DoubleLock"
+CAPABILITY_LOCK_DOWN = "LockDown"
+CAPABILITY_LOCK_OPEN = "LockOpen"
+CAPABILITY_DOOR_MONITOR = "DoorMonitor"
+CAPABILITY_LOCK_MONITOR = "LockMonitor"
+CAPABILITY_DOUBLE_LOCK_MONITOR = "DoubleLockMonitor"
+CAPABILITY_ALARM = "Alarm"
+CAPABILITY_TAMPER = "Tamper"
+CAPABILITY_WARNING = "Warning"
+CAPABILITY_CONFIGURABLE = "Configurable"
 
 SUPPORTED_CAPABILITIES = (
     CAPABILITY_ACCESS,
@@ -95,8 +95,12 @@ class DoorControl(APIItems):
 
     # region Door Actions
     async def access_door(self, door_token: str) -> None:
-        """Access the door. Use when a credential holder is granted access,
-         for example by swiping a card in a card reader."""
+        """This operation allows momentarily accessing a Door. It invokes the functionality typically used when a card holder
+        presents a card to a card reader at the door and is granted access.
+        The DoorMode shall change to Accessed.
+        The Door shall remain accessible for the defined time as configured in the device.
+        When the time span elapses, the DoorMode shall change back to its previous state.
+        A device must have the Lock capability to utilize this method."""
         await self._request(
             "post",
             URL,
@@ -104,7 +108,8 @@ class DoorControl(APIItems):
         )
 
     async def lock_door(self, door_token: str) -> None:
-        """Lock the door."""
+        """This operation allows locking a Door. The DoorMode shall change to Locked.
+        A device must have the Lock capability to utilize this method."""
         await self._request(
             "post",
             URL,
@@ -112,7 +117,9 @@ class DoorControl(APIItems):
         )
 
     async def unlock_door(self, door_token: str) -> None:
-        """Unlock the door until it is explicitly locked again."""
+        """This operation allows unlocking a Door until it is explicitly locked again.
+        The DoorMode shall change to Unlocked.
+        A device must have the Unlock capability to utilize this method."""
         await self._request(
             "post",
             URL,
@@ -120,7 +127,9 @@ class DoorControl(APIItems):
         )
 
     async def block_door(self, door_token: str) -> None:
-        """Block the door."""
+        """This operation allows blocking a Door and preventing momentary access (AccessDoor command).
+        The DoorMode shall change to Blocked.
+        A device must have the Block capability to utilize this method."""
         await self._request(
             "post",
             URL,
@@ -128,7 +137,10 @@ class DoorControl(APIItems):
         )
 
     async def lock_down_door(self, door_token: str) -> None:
-        """Lock the door and prevent all other commands until a LockDownReleaseDoor command is sent."""
+        """This operation allows locking and preventing other actions until a LockDownReleaseDoor command is invoked.
+        The DoorMode shall change to LockedDown.
+        The device shall ignore other door control commands until a LockDownReleaseDoor command is performed.
+        A device must have the LockDown capability to utilize this method."""
         await self._request(
             "post",
             URL,
@@ -136,7 +148,10 @@ class DoorControl(APIItems):
         )
 
     async def lock_down_release_door(self, door_token: str) -> None:
-        """Release the door from the LockedDown state."""
+        """This operation allows releasing the LockedDown state of a Door.
+        The DoorMode shall change back to its previous/next state.
+        It is not defined what the previous/next state shall be, but typically - Locked.
+        This method will only succeed if the current DoorMode is LockedDown."""
         await self._request(
             "post",
             URL,
@@ -144,7 +159,10 @@ class DoorControl(APIItems):
         )
 
     async def lock_open_door(self, door_token: str) -> None:
-        """Unlock the door and prevent all other commands until a LockOpenReleaseDoor command is sent."""
+        """This operation allows unlocking a Door and preventing other actions until LockOpenReleaseDoor method is invoked.
+        The DoorMode shall change to LockedOpen.
+        The device shall ignore other door control commands until a LockOpenReleaseDoor command is performed.
+        A device must have the LockOpen capability to utilize this method."""
         await self._request(
             "post",
             URL,
@@ -152,7 +170,10 @@ class DoorControl(APIItems):
         )
 
     async def lock_open_release_door(self, door_token: str) -> None:
-        """Release the door from the LockedOpen state."""
+        """This operation allows releasing the LockedOpen state of a Door.
+        The DoorMode shall change state from the LockedOpen state back to its previous/next state.
+        It is not defined what the previous/next state shall be, but typically - Unlocked.
+        This method shall only succeed if the current DoorMode is LockedOpen."""
         await self._request(
             "post",
             URL,
