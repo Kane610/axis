@@ -19,6 +19,14 @@ from .applications.loitering_guard import LoiteringGuard
 from .applications.motion_guard import MotionGuard
 from .applications.object_analytics import ObjectAnalytics
 from .applications.vmd4 import Vmd4
+from axis import (
+    basic_device_info,
+    light_control,
+    mqtt,
+    port_management,
+    stream_profiles,
+    view_areas,
+)
 from .basic_device_info import API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID, BasicDeviceInfo
 from .configuration import Configuration
 from .errors import PathNotFound, RequestError, Unauthorized, raise_error
@@ -136,14 +144,22 @@ class Vapix:
 
         tasks = []
 
-        for api_id, api_class, api_attr in (
-            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
-            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
-            (LIGHT_CONTROL_ID, LightControl, "light_control"),
-            (MQTT_ID, MqttClient, "mqtt"),
-            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
-            (VIEW_AREAS_ID, ViewAreas, "view_areas"),
+        for api_id, api_class, api_attr, api_module in (
+            (
+                BASIC_DEVICE_INFO_ID,
+                basic_device_info,
+                BasicDeviceInfo,
+                "basic_device_info",
+            ),
+            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports", None),
+            (LIGHT_CONTROL_ID, LightControl, "light_control", None),
+            (MQTT_ID, MqttClient, "mqtt", None),
+            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles", None),
+            (VIEW_AREAS_ID, ViewAreas, "view_areas", None),
         ):
+            if api_module and api_module.API_DISCOVERY_ID in self.api_discovery:
+                print(True)
+                assert 0
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
 
