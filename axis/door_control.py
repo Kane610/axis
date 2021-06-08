@@ -221,4 +221,8 @@ class Door(APIItem):
         """Capabilities of Door."""
         return self.raw["Capabilities"]
 
-# TODO: add method to show what this supports?
+    async def is_capable_of(self, capability: str) -> bool:
+        """Retrieve whether door has the specified capability."""
+        if capability not in SUPPORTED_CAPABILITIES:
+            return False
+        return self.raw["Capabilities"][capability]
