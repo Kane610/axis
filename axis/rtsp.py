@@ -193,7 +193,7 @@ class RTPClient:
                 self.callback("data")
 
 
-class RTSPSession(object):
+class RTSPSession:
     """All RTSP session data.
 
     Stores device stream configuration and session data.
@@ -376,7 +376,7 @@ class RTSPSession(object):
         self.sequence = 5
 
 
-class RTSPMethods(object):
+class RTSPMethods:
     """Generate RTSP messages based on session data."""
 
     def __init__(self, session: RTSPSession) -> None:
