@@ -184,9 +184,6 @@ class Vapix:
         if not self.light_control and self.params.light_control:
             await self._initialize_api_attribute(LightControl, "light_control")
 
-        if not self.door_control and self.params.door_control:
-            await self._initialize_api_attribute(DoorControl, "door_control")
-
         if not self.ports:
             self.ports = Ports(self.params, self.request)
 
