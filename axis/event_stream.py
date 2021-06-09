@@ -202,7 +202,7 @@ class DoorFault(AxisBinaryEvent):
 
     TOPIC = "tns1:Door/State/DoorFault"
     CLASS = CLASS_DOOR
-    TYPE = "Door Falt"
+    TYPE = "Door Fault"
 
 
 class DoorLockPhysical(AxisBinaryEvent):
