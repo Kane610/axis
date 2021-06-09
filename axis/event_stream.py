@@ -9,6 +9,7 @@ from .api import APIItem, APIItems
 
 LOGGER = logging.getLogger(__name__)
 
+CLASS_DOOR = "door"
 CLASS_INPUT = "input"
 CLASS_LIGHT = "light"
 CLASS_MOTION = "motion"
@@ -188,6 +189,22 @@ class DayNight(AxisBinaryEvent):
     TYPE = "DayNight"
 
 
+class DoorMode(AxisBinaryEvent):
+    """Door Mode Changes."""
+
+    TOPIC = "tns1:Door/State/DoorMode"
+    CLASS = CLASS_DOOR
+    TYPE = "DoorMode"
+
+
+class DoorPhysicalState(AxisBinaryEvent):
+    """Door Physical State Changes."""
+
+    TOPIC = "tns1:Door/State/DoorPhysicalState"
+    CLASS = CLASS_DOOR
+    TYPE = "DoorPhysicalState"
+
+
 class FenceGuard(AxisBinaryEvent):
     """Fence Guard trigger event."""
 
@@ -338,6 +355,8 @@ class Vmd4(AxisBinaryEvent):
 EVENT_CLASSES = (
     Audio,
     DayNight,
+    DoorMode,
+    DoorPhysicalState,
     FenceGuard,
     Input,
     Light,
