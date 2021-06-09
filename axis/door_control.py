@@ -9,7 +9,6 @@ from .api import APIItem, APIItems
 URL = "/vapix/doorcontrol"
 
 API_DISCOVERY_ID = "door-control"
-API_VERSION = "1.0"
 
 CAPABILITY_ACCESS = "Access"
 CAPABILITY_LOCK = "Lock"
