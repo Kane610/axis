@@ -189,20 +189,68 @@ class DayNight(AxisBinaryEvent):
     TYPE = "DayNight"
 
 
+class DoorAlarm(AxisBinaryEvent):
+    """Door Alarm Changes."""
+
+    TOPIC = "tns1:Door/State/DoorAlarm"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Alarm"
+
+
+class DoorFault(AxisBinaryEvent):
+    """Door Fault Changes."""
+
+    TOPIC = "tns1:Door/State/DoorFault"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Falt"
+
+
+class DoorLockPhysical(AxisBinaryEvent):
+    """Door Lock State Changes."""
+
+    TOPIC = "tns1:Door/State/LockPhysicalState"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Lock Physical State"
+
+
 class DoorMode(AxisBinaryEvent):
     """Door Mode Changes."""
 
     TOPIC = "tns1:Door/State/DoorMode"
     CLASS = CLASS_DOOR
-    TYPE = "DoorMode"
+    TYPE = "Door Mode"
 
 
-class DoorPhysicalState(AxisBinaryEvent):
+class DoorPhysical(AxisBinaryEvent):
     """Door Physical State Changes."""
 
     TOPIC = "tns1:Door/State/DoorPhysicalState"
     CLASS = CLASS_DOOR
-    TYPE = "DoorPhysicalState"
+    TYPE = "Door Physical State"
+
+
+class DoorTamper(AxisBinaryEvent):
+    """Door Tamper State Changes."""
+
+    TOPIC = "tns1:Door/State/DoorTamper"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Tamper State"
+
+
+class DoorWarning(AxisBinaryEvent):
+    """Door Warning State Changes."""
+
+    TOPIC = "tns1:Door/State/DoorWarning"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Warning State"
+
+
+class DoorDoubleLockPhysical(AxisBinaryEvent):
+    """Door Double Lock State Changes."""
+
+    TOPIC = "tns1:Door/State/DoubleLockPhysicalState"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Double Lock Physical State"
 
 
 class FenceGuard(AxisBinaryEvent):
@@ -355,8 +403,14 @@ class Vmd4(AxisBinaryEvent):
 EVENT_CLASSES = (
     Audio,
     DayNight,
+    DoorAlarm,
+    DoorDoubleLockPhysical,
+    DoorFault,
+    DoorLockPhysical,
     DoorMode,
-    DoorPhysicalState,
+    DoorPhysical,
+    DoorWarning,
+    DoorTamper,
     FenceGuard,
     Input,
     Light,
