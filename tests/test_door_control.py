@@ -298,191 +298,33 @@ async def test_get_door_state(door_control):
     }
 
 
+@pytest.mark.parametrize(
+    "input,expected", [
+        ({"api_function": "tdc:AccessDoor", "method_name": "access_door"}, None),
+        ({"api_function": "tdc:LockDoor", "method_name": "lock_door"}, None),
+        ({"api_function": "tdc:UnlockDoor", "method_name": "unlock_door"}, None),
+        ({"api_function": "tdc:BlockDoor", "method_name": "block_door"}, None),
+        ({"api_function": "tdc:LockDownDoor", "method_name": "lock_down_door"}, None),
+        ({"api_function": "tdc:LockDownReleaseDoor", "method_name": "lock_down_release_door"}, None),
+        ({"api_function": "tdc:LockOpenDoor", "method_name": "lock_open_door"}, None),
+        ({"api_function": "tdc:LockOpenReleaseDoor", "method_name": "lock_open_release_door"}, None),
+        ({"api_function": "tdc:DoubleLockDoor", "method_name": "double_lock_door"}, None),
+        ({"api_function": "axtdc:ReleaseDoor", "method_name": "release_door"}, None),
+    ]
+)
 @respx.mock
-async def test_access_door(door_control):
-    """Test access door """
+async def test_door_requests(door_control, input: dict, expected: str):
     route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
         json={}
     )
 
     token = "Axis-accc8ea9abac:1550808050.595717000"
 
-    response = await door_control.access_door(token)
+    response = await getattr(door_control, input["method_name"])(token)
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:AccessDoor": {"Token": token}}
+    assert json.loads(route.calls.last.request.content) == {input["api_function"]: {"Token": token}}
 
-    assert response == {}
-
-
-@respx.mock
-async def test_lock_door(door_control):
-    """Test lock door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.lock_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:LockDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_unlock_door(door_control):
-    """Test unlock door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.unlock_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:UnlockDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_block_door(door_control):
-    """Test block door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.block_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:BlockDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_lock_down_door(door_control):
-    """Test lock down door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.lock_down_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:LockDownDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_lock_down_release_door(door_control):
-    """Test lock down release door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.lock_down_release_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:LockDownReleaseDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_lock_open_door(door_control):
-    """Test lock  open door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.lock_open_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:LockOpenDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_lock_open_release_door(door_control):
-    """Test lock open release door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.lock_open_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:LockOpenReleaseDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_double_lock_door(door_control):
-    """Test double lock door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.double_lock_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:DoubleLockDoor": {"Token": token}}
-
-    assert response == {}
-
-
-@respx.mock
-async def test_release_door(door_control):
-    """Test release door"""
-    route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
-        json={}
-    )
-
-    token = "Axis-accc8ea9abac:1550808050.595717000"
-
-    response = await door_control.release_door(token)
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/vapix/doorcontrol"
-    assert json.loads(route.calls.last.request.content) == {"tdc:ReleaseDoor": {"Token": token}}
-
-    assert response == {}
+    assert response == expected
