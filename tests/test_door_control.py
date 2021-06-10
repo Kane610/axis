@@ -24,7 +24,7 @@ async def test_update(door_control):
     route = respx.post(f"http://{HOST}:80/vapix/doorcontrol").respond(
         json={"DoorInfo": [
             {
-                "token": "Axis-accc8ea9abac:1550808050.595717000",
+                "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
                 "Name": "Main Door",
                 "Description": "Main Door Description",
                 "Capabilities": {
@@ -63,9 +63,9 @@ async def test_update(door_control):
 
     assert len(door_control.values()) == 2
 
-    item = door_control["Axis-accc8ea9abac:1550808050.595717000"]
-    assert item.id == "Axis-accc8ea9abac:1550808050.595717000"
-    assert item.door_token == "Axis-accc8ea9abac:1550808050.595717000"
+    item = door_control["Axis-5fba94a4-8601-4627-bdda-cc408f69e026"]
+    assert item.id == "Axis-5fba94a4-8601-4627-bdda-cc408f69e026"
+    assert item.door_token == "Axis-5fba94a4-8601-4627-bdda-cc408f69e026"
     assert item.door_name == "Main Door"
     assert item.door_description == "Main Door Description"
 
@@ -132,7 +132,7 @@ async def test_get_door_info_list(door_control):
         json={
             "DoorInfo": [
                 {
-                    "token": "Axis-accc8ea9abac:1550808050.595717000",
+                    "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
                     "Name": "Main Door",
                     "Description": "",
                     "Capabilities": {
@@ -171,7 +171,7 @@ async def test_get_door_info_list(door_control):
 
     assert response["DoorInfo"] == [
         {
-            "token": "Axis-accc8ea9abac:1550808050.595717000",
+            "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
             "Name": "Main Door",
             "Description": "",
             "Capabilities": {
@@ -207,7 +207,7 @@ async def test_get_door_info(door_control):
         json={
             "DoorInfo": [
                 {
-                    "token": "Axis-accc8ea9abac:1550808050.595717000",
+                    "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
                     "Name": "Main Door",
                     "Description": "",
                     "Capabilities": {
@@ -231,7 +231,7 @@ async def test_get_door_info(door_control):
         }
     )
 
-    tokens = ["Axis-accc8ea9abac:1550808050.595717000"]
+    tokens = ["Axis-5fba94a4-8601-4627-bdda-cc408f69e026"]
 
     response = await door_control.get_door_info(tokens)
 
@@ -244,7 +244,7 @@ async def test_get_door_info(door_control):
 
     assert response["DoorInfo"] == [
         {
-            "token": "Axis-accc8ea9abac:1550808050.595717000",
+            "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
             "Name": "Main Door",
             "Description": "",
             "Capabilities": {
@@ -280,7 +280,7 @@ async def test_get_door_state(door_control):
         }
     )
 
-    token = "Axis-accc8ea9abac:1550808050.595717000"
+    token = "Axis-5fba94a4-8601-4627-bdda-cc408f69e026"
 
     response = await door_control.get_door_state(token)
 
@@ -318,7 +318,7 @@ async def test_door_requests(door_control, input: dict, expected: str):
         json={}
     )
 
-    token = "Axis-accc8ea9abac:1550808050.595717000"
+    token = "Axis-5fba94a4-8601-4627-bdda-cc408f69e026"
 
     response = await getattr(door_control, input["method_name"])(token)
 
