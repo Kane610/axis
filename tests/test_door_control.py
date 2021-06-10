@@ -25,8 +25,8 @@ async def test_update(door_control):
         json={"DoorInfo": [
             {
                 "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
-                "Name": "Main Door",
-                "Description": "Main Door Description",
+                "Name": "Test Door 1",
+                "Description": "Test Door 1 Description",
                 "Capabilities": {
                     "Access": True,
                     "Lock": True,
@@ -45,9 +45,9 @@ async def test_update(door_control):
                 }
             },
             {
-                "token": "Axis-accc8ee70fbe:1614733258.565014000",
-                "Name": "North Gym Door",
-                "Description": "North Gym Door Description",
+                "token": "Axis-c2987ee0-28d5-4b53-8493-52977af927cf",
+                "Name": "Test Door 2",
+                "Description": "Test Door 2 Description",
                 "Capabilities": {}
             }
         ]
@@ -66,8 +66,8 @@ async def test_update(door_control):
     item = door_control["Axis-5fba94a4-8601-4627-bdda-cc408f69e026"]
     assert item.id == "Axis-5fba94a4-8601-4627-bdda-cc408f69e026"
     assert item.door_token == "Axis-5fba94a4-8601-4627-bdda-cc408f69e026"
-    assert item.door_name == "Main Door"
-    assert item.door_description == "Main Door Description"
+    assert item.door_name == "Test Door 1"
+    assert item.door_description == "Test Door 1 Description"
 
     # TODO: Check to see that comparing dict using "==" actually does what I want it to do
     assert item.door_capabilities == {
@@ -87,11 +87,11 @@ async def test_update(door_control):
         "Configurable": True
     }
 
-    item2 = door_control["Axis-accc8ee70fbe:1614733258.565014000"]
-    assert item2.id == "Axis-accc8ee70fbe:1614733258.565014000"
-    assert item2.door_token == "Axis-accc8ee70fbe:1614733258.565014000"
-    assert item2.door_name == "North Gym Door"
-    assert item2.door_description == "North Gym Door Description"
+    item2 = door_control["Axis-c2987ee0-28d5-4b53-8493-52977af927cf"]
+    assert item2.id == "Axis-c2987ee0-28d5-4b53-8493-52977af927cf"
+    assert item2.door_token == "Axis-c2987ee0-28d5-4b53-8493-52977af927cf"
+    assert item2.door_name == "Test Door 2"
+    assert item2.door_description == "Test Door 2 Description"
     # TODO: Check to see that comparing dict using "==" actually does what I want it to do
     assert item2.door_capabilities == {}
 
@@ -133,7 +133,7 @@ async def test_get_door_info_list(door_control):
             "DoorInfo": [
                 {
                     "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
-                    "Name": "Main Door",
+                    "Name": "Test Door 1",
                     "Description": "",
                     "Capabilities": {
                         "Access": True,
@@ -153,8 +153,8 @@ async def test_get_door_info_list(door_control):
                     }
                 },
                 {
-                    "token": "Axis-accc8ee70fbe:1614733258.565014000",
-                    "Name": "North Gym Door",
+                    "token": "Axis-c2987ee0-28d5-4b53-8493-52977af927cf",
+                    "Name": "Test Door 2",
                     "Description": "",
                     "Capabilities": {}
                 }
@@ -172,7 +172,7 @@ async def test_get_door_info_list(door_control):
     assert response["DoorInfo"] == [
         {
             "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
-            "Name": "Main Door",
+            "Name": "Test Door 1",
             "Description": "",
             "Capabilities": {
                 "Access": True,
@@ -192,8 +192,8 @@ async def test_get_door_info_list(door_control):
             }
         },
         {
-            "token": "Axis-accc8ee70fbe:1614733258.565014000",
-            "Name": "North Gym Door",
+            "token": "Axis-c2987ee0-28d5-4b53-8493-52977af927cf",
+            "Name": "Test Door 2",
             "Description": "",
             "Capabilities": {}
         }
@@ -208,7 +208,7 @@ async def test_get_door_info(door_control):
             "DoorInfo": [
                 {
                     "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
-                    "Name": "Main Door",
+                    "Name": "Test Door 1",
                     "Description": "",
                     "Capabilities": {
                         "Access": True,
@@ -245,7 +245,7 @@ async def test_get_door_info(door_control):
     assert response["DoorInfo"] == [
         {
             "token": "Axis-5fba94a4-8601-4627-bdda-cc408f69e026",
-            "Name": "Main Door",
+            "Name": "Test Door 1",
             "Description": "",
             "Capabilities": {
                 "Access": True,
