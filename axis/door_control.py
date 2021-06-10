@@ -47,10 +47,12 @@ class DoorControl(APIItems):
     """Door control for Axis devices."""
 
     def __init__(self, request: object) -> None:
+        """Initialize door control manager."""
         super().__init__({}, request, URL, Door)
 
     # TODO: Question: Is this used to get status information for the door?  Or to update the object properties?
     async def update(self) -> None:
+        """Refresh data."""
         raw = await self.get_door_info_list()
         self.process_raw(raw)
 
@@ -94,12 +96,14 @@ class DoorControl(APIItems):
 
     # region Door Actions
     async def access_door(self, door_token: str) -> None:
-        """This operation allows momentarily accessing a Door. It invokes the functionality typically used when a card holder
-        presents a card to a card reader at the door and is granted access.
+        """Access a Door.
+
+        It invokes the functionality typically used when a card holder presents a card to a card reader at the door and is granted access.
         The DoorMode shall change to Accessed.
         The Door shall remain accessible for the defined time as configured in the device.
         When the time span elapses, the DoorMode shall change back to its previous state.
-        A device must have the Lock capability to utilize this method."""
+        A device must have the Lock capability to utilize this method.
+        """
         await self._request(
             "post",
             URL,
@@ -107,8 +111,11 @@ class DoorControl(APIItems):
         )
 
     async def lock_door(self, door_token: str) -> None:
-        """This operation allows locking a Door. The DoorMode shall change to Locked.
-        A device must have the Lock capability to utilize this method."""
+        """Lock a Door.
+
+        The DoorMode shall change to Locked.
+        A device must have the Lock capability to utilize this method.
+        """
         await self._request(
             "post",
             URL,
@@ -116,9 +123,11 @@ class DoorControl(APIItems):
         )
 
     async def unlock_door(self, door_token: str) -> None:
-        """This operation allows unlocking a Door until it is explicitly locked again.
+        """Unlock a Door until it is explicitly locked again.
+
         The DoorMode shall change to Unlocked.
-        A device must have the Unlock capability to utilize this method."""
+        A device must have the Unlock capability to utilize this method.
+        """
         await self._request(
             "post",
             URL,
@@ -126,9 +135,11 @@ class DoorControl(APIItems):
         )
 
     async def block_door(self, door_token: str) -> None:
-        """This operation allows blocking a Door and preventing momentary access (AccessDoor command).
+        """Block a Door and prevent momentary access (AccessDoor command).
+
         The DoorMode shall change to Blocked.
-        A device must have the Block capability to utilize this method."""
+        A device must have the Block capability to utilize this method.
+        """
         await self._request(
             "post",
             URL,
@@ -136,10 +147,12 @@ class DoorControl(APIItems):
         )
 
     async def lock_down_door(self, door_token: str) -> None:
-        """This operation allows locking and preventing other actions until a LockDownReleaseDoor command is invoked.
+        """Locks down a door and prevents other actions until a LockDownReleaseDoor command is invoked.
+
         The DoorMode shall change to LockedDown.
         The device shall ignore other door control commands until a LockDownReleaseDoor command is performed.
-        A device must have the LockDown capability to utilize this method."""
+        A device must have the LockDown capability to utilize this method.
+        """
         await self._request(
             "post",
             URL,
@@ -147,10 +160,12 @@ class DoorControl(APIItems):
         )
 
     async def lock_down_release_door(self, door_token: str) -> None:
-        """This operation allows releasing the LockedDown state of a Door.
+        """Releases the LockedDown state of a Door.
+
         The DoorMode shall change back to its previous/next state.
         It is not defined what the previous/next state shall be, but typically - Locked.
-        This method will only succeed if the current DoorMode is LockedDown."""
+        This method will only succeed if the current DoorMode is LockedDown.
+        """
         await self._request(
             "post",
             URL,
@@ -158,10 +173,12 @@ class DoorControl(APIItems):
         )
 
     async def lock_open_door(self, door_token: str) -> None:
-        """This operation allows unlocking a Door and preventing other actions until LockOpenReleaseDoor method is invoked.
+        """Unlocks a Door and prevents other actions until LockOpenReleaseDoor method is invoked.
+
         The DoorMode shall change to LockedOpen.
         The device shall ignore other door control commands until a LockOpenReleaseDoor command is performed.
-        A device must have the LockOpen capability to utilize this method."""
+        A device must have the LockOpen capability to utilize this method.
+        """
         await self._request(
             "post",
             URL,
@@ -169,10 +186,12 @@ class DoorControl(APIItems):
         )
 
     async def lock_open_release_door(self, door_token: str) -> None:
-        """This operation allows releasing the LockedOpen state of a Door.
+        """Releases the LockedOpen state of a Door.
+
         The DoorMode shall change state from the LockedOpen state back to its previous/next state.
         It is not defined what the previous/next state shall be, but typically - Unlocked.
-        This method shall only succeed if the current DoorMode is LockedOpen."""
+        This method shall only succeed if the current DoorMode is LockedOpen.
+        """
         await self._request(
             "post",
             URL,
@@ -212,7 +231,7 @@ class Door(APIItem):
 
     @property
     def door_description(self) -> str:
-        """Description of Door."""
+        """Door Description."""
         return self.raw["Description"]
 
     @property
