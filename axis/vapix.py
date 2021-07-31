@@ -117,7 +117,7 @@ class Vapix:
         await self.initialize_applications()
 
     async def _initialize_api_attribute(
-            self, api_class: Callable, api_attr: str
+        self, api_class: Callable, api_attr: str
     ) -> None:
         """Initialize API and load data."""
         api_instance = api_class(self.request)
@@ -139,13 +139,13 @@ class Vapix:
         tasks = []
 
         for api_id, api_class, api_attr in (
-                (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
-                (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
-                (DOOR_CONTROL_ID, DoorControl, "door_control"),
-                (LIGHT_CONTROL_ID, LightControl, "light_control"),
-                (MQTT_ID, MqttClient, "mqtt"),
-                (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
-                (VIEW_AREAS_ID, ViewAreas, "view_areas"),
+            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
+            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
+            (DOOR_CONTROL_ID, DoorControl, "door_control"),
+            (LIGHT_CONTROL_ID, LightControl, "light_control"),
+            (MQTT_ID, MqttClient, "mqtt"),
+            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
+            (VIEW_AREAS_ID, ViewAreas, "view_areas"),
         ):
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
@@ -194,7 +194,7 @@ class Vapix:
         """Load data for applications on device."""
         self.applications = Applications(self.request)
         if self.params and version.parse(
-                self.params.embedded_development
+            self.params.embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
             try:
                 await self.applications.update()
@@ -204,16 +204,16 @@ class Vapix:
         tasks = []
 
         for app_class, app_attr in (
-                (FenceGuard, "fence_guard"),
-                (LoiteringGuard, "loitering_guard"),
-                (MotionGuard, "motion_guard"),
-                (ObjectAnalytics, "object_analytics"),
-                (Vmd4, "vmd4"),
+            (FenceGuard, "fence_guard"),
+            (LoiteringGuard, "loitering_guard"),
+            (MotionGuard, "motion_guard"),
+            (ObjectAnalytics, "object_analytics"),
+            (Vmd4, "vmd4"),
         ):
             if (
-                    app_class.APPLICATION_NAME in self.applications  # type: ignore[attr-defined]
-                    and self.applications[app_class.APPLICATION_NAME].status  # type: ignore[attr-defined]
-                    == APPLICATION_STATE_RUNNING
+                app_class.APPLICATION_NAME in self.applications  # type: ignore[attr-defined]
+                and self.applications[app_class.APPLICATION_NAME].status  # type: ignore[attr-defined]
+                == APPLICATION_STATE_RUNNING
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
@@ -240,11 +240,11 @@ class Vapix:
         if self.users and self.config.username in self.users:
             user = self.users[self.config.username]
             user_groups = (
-                    f"{user.name}\n"  # type: ignore[attr-defined]
-                    + ("admin " if user.admin else "")  # type: ignore[attr-defined]
-                    + ("operator " if user.operator else "")  # type: ignore[attr-defined]
-                    + ("viewer " if user.viewer else "")  # type: ignore[attr-defined]
-                    + ("ptz" if user.ptz else "")  # type: ignore[attr-defined]
+                f"{user.name}\n"  # type: ignore[attr-defined]
+                + ("admin " if user.admin else "")  # type: ignore[attr-defined]
+                + ("operator " if user.operator else "")  # type: ignore[attr-defined]
+                + ("viewer " if user.viewer else "")  # type: ignore[attr-defined]
+                + ("ptz" if user.ptz else "")  # type: ignore[attr-defined]
             )
 
         else:
@@ -256,11 +256,11 @@ class Vapix:
         self.user_groups = UserGroups(user_groups, self.request)
 
     async def request(
-            self,
-            method: str,
-            path: str,
-            kwargs_xmltodict: Optional[dict] = None,
-            **kwargs: dict,
+        self,
+        method: str,
+        path: str,
+        kwargs_xmltodict: Optional[dict] = None,
+        **kwargs: dict,
     ) -> Union[dict, str]:
         """Make a request to the API."""
         url = self.config.url + path
