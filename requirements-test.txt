@@ -2,7 +2,7 @@ pytest
 pytest-cov
 pytest-asyncio
 httpx==0.18.2
-respx==0.17.1
+respx==0.18.2
 flake8==4.0.1
 flake8-docstrings==1.6.0
 flake8-noqa==1.2.0
