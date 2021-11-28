@@ -21,6 +21,7 @@ from .applications.object_analytics import ObjectAnalytics
 from .applications.vmd4 import Vmd4
 from .basic_device_info import API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID, BasicDeviceInfo
 from .configuration import Configuration
+from .door_control import DoorControl, API_DISCOVERY_ID as DOOR_CONTROL_ID
 from .errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .event_instances import EventInstances
 from .light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
@@ -51,6 +52,7 @@ class Vapix:
         self.applications: Optional[Applications] = None
         self.basic_device_info: Optional[BasicDeviceInfo] = None
         self.event_instances: Optional[EventInstances] = None
+        self.door_control: Optional[DoorControl] = None
         self.fence_guard: Optional[FenceGuard] = None
         self.light_control: Optional[LightControl] = None
         self.loitering_guard: Optional[LoiteringGuard] = None
@@ -139,6 +141,7 @@ class Vapix:
         for api_id, api_class, api_attr in (
             (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
             (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
+            (DOOR_CONTROL_ID, DoorControl, "door_control"),
             (LIGHT_CONTROL_ID, LightControl, "light_control"),
             (MQTT_ID, MqttClient, "mqtt"),
             (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),

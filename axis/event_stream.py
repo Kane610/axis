@@ -9,6 +9,7 @@ from .api import APIItem, APIItems
 
 LOGGER = logging.getLogger(__name__)
 
+CLASS_DOOR = "door"
 CLASS_INPUT = "input"
 CLASS_LIGHT = "light"
 CLASS_MOTION = "motion"
@@ -188,6 +189,70 @@ class DayNight(AxisBinaryEvent):
     TYPE = "DayNight"
 
 
+class DoorAlarm(AxisBinaryEvent):
+    """Door Alarm Changes."""
+
+    TOPIC = "tns1:Door/State/DoorAlarm"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Alarm"
+
+
+class DoorFault(AxisBinaryEvent):
+    """Door Fault Changes."""
+
+    TOPIC = "tns1:Door/State/DoorFault"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Fault"
+
+
+class DoorLockPhysical(AxisBinaryEvent):
+    """Door Lock State Changes."""
+
+    TOPIC = "tns1:Door/State/LockPhysicalState"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Lock Physical State"
+
+
+class DoorMode(AxisBinaryEvent):
+    """Door Mode Changes."""
+
+    TOPIC = "tns1:Door/State/DoorMode"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Mode"
+
+
+class DoorPhysical(AxisBinaryEvent):
+    """Door Physical State Changes."""
+
+    TOPIC = "tns1:Door/State/DoorPhysicalState"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Physical State"
+
+
+class DoorTamper(AxisBinaryEvent):
+    """Door Tamper State Changes."""
+
+    TOPIC = "tns1:Door/State/DoorTamper"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Tamper State"
+
+
+class DoorWarning(AxisBinaryEvent):
+    """Door Warning State Changes."""
+
+    TOPIC = "tns1:Door/State/DoorWarning"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Warning State"
+
+
+class DoorDoubleLockPhysical(AxisBinaryEvent):
+    """Door Double Lock State Changes."""
+
+    TOPIC = "tns1:Door/State/DoubleLockPhysicalState"
+    CLASS = CLASS_DOOR
+    TYPE = "Door Double Lock Physical State"
+
+
 class FenceGuard(AxisBinaryEvent):
     """Fence Guard trigger event."""
 
@@ -338,6 +403,14 @@ class Vmd4(AxisBinaryEvent):
 EVENT_CLASSES = (
     Audio,
     DayNight,
+    DoorAlarm,
+    DoorDoubleLockPhysical,
+    DoorFault,
+    DoorLockPhysical,
+    DoorMode,
+    DoorPhysical,
+    DoorWarning,
+    DoorTamper,
     FenceGuard,
     Input,
     Light,
