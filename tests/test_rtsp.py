@@ -20,7 +20,7 @@ import pytest
 from .conftest import HOST, RTSP_PORT
 
 
-pytestmark = pytest.mark.asyncio
+# pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture

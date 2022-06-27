@@ -15,12 +15,7 @@ RTSP_PORT = 8888
 
 
 @pytest.fixture
-def loop():
-    return asyncio.get_event_loop()
-
-
-@pytest.fixture
-async def axis_device(loop) -> AxisDevice:
+async def axis_device() -> AxisDevice:
     """Returns the axis device.
 
     Clean up sessions automatically at the end of each test.

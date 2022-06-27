@@ -29,7 +29,7 @@ async def axis_device(
     )
 
     try:
-        with async_timeout.timeout(5):
+        async with async_timeout.timeout(5):
             await device.vapix.initialize_users()
             await device.vapix.load_user_groups()
         await device.vapix.initialize_event_instances()

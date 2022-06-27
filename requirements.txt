@@ -1,2 +1,5 @@
-httpx
-xmltodict
+async_timeout==4.0.2
+attrs==21.4.0
+httpx==0.23.0
+packaging==21.3
+xmltodict==0.13.0
