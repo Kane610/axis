@@ -1,2 +1,3 @@
+async_timeout==4.0.2
 httpx==0.18.2
 xmltodict==0.13.0
