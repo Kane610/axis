@@ -1,2 +1,2 @@
-httpx
-xmltodict
+httpx==0.18.2
+xmltodict==0.13.0
