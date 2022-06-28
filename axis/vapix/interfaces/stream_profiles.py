@@ -10,7 +10,8 @@ can be saved in a stream profile.
 
 import attr
 
-from .api import APIItem, APIItems, Body
+from ..models.stream_profile import StreamProfile
+from .api import APIItems, Body
 
 URL = "/axis-cgi/streamprofile.cgi"
 
@@ -66,22 +67,3 @@ class StreamProfiles(APIItems):
                 filter=attr.filters.include(attr.fields(Body).method),
             ),
         )
-
-
-class StreamProfile(APIItem):
-    """Stream profile item."""
-
-    @property
-    def name(self) -> str:
-        """Name of stream profile."""
-        return self.raw["name"]
-
-    @property
-    def description(self) -> str:
-        """Stream profile description."""
-        return self.raw["description"]
-
-    @property
-    def parameters(self) -> str:
-        """Parameters of stream profile."""
-        return self.raw["parameters"]

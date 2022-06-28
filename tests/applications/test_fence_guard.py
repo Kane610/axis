@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.applications.fence_guard import FenceGuard
+from axis.vapix.interfaces.applications.fence_guard import FenceGuard
 
 from ..conftest import HOST
 

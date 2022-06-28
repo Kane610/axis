@@ -7,7 +7,7 @@ import pytest
 
 import respx
 
-from axis.param_cgi import Params
+from axis.vapix.interfaces.param_cgi import Params
 
 from .conftest import HOST
 

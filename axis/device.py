@@ -1,14 +1,11 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
-import logging
 from typing import Callable, Optional
 
 from .configuration import Configuration
 from .event_stream import EventManager
 from .streammanager import StreamManager
-from .vapix import Vapix
-
-_LOGGER = logging.getLogger(__name__)
+from .vapix.vapix import Vapix
 
 
 class AxisDevice:

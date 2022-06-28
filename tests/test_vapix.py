@@ -9,10 +9,13 @@ import httpx
 import respx
 
 from axis.errors import MethodNotAllowed, PathNotFound, RequestError, Unauthorized
-from axis.applications import APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
-from axis.stream_profiles import StreamProfile
-from axis.user_groups import UNKNOWN
-from axis.vapix import Vapix
+from axis.vapix.interfaces.applications import (
+    APPLICATION_STATE_RUNNING,
+    APPLICATION_STATE_STOPPED,
+)
+from axis.vapix.interfaces.stream_profiles import StreamProfile
+from axis.vapix.interfaces.user_groups import UNKNOWN
+from axis.vapix.vapix import Vapix
 
 from .test_api_discovery import response_getApiList as api_discovery_response
 from .applications.test_applications import (

@@ -11,9 +11,6 @@ Virtual input API.
 from typing import Callable
 from urllib.parse import quote
 
-from .api import APIItems
-from .param_cgi import Params
-
 PROPERTY = "Properties.API.HTTP.Version=3"
 
 URL = "/axis-cgi/io/port.cgi"
@@ -23,28 +20,6 @@ ACTION_LOW = "\\"
 
 DIRECTION_IN = "input"
 DIRECTION_OUT = "output"
-
-
-class Ports(APIItems):
-    """Represents all ports of io/port.cgi."""
-
-    def __init__(self, param_cgi: Params, request: Callable) -> None:
-        """Initialize port cgi manager."""
-        self.param_cgi = param_cgi
-        super().__init__(self.param_cgi.ports, request, None, Port)
-
-    async def update(self) -> None:
-        """Refresh data."""
-        await self.param_cgi.update_ports()
-        self.process_raw(self.param_cgi.ports)
-
-    @staticmethod
-    def pre_process_raw(ports: dict) -> dict:
-        """Pre process ports for process raw.
-
-        Index needs to be a string.
-        """
-        return {str(k): v for k, v in ports.items()}
 
 
 class Port:

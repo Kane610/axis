@@ -1,6 +1,7 @@
 """VMD4 API."""
 
-from .api import ApplicationAPIItem, ApplicationAPIItems
+from ...models.applications.api import ApplicationAPIItem
+from .api import ApplicationAPIItems
 
 URL = "/local/vmd/control.cgi"
 

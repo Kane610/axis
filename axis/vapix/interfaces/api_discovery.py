@@ -5,7 +5,8 @@ The AXIS API Discovery service makes it possible to retrieve information about A
 
 import attr
 
-from .api import APIItem, APIItems, Body
+from ..models.api_discovery import Api
+from .api import APIItems, Body
 
 URL = "/axis-cgi/apidiscovery.cgi"
 
@@ -52,17 +53,3 @@ class ApiDiscovery(APIItems):
                 filter=attr.filters.include(attr.fields(Body).method),
             ),
         )
-
-
-class Api(APIItem):
-    """API Discovery item."""
-
-    @property
-    def name(self):
-        """Name of API."""
-        return self.raw["name"]
-
-    @property
-    def version(self):
-        """Version of API."""
-        return self.raw["version"]

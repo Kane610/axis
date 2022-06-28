@@ -6,7 +6,8 @@ This information is used to identify basic properties of the product.
 
 import attr
 
-from .api import APIItem, APIItems, Body
+from ..models.api import APIItem
+from .api import APIItems, Body
 
 URL = "/axis-cgi/basicdeviceinfo.cgi"
 

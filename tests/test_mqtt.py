@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.mqtt import (
+from axis.vapix.interfaces.mqtt import (
     ClientConfig,
     Server,
     Message,

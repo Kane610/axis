@@ -4,8 +4,9 @@ import json
 
 import attr
 
-from .api import APIItem, APIItems, Body
-from .event_stream import OPERATION_CHANGED
+from ...event_stream import OPERATION_CHANGED
+from ..models.mqtt import Client
+from .api import APIItems, Body
 
 URL = "/axis-cgi/mqtt"
 URL_CLIENT = f"{URL}/client.cgi"
@@ -152,7 +153,3 @@ class MqttClient(APIItems):
                 Body("configureEventPublication", API_VERSION, params=event_filter)
             ),
         )
-
-
-class Client(APIItem):
-    """MQTT client."""

@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.port_management import (
+from axis.vapix.interfaces.port_management import (
     IoPortManagement,
     PortSequence,
     Sequence,

@@ -15,17 +15,13 @@ comment: The comment field of the account.
 import re
 from typing import Dict, Optional
 
-from .api import APIItem, APIItems
+from ..models.pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER, User
+from .api import APIItems
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
 URL = "/axis-cgi/pwdgrp.cgi"
 URL_GET = URL + "?action=get"
-
-ADMIN = "admin"
-OPERATOR = "operator"
-VIEWER = "viewer"
-PTZ = "ptz"
 
 SGRP_VIEWER = VIEWER
 SGRP_OPERATOR = "{}:{}".format(VIEWER, OPERATOR)
@@ -117,32 +113,3 @@ class Users(APIItems):
         data = {"action": "remove", "user": user}
 
         await self._request("post", URL, data=data)
-
-
-class User(APIItem):
-    """Represents a user."""
-
-    @property
-    def name(self) -> str:
-        """User name."""
-        return self.id
-
-    @property
-    def admin(self) -> bool:
-        """Is user part of admin group."""
-        return self.raw[ADMIN]
-
-    @property
-    def operator(self) -> bool:
-        """Is user part of operator group."""
-        return self.raw[OPERATOR]
-
-    @property
-    def viewer(self) -> bool:
-        """Is user part of viewer group."""
-        return self.raw[VIEWER]
-
-    @property
-    def ptz(self) -> bool:
-        """Is user part of PTZ group."""
-        return self.raw[PTZ]

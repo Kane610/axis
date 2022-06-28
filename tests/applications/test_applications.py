@@ -7,7 +7,7 @@ import pytest
 
 import respx
 
-from axis.applications import Applications
+from axis.vapix.interfaces.applications import Applications
 
 from ..conftest import HOST
 

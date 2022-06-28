@@ -6,10 +6,11 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
 import asyncio
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Callable, Dict, Union
 
-from .api import APIItem, APIItems
-from .stream_profiles import StreamProfile
+from ..models.param_cgi import Param
+from ..models.stream_profile import StreamProfile
+from .api import APIItems
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
@@ -542,19 +543,3 @@ class Params(APIItems):
             profiles.append(StreamProfile(profile["name"], profile, self._request))
 
         return profiles
-
-
-class Param(APIItem):
-    """Parameter group."""
-
-    def __contains__(self, obj_id: str) -> bool:
-        """Evaluate object membership to parameter group."""
-        return obj_id in self.raw
-
-    def get(self, obj_id: str, default: Optional[Any] = None) -> Any:
-        """Get object if stored in raw else return default."""
-        return self.raw.get(obj_id, default)
-
-    def __getitem__(self, obj_id: str) -> Any:
-        """Return Param[obj_id]."""
-        return self.raw[obj_id]
