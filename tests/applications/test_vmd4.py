@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.vapix.applications.vmd4 import Vmd4
+from axis.vapix.interfaces.applications.vmd4 import Vmd4
 
 from ..conftest import HOST
 

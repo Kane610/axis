@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.vapix.light_control import LightControl
+from axis.vapix.interfaces.light_control import LightControl
 from .conftest import HOST
 
 

@@ -3,8 +3,8 @@
 Figure out what access rights an account has.
 """
 
+from ..models.pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER
 from .api import APIItem, APIItems
-from .pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER
 
 URL = "/axis-cgi/usergroup.cgi"
 

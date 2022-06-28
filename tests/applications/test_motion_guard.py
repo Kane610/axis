@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.vapix.applications.motion_guard import MotionGuard
+from axis.vapix.interfaces.applications.motion_guard import MotionGuard
 
 from ..conftest import HOST
 

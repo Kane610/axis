@@ -10,13 +10,13 @@ Virtual input API.
 
 from typing import Callable
 
+from ..models.port_cgi import ACTION_HIGH  # noqa: F401
+from ..models.port_cgi import ACTION_LOW  # noqa: F401
+from ..models.port_cgi import DIRECTION_IN  # noqa: F401
+from ..models.port_cgi import DIRECTION_OUT  # noqa: F401
+from ..models.port_cgi import Port
+from ..models.port_cgi import URL  # noqa: F401
 from .api import APIItems
-from .models.port_cgi import ACTION_HIGH  # noqa: F401
-from .models.port_cgi import ACTION_LOW  # noqa: F401
-from .models.port_cgi import DIRECTION_IN  # noqa: F401
-from .models.port_cgi import DIRECTION_OUT  # noqa: F401
-from .models.port_cgi import Port
-from .models.port_cgi import URL  # noqa: F401
 from .param_cgi import Params
 
 PROPERTY = "Properties.API.HTTP.Version=3"

@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.vapix.applications.object_analytics import ObjectAnalytics
+from axis.vapix.interfaces.applications.object_analytics import ObjectAnalytics
 
 from ..conftest import HOST
 

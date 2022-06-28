@@ -11,8 +11,8 @@ from typing import Optional
 
 import attr
 
+from ..models.view_area import Geometry, ViewArea
 from .api import APIItems, Body
-from .models.view_area import Geometry, ViewArea
 
 URL = "/axis-cgi/viewarea"
 URL_INFO = f"{URL}/info.cgi"

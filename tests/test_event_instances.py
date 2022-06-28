@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_ins
 
 import pytest
 
-from axis.vapix.event_instances import EventInstances, URL, get_events
+from axis.vapix.interfaces.event_instances import EventInstances, URL, get_events
 import respx
 
 from .conftest import HOST

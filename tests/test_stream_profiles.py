@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.vapix.stream_profiles import StreamProfiles
+from axis.vapix.interfaces.stream_profiles import StreamProfiles
 
 from .conftest import HOST
 

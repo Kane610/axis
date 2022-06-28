@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 import respx
 
-from axis.vapix.ptz import (
+from axis.vapix.interfaces.ptz import (
     AUTO,
     MOVE_HOME,
     OFF,

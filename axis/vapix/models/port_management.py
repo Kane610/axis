@@ -5,7 +5,7 @@ The I/O port management API makes it possible to retrieve information about the 
 
 import attr
 
-from ..api import Body
+from ..interfaces.api import Body
 from .api import APIItem
 
 URL = "/axis-cgi/io/portmanagement.cgi"

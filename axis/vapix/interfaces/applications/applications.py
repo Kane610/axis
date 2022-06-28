@@ -3,8 +3,8 @@
 Use VAPIX® Application API to upload, control and manage applications and their license keys.
 """
 
+from ...models.applications.application import Application
 from ..api import APIItems
-from ..models.applications.application import Application
 
 URL = "/axis-cgi/applications"
 URL_CONTROL = f"{URL}/control.cgi"

@@ -6,7 +6,7 @@ from typing import Any, ItemsView, Iterator, KeysView, Optional, ValuesView
 
 import attr
 
-from .models.api import APIItem
+from ..models.api import APIItem
 
 LOGGER = logging.getLogger(__name__)
 

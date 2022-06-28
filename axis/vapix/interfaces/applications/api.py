@@ -4,8 +4,8 @@ from typing import Type
 
 import attr
 
+from ...models.applications.api import ApplicationAPIItem
 from ..api import APIItems, Body
-from ..models.applications.api import ApplicationAPIItem
 
 
 class ApplicationAPIItems(APIItems):

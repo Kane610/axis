@@ -5,10 +5,10 @@ The I/O port management API makes it possible to retrieve information about the 
 
 import attr
 
+from ..models.port_management import Port, PortSequence
+from ..models.port_management import Sequence  # noqa: F401
+from ..models.port_management import SetPort  # noqa: F401
 from .api import APIItems, Body
-from .models.port_management import Port, PortSequence
-from .models.port_management import Sequence  # noqa: F401
-from .models.port_management import SetPort  # noqa: F401
 
 URL = "/axis-cgi/io/portmanagement.cgi"
 

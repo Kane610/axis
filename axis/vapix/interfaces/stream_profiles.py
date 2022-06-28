@@ -10,8 +10,8 @@ can be saved in a stream profile.
 
 import attr
 
+from ..models.stream_profile import StreamProfile
 from .api import APIItems, Body
-from .models.stream_profile import StreamProfile
 
 URL = "/axis-cgi/streamprofile.cgi"
 

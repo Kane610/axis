@@ -5,7 +5,7 @@ from typing import Any, Callable, Union
 
 import xmltodict  # type: ignore[import]
 
-from .vapix.api import APIItems
+from .vapix.interfaces.api import APIItems
 from .vapix.models.api import APIItem
 
 LOGGER = logging.getLogger(__name__)

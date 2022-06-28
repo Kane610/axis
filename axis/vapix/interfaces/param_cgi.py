@@ -8,8 +8,8 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 import asyncio
 from typing import Callable, Dict, Union
 
+from ..models.param_cgi import Param
 from .api import APIItems
-from .models.param_cgi import Param
 from .stream_profiles import StreamProfile
 
 PROPERTY = "Properties.API.HTTP.Version=3"

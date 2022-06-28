@@ -2,9 +2,9 @@
 
 from typing import Callable, List, Optional
 
-from ..event_stream import traverse
+from ...event_stream import traverse
+from ..models.event_instance import EventInstance
 from .api import APIItems
-from .models.event_instance import EventInstance
 
 URL = "/vapix/services"
 

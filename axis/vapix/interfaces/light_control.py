@@ -6,8 +6,8 @@ of IR and White light LEDs in the Axis devices
 
 import attr
 
+from ..models.light_control import Light
 from .api import APIItems, Body
-from .models.light_control import Light
 
 URL = "/axis-cgi/lightcontrol.cgi"
 

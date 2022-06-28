@@ -15,8 +15,8 @@ comment: The comment field of the account.
 import re
 from typing import Dict, Optional
 
+from ..models.pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER, User
 from .api import APIItems
-from .models.pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER, User
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 

@@ -5,8 +5,8 @@ The AXIS API Discovery service makes it possible to retrieve information about A
 
 import attr
 
+from ..models.api_discovery import Api
 from .api import APIItems, Body
-from .models.api_discovery import Api
 
 URL = "/axis-cgi/apidiscovery.cgi"
 

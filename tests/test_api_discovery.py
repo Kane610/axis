@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.vapix.api_discovery import ApiDiscovery, API_DISCOVERY_ID
+from axis.vapix.interfaces.api_discovery import ApiDiscovery, API_DISCOVERY_ID
 
 from .conftest import HOST
 

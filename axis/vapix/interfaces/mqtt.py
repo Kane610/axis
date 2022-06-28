@@ -4,9 +4,9 @@ import json
 
 import attr
 
-from ..event_stream import OPERATION_CHANGED
+from ...event_stream import OPERATION_CHANGED
+from ..models.mqtt import Client
 from .api import APIItems, Body
-from .models.mqtt import Client
 
 URL = "/axis-cgi/mqtt"
 URL_CLIENT = f"{URL}/client.cgi"
