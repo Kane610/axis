@@ -9,8 +9,8 @@ import asyncio
 from typing import Callable, Dict, Union
 
 from ..models.param_cgi import Param
+from ..models.stream_profile import StreamProfile
 from .api import APIItems
-from .stream_profiles import StreamProfile
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
