@@ -6,7 +6,7 @@ pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream
 import pytest
 from unittest.mock import Mock
 
-from axis.event_stream import EventManager
+from axis.vapix.event_stream import EventManager
 
 from .event_fixtures import (
     FIRST_MESSAGE,

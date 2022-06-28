@@ -4,10 +4,12 @@ import asyncio
 import logging
 from typing import Callable, Optional, Union
 
-import httpx  # type: ignore[import]
+import httpx
 from packaging import version
 import xmltodict  # type: ignore[import]
 
+from ..configuration import Configuration
+from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .api_discovery import ApiDiscovery
 from .applications import (
     APPLICATION_STATE_RUNNING,
@@ -20,8 +22,6 @@ from .applications.motion_guard import MotionGuard
 from .applications.object_analytics import ObjectAnalytics
 from .applications.vmd4 import Vmd4
 from .basic_device_info import API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID, BasicDeviceInfo
-from .configuration import Configuration
-from .errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .event_instances import EventInstances
 from .light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
 from .mqtt import API_DISCOVERY_ID as MQTT_ID, MqttClient

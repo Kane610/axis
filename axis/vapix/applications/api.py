@@ -4,7 +4,7 @@ from typing import Optional, Type
 
 import attr
 
-from axis.api import APIItem, APIItems, Body
+from ..api import APIItem, APIItems, Body
 
 
 class ApplicationAPIItem(APIItem):

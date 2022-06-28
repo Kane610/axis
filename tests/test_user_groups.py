@@ -7,7 +7,7 @@ import pytest
 
 import respx
 
-from axis.user_groups import URL, UserGroups
+from axis.vapix.user_groups import URL, UserGroups
 
 from .conftest import HOST
 

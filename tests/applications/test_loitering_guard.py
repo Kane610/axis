@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.applications.loitering_guard import LoiteringGuard
+from axis.vapix.applications.loitering_guard import LoiteringGuard
 
 from ..conftest import HOST
 

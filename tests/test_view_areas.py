@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.view_areas import Geometry, URL_CONFIG, URL_INFO, ViewAreas
+from axis.vapix.view_areas import Geometry, URL_CONFIG, URL_INFO, ViewAreas
 
 from .conftest import HOST
 

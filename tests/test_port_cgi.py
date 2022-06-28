@@ -7,8 +7,8 @@ import pytest
 
 import respx
 
-from axis.param_cgi import Params
-from axis.port_cgi import ACTION_LOW, Ports
+from axis.vapix.param_cgi import Params
+from axis.vapix.port_cgi import ACTION_LOW, Ports
 
 from .conftest import HOST
 

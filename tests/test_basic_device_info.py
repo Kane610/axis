@@ -8,7 +8,7 @@ import pytest
 
 import respx
 
-from axis.basic_device_info import BasicDeviceInfo
+from axis.vapix.basic_device_info import BasicDeviceInfo
 
 from .conftest import HOST
 

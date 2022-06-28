@@ -8,7 +8,7 @@ import urllib
 
 import respx
 
-from axis.pwdgrp_cgi import SGRP_ADMIN, Users
+from axis.vapix.pwdgrp_cgi import SGRP_ADMIN, Users
 
 from .conftest import HOST
 
