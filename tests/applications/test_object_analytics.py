@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def object_analytics(axis_device) -> ObjectAnalytics:
     """Returns the object analytics mock object."""
-    return ObjectAnalytics(axis_device.vapix.request)
+    return ObjectAnalytics(axis_device.vapix)
 
 
 @respx.mock

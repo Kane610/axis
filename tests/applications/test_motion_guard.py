@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def motion_guard(axis_device) -> MotionGuard:
     """Returns the motion guard mock object."""
-    return MotionGuard(axis_device.vapix.request)
+    return MotionGuard(axis_device.vapix)
 
 
 @respx.mock

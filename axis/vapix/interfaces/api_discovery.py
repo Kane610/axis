@@ -17,9 +17,9 @@ API_VERSION = "1.0"
 class ApiDiscovery(APIItems):
     """API Discovery for Axis devices."""
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize API discovery manager."""
-        super().__init__({}, request, URL, Api)
+        super().__init__(vapix, URL, Api)
 
     async def update(self) -> None:
         """Refresh data."""
@@ -34,7 +34,7 @@ class ApiDiscovery(APIItems):
 
     async def get_api_list(self) -> dict:
         """List all APIs registered on API Discovery service."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
@@ -45,7 +45,7 @@ class ApiDiscovery(APIItems):
 
     async def get_supported_versions(self) -> dict:
         """Supported versions of API Discovery API."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(

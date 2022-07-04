@@ -35,9 +35,9 @@ REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
 class Users(APIItems):
     """Represents all users of a device."""
 
-    def __init__(self, raw: str, request: object) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize user manager."""
-        super().__init__(raw, request, URL_GET, User)
+        super().__init__(vapix, URL_GET, User)
 
     async def update(self) -> None:
         """Update list of current users."""
@@ -73,7 +73,7 @@ class Users(APIItems):
     async def list(self) -> str:
         """List current users."""
         data = {"action": "get"}
-        return await self._request("post", URL, data=data)
+        return await self.vapix.request("post", URL, data=data)
 
     async def create(
         self, user: str, *, pwd: str, sgrp: str, comment: str = None
@@ -84,7 +84,7 @@ class Users(APIItems):
         if comment:
             data["comment"] = comment
 
-        await self._request("post", URL, data=data)
+        await self.vapix.request("post", URL, data=data)
 
     async def modify(
         self,
@@ -106,10 +106,10 @@ class Users(APIItems):
         if comment:
             data["comment"] = comment
 
-        await self._request("post", URL, data=data)
+        await self.vapix.request("post", URL, data=data)
 
     async def delete(self, user: str) -> None:
         """Remove user."""
         data = {"action": "remove", "user": user}
 
-        await self._request("post", URL, data=data)
+        await self.vapix.request("post", URL, data=data)

@@ -16,7 +16,7 @@ from .conftest import HOST
 @pytest.fixture
 def view_areas(axis_device) -> ViewAreas:
     """Returns the view_areas mock object."""
-    return ViewAreas(axis_device.vapix.request)
+    return ViewAreas(axis_device.vapix)
 
 
 @respx.mock

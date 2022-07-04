@@ -21,7 +21,7 @@ from .conftest import HOST
 @pytest.fixture
 def io_port_management(axis_device) -> IoPortManagement:
     """Returns the io_port_management mock object."""
-    return IoPortManagement(axis_device.vapix.request)
+    return IoPortManagement(axis_device.vapix)
 
 
 @respx.mock

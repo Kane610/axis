@@ -41,14 +41,14 @@ SUPPORTED_GROUPS = [
 class Params(APIItems):
     """Represents all parameters of param.cgi."""
 
-    def __init__(self, request: Callable) -> None:
+    def __init__(self, vapix: Callable) -> None:
         """Initialize parameter manager."""
-        super().__init__("", request, URL_GET, Param)
+        super().__init__(vapix, URL_GET, Param)
 
     async def update(self, group: str = "") -> None:
         """Refresh data."""
         path = URL_GET + (f"&group={group}" if group else "")
-        raw = await self._request("get", path)
+        raw = await self.vapix.request("get", path)
         self.process_raw(raw)
 
     @staticmethod
@@ -540,6 +540,6 @@ class Params(APIItems):
 
         for raw_profile in raw_profiles.values():  # Convert profile keys to lower case
             profile = dict((k.lower(), v) for k, v in raw_profile.items())
-            profiles.append(StreamProfile(profile["name"], profile, self._request))
+            profiles.append(StreamProfile(profile["name"], profile, self.vapix.request))
 
         return profiles

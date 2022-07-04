@@ -22,9 +22,9 @@ APPLICATION_STATE_STOPPED = "Stopped"
 class Applications(APIItems):
     """Applications on Axis devices."""
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize applications manager."""
-        super().__init__({}, request, URL, Application)
+        super().__init__(vapix, URL, Application)
 
     async def update(self) -> None:
         """Refresh data."""
@@ -55,4 +55,4 @@ class Applications(APIItems):
 
     async def list(self) -> dict:
         """Retrieve information about installed applications."""
-        return await self._request("post", URL_LIST)
+        return await self.vapix.request("post", URL_LIST)

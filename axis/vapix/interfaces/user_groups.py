@@ -14,9 +14,9 @@ UNKNOWN = "unknown"
 class UserGroups(APIItems):
     """User group access rights for Axis devices."""
 
-    def __init__(self, raw: str, request: object) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize user groups manager."""
-        super().__init__(raw, request, URL, APIItem)
+        super().__init__(vapix, URL, APIItem)
 
     @staticmethod
     def pre_process_raw(raw: str) -> dict:  # type: ignore[override]
@@ -43,19 +43,27 @@ class UserGroups(APIItems):
     @property
     def admin(self) -> bool:
         """Is user admin."""
-        return self[ADMIN].raw  # type: ignore[return-value]
+        if ADMIN in self:
+            return self[ADMIN].raw  # type: ignore[return-value]
+        return False
 
     @property
     def operator(self) -> bool:
         """Is user operator."""
-        return self[OPERATOR].raw  # type: ignore[return-value]
+        if OPERATOR in self:
+            return self[OPERATOR].raw  # type: ignore[return-value]
+        return False
 
     @property
     def viewer(self) -> bool:
         """Is user viewer."""
-        return self[VIEWER].raw  # type: ignore[return-value]
+        if VIEWER in self:
+            return self[VIEWER].raw  # type: ignore[return-value]
+        return False
 
     @property
     def ptz(self) -> bool:
         """Is user ptz."""
-        return self[PTZ].raw  # type: ignore[return-value]
+        if PTZ in self:
+            return self[PTZ].raw  # type: ignore[return-value]
+        return False

@@ -7,7 +7,6 @@ import pytest
 
 import respx
 
-from axis.vapix.interfaces.param_cgi import Params
 from axis.vapix.interfaces.port_cgi import ACTION_LOW, Ports
 
 from .conftest import HOST
@@ -16,8 +15,7 @@ from .conftest import HOST
 @pytest.fixture
 def ports(axis_device) -> Ports:
     """Returns the api_discovery mock object."""
-    params = Params(axis_device.vapix.request)
-    return Ports(params, axis_device.vapix.request)
+    return Ports(axis_device.vapix)
 
 
 @respx.mock

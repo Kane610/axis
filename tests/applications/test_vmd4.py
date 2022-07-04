@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def vmd4(axis_device) -> Vmd4:
     """Returns the vmd4 mock object."""
-    return Vmd4(axis_device.vapix.request)
+    return Vmd4(axis_device.vapix)
 
 
 @respx.mock

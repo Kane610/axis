@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def loitering_guard(axis_device) -> LoiteringGuard:
     """Returns the loitering guard mock object."""
-    return LoiteringGuard(axis_device.vapix.request)
+    return LoiteringGuard(axis_device.vapix)
 
 
 @respx.mock

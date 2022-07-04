@@ -32,7 +32,7 @@ UNSUPPORTED_COMMAND = "unsupported"
 @pytest.fixture
 def ptz_control(axis_device) -> PtzControl:
     """Returns the PTZ control mock object."""
-    return PtzControl(axis_device.vapix.request)
+    return PtzControl(axis_device.vapix)
 
 
 def test_limit():

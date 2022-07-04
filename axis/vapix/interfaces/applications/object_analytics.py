@@ -23,9 +23,9 @@ class ObjectAnalytics(ApplicationAPIItems):
 
     APPLICATION_NAME = APPLICATION_NAME
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize object analyticz manager."""
-        super().__init__(request, URL, ObjectAnalyticsScenario, API_VERSION)
+        super().__init__(vapix, URL, ObjectAnalyticsScenario, API_VERSION)
 
     @staticmethod
     def pre_process_raw(raw: dict) -> dict:
@@ -41,7 +41,7 @@ class ObjectAnalytics(ApplicationAPIItems):
 
     async def get_configuration(self) -> dict:
         """Retrieve configuration of application."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             self._path,
             json=attr.asdict(

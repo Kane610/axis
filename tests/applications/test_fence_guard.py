@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def fence_guard(axis_device) -> FenceGuard:
     """Returns the fence guard mock object."""
-    return FenceGuard(axis_device.vapix.request)
+    return FenceGuard(axis_device.vapix)
 
 
 @respx.mock

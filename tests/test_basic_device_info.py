@@ -16,7 +16,7 @@ from .conftest import HOST
 @pytest.fixture
 def basic_device_info(axis_device) -> BasicDeviceInfo:
     """Returns the basic_device_info mock object."""
-    return BasicDeviceInfo(axis_device.vapix.request)
+    return BasicDeviceInfo(axis_device.vapix)
 
 
 @respx.mock

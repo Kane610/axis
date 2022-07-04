@@ -15,7 +15,7 @@ from .conftest import HOST
 @pytest.fixture
 def user_groups(axis_device) -> UserGroups:
     """Returns the user_groups mock object."""
-    return UserGroups("", axis_device.vapix.request)
+    return UserGroups(axis_device.vapix)
 
 
 @respx.mock

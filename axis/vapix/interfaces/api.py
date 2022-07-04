@@ -1,7 +1,8 @@
 """API management class and base class for the different end points."""
 
 import logging
-from pprint import pformat
+
+# from pprint import pformat
 from typing import Any, ItemsView, Iterator, KeysView, Optional, ValuesView
 
 import attr
@@ -26,18 +27,21 @@ class Body:
 class APIItems:
     """Base class for a map of API Items."""
 
-    def __init__(self, raw, request, path, item_cls) -> None:
+    # def __init__(self, raw, request, path, item_cls) -> None:
+    def __init__(self, vapix, path, item_cls) -> None:
         """Initialize API items."""
-        self._request = request
+        # self._request = request
+        self.vapix = vapix
         self._path = path
         self._item_cls = item_cls
         self._items: dict = {}
-        self.process_raw(raw)
-        LOGGER.debug(pformat(raw))
+        # self.process_raw(raw)
+        # LOGGER.debug(pformat(raw))
 
     async def update(self) -> None:
         """Refresh data."""
-        raw = await self._request("get", self._path)
+        # raw = await self._request("get", self._path)
+        raw = await self.vapix.request("get", self._path)
         self.process_raw(raw)
 
     @staticmethod
@@ -55,7 +59,7 @@ class APIItems:
             if obj is not None:
                 obj.update(raw_item)
             else:
-                self._items[id] = self._item_cls(id, raw_item, self._request)
+                self._items[id] = self._item_cls(id, raw_item, self.vapix.request)
                 new_items.add(id)
 
         return new_items

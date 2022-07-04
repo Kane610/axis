@@ -15,7 +15,7 @@ from ..conftest import HOST
 @pytest.fixture
 def applications(axis_device) -> Applications:
     """Returns the applications mock object."""
-    return Applications(axis_device.vapix.request)
+    return Applications(axis_device.vapix)
 
 
 @respx.mock

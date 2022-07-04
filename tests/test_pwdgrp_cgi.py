@@ -15,12 +15,17 @@ from .conftest import HOST
 
 @pytest.fixture
 def users(axis_device) -> Users:
-    """Returns the api_discovery mock object."""
-    return Users(fixture, axis_device.vapix.request)
+    """Return api_discovery mock object."""
+    return Users(axis_device.vapix)
 
 
-def test_users(users):
+@respx.mock
+async def test_users(users):
     """Verify that you can list users."""
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
+        text=fixture,
+    )
+    await users.update()
     assert users["userv"]
     assert users["userv"].name == "userv"
     assert users["userv"].viewer
@@ -44,7 +49,7 @@ def test_users(users):
 
 
 def test_get_users_low_privileges(axis_device):
-    users = Users("", axis_device.vapix.request)
+    users = Users(axis_device.vapix)
     assert len(users) == 0
 
 
@@ -170,9 +175,14 @@ async def test_delete(users):
     )
 
 
-def test_equals_in_value(axis_device):
+@respx.mock
+async def test_equals_in_value(users):
     """Verify that values containing `=` are parsed correctly."""
-    assert Users(fixture + 'equals-in-value="xyz=="', axis_device.vapix.request)
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
+        text=f'{fixture}equals-in-value="xyz=="',
+    )
+    await users.update()
+    assert len(users) == 4
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

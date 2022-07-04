@@ -56,24 +56,25 @@ class Vapix:
         self.config = config
         self.auth = httpx.DigestAuth(self.config.username, self.config.password)
 
-        self.api_discovery: Optional[ApiDiscovery] = None
-        self.applications: Optional[Applications] = None
-        self.basic_device_info: Optional[BasicDeviceInfo] = None
-        self.event_instances: Optional[EventInstances] = None
-        self.fence_guard: Optional[FenceGuard] = None
-        self.light_control: Optional[LightControl] = None
-        self.loitering_guard: Optional[LoiteringGuard] = None
-        self.motion_guard: Optional[MotionGuard] = None
-        self.mqtt: Optional[MqttClient] = None
-        self.object_analytics: Optional[ObjectAnalytics] = None
-        self.params: Optional[Params] = None
-        self.ports: Union[IoPortManagement, Ports, None] = None
-        self.ptz: Optional[PtzControl] = None
-        self.stream_profiles: Optional[StreamProfiles] = None
-        self.user_groups: Optional[UserGroups] = None
-        self.users: Optional[Users] = None
-        self.view_areas: Optional[ViewAreas] = None
-        self.vmd4: Optional[Vmd4] = None
+        self.api_discovery = ApiDiscovery(self)
+        self.applications = Applications(self)
+        self.basic_device_info = BasicDeviceInfo(self)
+        self.event_instances = EventInstances(self)
+        self.fence_guard = FenceGuard(self)
+        self.light_control = LightControl(self)
+        self.loitering_guard = LoiteringGuard(self)
+        self.motion_guard = MotionGuard(self)
+        self.mqtt = MqttClient(self)
+        self.object_analytics = ObjectAnalytics(self)
+        self.params = Params(self)
+        self.ports = Ports(self)
+        self.port_management = IoPortManagement(self)
+        self.ptz = PtzControl(self)
+        self.stream_profiles = StreamProfiles(self)
+        self.user_groups = UserGroups(self)
+        self.users = Users(self)
+        self.view_areas = ViewAreas(self)
+        self.vmd4 = Vmd4(self)
 
     @property
     def firmware_version(self) -> str:
@@ -123,21 +124,28 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
-    async def _initialize_api_attribute(
-        self, api_class: Callable, api_attr: str
-    ) -> None:
+    async def _initialize_api_attribute(self, api_instance: Callable) -> None:
         """Initialize API and load data."""
-        api_instance = api_class(self.request)
         try:
             await api_instance.update()
         except Unauthorized:  # Probably a viewer account
             pass
-        else:
-            setattr(self, api_attr, api_instance)
+
+    # async def _initialize_api_attribute(
+    #     self, api_class: Callable, api_attr: str
+    # ) -> None:
+    #     """Initialize API and load data."""
+    #     api_instance = api_class(self.request)
+    #     try:
+    #         await api_instance.update()
+    #     except Unauthorized:  # Probably a viewer account
+    #         pass
+    #     else:
+    #         setattr(self, api_attr, api_instance)
 
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        self.api_discovery = ApiDiscovery(self.request)
+        # self.api_discovery = ApiDiscovery(self.request)
         try:
             await self.api_discovery.update()
         except PathNotFound:  # Device doesn't support API discovery
@@ -145,16 +153,27 @@ class Vapix:
 
         tasks = []
 
-        for api_id, api_class, api_attr in (
-            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
-            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
-            (LIGHT_CONTROL_ID, LightControl, "light_control"),
-            (MQTT_ID, MqttClient, "mqtt"),
-            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
-            (VIEW_AREAS_ID, ViewAreas, "view_areas"),
+        for api_id, api_instance in (
+            (BASIC_DEVICE_INFO_ID, self.basic_device_info),
+            (IO_PORT_MANAGEMENT_ID, self.ports),
+            (LIGHT_CONTROL_ID, self.light_control),
+            (MQTT_ID, self.mqtt),
+            (STREAM_PROFILES_ID, self.stream_profiles),
+            (VIEW_AREAS_ID, self.view_areas),
         ):
             if api_id in self.api_discovery:
-                tasks.append(self._initialize_api_attribute(api_class, api_attr))
+                tasks.append(self._initialize_api_attribute(api_instance))
+
+        # for api_id, api_class, api_attr in (
+        #     (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
+        #     (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
+        #     (LIGHT_CONTROL_ID, LightControl, "light_control"),
+        #     (MQTT_ID, MqttClient, "mqtt"),
+        #     (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
+        #     (VIEW_AREAS_ID, ViewAreas, "view_areas"),
+        # ):
+        #     if api_id in self.api_discovery:
+        #         tasks.append(self._initialize_api_attribute(api_class, api_attr))
 
         if tasks:
             await asyncio.gather(*tasks)
@@ -188,17 +207,17 @@ class Vapix:
             await asyncio.gather(*tasks)
 
         if not self.light_control and self.params.light_control:
-            await self._initialize_api_attribute(LightControl, "light_control")
+            await self._initialize_api_attribute(self.light_control)
 
         if not self.ports:
-            self.ports = Ports(self.params, self.request)
+            self.ports = Ports(self)
 
         if not self.ptz and self.params.ptz:
-            self.ptz = PtzControl(self.request)
+            self.ptz = PtzControl(self)
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        self.applications = Applications(self.request)
+        # self.applications = Applications(self.request)
         if self.params and version.parse(
             self.params.embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
@@ -209,57 +228,68 @@ class Vapix:
 
         tasks = []
 
-        for app_class, app_attr in (
-            (FenceGuard, "fence_guard"),
-            (LoiteringGuard, "loitering_guard"),
-            (MotionGuard, "motion_guard"),
-            (ObjectAnalytics, "object_analytics"),
-            (Vmd4, "vmd4"),
+        for api_instance in (
+            self.fence_guard,
+            self.loitering_guard,
+            self.motion_guard,
+            self.object_analytics,
+            self.vmd4,
         ):
             if (
-                app_class.APPLICATION_NAME in self.applications  # type: ignore[attr-defined]
-                and self.applications[app_class.APPLICATION_NAME].status  # type: ignore[attr-defined]
+                api_instance.APPLICATION_NAME in self.applications  # type: ignore[attr-defined]
+                and self.applications[api_instance.APPLICATION_NAME].status  # type: ignore[attr-defined]
                 == APPLICATION_STATE_RUNNING
             ):
-                tasks.append(self._initialize_api_attribute(app_class, app_attr))
+                tasks.append(self._initialize_api_attribute(api_instance))
+
+        # for app_class, app_attr in (
+        #     (FenceGuard, "fence_guard"),
+        #     (LoiteringGuard, "loitering_guard"),
+        #     (MotionGuard, "motion_guard"),
+        #     (ObjectAnalytics, "object_analytics"),
+        #     (Vmd4, "vmd4"),
+        # ):
+        #     if (
+        #         app_class.APPLICATION_NAME in self.applications  # type: ignore[attr-defined]
+        #         and self.applications[app_class.APPLICATION_NAME].status  # type: ignore[attr-defined]
+        #         == APPLICATION_STATE_RUNNING
+        #     ):
+        #         tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
         if tasks:
             await asyncio.gather(*tasks)
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self._initialize_api_attribute(EventInstances, "event_instances")
+        await self._initialize_api_attribute(self.event_instances)
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        self.users = Users("", self.request)
         try:
             await self.users.update()
         except Unauthorized:
             pass
 
-    async def load_user_groups(self) -> None:
-        """Load user groups to know the access rights of the user.
+    # async def load_user_groups(self) -> None:
+    #     """Load user groups to know the access rights of the user.
 
-        If information is available from pwdgrp.cgi use that.
-        """
-        if self.users and self.config.username in self.users:
-            user = self.users[self.config.username]
-            user_groups = (
-                f"{user.name}\n"  # type: ignore[attr-defined]
-                + ("admin " if user.admin else "")  # type: ignore[attr-defined]
-                + ("operator " if user.operator else "")  # type: ignore[attr-defined]
-                + ("viewer " if user.viewer else "")  # type: ignore[attr-defined]
-                + ("ptz" if user.ptz else "")  # type: ignore[attr-defined]
-            )
+    #     If information is available from pwdgrp.cgi use that.
+    #     """
+    #     if self.users and self.config.username in self.users:
+    #         user = self.users[self.config.username]
+    #         user_groups = (
+    #             f"{user.name}\n"  # type: ignore[attr-defined]
+    #             + ("admin " if user.admin else "")  # type: ignore[attr-defined]
+    #             + ("operator " if user.operator else "")  # type: ignore[attr-defined]
+    #             + ("viewer " if user.viewer else "")  # type: ignore[attr-defined]
+    #             + ("ptz" if user.ptz else "")  # type: ignore[attr-defined]
+    #         )
 
-        else:
-            try:
-                user_groups = await self.request("get", USER_GROUPS_URL)  # type: ignore[assignment]
-            except PathNotFound:
-                user_groups = ""
-
-        self.user_groups = UserGroups(user_groups, self.request)
+    #     else:
+    #         try:
+    #             await self.user_groups.update()
+    #         except PathNotFound:
+    #             pass
 
     async def request(
         self,

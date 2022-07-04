@@ -20,7 +20,7 @@ from .event_fixtures import (
 @pytest.fixture
 def event_instances(axis_device) -> EventInstances:
     """Returns the event_instances mock object."""
-    return EventInstances(axis_device.vapix.request)
+    return EventInstances(axis_device.vapix)
 
 
 @respx.mock
