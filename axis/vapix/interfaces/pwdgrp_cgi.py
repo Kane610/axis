@@ -12,6 +12,8 @@ sgrp: Colon separated existing secondary group names of the account.
     This argument sets the user access rights for the user account.
 comment: The comment field of the account.
 """
+from __future__ import annotations
+
 import re
 from typing import Dict, Optional
 
@@ -76,7 +78,7 @@ class Users(APIItems):
         return await self._request("post", URL, data=data)
 
     async def create(
-        self, user: str, *, pwd: str, sgrp: str, comment: str = None
+        self, user: str, *, pwd: str, sgrp: str, comment: str | None = None
     ) -> None:
         """Create new user."""
         data = {"action": "add", "user": user, "pwd": pwd, "grp": "users", "sgrp": sgrp}
@@ -92,7 +94,7 @@ class Users(APIItems):
         *,
         pwd: Optional[str] = None,
         sgrp: Optional[str] = None,
-        comment: Optional[str] = None
+        comment: Optional[str] = None,
     ) -> None:
         """Update user."""
         data = {"action": "update", "user": user}
