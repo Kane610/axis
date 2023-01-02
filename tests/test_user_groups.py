@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.user_groups tests/test_user_groups.p
 """
 
 import pytest
-
 import respx
 
 from axis.vapix.interfaces.user_groups import URL, UserGroups
@@ -15,7 +14,7 @@ from .conftest import HOST
 @pytest.fixture
 def user_groups(axis_device) -> UserGroups:
     """Returns the user_groups mock object."""
-    return UserGroups("", axis_device.vapix.request)
+    return UserGroups(axis_device.vapix, "")
 
 
 @respx.mock

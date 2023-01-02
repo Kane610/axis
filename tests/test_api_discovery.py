@@ -4,11 +4,11 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
-from axis.vapix.interfaces.api_discovery import ApiDiscovery, API_DISCOVERY_ID
+from axis.vapix.interfaces.api_discovery import API_DISCOVERY_ID, ApiDiscovery
 
 from .conftest import HOST
 
@@ -16,7 +16,7 @@ from .conftest import HOST
 @pytest.fixture
 def api_discovery(axis_device) -> ApiDiscovery:
     """Returns the api_discovery mock object."""
-    return ApiDiscovery(axis_device.vapix.request)
+    return ApiDiscovery(axis_device.vapix)
 
 
 @respx.mock

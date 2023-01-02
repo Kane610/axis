@@ -127,7 +127,7 @@ class Vapix:
         self, api_class: Callable, api_attr: str
     ) -> None:
         """Initialize API and load data."""
-        api_instance = api_class(self.request)
+        api_instance = api_class(self)
         try:
             await api_instance.update()
         except Unauthorized:  # Probably a viewer account
@@ -137,7 +137,7 @@ class Vapix:
 
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        self.api_discovery = ApiDiscovery(self.request)
+        self.api_discovery = ApiDiscovery(self)
         try:
             await self.api_discovery.update()
         except PathNotFound:  # Device doesn't support API discovery
@@ -161,7 +161,7 @@ class Vapix:
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
-        self.params = Params(self.request)
+        self.params = Params(self)
 
         tasks = []
 
@@ -191,14 +191,14 @@ class Vapix:
             await self._initialize_api_attribute(LightControl, "light_control")
 
         if not self.ports:
-            self.ports = Ports(self.params, self.request)
+            self.ports = Ports(self, self.params)
 
         if not self.ptz and self.params.ptz:
-            self.ptz = PtzControl(self.request)
+            self.ptz = PtzControl(self)
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        self.applications = Applications(self.request)
+        self.applications = Applications(self)
         if self.params and version.parse(
             self.params.embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
@@ -232,7 +232,7 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        self.users = Users("", self.request)
+        self.users = Users(self, "")
         try:
             await self.users.update()
         except Unauthorized:
@@ -259,7 +259,7 @@ class Vapix:
             except PathNotFound:
                 user_groups = ""
 
-        self.user_groups = UserGroups(user_groups, self.request)
+        self.user_groups = UserGroups(self, user_groups)
 
     async def request(
         self,

@@ -4,23 +4,23 @@ pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_ins
 """
 
 import pytest
-
-from axis.vapix.interfaces.event_instances import EventInstances, URL, get_events
 import respx
+
+from axis.vapix.interfaces.event_instances import URL, EventInstances, get_events
 
 from .conftest import HOST
 from .event_fixtures import (
-    EVENT_INSTANCES,
     EVENT_INSTANCE_PIR_SENSOR,
     EVENT_INSTANCE_STORAGE_ALERT,
     EVENT_INSTANCE_VMD4_PROFILE1,
+    EVENT_INSTANCES,
 )
 
 
 @pytest.fixture
 def event_instances(axis_device) -> EventInstances:
     """Returns the event_instances mock object."""
-    return EventInstances(axis_device.vapix.request)
+    return EventInstances(axis_device.vapix)
 
 
 @respx.mock

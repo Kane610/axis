@@ -5,7 +5,7 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
-from typing import Callable, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 URL = "/axis-cgi/com/ptz.cgi"
 
@@ -64,9 +64,10 @@ def limit(
 class PtzControl:
     """Configure and control the PTZ functionality."""
 
-    def __init__(self, request: Callable) -> None:
+    def __init__(self, vapix) -> None:
         """Initialize PTZ control."""
-        self._request = request
+        self._vapix = vapix
+        self._request = vapix.request
 
     async def control(
         self,

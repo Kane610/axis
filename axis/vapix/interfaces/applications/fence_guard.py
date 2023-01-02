@@ -24,6 +24,6 @@ class FenceGuard(ApplicationAPIItems):
 
     APPLICATION_NAME = APPLICATION_NAME
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize fence guard manager."""
-        super().__init__(request, URL, ApplicationAPIItem, API_VERSION)
+        super().__init__(vapix, URL, ApplicationAPIItem, API_VERSION)

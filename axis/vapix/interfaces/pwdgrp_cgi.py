@@ -37,9 +37,9 @@ REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
 class Users(APIItems):
     """Represents all users of a device."""
 
-    def __init__(self, raw: str, request: object) -> None:
+    def __init__(self, vapix: object, raw: str) -> None:
         """Initialize user manager."""
-        super().__init__(raw, request, URL_GET, User)
+        super().__init__(vapix, raw, URL_GET, User)
 
     async def update(self) -> None:
         """Update list of current users."""

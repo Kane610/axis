@@ -4,8 +4,8 @@ pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/a
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.applications.loitering_guard import LoiteringGuard
@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def loitering_guard(axis_device) -> LoiteringGuard:
     """Returns the loitering guard mock object."""
-    return LoiteringGuard(axis_device.vapix.request)
+    return LoiteringGuard(axis_device.vapix)
 
 
 @respx.mock

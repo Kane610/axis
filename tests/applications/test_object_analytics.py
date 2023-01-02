@@ -4,8 +4,8 @@ pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.applications.object_analytics import ObjectAnalytics
@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def object_analytics(axis_device) -> ObjectAnalytics:
     """Returns the object analytics mock object."""
-    return ObjectAnalytics(axis_device.vapix.request)
+    return ObjectAnalytics(axis_device.vapix)
 
 
 @respx.mock

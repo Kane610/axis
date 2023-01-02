@@ -1,6 +1,6 @@
 """Event service and action service APIs available in Axis network device."""
 
-from typing import Callable, List, Optional
+from typing import List
 
 from ...event_stream import traverse
 from ..models.event_instance import EventInstance
@@ -73,9 +73,9 @@ def get_events(data: dict) -> List[dict]:
 class EventInstances(APIItems):
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, request: Callable[..., Optional[dict]]) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize class."""
-        super().__init__({}, request, URL, EventInstance)
+        super().__init__(vapix, {}, URL, EventInstance)
 
     async def update(self) -> None:
         """Retrieve event instances from device."""

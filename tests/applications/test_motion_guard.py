@@ -4,8 +4,8 @@ pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/appl
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.applications.motion_guard import MotionGuard
@@ -16,7 +16,7 @@ from ..conftest import HOST
 @pytest.fixture
 def motion_guard(axis_device) -> MotionGuard:
     """Returns the motion guard mock object."""
-    return MotionGuard(axis_device.vapix.request)
+    return MotionGuard(axis_device.vapix)
 
 
 @respx.mock

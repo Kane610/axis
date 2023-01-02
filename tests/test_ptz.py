@@ -3,9 +3,9 @@
 pytest --cov-report term-missing --cov=axis.ptz tests/test_ptz.py
 """
 
-import pytest
 from urllib.parse import urlencode
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.ptz import (
@@ -13,7 +13,6 @@ from axis.vapix.interfaces.ptz import (
     MOVE_HOME,
     OFF,
     ON,
-    PtzControl,
     QUERY_LIMITS,
     QUERY_MODE,
     QUERY_POSITION,
@@ -21,6 +20,7 @@ from axis.vapix.interfaces.ptz import (
     QUERY_PRESETPOSCAM,
     QUERY_PRESETPOSCAMDATA,
     QUERY_SPEED,
+    PtzControl,
     limit,
 )
 
@@ -32,7 +32,7 @@ UNSUPPORTED_COMMAND = "unsupported"
 @pytest.fixture
 def ptz_control(axis_device) -> PtzControl:
     """Returns the PTZ control mock object."""
-    return PtzControl(axis_device.vapix.request)
+    return PtzControl(axis_device.vapix)
 
 
 def test_limit():

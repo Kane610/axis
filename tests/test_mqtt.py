@@ -4,16 +4,16 @@ pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.mqtt import (
     ClientConfig,
-    Server,
     Message,
-    Ssl,
     MqttClient,
+    Server,
+    Ssl,
     mqtt_json_to_event,
 )
 
@@ -23,7 +23,7 @@ from .conftest import HOST
 @pytest.fixture
 def mqtt_client(axis_device) -> MqttClient:
     """Returns the mqtt_client mock object."""
-    return MqttClient(axis_device.vapix.request)
+    return MqttClient(axis_device.vapix)
 
 
 @respx.mock

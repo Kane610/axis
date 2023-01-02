@@ -13,14 +13,14 @@ class ApplicationAPIItems(APIItems):
 
     def __init__(
         self,
-        request: object,
+        vapix: object,
         path: str,
         item_cls: Type[ApplicationAPIItem],
         api_version: str,
     ) -> None:
         """Initialize API items."""
         self._api_version = api_version
-        super().__init__({}, request, path, item_cls)
+        super().__init__(vapix, {}, path, item_cls)
 
     async def update(self) -> None:
         """Refresh data."""

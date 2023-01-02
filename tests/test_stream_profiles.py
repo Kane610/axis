@@ -4,8 +4,8 @@ pytest --cov-report term-missing --cov=axis.stream_profiles tests/test_stream_pr
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.stream_profiles import StreamProfiles
@@ -16,7 +16,7 @@ from .conftest import HOST
 @pytest.fixture
 def stream_profiles(axis_device) -> StreamProfiles:
     """Returns the stream_profiles mock object."""
-    return StreamProfiles(axis_device.vapix.request)
+    return StreamProfiles(axis_device.vapix)
 
 
 @respx.mock
