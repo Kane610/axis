@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from axis.event_stream import EventGroup, EventManager
+from axis.event_stream import EventGroup, EventManager, EventTopic
 
 from .event_fixtures import (
     AUDIO_INIT,
@@ -473,7 +473,7 @@ def test_unsupported_event(event_manager):
 
     event = next(iter(event_manager.values()))
     assert event.binary is False
-    assert not event.topic_base
+    assert event.topic_base == EventTopic.NONE
     assert event.group == EventGroup.NONE
     assert event.topic == "tns1:VideoSource/GlobalSceneChange/ImagingService"
     assert event.source == "Source"
