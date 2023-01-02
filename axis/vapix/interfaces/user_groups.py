@@ -17,10 +17,6 @@ class UserGroups(APIItems):
     item_cls = APIItem
     path = URL
 
-    def __init__(self, vapix: object, raw: str) -> None:
-        """Initialize user groups manager."""
-        super().__init__(vapix, raw)
-
     @staticmethod
     def pre_process_raw(raw: str) -> dict:  # type: ignore[override]
         """Process raw group list to generate a full list of what is and isnt supported."""

@@ -40,10 +40,6 @@ class Users(APIItems):
     item_cls = User
     path = URL_GET
 
-    def __init__(self, vapix: object, raw: str) -> None:
-        """Initialize user manager."""
-        super().__init__(vapix, raw)
-
     async def update(self) -> None:
         """Update list of current users."""
         users = await self.list()

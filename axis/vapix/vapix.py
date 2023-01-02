@@ -40,7 +40,7 @@ from .interfaces.stream_profiles import (
     API_DISCOVERY_ID as STREAM_PROFILES_ID,
     StreamProfiles,
 )
-from .interfaces.user_groups import UNKNOWN, URL as USER_GROUPS_URL, UserGroups
+from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
 
 LOGGER = logging.getLogger(__name__)
@@ -191,7 +191,7 @@ class Vapix:
             await self._initialize_api_attribute(LightControl, "light_control")
 
         if not self.ports:
-            self.ports = Ports(self, self.params)
+            self.ports = Ports(self)
 
         if not self.ptz and self.params.ptz:
             self.ptz = PtzControl(self)
@@ -232,7 +232,7 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        self.users = Users(self, "")
+        self.users = Users(self)
         try:
             await self.users.update()
         except Unauthorized:
@@ -243,6 +243,7 @@ class Vapix:
 
         If information is available from pwdgrp.cgi use that.
         """
+        user_groups = ""
         if self.users and self.config.username in self.users:
             user = self.users[self.config.username]
             user_groups = (
@@ -253,13 +254,14 @@ class Vapix:
                 + ("ptz" if user.ptz else "")  # type: ignore[attr-defined]
             )
 
-        else:
+        self.user_groups = UserGroups(self)
+        if not user_groups:
             try:
-                user_groups = await self.request("get", USER_GROUPS_URL)  # type: ignore[assignment]
+                await self.user_groups.update()
+                return
             except PathNotFound:
-                user_groups = ""
-
-        self.user_groups = UserGroups(self, user_groups)
+                pass
+        self.user_groups.process_raw(user_groups)
 
     async def request(
         self,
