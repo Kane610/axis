@@ -1,6 +1,6 @@
 """Test stream manager class.
 
-pytest --cov-report term-missing --cov=axis.streammanager tests/test_streammanager.py
+pytest --cov-report term-missing --cov=axis.stream_manager tests/test_stream_manager.py
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,14 +14,14 @@ from axis.rtsp import (
     STATE_PLAYING,
     STATE_STOPPED,
 )
-from axis.streammanager import RETRY_TIMER, StreamManager
+from axis.stream_manager import RETRY_TIMER, StreamManager
 
 from .conftest import HOST
 
 
 @pytest.fixture
 def stream_manager(axis_device) -> StreamManager:
-    """Return the streammanager mock object."""
+    """Return the StreamManager mock object."""
     return axis_device.stream
 
 
@@ -44,7 +44,7 @@ async def test_stream_url(stream_manager):
     )
 
 
-@patch("axis.streammanager.RTSPClient")
+@patch("axis.stream_manager.RTSPClient")
 @pytest.mark.asyncio
 async def test_initialize_stream(rtsp_client, stream_manager):
     """Test stream commands."""
@@ -101,7 +101,7 @@ async def test_initialize_stream(rtsp_client, stream_manager):
 
     # Retry should schedule a retry timer and call stream manager start method
     mock_loop = MagicMock()
-    with patch("axis.streammanager.asyncio.get_running_loop", return_value=mock_loop):
+    with patch("axis.stream_manager.asyncio.get_running_loop", return_value=mock_loop):
         stream_manager.retry()
         assert stream_manager.stream is None
         mock_loop.call_later.assert_called_with(RETRY_TIMER, stream_manager.start)

@@ -4,7 +4,7 @@ from typing import Callable
 
 from .configuration import Configuration
 from .event_stream import EventManager
-from .streammanager import StreamManager
+from .stream_manager import StreamManager
 from .vapix.vapix import Vapix
 
 
