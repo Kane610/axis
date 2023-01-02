@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
-from typing import Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
-from .configuration import Configuration
 from .rtsp import SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED, RTSPClient
+
+if TYPE_CHECKING:
+    from .device import AxisDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,9 +21,9 @@ RETRY_TIMER = 15
 class StreamManager:
     """Setup, start, stop and retry stream."""
 
-    def __init__(self, config: Configuration) -> None:
+    def __init__(self, device: "AxisDevice") -> None:
         """Initialize stream manager."""
-        self.config = config
+        self.device = device
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = None
@@ -33,7 +35,7 @@ class StreamManager:
     def stream_url(self) -> str:
         """Build url for stream."""
         rtsp_url = RTSP_URL.format(
-            host=self.config.host,
+            host=self.device.config.host,
             video=self.video_query,
             audio=self.audio_query,
             event=self.event_query,
@@ -90,9 +92,9 @@ class StreamManager:
         if not self.stream or self.stream.session.state == STATE_STOPPED:
             self.stream = RTSPClient(
                 self.stream_url,
-                self.config.host,
-                self.config.username,
-                self.config.password,
+                self.device.config.host,
+                self.device.config.username,
+                self.device.config.password,
                 self.session_callback,
             )
             asyncio.create_task(self.stream.start())
@@ -107,4 +109,4 @@ class StreamManager:
         loop = asyncio.get_running_loop()
         self.stream = None
         loop.call_later(RETRY_TIMER, self.start)
-        _LOGGER.debug("Reconnecting to %s", self.config.host)
+        _LOGGER.debug("Reconnecting to %s", self.device.config.host)

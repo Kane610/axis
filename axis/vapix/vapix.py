@@ -2,13 +2,12 @@
 
 import asyncio
 import logging
-from typing import Callable, Optional, Union
+from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import httpx
 from packaging import version
 import xmltodict  # type: ignore[import]
 
-from ..configuration import Configuration
 from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscovery
 from .interfaces.applications import (
@@ -43,6 +42,9 @@ from .interfaces.stream_profiles import (
 from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
 
+if TYPE_CHECKING:
+    from ..device import AxisDevice
+
 LOGGER = logging.getLogger(__name__)
 
 TIME_OUT = 15
@@ -51,10 +53,10 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
-    def __init__(self, config: Configuration) -> None:
+    def __init__(self, device: "AxisDevice") -> None:
         """Store local reference to device config."""
-        self.config = config
-        self.auth = httpx.DigestAuth(self.config.username, self.config.password)
+        self.device = device
+        self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.api_discovery: Optional[ApiDiscovery] = None
         self.applications: Optional[Applications] = None
@@ -244,8 +246,8 @@ class Vapix:
         If information is available from pwdgrp.cgi use that.
         """
         user_groups = ""
-        if self.users and self.config.username in self.users:
-            user = self.users[self.config.username]
+        if self.users and self.device.config.username in self.users:
+            user = self.users[self.device.config.username]
             user_groups = (
                 f"{user.name}\n"  # type: ignore[attr-defined]
                 + ("admin " if user.admin else "")  # type: ignore[attr-defined]
@@ -271,16 +273,16 @@ class Vapix:
         **kwargs: dict,
     ) -> Union[dict, str]:
         """Make a request to the API."""
-        url = self.config.url + path
+        url = self.device.config.url + path
 
         LOGGER.debug("%s %s", url, kwargs)
         try:
-            response = await self.config.session.request(
+            response = await self.device.config.session.request(
                 method, url, auth=self.auth, timeout=TIME_OUT, **kwargs  # type: ignore [arg-type]
             )
             response.raise_for_status()
 
-            LOGGER.debug("Response: %s from %s", response.text, self.config.host)
+            LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
 
             content_type = response.headers.get("Content-Type", "").split(";")[0]
 

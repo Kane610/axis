@@ -1,6 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
-from typing import Callable, Optional
+from typing import Callable
 
 from .configuration import Configuration
 from .event_stream import EventManager
@@ -14,11 +14,11 @@ class AxisDevice:
     def __init__(self, configuration: Configuration) -> None:
         """Initialize device functionality."""
         self.config = configuration
-        self.vapix = Vapix(self.config)
-        self.stream = StreamManager(self.config)
-        self.event: Optional[EventManager] = None
+        self.vapix = Vapix(self)
+        self.stream = StreamManager(self)
+        self.event = EventManager(self)
 
     def enable_events(self, event_callback: Callable) -> None:
         """Enable events for stream."""
-        self.event = EventManager(self.vapix, event_callback)
+        self.event.signal = event_callback
         self.stream.event = self.event.update  # type: ignore[assignment]
