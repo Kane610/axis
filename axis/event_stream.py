@@ -112,7 +112,7 @@ class EventManager(APIItems):
 
         for new_event in new_events:
             # Don't signal on unsupported events
-            if not self[new_event].topic_base == EventTopic.NONE:  # type: ignore[attr-defined]
+            if self[new_event].topic_base != EventTopic.NONE:  # type: ignore[attr-defined]
                 self.signal(OPERATION_INITIALIZED, new_event)
 
     @staticmethod
