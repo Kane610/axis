@@ -20,8 +20,8 @@ PARAM_CGI_VALUE = "2.13"
 class LoiteringGuard(ApplicationAPIItems):
     """Loitering Guard application on Axis devices."""
 
-    APPLICATION_NAME = APPLICATION_NAME
     api_version = API_VERSION
+    name = APPLICATION_NAME
 
     item_cls = ApplicationAPIItem
     path = URL

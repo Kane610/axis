@@ -217,8 +217,8 @@ class Vapix:
             (Vmd4, "vmd4"),
         ):
             if (
-                app_class.APPLICATION_NAME in self.applications  # type: ignore[attr-defined]
-                and self.applications[app_class.APPLICATION_NAME].status  # type: ignore[attr-defined]
+                app_class.name in self.applications  # type: ignore[attr-defined]
+                and self.applications[app_class.name].status  # type: ignore[attr-defined]
                 == APPLICATION_STATE_RUNNING
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))

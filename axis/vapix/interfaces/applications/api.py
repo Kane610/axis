@@ -10,6 +10,7 @@ class ApplicationAPIItems(APIItems):
     """Base Class for applications."""
 
     api_version: str
+    name: str
 
     async def update(self) -> None:
         """Refresh data."""
