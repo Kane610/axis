@@ -1,12 +1,17 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Callable, Union
 
 import xmltodict  # type: ignore[import]
 
 from .vapix.interfaces.api import APIItems
 from .vapix.models.api import APIItem
+
+if TYPE_CHECKING:
+    from .device import AxisDevice
 
 LOGGER = logging.getLogger(__name__)
 
@@ -61,15 +66,19 @@ class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
     path = ""
+    signal: Callable | None = None
 
-    def __init__(self, vapix: object, signal: Callable) -> None:
+    def __init__(self, device: "AxisDevice") -> None:
         """Ready information about events."""
+        self.device = device
         self.item_cls = create_event
-        super().__init__(vapix)
-        self.signal = signal
+        super().__init__(device.vapix)
 
     def update(self, raw: Union[bytes, list]) -> None:  # type: ignore[override]
         """Prepare event."""
+        if self.signal is None:
+            return
+
         new_events = self.process_raw(raw)
 
         for new_event in new_events:
