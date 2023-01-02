@@ -317,10 +317,10 @@ def test_create_event(event_manager, input: bytes, expected: tuple):
     assert event.topic == expected["topic"]
     assert event.source == expected["source"]
     assert event.id == expected["source_idx"]
-    assert event.CLASS == expected["class"]
-    assert event.TYPE == expected["type"]
+    assert event.group == expected["class"]
+    assert event.type == expected["type"]
     assert event.state == expected["state"]
-    if event.BINARY:
+    if event.binary:
         assert event.is_tripped is expected["tripped"]
 
 
@@ -374,8 +374,8 @@ def test_ptz_preset(event_manager):
     assert event_1.topic == "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
     assert event_1.source == "PresetToken"
     assert event_1.id == "1"
-    assert event_1.CLASS == "ptz"
-    assert event_1.TYPE == "on_preset"
+    assert event_1.group == "ptz"
+    assert event_1.type == "on_preset"
     assert event_1.state == "1"
 
     event_2 = next(events)
@@ -447,8 +447,8 @@ def test_ptz_move(event_manager):
     assert event.topic == "tns1:PTZController/tnsaxis:Move/Channel_1"
     assert event.source == "PTZConfigurationToken"
     assert event.id == "1"
-    assert event.CLASS == "ptz"
-    assert event.TYPE == "is_moving"
+    assert event.group == "ptz"
+    assert event.type == "is_moving"
     assert event.state == "0"
 
     mock_callback = Mock()
@@ -475,10 +475,10 @@ def test_unsupported_event(event_manager):
     event_manager.signal.assert_not_called()
 
     event = next(iter(event_manager.values()))
-    assert event.BINARY is False
-    assert not event.TOPIC
-    assert not event.CLASS
-    assert not event.TYPE
+    assert event.binary is False
+    assert not event.topic_base
+    assert not event.group
+    assert not event.type
     assert event.topic == "tns1:VideoSource/GlobalSceneChange/ImagingService"
     assert event.source == "Source"
     assert event.id == "0"

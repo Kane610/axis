@@ -16,8 +16,8 @@ PARAM_CGI_VALUE = "2.12"
 class Vmd4(ApplicationAPIItems):
     """VMD4 on Axis devices."""
 
-    APPLICATION_NAME = APPLICATION_NAME
     api_version = API_VERSION
+    name = APPLICATION_NAME
 
     item_cls = ApplicationAPIItem
     path = URL

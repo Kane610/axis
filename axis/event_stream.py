@@ -74,7 +74,7 @@ class EventManager(APIItems):
 
         for new_event in new_events:
             # Don't signal on unsupported events
-            if self[new_event].TOPIC:  # type: ignore[attr-defined]
+            if self[new_event].topic_base:  # type: ignore[attr-defined]
                 self.signal(OPERATION_INITIALIZED, new_event)
 
     @staticmethod
@@ -130,15 +130,16 @@ class EventManager(APIItems):
 class AxisEvent(APIItem):
     """Axis base event.
 
-    TOPIC - some events disregards the initial way topics where used (a common string), this brings back the commonality to the topic.
-    CLASS - create a kinship between similar events.
-    TYPE - a more human readable string of event.
+    Topic - some events disregards the initial way topics where used (a common string),
+      this brings back the commonality to the topic.
+    Group - create a kinship between similar events.
+    Type - a more human readable string of event.
     """
 
-    BINARY = False
-    TOPIC = ""
-    CLASS = ""
-    TYPE = ""
+    binary = False
+    topic_base = ""
+    group = ""
+    type = ""
 
     @property
     def topic(self) -> str:
@@ -168,7 +169,7 @@ class AxisEvent(APIItem):
 class AxisBinaryEvent(AxisEvent):
     """Axis binary event."""
 
-    BINARY = True
+    binary = True
 
     @property
     def is_tripped(self) -> bool:
@@ -179,25 +180,25 @@ class AxisBinaryEvent(AxisEvent):
 class Audio(AxisBinaryEvent):
     """Audio trigger event."""
 
-    TOPIC = "tns1:AudioSource/tnsaxis:TriggerLevel"
-    CLASS = CLASS_SOUND
-    TYPE = "Sound"
+    topic_base = "tns1:AudioSource/tnsaxis:TriggerLevel"
+    group = CLASS_SOUND
+    type = "Sound"
 
 
 class DayNight(AxisBinaryEvent):
     """Day/Night vision trigger event."""
 
-    TOPIC = "tns1:VideoSource/tnsaxis:DayNightVision"
-    CLASS = CLASS_LIGHT
-    TYPE = "DayNight"
+    topic_base = "tns1:VideoSource/tnsaxis:DayNightVision"
+    group = CLASS_LIGHT
+    type = "DayNight"
 
 
 class FenceGuard(AxisBinaryEvent):
     """Fence Guard trigger event."""
 
-    TOPIC = "tnsaxis:CameraApplicationPlatform/FenceGuard"
-    CLASS = CLASS_MOTION
-    TYPE = "Fence Guard"
+    topic_base = "tnsaxis:CameraApplicationPlatform/FenceGuard"
+    group = CLASS_MOTION
+    type = "Fence Guard"
 
     @property
     def id(self) -> str:
@@ -208,17 +209,17 @@ class FenceGuard(AxisBinaryEvent):
 class Input(AxisBinaryEvent):
     """Digital input event."""
 
-    TOPIC = "tns1:Device/tnsaxis:IO/Port"
-    CLASS = CLASS_INPUT
-    TYPE = "Input"
+    topic_base = "tns1:Device/tnsaxis:IO/Port"
+    group = CLASS_INPUT
+    type = "Input"
 
 
 class Light(AxisBinaryEvent):
     """Light status event."""
 
-    TOPIC = "tns1:Device/tnsaxis:Light/Status"
-    CLASS = CLASS_LIGHT
-    TYPE = "Light"
+    topic_base = "tns1:Device/tnsaxis:Light/Status"
+    group = CLASS_LIGHT
+    type = "Light"
 
     @property
     def is_tripped(self) -> bool:
@@ -229,9 +230,9 @@ class Light(AxisBinaryEvent):
 class LoiteringGuard(AxisBinaryEvent):
     """Loitering Guard trigger event."""
 
-    TOPIC = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
-    CLASS = CLASS_MOTION
-    TYPE = "Loitering Guard"
+    topic_base = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
+    group = CLASS_MOTION
+    type = "Loitering Guard"
 
     @property
     def id(self) -> str:
@@ -242,17 +243,17 @@ class LoiteringGuard(AxisBinaryEvent):
 class Motion(AxisBinaryEvent):
     """Motion detection event."""
 
-    TOPIC = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
-    CLASS = CLASS_MOTION
-    TYPE = "Motion"
+    topic_base = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
+    group = CLASS_MOTION
+    type = "Motion"
 
 
 class MotionGuard(AxisBinaryEvent):
     """Motion Guard trigger event."""
 
-    TOPIC = "tnsaxis:CameraApplicationPlatform/MotionGuard"
-    CLASS = CLASS_MOTION
-    TYPE = "Motion Guard"
+    topic_base = "tnsaxis:CameraApplicationPlatform/MotionGuard"
+    group = CLASS_MOTION
+    type = "Motion Guard"
 
     @property
     def id(self) -> str:
@@ -263,9 +264,9 @@ class MotionGuard(AxisBinaryEvent):
 class ObjectAnalytics(AxisBinaryEvent):
     """Object Analytics trigger event."""
 
-    TOPIC = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/"
-    CLASS = CLASS_MOTION
-    TYPE = "Object Analytics"
+    topic_base = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/"
+    group = CLASS_MOTION
+    type = "Object Analytics"
 
     @property
     def id(self) -> str:
@@ -276,33 +277,33 @@ class ObjectAnalytics(AxisBinaryEvent):
 class Pir(AxisBinaryEvent):
     """Passive IR event."""
 
-    TOPIC = "tns1:Device/tnsaxis:Sensor/PIR"
-    CLASS = CLASS_MOTION
-    TYPE = "PIR"
+    topic_base = "tns1:Device/tnsaxis:Sensor/PIR"
+    group = CLASS_MOTION
+    type = "PIR"
 
 
 class PtzMove(AxisBinaryEvent):
     """PTZ Move event."""
 
-    TOPIC = "tns1:PTZController/tnsaxis:Move"
-    CLASS = CLASS_PTZ
-    TYPE = "is_moving"
+    topic_base = "tns1:PTZController/tnsaxis:Move"
+    group = CLASS_PTZ
+    type = "is_moving"
 
 
 class PtzPreset(AxisBinaryEvent):
     """PTZ Move event."""
 
-    TOPIC = "tns1:PTZController/tnsaxis:PTZPresets"
-    CLASS = CLASS_PTZ
-    TYPE = "on_preset"
+    topic_base = "tns1:PTZController/tnsaxis:PTZPresets"
+    group = CLASS_PTZ
+    type = "on_preset"
 
 
 class Relay(AxisBinaryEvent):
     """Relay event."""
 
-    TOPIC = "tns1:Device/Trigger/Relay"
-    CLASS = CLASS_OUTPUT
-    TYPE = "Relay"
+    topic_base = "tns1:Device/Trigger/Relay"
+    group = CLASS_OUTPUT
+    type = "Relay"
 
     @property
     def is_tripped(self) -> bool:
@@ -313,25 +314,25 @@ class Relay(AxisBinaryEvent):
 class SupervisedInput(AxisBinaryEvent):
     """Supervised input event."""
 
-    TOPIC = "tns1:Device/tnsaxis:IO/SupervisedPort"
-    CLASS = CLASS_INPUT
-    TYPE = "Supervised Input"
+    topic_base = "tns1:Device/tnsaxis:IO/SupervisedPort"
+    group = CLASS_INPUT
+    type = "Supervised Input"
 
 
 class Vmd3(AxisBinaryEvent):
     """Visual Motion Detection 3."""
 
-    TOPIC = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
-    CLASS = CLASS_MOTION
-    TYPE = "VMD3"
+    topic_base = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
+    group = CLASS_MOTION
+    type = "VMD3"
 
 
 class Vmd4(AxisBinaryEvent):
     """Visual Motion Detection 4."""
 
-    TOPIC = "tnsaxis:CameraApplicationPlatform/VMD"
-    CLASS = CLASS_MOTION
-    TYPE = "VMD4"
+    topic_base = "tnsaxis:CameraApplicationPlatform/VMD"
+    group = CLASS_MOTION
+    type = "VMD4"
 
     @property
     def id(self) -> str:
@@ -366,7 +367,7 @@ def create_event(event_id: str, event: dict, request: Callable[..., Any]) -> Axi
     for event_class in EVENT_CLASSES:
         if event[EVENT_TOPIC] in BLACK_LISTED_TOPICS:
             break
-        if event_class.TOPIC in event[EVENT_TOPIC]:
+        if event_class.topic_base in event[EVENT_TOPIC]:
             return event_class(event_id, event, request)
 
     LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
