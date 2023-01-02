@@ -22,10 +22,6 @@ class IoPortManagement(APIItems):
     item_cls = Port
     path = URL
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize I/O port manager."""
-        super().__init__(vapix, {})
-
     async def update(self) -> None:
         """Refresh data."""
         raw = await self.get_ports()

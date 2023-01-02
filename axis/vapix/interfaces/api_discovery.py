@@ -20,10 +20,6 @@ class ApiDiscovery(APIItems):
     item_cls = Api
     path = URL
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize API discovery manager."""
-        super().__init__(vapix, {})
-
     async def update(self) -> None:
         """Refresh data."""
         raw = await self.get_api_list()

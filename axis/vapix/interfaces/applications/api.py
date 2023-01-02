@@ -11,10 +11,6 @@ class ApplicationAPIItems(APIItems):
 
     api_version: str
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize API items."""
-        super().__init__(vapix, {})
-
     async def update(self) -> None:
         """Refresh data."""
         raw = await self.get_configuration()

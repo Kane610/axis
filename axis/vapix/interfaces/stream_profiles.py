@@ -25,10 +25,6 @@ class StreamProfiles(APIItems):
     item_cls = StreamProfile
     path = URL
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize stream profiles manager."""
-        super().__init__(vapix, {})
-
     async def update(self) -> None:
         """Refresh data."""
         raw = await self.list()

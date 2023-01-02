@@ -44,10 +44,6 @@ class Params(APIItems):
     item_cls = Param
     path = URL_GET
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize parameter manager."""
-        super().__init__(vapix, "")
-
     async def update(self, group: str = "") -> None:
         """Refresh data."""
         path = URL_GET + (f"&group={group}" if group else "")

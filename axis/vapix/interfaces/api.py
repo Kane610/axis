@@ -29,15 +29,16 @@ class APIItems:
     item_cls: Any
     path: str
 
-    def __init__(self, vapix, raw) -> None:
+    def __init__(self, vapix, raw=None) -> None:
         """Initialize API items."""
         self._vapix = vapix
         self._request = vapix.request
         self._path = self.path
         self._item_cls = self.item_cls
         self._items: dict = {}
-        self.process_raw(raw)
-        LOGGER.debug(pformat(raw))
+        if raw is not None:
+            self.process_raw(raw)
+            LOGGER.debug(pformat(raw))
 
     async def update(self) -> None:
         """Refresh data."""

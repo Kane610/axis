@@ -60,11 +60,12 @@ def extract_name_value(data: dict) -> tuple:
 class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
+    path = ""
+
     def __init__(self, vapix: object, signal: Callable) -> None:
         """Ready information about events."""
         self.item_cls = create_event
-        self.path = ""
-        super().__init__(vapix, {})
+        super().__init__(vapix)
         self.signal = signal
 
     def update(self, raw: Union[bytes, list]) -> None:  # type: ignore[override]

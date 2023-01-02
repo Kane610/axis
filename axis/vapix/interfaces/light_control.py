@@ -21,10 +21,6 @@ class LightControl(APIItems):
     item_cls = Light
     path = URL
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize light control manager."""
-        super().__init__(vapix, {})
-
     async def update(self) -> None:
         """Refresh data."""
         raw = await self.get_light_information()

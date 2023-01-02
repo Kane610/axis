@@ -76,10 +76,6 @@ class EventInstances(APIItems):
     item_cls = EventInstance
     path = URL
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize class."""
-        super().__init__(vapix, {})
-
     async def update(self) -> None:
         """Retrieve event instances from device."""
         raw = await self._request(

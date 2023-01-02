@@ -28,10 +28,6 @@ class ViewAreas(APIItems):
     item_cls = ViewArea
     path = URL
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize view area manager."""
-        super().__init__(vapix, {})
-
     async def update(self) -> None:
         """Refresh data."""
         raw = await self.list()

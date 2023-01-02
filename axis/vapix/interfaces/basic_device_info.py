@@ -21,10 +21,6 @@ class BasicDeviceInfo(APIItems):
     item_cls = APIItem
     path = URL
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize basic device information manager."""
-        super().__init__(vapix, {})
-
     def __getitem__(self, obj_id: str) -> str:  # type: ignore[override]
         """self["string"] will return self._item["string"].raw."""
         return self._items[obj_id].raw
