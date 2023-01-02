@@ -78,7 +78,7 @@ class EventInstances(APIItems):
 
     async def update(self) -> None:
         """Retrieve event instances from device."""
-        raw = await self._request(
+        raw = await self.vapix.request(
             "post",
             URL,
             headers=REQUEST_HEADERS,

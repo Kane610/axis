@@ -98,7 +98,7 @@ class MqttClient(APIItems):
 
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""
-        await self._request(
+        await self.vapix.request(
             "post",
             URL_CLIENT,
             json=attr.asdict(
@@ -109,7 +109,7 @@ class MqttClient(APIItems):
 
     async def activate(self) -> None:
         """Activate MQTT Client."""
-        await self._request(
+        await self.vapix.request(
             "post",
             URL_CLIENT,
             json=attr.asdict(Body("activateClient", API_VERSION)),
@@ -117,7 +117,7 @@ class MqttClient(APIItems):
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
-        await self._request(
+        await self.vapix.request(
             "post",
             URL_CLIENT,
             json=attr.asdict(Body("deactivateClient", API_VERSION)),
@@ -125,7 +125,7 @@ class MqttClient(APIItems):
 
     async def get_client_status(self) -> dict:
         """Get MQTT Client status."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_CLIENT,
             json=attr.asdict(Body("getClientStatus", API_VERSION)),
@@ -133,7 +133,7 @@ class MqttClient(APIItems):
 
     async def get_event_publication_config(self) -> dict:
         """Get MQTT Client event publication config."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_EVENT,
             json=attr.asdict(
@@ -145,7 +145,7 @@ class MqttClient(APIItems):
     async def configure_event_publication(self, topics: list = DEFAULT_TOPICS) -> None:
         """Configure MQTT Client event publication."""
         event_filter = {"eventFilterList": [{"topicFilter": topic} for topic in topics]}
-        await self._request(
+        await self.vapix.request(
             "post",
             URL_EVENT,
             json=attr.asdict(

@@ -41,7 +41,7 @@ class IoPortManagement(APIItems):
 
     async def get_ports(self) -> dict:
         """Retrieve information about all ports on the device and their capabilities."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
@@ -60,7 +60,7 @@ class IoPortManagement(APIItems):
         The reason the change is treated as a nice name is because it doesn’t affect the underlying behavior of the port.
         Devices with configurable ports can change the direction to either input or output.
         """
-        await self._request(
+        await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
@@ -71,7 +71,7 @@ class IoPortManagement(APIItems):
 
     async def set_state_sequence(self, sequence: PortSequence) -> None:
         """Apply a sequence of state changes with a delay in milliseconds between states."""
-        await self._request(
+        await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(Body("setStateSequence", API_VERSION, params=sequence)),
@@ -79,7 +79,7 @@ class IoPortManagement(APIItems):
 
     async def get_supported_versions(self) -> dict:
         """Retrieve a list of supported API versions."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(

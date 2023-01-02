@@ -37,7 +37,7 @@ class BasicDeviceInfo(APIItems):
 
     async def get_all_properties(self) -> dict:
         """List all properties of basic device info."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
@@ -48,7 +48,7 @@ class BasicDeviceInfo(APIItems):
 
     async def get_supported_versions(self) -> dict:
         """Supported versions of basic device info."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(

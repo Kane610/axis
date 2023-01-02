@@ -78,7 +78,7 @@ class Users(APIItems):
     async def list(self) -> str:
         """List current users."""
         data = {"action": "get"}
-        return await self._request("post", URL, data=data)
+        return await self.vapix.request("post", URL, data=data)
 
     async def create(
         self, user: str, *, pwd: str, sgrp: str, comment: str | None = None
@@ -89,7 +89,7 @@ class Users(APIItems):
         if comment:
             data["comment"] = comment
 
-        await self._request("post", URL, data=data)
+        await self.vapix.request("post", URL, data=data)
 
     async def modify(
         self,
@@ -111,10 +111,10 @@ class Users(APIItems):
         if comment:
             data["comment"] = comment
 
-        await self._request("post", URL, data=data)
+        await self.vapix.request("post", URL, data=data)
 
     async def delete(self, user: str) -> None:
         """Remove user."""
         data = {"action": "remove", "user": user}
 
-        await self._request("post", URL, data=data)
+        await self.vapix.request("post", URL, data=data)

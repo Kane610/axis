@@ -46,7 +46,7 @@ class ViewAreas(APIItems):
         streamProfileName is the empty list [] all available stream profiles will be listed.
         Security level: Viewer
         """
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_INFO,
             json=attr.asdict(
@@ -62,7 +62,7 @@ class ViewAreas(APIItems):
         Security level: Viewer
         Method: POST
         """
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_INFO,
             json=attr.asdict(
@@ -85,7 +85,7 @@ class ViewAreas(APIItems):
         if view_area:
             view_area_id = int(view_area.id)
 
-        raw = await self._request(
+        raw = await self.vapix.request(
             "post",
             URL_CONFIG,
             json=attr.asdict(
@@ -117,7 +117,7 @@ class ViewAreas(APIItems):
         if view_area:
             view_area_id = int(view_area.id)
 
-        raw = await self._request(
+        raw = await self.vapix.request(
             "post",
             URL_CONFIG,
             json=attr.asdict(
@@ -137,7 +137,7 @@ class ViewAreas(APIItems):
         Security level: Viewer
         Method: POST
         """
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_CONFIG,
             json=attr.asdict(

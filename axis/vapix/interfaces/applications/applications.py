@@ -54,4 +54,4 @@ class Applications(APIItems):
 
     async def list(self) -> dict:
         """Retrieve information about installed applications."""
-        return await self._request("post", URL_LIST)
+        return await self.vapix.request("post", URL_LIST)

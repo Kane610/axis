@@ -33,7 +33,7 @@ class ApiDiscovery(APIItems):
 
     async def get_api_list(self) -> dict:
         """List all APIs registered on API Discovery service."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
@@ -44,7 +44,7 @@ class ApiDiscovery(APIItems):
 
     async def get_supported_versions(self) -> dict:
         """Supported versions of API Discovery API."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(

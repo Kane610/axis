@@ -30,9 +30,9 @@ class ApplicationAPIItems(APIItems):
 
     async def get_configuration(self) -> dict:
         """Retrieve configuration of application."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
-            self._path,
+            self.path,
             json=attr.asdict(
                 Body("getConfiguration", self.api_version),
                 filter=attr.filters.exclude(attr.fields(Body).params),

@@ -48,7 +48,7 @@ class StreamProfiles(APIItems):
         It is possible to list either one or multiple profiles and if the parameter
         streamProfileName is the empty list [] all available stream profiles will be listed.
         """
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
@@ -58,7 +58,7 @@ class StreamProfiles(APIItems):
 
     async def get_supported_versions(self) -> dict:
         """Retrieve a list of supported API versions."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
