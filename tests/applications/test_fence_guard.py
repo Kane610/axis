@@ -15,14 +15,14 @@ from ..conftest import HOST
 
 @pytest.fixture
 def fence_guard(axis_device) -> FenceGuard:
-    """Returns the fence guard mock object."""
+    """Return the fence guard mock object."""
     return FenceGuard(axis_device.vapix)
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_get_empty_configuration(fence_guard):
-    """Test empty get_configuration"""
+    """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(fence_guard):
 @respx.mock
 @pytest.mark.asyncio
 async def test_get_configuration(fence_guard):
-    """Test get_configuration"""
+    """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration,
     )

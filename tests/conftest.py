@@ -2,11 +2,12 @@
 
 import asyncio
 from collections import deque
+
+from httpx import AsyncClient
 import pytest
 
 from axis.configuration import Configuration
 from axis.device import AxisDevice
-from httpx import AsyncClient
 
 HOST = "127.0.0.1"
 USER = "root"
@@ -16,7 +17,7 @@ RTSP_PORT = 8888
 
 @pytest.fixture
 async def axis_device() -> AxisDevice:
-    """Returns the axis device.
+    """Return the axis device.
 
     Clean up sessions automatically at the end of each test.
     """
@@ -44,7 +45,7 @@ class TcpServerProtocol(asyncio.Protocol):
         self._response_queue.extend(responses)
 
     def connection_made(self, transport) -> None:
-        """Connection has been made."""
+        """Successful connection."""
         peername = transport.get_extra_info("peername")
         print(f"Server connection from {peername}")
         self.transport = transport

@@ -13,7 +13,7 @@ from .conftest import HOST
 
 @pytest.fixture
 def params(axis_device) -> Params:
-    """Returns the param cgi mock object."""
+    """Return the param cgi mock object."""
     return Params(axis_device.vapix)
 
 

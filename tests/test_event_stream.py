@@ -3,49 +3,50 @@
 pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 from axis.event_stream import EventManager
 
 from .event_fixtures import (
-    FIRST_MESSAGE,
     AUDIO_INIT,
     DAYNIGHT_INIT,
     FENCE_GUARD_INIT,
+    FIRST_MESSAGE,
     GLOBAL_SCENE_CHANGE,
     LIGHT_STATUS_INIT,
     LOITERING_GUARD_INIT,
     MOTION_GUARD_INIT,
     OBJECT_ANALYTICS_INIT,
-    PIR_INIT,
     PIR_CHANGE,
+    PIR_INIT,
     PORT_0_INIT,
     PORT_ANY_INIT,
+    PTZ_MOVE_END,
     PTZ_MOVE_INIT,
     PTZ_MOVE_START,
-    PTZ_MOVE_END,
+    PTZ_PRESET_AT_1_FALSE,
+    PTZ_PRESET_AT_1_TRUE,
+    PTZ_PRESET_AT_2_FALSE,
+    PTZ_PRESET_AT_2_TRUE,
+    PTZ_PRESET_AT_3_FALSE,
+    PTZ_PRESET_AT_3_TRUE,
     PTZ_PRESET_INIT_1,
     PTZ_PRESET_INIT_2,
     PTZ_PRESET_INIT_3,
-    PTZ_PRESET_AT_1_TRUE,
-    PTZ_PRESET_AT_1_FALSE,
-    PTZ_PRESET_AT_2_TRUE,
-    PTZ_PRESET_AT_2_FALSE,
-    PTZ_PRESET_AT_3_TRUE,
-    PTZ_PRESET_AT_3_FALSE,
     RELAY_INIT,
     RULE_ENGINE_REGION_DETECTOR_INIT,
     STORAGE_ALERT_INIT,
     VMD3_INIT,
-    VMD4_ANY_INIT,
     VMD4_ANY_CHANGE,
+    VMD4_ANY_INIT,
 )
 
 
 @pytest.fixture
 def event_manager(axis_device) -> EventManager:
-    """Returns mocked event manager."""
+    """Return mocked event manager."""
     axis_device.enable_events(Mock())
     return axis_device.event
 

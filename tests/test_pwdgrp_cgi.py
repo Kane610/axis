@@ -15,7 +15,7 @@ from .conftest import HOST
 
 @pytest.fixture
 def users(axis_device) -> Users:
-    """Returns the api_discovery mock object."""
+    """Return the api_discovery mock object."""
     return Users(axis_device.vapix, fixture)
 
 
@@ -44,6 +44,7 @@ def test_users(users):
 
 
 def test_get_users_low_privileges(axis_device):
+    """Validate get users low privileges."""
     users = Users(axis_device.vapix, "")
     assert len(users) == 0
 

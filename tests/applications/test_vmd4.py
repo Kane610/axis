@@ -15,14 +15,14 @@ from ..conftest import HOST
 
 @pytest.fixture
 def vmd4(axis_device) -> Vmd4:
-    """Returns the vmd4 mock object."""
+    """Return the vmd4 mock object."""
     return Vmd4(axis_device.vapix)
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_get_empty_configuration(vmd4):
-    """Test empty get_configuration"""
+    """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration_empty,
     )
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(vmd4):
 @respx.mock
 @pytest.mark.asyncio
 async def test_get_configuration(vmd4):
-    """Test get_supported_versions"""
+    """Test get_supported_versions."""
     respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration,
     )

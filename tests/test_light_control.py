@@ -15,7 +15,7 @@ from .conftest import HOST
 
 @pytest.fixture
 def light_control(axis_device) -> LightControl:
-    """Returns the light_control mock object."""
+    """Return the light_control mock object."""
     return LightControl(axis_device.vapix)
 
 

@@ -15,14 +15,14 @@ from ..conftest import HOST
 
 @pytest.fixture
 def motion_guard(axis_device) -> MotionGuard:
-    """Returns the motion guard mock object."""
+    """Return the motion guard mock object."""
     return MotionGuard(axis_device.vapix)
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_get_empty_configuration(motion_guard):
-    """Test empty get_configuration"""
+    """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(motion_guard):
 @respx.mock
 @pytest.mark.asyncio
 async def test_get_configuration(motion_guard):
-    """Test get_configuration"""
+    """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration,
     )

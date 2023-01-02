@@ -22,7 +22,7 @@ from .conftest import HOST
 
 @pytest.fixture
 def mqtt_client(axis_device) -> MqttClient:
-    """Returns the mqtt_client mock object."""
+    """Return the mqtt_client mock object."""
     return MqttClient(axis_device.vapix)
 
 
