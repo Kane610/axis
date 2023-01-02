@@ -22,9 +22,12 @@ APPLICATION_STATE_STOPPED = "Stopped"
 class Applications(APIItems):
     """Applications on Axis devices."""
 
+    item_cls = Application
+    path = URL
+
     def __init__(self, vapix: object) -> None:
         """Initialize applications manager."""
-        super().__init__(vapix, {}, URL, Application)
+        super().__init__(vapix, {})
 
     async def update(self) -> None:
         """Refresh data."""

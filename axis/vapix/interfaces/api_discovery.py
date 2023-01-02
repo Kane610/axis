@@ -17,9 +17,12 @@ API_VERSION = "1.0"
 class ApiDiscovery(APIItems):
     """API Discovery for Axis devices."""
 
+    item_cls = Api
+    path = URL
+
     def __init__(self, vapix: object) -> None:
         """Initialize API discovery manager."""
-        super().__init__(vapix, {}, URL, Api)
+        super().__init__(vapix, {})
 
     async def update(self) -> None:
         """Refresh data."""

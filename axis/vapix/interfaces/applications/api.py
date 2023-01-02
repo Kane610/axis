@@ -1,26 +1,19 @@
 """Base classes for applications."""
 
-from typing import Type
 
 import attr
 
-from ...models.applications.api import ApplicationAPIItem
 from ..api import APIItems, Body
 
 
 class ApplicationAPIItems(APIItems):
     """Base Class for applications."""
 
-    def __init__(
-        self,
-        vapix: object,
-        path: str,
-        item_cls: Type[ApplicationAPIItem],
-        api_version: str,
-    ) -> None:
+    api_version: str
+
+    def __init__(self, vapix: object) -> None:
         """Initialize API items."""
-        self._api_version = api_version
-        super().__init__(vapix, {}, path, item_cls)
+        super().__init__(vapix, {})
 
     async def update(self) -> None:
         """Refresh data."""
@@ -45,7 +38,7 @@ class ApplicationAPIItems(APIItems):
             "post",
             self._path,
             json=attr.asdict(
-                Body("getConfiguration", self._api_version),
+                Body("getConfiguration", self.api_version),
                 filter=attr.filters.exclude(attr.fields(Body).params),
             ),
         )

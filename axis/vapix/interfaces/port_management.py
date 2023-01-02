@@ -19,9 +19,12 @@ API_VERSION = "1.0"
 class IoPortManagement(APIItems):
     """I/O port management for Axis devices."""
 
+    item_cls = Port
+    path = URL
+
     def __init__(self, vapix: object) -> None:
         """Initialize I/O port manager."""
-        super().__init__(vapix, {}, URL, Port)
+        super().__init__(vapix, {})
 
     async def update(self) -> None:
         """Refresh data."""

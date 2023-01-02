@@ -73,9 +73,12 @@ def get_events(data: dict) -> List[dict]:
 class EventInstances(APIItems):
     """Initialize new events and update states of existing events."""
 
+    item_cls = EventInstance
+    path = URL
+
     def __init__(self, vapix: object) -> None:
         """Initialize class."""
-        super().__init__(vapix, {}, URL, EventInstance)
+        super().__init__(vapix, {})
 
     async def update(self) -> None:
         """Retrieve event instances from device."""

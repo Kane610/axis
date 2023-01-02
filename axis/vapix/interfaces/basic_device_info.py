@@ -18,9 +18,12 @@ API_VERSION = "1.1"
 class BasicDeviceInfo(APIItems):
     """Basic device information for Axis devices."""
 
+    item_cls = APIItem
+    path = URL
+
     def __init__(self, vapix: object) -> None:
         """Initialize basic device information manager."""
-        super().__init__(vapix, {}, URL, APIItem)
+        super().__init__(vapix, {})
 
     def __getitem__(self, obj_id: str) -> str:  # type: ignore[override]
         """self["string"] will return self._item["string"].raw."""

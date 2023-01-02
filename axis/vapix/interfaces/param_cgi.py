@@ -41,9 +41,12 @@ SUPPORTED_GROUPS = [
 class Params(APIItems):
     """Represents all parameters of param.cgi."""
 
+    item_cls = Param
+    path = URL_GET
+
     def __init__(self, vapix: object) -> None:
         """Initialize parameter manager."""
-        super().__init__(vapix, "", URL_GET, Param)
+        super().__init__(vapix, "")
 
     async def update(self, group: str = "") -> None:
         """Refresh data."""

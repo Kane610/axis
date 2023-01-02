@@ -25,9 +25,12 @@ API_VERSION = "1.0"
 class ViewAreas(APIItems):
     """View areas for Axis devices."""
 
+    item_cls = ViewArea
+    path = URL
+
     def __init__(self, vapix: object) -> None:
         """Initialize view area manager."""
-        super().__init__(vapix, {}, URL, ViewArea)
+        super().__init__(vapix, {})
 
     async def update(self) -> None:
         """Refresh data."""

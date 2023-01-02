@@ -23,10 +23,13 @@ PROPERTY = "Properties.API.HTTP.Version=3"
 class Ports(APIItems):
     """Represents all ports of io/port.cgi."""
 
+    item_cls = Port
+    path = ""
+
     def __init__(self, vapix: object, param_cgi: Params) -> None:
         """Initialize port cgi manager."""
         self.param_cgi = param_cgi
-        super().__init__(vapix, self.param_cgi.ports, None, Port)
+        super().__init__(vapix, self.param_cgi.ports)
 
     async def update(self) -> None:
         """Refresh data."""

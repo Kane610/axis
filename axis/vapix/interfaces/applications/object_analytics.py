@@ -22,10 +22,10 @@ class ObjectAnalytics(ApplicationAPIItems):
     """Object Analytics application on Axis devices."""
 
     APPLICATION_NAME = APPLICATION_NAME
+    api_version = API_VERSION
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize object analyticz manager."""
-        super().__init__(vapix, URL, ObjectAnalyticsScenario, API_VERSION)
+    item_cls = ObjectAnalyticsScenario
+    path = URL
 
     @staticmethod
     def pre_process_raw(raw: dict) -> dict:
@@ -45,6 +45,6 @@ class ObjectAnalytics(ApplicationAPIItems):
             "post",
             self._path,
             json=attr.asdict(
-                Body("getConfiguration", self._api_version),
+                Body("getConfiguration", self.api_version),
             ),
         )

@@ -18,9 +18,12 @@ API_VERSION = "1.1"
 class LightControl(APIItems):
     """Light control for Axis devices."""
 
+    item_cls = Light
+    path = URL
+
     def __init__(self, vapix: object) -> None:
         """Initialize light control manager."""
-        super().__init__(vapix, {}, URL, Light)
+        super().__init__(vapix, {})
 
     async def update(self) -> None:
         """Refresh data."""

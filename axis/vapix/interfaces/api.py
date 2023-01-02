@@ -26,12 +26,15 @@ class Body:
 class APIItems:
     """Base class for a map of API Items."""
 
-    def __init__(self, vapix, raw, path, item_cls) -> None:
+    item_cls: Any
+    path: str
+
+    def __init__(self, vapix, raw) -> None:
         """Initialize API items."""
         self._vapix = vapix
         self._request = vapix.request
-        self._path = path
-        self._item_cls = item_cls
+        self._path = self.path
+        self._item_cls = self.item_cls
         self._items: dict = {}
         self.process_raw(raw)
         LOGGER.debug(pformat(raw))
