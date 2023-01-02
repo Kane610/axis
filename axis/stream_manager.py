@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Callable, List, Optional
 
-from .rtsp import SIGNAL_DATA, SIGNAL_FAILED, SIGNAL_PLAYING, STATE_STOPPED, RTSPClient
+from .rtsp import RTSPClient, Signal, State
 
 if TYPE_CHECKING:
     from .device import AxisDevice
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 RTSP_URL = (
-    "rtsp://{host}/axis-media/media.amp" "?video={video}&audio={audio}&event={event}"
+    "rtsp://{host}/axis-media/media.amp?video={video}&audio={audio}&event={event}"
 )
 
 RETRY_TIMER = 15
@@ -58,20 +58,20 @@ class StreamManager:
         """Generate event query."""
         return "on" if bool(self.event) else "off"
 
-    def session_callback(self, signal: str) -> None:
+    def session_callback(self, signal: Signal) -> None:
         """Signalling from stream session.
 
         Data - new data available for processing.
         Playing - Connection is healthy.
         Retry - if there is no connection to device.
         """
-        if signal == SIGNAL_DATA and self.event:
+        if signal == Signal.DATA and self.event:
             self.event(self.data)
 
-        elif signal == SIGNAL_FAILED:
+        elif signal == Signal.FAILED:
             self.retry()
 
-        if signal in [SIGNAL_PLAYING, SIGNAL_FAILED]:
+        if signal in [Signal.PLAYING, Signal.FAILED]:
             for callback in self.connection_status_callback:
                 callback(signal)
 
@@ -81,15 +81,15 @@ class StreamManager:
         return self.stream.rtp.data  # type: ignore[union-attr]
 
     @property
-    def state(self) -> str:
+    def state(self) -> State:
         """State of stream."""
         if not self.stream:
-            return STATE_STOPPED
+            return State.STOPPED
         return self.stream.session.state
 
     def start(self) -> None:
         """Start stream."""
-        if not self.stream or self.stream.session.state == STATE_STOPPED:
+        if not self.stream or self.stream.session.state == State.STOPPED:
             self.stream = RTSPClient(
                 self.stream_url,
                 self.device.config.host,
@@ -101,7 +101,7 @@ class StreamManager:
 
     def stop(self) -> None:
         """Stop stream."""
-        if self.stream and self.stream.session.state != STATE_STOPPED:
+        if self.stream and self.stream.session.state != State.STOPPED:
             self.stream.stop()
 
     def retry(self) -> None:

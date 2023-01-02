@@ -6,6 +6,7 @@
 
 import asyncio
 from collections import deque
+import enum
 import logging
 import socket
 from typing import Any, Callable, Deque, Dict, List, Optional
@@ -14,14 +15,23 @@ _LOGGER = logging.getLogger(__name__)
 
 RTSP_PORT = 554
 
-STATE_PAUSED = "paused"
-STATE_PLAYING = "playing"
-STATE_STARTING = "starting"
-STATE_STOPPED = "stopped"
 
-SIGNAL_DATA = "data"
-SIGNAL_FAILED = "failed"
-SIGNAL_PLAYING = "playing"
+class Signal(enum.Enum):
+    """What is the content of the callback."""
+
+    DATA = "data"
+    FAILED = "failed"
+    PLAYING = "playing"
+
+
+class State(enum.Enum):
+    """State of the connection."""
+
+    PAUSED = "paused"
+    PLAYING = "playing"
+    STARTING = "starting"
+    STOPPED = "stopped"
+
 
 TIME_OUT_LIMIT = 5
 
@@ -59,7 +69,7 @@ class RTSPClient(asyncio.Protocol):
         except OSError as err:
             _LOGGER.debug("RTSP got exception %s", err)
             self.stop()
-            self.callback(SIGNAL_FAILED)
+            self.callback(Signal.FAILED)
 
     def stop(self) -> None:
         """Stop session."""
@@ -95,12 +105,12 @@ class RTSPClient(asyncio.Protocol):
         self.time_out_handle.cancel()  # type: ignore [union-attr]
         self.session.update(data.decode())
 
-        if self.session.state == STATE_STARTING:
+        if self.session.state == State.STARTING:
             self.transport.write(self.method.message.encode())  # type: ignore [union-attr]
             self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
-        elif self.session.state == STATE_PLAYING:
-            self.callback(SIGNAL_PLAYING)
+        elif self.session.state == State.PLAYING:
+            self.callback(Signal.PLAYING)
 
             if self.session.session_timeout != 0:
                 interval = self.session.session_timeout - 5
@@ -121,7 +131,7 @@ class RTSPClient(asyncio.Protocol):
         """
         _LOGGER.warning("Response timed out %s", self.session.host)
         self.stop()
-        self.callback(SIGNAL_FAILED)
+        self.callback(Signal.FAILED)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         """Happens when device closes connection or stop() has been called."""
@@ -190,7 +200,7 @@ class RTPClient:
             """Signals when new data is available."""
             if self.callback:
                 self.data.append(data[12:])
-                self.callback("data")
+                self.callback(Signal.DATA)
 
 
 class RTSPSession:
@@ -265,11 +275,11 @@ class RTSPSession:
         Playing - keep-alive messages every self.session_timeout.
         """
         if self.method in ["OPTIONS", "DESCRIBE", "SETUP", "PLAY"]:
-            state = STATE_STARTING
+            state = State.STARTING
         elif self.method in ["KEEP-ALIVE"]:
-            state = STATE_PLAYING
+            state = State.PLAYING
         else:
-            state = STATE_STOPPED
+            state = State.STOPPED
         return state
 
     def update(self, response: str) -> None:
@@ -330,7 +340,7 @@ class RTSPSession:
                     break
 
         if self.status_code == 200:
-            if self.state == STATE_STARTING:
+            if self.state == State.STARTING:
                 self.sequence += 1
         elif self.status_code == 401:
             # Device requires authorization, do not increment to next method

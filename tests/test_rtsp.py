@@ -7,18 +7,11 @@ import asyncio
 import logging
 from unittest.mock import Mock, patch
 
-from axis.rtsp import (
-    RTSPClient,
-    SIGNAL_FAILED,
-    SIGNAL_PLAYING,
-    STATE_PLAYING,
-    STATE_STARTING,
-    STATE_STOPPED,
-)
 import pytest
 
-from .conftest import HOST, RTSP_PORT
+from axis.rtsp import RTSPClient, Signal, State
 
+from .conftest import HOST, RTSP_PORT
 
 # pytestmark = pytest.mark.asyncio
 
@@ -352,7 +345,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
                 await asyncio.sleep(0)
                 continue
             break
-        mock_callback.assert_called_with(SIGNAL_PLAYING)
+        mock_callback.assert_called_with(Signal.PLAYING)
     assert rtsp_client.session.sequence == 4
     assert rtsp_client.session._basic_auth is None
     assert rtsp_client.session.status_code == 200
@@ -453,7 +446,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
                 await asyncio.sleep(0)
                 continue
             break
-        mock_callback.assert_called_with(SIGNAL_PLAYING)
+        mock_callback.assert_called_with(Signal.PLAYING)
     assert rtsp_client.session.session_id == "ghLlkf_I9pCBP24t"
     assert rtsp_client.session.session_timeout == 30
 
@@ -479,7 +472,7 @@ def test_rtsp_client_time_out(rtsp_client, caplog):
         rtsp_client.time_out()
         assert f"Response timed out {HOST}" in caplog.text
         mock_rtsp_client_stop.assert_called()
-        mock_rtsp_client_callback.assert_called_with(SIGNAL_FAILED)
+        mock_rtsp_client_callback.assert_called_with(Signal.FAILED)
 
 
 def test_rtsp_client_connection_lost(rtsp_client, caplog):
@@ -513,7 +506,7 @@ def test_rtp_client(rtsp_client, caplog):
 
     with patch.object(rtp_client.client, "callback") as mock_callback:
         rtp_client.client.datagram_received("0123456789ABCDEF", "addr")
-        mock_callback.assert_called_with("data")
+        mock_callback.assert_called_with(Signal.DATA)
         assert rtp_client.data == "CDEF"
 
     rtsp_client.stop()
@@ -557,27 +550,27 @@ def test_session_state_method(rtsp_client):
 
     assert session.sequence == 0
     assert session.method == "OPTIONS"
-    assert session.state == STATE_STARTING
+    assert session.state == State.STARTING
 
     with patch.object(session, "sequence", 1):
         assert session.method == "DESCRIBE"
-        assert session.state == STATE_STARTING
+        assert session.state == State.STARTING
 
     with patch.object(session, "sequence", 2):
         assert session.method == "SETUP"
-        assert session.state == STATE_STARTING
+        assert session.state == State.STARTING
 
     with patch.object(session, "sequence", 3):
         assert session.method == "PLAY"
-        assert session.state == STATE_STARTING
+        assert session.state == State.STARTING
 
     with patch.object(session, "sequence", 4):
         assert session.method == "KEEP-ALIVE"
-        assert session.state == STATE_PLAYING
+        assert session.state == State.PLAYING
 
     with patch.object(session, "sequence", 5):
         assert session.method == "TEARDOWN"
-        assert session.state == STATE_STOPPED
+        assert session.state == State.STOPPED
 
     with patch.object(session, "sequence", 6), pytest.raises(IndexError):
         session.method
@@ -591,7 +584,7 @@ def test_session_update_status_codes(rtsp_client):
     assert session.rtsp_version is None
     assert session.status_code is None
     assert session.status_text is None
-    assert session.state == STATE_STARTING
+    assert session.state == State.STARTING
     assert session.sequence == 0
 
     session.update("RTSP/1.0 200 OK\r\n")
@@ -599,7 +592,7 @@ def test_session_update_status_codes(rtsp_client):
     assert session.rtsp_version == 1
     assert session.status_code == 200
     assert session.status_text == "OK"
-    assert session.state == STATE_STARTING
+    assert session.state == State.STARTING
     assert session.sequence == 1
 
     session.update("RTSP/1.0 421 Unauthorized\r\n")
@@ -607,7 +600,7 @@ def test_session_update_status_codes(rtsp_client):
     assert session.rtsp_version == 1
     assert session.status_code == 421
     assert session.status_text == "Unauthorized"
-    assert session.state == STATE_STARTING
+    assert session.state == State.STARTING
     assert session.sequence == 1
 
     session.update("RTSP/1.0 454 Session Not Found\r\n")
@@ -615,7 +608,7 @@ def test_session_update_status_codes(rtsp_client):
     assert session.rtsp_version == 1
     assert session.status_code == 454
     assert session.status_text == "Session"  # "Session Not Found"
-    assert session.state == STATE_STARTING
+    assert session.state == State.STARTING
     assert session.sequence == 1
 
 

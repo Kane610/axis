@@ -7,13 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from axis.rtsp import (
-    SIGNAL_DATA,
-    SIGNAL_FAILED,
-    SIGNAL_PLAYING,
-    STATE_PLAYING,
-    STATE_STOPPED,
-)
+from axis.rtsp import Signal, State
 from axis.stream_manager import RETRY_TIMER, StreamManager
 
 from .conftest import HOST
@@ -53,7 +47,7 @@ async def test_initialize_stream(rtsp_client, stream_manager):
     assert not stream_manager.stream  # Stream does not exist
     stream_manager.stop()  # Calling stop shouldn't do anything
     assert (
-        stream_manager.state == STATE_STOPPED
+        stream_manager.state == State.STOPPED
     )  # Default state of stream manager is stopped
 
     # Stream is created
@@ -64,14 +58,14 @@ async def test_initialize_stream(rtsp_client, stream_manager):
 
     # Stream can't stop if in stopped state
     stream_manager.stream.session.state = (
-        STATE_STOPPED  # Nothing happens if in stopped state
+        State.STOPPED  # Nothing happens if in stopped state
     )
     stream_manager.stop()  # Try to stop stream
     stream_manager.stream.stop.assert_not_called()  # Wrong state so not called
 
     # Stream can stop if in non stopped state
-    stream_manager.stream.session.state = STATE_PLAYING  # State is now playing
-    assert stream_manager.state == STATE_PLAYING  # State of stream manager is playing
+    stream_manager.stream.session.state = State.PLAYING  # State is now playing
+    assert stream_manager.state == State.PLAYING  # State of stream manager is playing
     stream_manager.stop()  # Stop should work
     stream_manager.stream.stop.assert_called()  # RTSPClient stop can now be called
 
@@ -86,18 +80,18 @@ async def test_initialize_stream(rtsp_client, stream_manager):
     stream_manager.connection_status_callback.append(mock_connection_status_callback)
 
     # Signal new data is available through event callbacks update method
-    stream_manager.session_callback(SIGNAL_DATA)
+    stream_manager.session_callback(Signal.DATA)
     mock_event_callback.assert_called_with("Summerwheen")
 
     # Signal state is playing on the connection status callbacks
-    stream_manager.session_callback(SIGNAL_PLAYING)
-    mock_connection_status_callback.assert_called_with(SIGNAL_PLAYING)
+    stream_manager.session_callback(Signal.PLAYING)
+    mock_connection_status_callback.assert_called_with(Signal.PLAYING)
 
     # Signal state is stopped and call try to reconnect
     with patch.object(stream_manager, "retry") as mock_retry:
-        stream_manager.session_callback(SIGNAL_FAILED)
+        stream_manager.session_callback(Signal.FAILED)
         mock_retry.assert_called()
-        mock_connection_status_callback.assert_called_with(SIGNAL_FAILED)
+        mock_connection_status_callback.assert_called_with(Signal.FAILED)
 
     # Retry should schedule a retry timer and call stream manager start method
     mock_loop = MagicMock()
