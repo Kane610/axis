@@ -20,5 +20,5 @@ class AxisDevice:
 
     def enable_events(self, event_callback: Callable) -> None:
         """Enable events for stream."""
-        self.event = EventManager(event_callback)
+        self.event = EventManager(self.vapix, event_callback)
         self.stream.event = self.event.update  # type: ignore[assignment]

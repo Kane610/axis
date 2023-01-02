@@ -26,9 +26,10 @@ class Body:
 class APIItems:
     """Base class for a map of API Items."""
 
-    def __init__(self, raw, request, path, item_cls) -> None:
+    def __init__(self, vapix, raw, path, item_cls) -> None:
         """Initialize API items."""
-        self._request = request
+        self._vapix = vapix
+        self._request = vapix.request
         self._path = path
         self._item_cls = item_cls
         self._items: dict = {}

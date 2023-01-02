@@ -6,7 +6,7 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
 import asyncio
-from typing import Callable, Dict, Union
+from typing import Dict, Union
 
 from ..models.param_cgi import Param
 from ..models.stream_profile import StreamProfile
@@ -41,9 +41,9 @@ SUPPORTED_GROUPS = [
 class Params(APIItems):
     """Represents all parameters of param.cgi."""
 
-    def __init__(self, request: Callable) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize parameter manager."""
-        super().__init__("", request, URL_GET, Param)
+        super().__init__(vapix, "", URL_GET, Param)
 
     async def update(self, group: str = "") -> None:
         """Refresh data."""

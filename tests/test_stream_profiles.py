@@ -4,8 +4,8 @@ pytest --cov-report term-missing --cov=axis.stream_profiles tests/test_stream_pr
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.stream_profiles import StreamProfiles
@@ -15,14 +15,14 @@ from .conftest import HOST
 
 @pytest.fixture
 def stream_profiles(axis_device) -> StreamProfiles:
-    """Returns the stream_profiles mock object."""
-    return StreamProfiles(axis_device.vapix.request)
+    """Return the stream_profiles mock object."""
+    return StreamProfiles(axis_device.vapix)
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_list_stream_profiles(stream_profiles):
-    """Test get_supported_versions"""
+    """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=response_list,
     )
@@ -50,8 +50,8 @@ async def test_list_stream_profiles(stream_profiles):
 @respx.mock
 @pytest.mark.asyncio
 async def test_list_stream_profiles_no_profiles(stream_profiles):
-    """Test get_supported_versions"""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    """Test get_supported_versions."""
+    respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json={
             "method": "list",
             "apiVersion": "1.0",
@@ -68,7 +68,7 @@ async def test_list_stream_profiles_no_profiles(stream_profiles):
 @respx.mock
 @pytest.mark.asyncio
 async def test_get_supported_versions(stream_profiles):
-    """Test get_supported_versions"""
+    """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=response_getSupportedVersions,
     )

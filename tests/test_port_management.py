@@ -4,8 +4,8 @@ pytest --cov-report term-missing --cov=axis.port_management tests/test_port_mana
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.port_management import (
@@ -20,8 +20,8 @@ from .conftest import HOST
 
 @pytest.fixture
 def io_port_management(axis_device) -> IoPortManagement:
-    """Returns the io_port_management mock object."""
-    return IoPortManagement(axis_device.vapix.request)
+    """Return the io_port_management mock object."""
+    return IoPortManagement(axis_device.vapix)
 
 
 @respx.mock

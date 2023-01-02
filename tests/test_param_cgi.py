@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
 import pytest
-
 import respx
 
 from axis.vapix.interfaces.param_cgi import Params
@@ -14,8 +13,8 @@ from .conftest import HOST
 
 @pytest.fixture
 def params(axis_device) -> Params:
-    """Returns the param cgi mock object."""
-    return Params(axis_device.vapix.request)
+    """Return the param cgi mock object."""
+    return Params(axis_device.vapix)
 
 
 @respx.mock

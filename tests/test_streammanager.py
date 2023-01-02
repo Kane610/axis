@@ -3,8 +3,9 @@
 pytest --cov-report term-missing --cov=axis.streammanager tests/test_streammanager.py
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from axis.rtsp import (
     SIGNAL_DATA,
@@ -20,7 +21,7 @@ from .conftest import HOST
 
 @pytest.fixture
 def stream_manager(axis_device) -> StreamManager:
-    """Returns the streammanager mock object."""
+    """Return the streammanager mock object."""
     return axis_device.stream
 
 

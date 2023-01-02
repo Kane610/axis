@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 """
 
 import pytest
-
 import respx
 
 from axis.vapix.interfaces.param_cgi import Params
@@ -15,9 +14,9 @@ from .conftest import HOST
 
 @pytest.fixture
 def ports(axis_device) -> Ports:
-    """Returns the api_discovery mock object."""
-    params = Params(axis_device.vapix.request)
-    return Ports(params, axis_device.vapix.request)
+    """Return the api_discovery mock object."""
+    params = Params(axis_device.vapix)
+    return Ports(axis_device.vapix, params)
 
 
 @respx.mock

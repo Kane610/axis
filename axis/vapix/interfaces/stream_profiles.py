@@ -22,9 +22,9 @@ API_VERSION = "1.0"
 class StreamProfiles(APIItems):
     """Stream profiles for Axis devices."""
 
-    def __init__(self, request: object) -> None:
+    def __init__(self, vapix: object) -> None:
         """Initialize stream profiles manager."""
-        super().__init__({}, request, URL, StreamProfile)
+        super().__init__(vapix, {}, URL, StreamProfile)
 
     async def update(self) -> None:
         """Refresh data."""

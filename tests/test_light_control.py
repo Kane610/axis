@@ -4,18 +4,19 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.light_control import LightControl
+
 from .conftest import HOST
 
 
 @pytest.fixture
 def light_control(axis_device) -> LightControl:
-    """Returns the light_control mock object."""
-    return LightControl(axis_device.vapix.request)
+    """Return the light_control mock object."""
+    return LightControl(axis_device.vapix)
 
 
 @respx.mock

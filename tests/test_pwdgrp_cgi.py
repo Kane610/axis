@@ -3,9 +3,9 @@
 pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
 """
 
-import pytest
 import urllib
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.pwdgrp_cgi import SGRP_ADMIN, Users
@@ -15,8 +15,8 @@ from .conftest import HOST
 
 @pytest.fixture
 def users(axis_device) -> Users:
-    """Returns the api_discovery mock object."""
-    return Users(fixture, axis_device.vapix.request)
+    """Return the api_discovery mock object."""
+    return Users(axis_device.vapix, fixture)
 
 
 def test_users(users):
@@ -44,7 +44,8 @@ def test_users(users):
 
 
 def test_get_users_low_privileges(axis_device):
-    users = Users("", axis_device.vapix.request)
+    """Validate get users low privileges."""
+    users = Users(axis_device.vapix, "")
     assert len(users) == 0
 
 
@@ -172,7 +173,7 @@ async def test_delete(users):
 
 def test_equals_in_value(axis_device):
     """Verify that values containing `=` are parsed correctly."""
-    assert Users(fixture + 'equals-in-value="xyz=="', axis_device.vapix.request)
+    assert Users(axis_device.vapix, fixture + 'equals-in-value="xyz=="')
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

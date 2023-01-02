@@ -4,19 +4,19 @@ pytest --cov-report term-missing --cov=axis.view_areas tests/test_view_areas.py
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
-from axis.vapix.interfaces.view_areas import Geometry, URL_CONFIG, URL_INFO, ViewAreas
+from axis.vapix.interfaces.view_areas import URL_CONFIG, URL_INFO, Geometry, ViewAreas
 
 from .conftest import HOST
 
 
 @pytest.fixture
 def view_areas(axis_device) -> ViewAreas:
-    """Returns the view_areas mock object."""
-    return ViewAreas(axis_device.vapix.request)
+    """Return the view_areas mock object."""
+    return ViewAreas(axis_device.vapix)
 
 
 @respx.mock

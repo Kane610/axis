@@ -4,8 +4,8 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 """
 
 import json
-import pytest
 
+import pytest
 import respx
 
 from axis.vapix.interfaces.basic_device_info import BasicDeviceInfo
@@ -15,8 +15,8 @@ from .conftest import HOST
 
 @pytest.fixture
 def basic_device_info(axis_device) -> BasicDeviceInfo:
-    """Returns the basic_device_info mock object."""
-    return BasicDeviceInfo(axis_device.vapix.request)
+    """Return the basic_device_info mock object."""
+    return BasicDeviceInfo(axis_device.vapix)
 
 
 @respx.mock
