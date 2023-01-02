@@ -17,7 +17,7 @@ class Vmd4(ApplicationAPIItems):
     """VMD4 on Axis devices."""
 
     APPLICATION_NAME = APPLICATION_NAME
+    api_version = API_VERSION
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize VMD4 manager."""
-        super().__init__(vapix, URL, ApplicationAPIItem, API_VERSION)
+    item_cls = ApplicationAPIItem
+    path = URL

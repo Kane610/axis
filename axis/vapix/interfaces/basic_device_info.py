@@ -18,9 +18,8 @@ API_VERSION = "1.1"
 class BasicDeviceInfo(APIItems):
     """Basic device information for Axis devices."""
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize basic device information manager."""
-        super().__init__(vapix, {}, URL, APIItem)
+    item_cls = APIItem
+    path = URL
 
     def __getitem__(self, obj_id: str) -> str:  # type: ignore[override]
         """self["string"] will return self._item["string"].raw."""
@@ -38,7 +37,7 @@ class BasicDeviceInfo(APIItems):
 
     async def get_all_properties(self) -> dict:
         """List all properties of basic device info."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(
@@ -49,7 +48,7 @@ class BasicDeviceInfo(APIItems):
 
     async def get_supported_versions(self) -> dict:
         """Supported versions of basic device info."""
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL,
             json=attr.asdict(

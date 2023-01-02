@@ -25,9 +25,8 @@ API_VERSION = "1.0"
 class ViewAreas(APIItems):
     """View areas for Axis devices."""
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize view area manager."""
-        super().__init__(vapix, {}, URL, ViewArea)
+    item_cls = ViewArea
+    path = URL
 
     async def update(self) -> None:
         """Refresh data."""
@@ -47,7 +46,7 @@ class ViewAreas(APIItems):
         streamProfileName is the empty list [] all available stream profiles will be listed.
         Security level: Viewer
         """
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_INFO,
             json=attr.asdict(
@@ -63,7 +62,7 @@ class ViewAreas(APIItems):
         Security level: Viewer
         Method: POST
         """
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_INFO,
             json=attr.asdict(
@@ -86,7 +85,7 @@ class ViewAreas(APIItems):
         if view_area:
             view_area_id = int(view_area.id)
 
-        raw = await self._request(
+        raw = await self.vapix.request(
             "post",
             URL_CONFIG,
             json=attr.asdict(
@@ -118,7 +117,7 @@ class ViewAreas(APIItems):
         if view_area:
             view_area_id = int(view_area.id)
 
-        raw = await self._request(
+        raw = await self.vapix.request(
             "post",
             URL_CONFIG,
             json=attr.asdict(
@@ -138,7 +137,7 @@ class ViewAreas(APIItems):
         Security level: Viewer
         Method: POST
         """
-        return await self._request(
+        return await self.vapix.request(
             "post",
             URL_CONFIG,
             json=attr.asdict(

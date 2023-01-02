@@ -23,7 +23,7 @@ class FenceGuard(ApplicationAPIItems):
     """Fence Guard application on Axis devices."""
 
     APPLICATION_NAME = APPLICATION_NAME
+    api_version = API_VERSION
 
-    def __init__(self, vapix: object) -> None:
-        """Initialize fence guard manager."""
-        super().__init__(vapix, URL, ApplicationAPIItem, API_VERSION)
+    item_cls = ApplicationAPIItem
+    path = URL

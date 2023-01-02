@@ -14,9 +14,8 @@ UNKNOWN = "unknown"
 class UserGroups(APIItems):
     """User group access rights for Axis devices."""
 
-    def __init__(self, vapix: object, raw: str) -> None:
-        """Initialize user groups manager."""
-        super().__init__(vapix, raw, URL, APIItem)
+    item_cls = APIItem
+    path = URL
 
     @staticmethod
     def pre_process_raw(raw: str) -> dict:  # type: ignore[override]

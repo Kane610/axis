@@ -66,8 +66,7 @@ class PtzControl:
 
     def __init__(self, vapix) -> None:
         """Initialize PTZ control."""
-        self._vapix = vapix
-        self._request = vapix.request
+        self.vapix = vapix
 
     async def control(
         self,
@@ -234,7 +233,7 @@ class PtzControl:
         if len(data) == 0 or (len(data) == 1 and "camera" in data):
             return None
 
-        return await self._request("post", URL, data=data)
+        return await self.vapix.request("post", URL, data=data)
 
     async def query(self, query: str) -> str:
         """Retrieve current status.
@@ -249,12 +248,12 @@ class PtzControl:
         """
         if query not in SUPPORTED_QUERIES:
             return ""
-        return await self._request("post", URL, data={"query": query})
+        return await self.vapix.request("post", URL, data={"query": query})
 
     async def configured_device_driver(self) -> str:
         """Name of the system-configured device driver."""
-        return await self._request("post", URL, data={"whoami": 1})
+        return await self.vapix.request("post", URL, data={"whoami": 1})
 
     async def available_ptz_commands(self) -> str:
         """Available PTZ commands."""
-        return await self._request("post", URL, data={"info": 1})
+        return await self.vapix.request("post", URL, data={"info": 1})
