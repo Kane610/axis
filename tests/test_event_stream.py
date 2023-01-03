@@ -473,7 +473,7 @@ def test_unsupported_event(event_manager):
 
     event = next(iter(event_manager.values()))
     assert event.binary is False
-    assert event.topic_base == EventTopic.NONE
+    assert event.topic_base == EventTopic.UNKNOWN
     assert event.group == EventGroup.NONE
     assert event.topic == "tns1:VideoSource/GlobalSceneChange/ImagingService"
     assert event.source == "Source"
@@ -491,3 +491,23 @@ def test_initialize_event_already_exist(event_manager):
     event_manager.update(VMD4_ANY_INIT)
     assert len(event_manager.values()) == 1
     event_manager.signal.assert_called_once()
+
+
+def test_new_new_event(event_manager):
+    """"""
+    # event_manager.handler(b"")
+    callback = Mock()
+    event_manager.subscribe(callback)
+    event_manager.handler(FIRST_MESSAGE)  # Shouldn't create event
+    event_manager.handler(PIR_INIT)  # Expected event
+    event_manager.handler(VMD4_ANY_INIT)  # Expected event no source
+    event_manager.handler(GLOBAL_SCENE_CHANGE)  # Unsupported event
+    event_manager.handler(
+        {"topic": "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"}
+    )  # Blacklisted topic
+    assert callback.called
+
+    from pprint import pprint
+
+    pprint(callback.call_args_list)
+    assert 0

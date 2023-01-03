@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import enum
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 import xmltodict  # type: ignore[import]
 
@@ -13,6 +14,14 @@ from .vapix.models.api import APIItem
 
 if TYPE_CHECKING:
     from .device import AxisDevice
+
+
+SubscriptionCallback = Callable[["Event"], None]
+SubscriptionType = tuple[SubscriptionCallback, Optional[tuple["EventTopic", ...]]]
+UnsubscribeType = Callable[[], None]
+
+ID_FILTER_ALL = "*"
+TOPIC_FILTER_ALL = "*"
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,8 +57,39 @@ class EventTopic(enum.Enum):
     PTZ_ON_PRESET = "tns1:PTZController/tnsaxis:PTZPresets"
     RELAY = "tns1:Device/Trigger/Relay"
     SOUND_TRIGGER_LEVEL = "tns1:AudioSource/tnsaxis:TriggerLevel"
-    NONE = "none"
+    UNKNOWN = "unknown"
 
+    @classmethod
+    def _missing_(cls, value: object) -> "EventTopic":
+        """Set default enum member if an unknown value is provided."""
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.warning("Unsupported topic %s", value)
+        return EventTopic.UNKNOWN
+
+
+TOPIC_TO_GROUP = {
+    EventTopic.DAY_NIGHT_VISION: EventGroup.LIGHT,
+    EventTopic.FENCE_GUARD: EventGroup.MOTION,
+    EventTopic.LIGHT_STATUS: EventGroup.LIGHT,
+    EventTopic.LOITERING_GUARD: EventGroup.MOTION,
+    EventTopic.MOTION_DETECTION: EventGroup.MOTION,
+    EventTopic.MOTION_DETECTION_3: EventGroup.MOTION,
+    EventTopic.MOTION_DETECTION_4: EventGroup.MOTION,
+    EventTopic.MOTION_GUARD: EventGroup.MOTION,
+    EventTopic.OBJECT_ANALYTICS: EventGroup.MOTION,
+    EventTopic.PIR: EventGroup.MOTION,
+    EventTopic.PORT_INPUT: EventGroup.INPUT,
+    EventTopic.PORT_SUPERVISED_INPUT: EventGroup.INPUT,
+    EventTopic.PTZ_IS_MOVING: EventGroup.PTZ,
+    EventTopic.PTZ_ON_PRESET: EventGroup.PTZ,
+    EventTopic.RELAY: EventGroup.OUTPUT,
+    EventTopic.SOUND_TRIGGER_LEVEL: EventGroup.SOUND,
+}
+
+TOPIC_TO_STATE = {
+    EventTopic.LIGHT_STATUS: "ON",
+    EventTopic.RELAY: "active",
+}
 
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
@@ -91,6 +131,71 @@ def extract_name_value(data: dict) -> tuple:
     return (item.get("@Name", ""), item.get("@Value", ""))
 
 
+@dataclass
+class Event:
+    """Event data from deCONZ websocket."""
+
+    data: dict[str, Any]
+    group: EventGroup
+    id: str
+    is_tripped: bool
+    source: str
+    state: str
+    topic: str
+    topic_base: EventTopic
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Event":
+        """Create event instance from dict."""
+        assert data[EVENT_TOPIC] not in BLACK_LISTED_TOPICS
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(data)
+
+        state = data[EVENT_VALUE]
+        topic = topic_base = data[EVENT_TOPIC]
+
+        if not (source := data.get(EVENT_SOURCE, "")):
+            # Topics from VMD4 et. al provide source and index at the end of the topic
+            topic_base, _, index = topic.rpartition("/")
+
+        elif index := data.get(EVENT_SOURCE_IDX, ""):
+            # Regex returned empty string
+            index = index if index != "-1" else ""
+
+        _topic_base = EventTopic(topic_base)
+
+        return cls(
+            data=data,
+            group=TOPIC_TO_GROUP.get(_topic_base, EventGroup.NONE),
+            id=index,
+            is_tripped=state == TOPIC_TO_STATE.get(topic_base, "1"),
+            source=source,
+            state=state,
+            topic=topic,
+            topic_base=_topic_base,
+        )
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "Event":
+        """Parse metadata xml."""
+        raw = xmltodict.parse(data, process_namespaces=True, namespaces=NAMESPACES)
+        assert raw.get("MetadataStream") is not None  # Empty data
+
+        event = {}
+        event[EVENT_TOPIC] = traverse(raw, TOPIC)
+        # event[EVENT_TIMESTAMP] = traverse(raw, TIMESTAMP)
+        event[EVENT_OPERATION] = traverse(raw, OPERATION)
+
+        if match := traverse(raw, SOURCE):
+            event[EVENT_SOURCE], event[EVENT_SOURCE_IDX] = extract_name_value(match)  # type: ignore[arg-type]
+
+        if match := traverse(raw, DATA):
+            event[EVENT_TYPE], event[EVENT_VALUE] = extract_name_value(match)  # type: ignore[arg-type]
+
+        return Event.from_dict(event)
+
+
 class EventManager(APIItems):
     """Initialize new events and update states of existing events."""
 
@@ -100,8 +205,71 @@ class EventManager(APIItems):
     def __init__(self, device: "AxisDevice") -> None:
         """Ready information about events."""
         self.device = device
+        self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
+
+        # Legacy
         self.item_cls = create_event
         super().__init__(device.vapix)
+
+    def handler(self, data: bytes | dict[str, Any]) -> None:
+        """Create event and pass it along to subscribers."""
+        try:
+            if isinstance(data, dict):
+                event = Event.from_dict(data)
+            else:
+                event = Event.from_bytes(data)
+        except AssertionError:
+            return
+
+        subscribers: list[SubscriptionType] = (
+            self._subscribers.get(event.id, []) + self._subscribers[ID_FILTER_ALL]
+        )
+        for callback, topic_filter in subscribers:
+            if topic_filter is not None and event.topic not in topic_filter:
+                continue
+            callback(event)
+
+    def subscribe(
+        self,
+        callback: SubscriptionCallback,
+        topic_filter: tuple[EventTopic, ...] | EventTopic | None = None,
+        id_filter: tuple[str] | str | None = None,
+    ) -> UnsubscribeType:
+        """Subscribe to events.
+
+        "callback" - callback function to call when on event.
+        Return function to unsubscribe.
+        """
+        if isinstance(topic_filter, EventTopic):
+            topic_filter = (topic_filter,)
+        subscription = (callback, topic_filter)
+
+        _id_filter: tuple[str]
+        if id_filter is None:
+            _id_filter = (ID_FILTER_ALL,)
+        elif isinstance(id_filter, str):
+            _id_filter = (id_filter,)
+
+        for obj_id in _id_filter:
+            if obj_id not in self._subscribers:
+                self._subscribers[obj_id] = []
+            self._subscribers[obj_id].append(subscription)
+
+        def unsubscribe() -> None:
+            for obj_id in _id_filter:
+                if obj_id not in self._subscribers:
+                    continue
+                if subscription not in self._subscribers[obj_id]:
+                    continue
+                self._subscribers[obj_id].remove(subscription)
+
+        return unsubscribe
+
+    def __len__(self) -> int:
+        """List number of subscribers."""
+        return sum(len(s) for s in self._subscribers.values())
+
+    # Legacy
 
     def update(self, raw: Union[bytes, list]) -> None:  # type: ignore[override]
         """Prepare event."""
@@ -112,7 +280,7 @@ class EventManager(APIItems):
 
         for new_event in new_events:
             # Don't signal on unsupported events
-            if self[new_event].topic_base != EventTopic.NONE:  # type: ignore[attr-defined]
+            if self[new_event].topic_base != EventTopic.UNKNOWN:  # type: ignore[attr-defined]
                 self.signal(OPERATION_INITIALIZED, new_event)
 
     @staticmethod
@@ -174,7 +342,7 @@ class AxisEvent(APIItem):
     """
 
     binary = False
-    topic_base = EventTopic.NONE
+    topic_base = EventTopic.UNKNOWN
     group = EventGroup.NONE
 
     @property

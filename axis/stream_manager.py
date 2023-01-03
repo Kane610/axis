@@ -66,7 +66,10 @@ class StreamManager:
         Retry - if there is no connection to device.
         """
         if signal == Signal.DATA and self.event:
-            self.device.event.update(self.data)
+            if len(self.device.event) > 0:
+                self.device.event.handler(self.data)
+            else:
+                self.device.event.update(self.data)
 
         elif signal == Signal.FAILED:
             self.retry()
