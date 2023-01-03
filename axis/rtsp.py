@@ -268,19 +268,17 @@ class RTSPSession:
         return self.methods[self.sequence]
 
     @property
-    def state(self) -> str:
+    def state(self) -> State:
         """Which state the session is in.
 
         Starting - all messages needed to get stream started.
         Playing - keep-alive messages every self.session_timeout.
         """
         if self.method in ["OPTIONS", "DESCRIBE", "SETUP", "PLAY"]:
-            state = State.STARTING
-        elif self.method in ["KEEP-ALIVE"]:
-            state = State.PLAYING
-        else:
-            state = State.STOPPED
-        return state
+            return State.STARTING
+        if self.method in ["KEEP-ALIVE"]:
+            return State.PLAYING
+        return State.STOPPED
 
     def update(self, response: str) -> None:
         """Update session information from device response.

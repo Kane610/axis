@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import enum
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Union
 
@@ -15,12 +16,40 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-CLASS_INPUT = "input"
-CLASS_LIGHT = "light"
-CLASS_MOTION = "motion"
-CLASS_OUTPUT = "output"
-CLASS_PTZ = "ptz"
-CLASS_SOUND = "sound"
+
+class EventGroup(enum.Enum):
+    """Logical grouping of events."""
+
+    INPUT = "input"
+    LIGHT = "light"
+    MOTION = "motion"
+    OUTPUT = "output"
+    PTZ = "ptz"
+    SOUND = "sound"
+    NONE = "none"
+
+
+class EventTopic(enum.Enum):
+    """Supported event topics."""
+
+    DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
+    FENCE_GUARD = "tnsaxis:CameraApplicationPlatform/FenceGuard"
+    LIGHT_STATUS = "tns1:Device/tnsaxis:Light/Status"
+    LOITERING_GUARD = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
+    MOTION_DETECTION = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
+    MOTION_DETECTION_3 = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
+    MOTION_DETECTION_4 = "tnsaxis:CameraApplicationPlatform/VMD"
+    MOTION_GUARD = "tnsaxis:CameraApplicationPlatform/MotionGuard"
+    OBJECT_ANALYTICS = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/"
+    PIR = "tns1:Device/tnsaxis:Sensor/PIR"
+    PORT_INPUT = "tns1:Device/tnsaxis:IO/Port"
+    PORT_SUPERVISED_INPUT = "tns1:Device/tnsaxis:IO/SupervisedPort"
+    PTZ_IS_MOVING = "tns1:PTZController/tnsaxis:Move"
+    PTZ_ON_PRESET = "tns1:PTZController/tnsaxis:PTZPresets"
+    RELAY = "tns1:Device/Trigger/Relay"
+    SOUND_TRIGGER_LEVEL = "tns1:AudioSource/tnsaxis:TriggerLevel"
+    NONE = "none"
+
 
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
@@ -83,7 +112,7 @@ class EventManager(APIItems):
 
         for new_event in new_events:
             # Don't signal on unsupported events
-            if self[new_event].topic_base:  # type: ignore[attr-defined]
+            if self[new_event].topic_base != EventTopic.NONE:  # type: ignore[attr-defined]
                 self.signal(OPERATION_INITIALIZED, new_event)
 
     @staticmethod
@@ -142,13 +171,11 @@ class AxisEvent(APIItem):
     Topic - some events disregards the initial way topics where used (a common string),
       this brings back the commonality to the topic.
     Group - create a kinship between similar events.
-    Type - a more human readable string of event.
     """
 
     binary = False
-    topic_base = ""
-    group = ""
-    type = ""
+    topic_base = EventTopic.NONE
+    group = EventGroup.NONE
 
     @property
     def topic(self) -> str:
@@ -189,25 +216,22 @@ class AxisBinaryEvent(AxisEvent):
 class Audio(AxisBinaryEvent):
     """Audio trigger event."""
 
-    topic_base = "tns1:AudioSource/tnsaxis:TriggerLevel"
-    group = CLASS_SOUND
-    type = "Sound"
+    topic_base = EventTopic.SOUND_TRIGGER_LEVEL
+    group = EventGroup.SOUND
 
 
 class DayNight(AxisBinaryEvent):
     """Day/Night vision trigger event."""
 
-    topic_base = "tns1:VideoSource/tnsaxis:DayNightVision"
-    group = CLASS_LIGHT
-    type = "DayNight"
+    topic_base = EventTopic.DAY_NIGHT_VISION
+    group = EventGroup.LIGHT
 
 
 class FenceGuard(AxisBinaryEvent):
     """Fence Guard trigger event."""
 
-    topic_base = "tnsaxis:CameraApplicationPlatform/FenceGuard"
-    group = CLASS_MOTION
-    type = "Fence Guard"
+    topic_base = EventTopic.FENCE_GUARD
+    group = EventGroup.MOTION
 
     @property
     def id(self) -> str:
@@ -218,17 +242,15 @@ class FenceGuard(AxisBinaryEvent):
 class Input(AxisBinaryEvent):
     """Digital input event."""
 
-    topic_base = "tns1:Device/tnsaxis:IO/Port"
-    group = CLASS_INPUT
-    type = "Input"
+    topic_base = EventTopic.PORT_INPUT
+    group = EventGroup.INPUT
 
 
 class Light(AxisBinaryEvent):
     """Light status event."""
 
-    topic_base = "tns1:Device/tnsaxis:Light/Status"
-    group = CLASS_LIGHT
-    type = "Light"
+    topic_base = EventTopic.LIGHT_STATUS
+    group = EventGroup.LIGHT
 
     @property
     def is_tripped(self) -> bool:
@@ -239,9 +261,8 @@ class Light(AxisBinaryEvent):
 class LoiteringGuard(AxisBinaryEvent):
     """Loitering Guard trigger event."""
 
-    topic_base = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
-    group = CLASS_MOTION
-    type = "Loitering Guard"
+    topic_base = EventTopic.LOITERING_GUARD
+    group = EventGroup.MOTION
 
     @property
     def id(self) -> str:
@@ -252,17 +273,15 @@ class LoiteringGuard(AxisBinaryEvent):
 class Motion(AxisBinaryEvent):
     """Motion detection event."""
 
-    topic_base = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
-    group = CLASS_MOTION
-    type = "Motion"
+    topic_base = EventTopic.MOTION_DETECTION
+    group = EventGroup.MOTION
 
 
 class MotionGuard(AxisBinaryEvent):
     """Motion Guard trigger event."""
 
-    topic_base = "tnsaxis:CameraApplicationPlatform/MotionGuard"
-    group = CLASS_MOTION
-    type = "Motion Guard"
+    topic_base = EventTopic.MOTION_GUARD
+    group = EventGroup.MOTION
 
     @property
     def id(self) -> str:
@@ -273,9 +292,8 @@ class MotionGuard(AxisBinaryEvent):
 class ObjectAnalytics(AxisBinaryEvent):
     """Object Analytics trigger event."""
 
-    topic_base = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/"
-    group = CLASS_MOTION
-    type = "Object Analytics"
+    topic_base = EventTopic.OBJECT_ANALYTICS
+    group = EventGroup.MOTION
 
     @property
     def id(self) -> str:
@@ -286,33 +304,29 @@ class ObjectAnalytics(AxisBinaryEvent):
 class Pir(AxisBinaryEvent):
     """Passive IR event."""
 
-    topic_base = "tns1:Device/tnsaxis:Sensor/PIR"
-    group = CLASS_MOTION
-    type = "PIR"
+    topic_base = EventTopic.PIR
+    group = EventGroup.MOTION
 
 
 class PtzMove(AxisBinaryEvent):
     """PTZ Move event."""
 
-    topic_base = "tns1:PTZController/tnsaxis:Move"
-    group = CLASS_PTZ
-    type = "is_moving"
+    topic_base = EventTopic.PTZ_IS_MOVING
+    group = EventGroup.PTZ
 
 
 class PtzPreset(AxisBinaryEvent):
     """PTZ Move event."""
 
-    topic_base = "tns1:PTZController/tnsaxis:PTZPresets"
-    group = CLASS_PTZ
-    type = "on_preset"
+    topic_base = EventTopic.PTZ_ON_PRESET
+    group = EventGroup.PTZ
 
 
 class Relay(AxisBinaryEvent):
     """Relay event."""
 
-    topic_base = "tns1:Device/Trigger/Relay"
-    group = CLASS_OUTPUT
-    type = "Relay"
+    topic_base = EventTopic.RELAY
+    group = EventGroup.OUTPUT
 
     @property
     def is_tripped(self) -> bool:
@@ -323,25 +337,22 @@ class Relay(AxisBinaryEvent):
 class SupervisedInput(AxisBinaryEvent):
     """Supervised input event."""
 
-    topic_base = "tns1:Device/tnsaxis:IO/SupervisedPort"
-    group = CLASS_INPUT
-    type = "Supervised Input"
+    topic_base = EventTopic.PORT_SUPERVISED_INPUT
+    group = EventGroup.INPUT
 
 
 class Vmd3(AxisBinaryEvent):
     """Visual Motion Detection 3."""
 
-    topic_base = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
-    group = CLASS_MOTION
-    type = "VMD3"
+    topic_base = EventTopic.MOTION_DETECTION_3
+    group = EventGroup.MOTION
 
 
 class Vmd4(AxisBinaryEvent):
     """Visual Motion Detection 4."""
 
-    topic_base = "tnsaxis:CameraApplicationPlatform/VMD"
-    group = CLASS_MOTION
-    type = "VMD4"
+    topic_base = EventTopic.MOTION_DETECTION_4
+    group = EventGroup.MOTION
 
     @property
     def id(self) -> str:
@@ -376,7 +387,7 @@ def create_event(event_id: str, event: dict, request: Callable[..., Any]) -> Axi
     for event_class in EVENT_CLASSES:
         if event[EVENT_TOPIC] in BLACK_LISTED_TOPICS:
             break
-        if event_class.topic_base in event[EVENT_TOPIC]:
+        if event_class.topic_base.value in event[EVENT_TOPIC]:
             return event_class(event_id, event, request)
 
     LOGGER.debug("Unsupported event %s", event[EVENT_TOPIC])
