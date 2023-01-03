@@ -74,14 +74,14 @@ async def test_initialize_stream(rtsp_client, stream_manager):
     assert stream_manager.data == "Summerwheen"
 
     # Session callback
-    mock_event_callback = MagicMock()
-    stream_manager.event = mock_event_callback
+    stream_manager.device.event.update = MagicMock()
+    stream_manager.event = True
     mock_connection_status_callback = MagicMock()
     stream_manager.connection_status_callback.append(mock_connection_status_callback)
 
     # Signal new data is available through event callbacks update method
     stream_manager.session_callback(Signal.DATA)
-    mock_event_callback.assert_called_with("Summerwheen")
+    stream_manager.device.event.update.assert_called_with("Summerwheen")
 
     # Signal state is playing on the connection status callbacks
     stream_manager.session_callback(Signal.PLAYING)

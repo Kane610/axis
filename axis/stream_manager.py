@@ -26,7 +26,7 @@ class StreamManager:
         self.device = device
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
-        self.event = None
+        self.event = False
         self.stream: Optional[RTSPClient] = None
 
         self.connection_status_callback: List[Callable] = []
@@ -56,7 +56,7 @@ class StreamManager:
     @property
     def event_query(self) -> str:
         """Generate event query."""
-        return "on" if bool(self.event) else "off"
+        return "on" if self.event else "off"
 
     def session_callback(self, signal: Signal) -> None:
         """Signalling from stream session.
@@ -66,7 +66,7 @@ class StreamManager:
         Retry - if there is no connection to device.
         """
         if signal == Signal.DATA and self.event:
-            self.event(self.data)
+            self.device.event.update(self.data)
 
         elif signal == Signal.FAILED:
             self.retry()
@@ -76,7 +76,7 @@ class StreamManager:
                 callback(signal)
 
     @property
-    def data(self) -> str:
+    def data(self) -> bytes:
         """Get stream data."""
         return self.stream.rtp.data  # type: ignore[union-attr]
 
