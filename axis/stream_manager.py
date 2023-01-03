@@ -76,7 +76,7 @@ class StreamManager:
                 callback(signal)
 
     @property
-    def data(self) -> str:
+    def data(self) -> bytes:
         """Get stream data."""
         return self.stream.rtp.data  # type: ignore[union-attr]
 

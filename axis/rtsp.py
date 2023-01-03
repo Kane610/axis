@@ -168,12 +168,12 @@ class RTPClient:
             self.client.transport.close()
 
     @property
-    def data(self) -> str:
+    def data(self) -> bytes:
         """Refer to most recently received data."""
         try:
             return self.client.data.popleft()
         except IndexError:
-            return ""
+            return b""
 
     class UDPClient:
         """Datagram recepient for device data."""
@@ -181,7 +181,7 @@ class RTPClient:
         def __init__(self, callback: Optional[Callable]) -> None:
             """Signal events to subscriber using callback."""
             self.callback = callback
-            self.data: Deque[str] = deque()
+            self.data: Deque[bytes] = deque()
             self.transport: Optional[asyncio.BaseTransport] = None
 
         def connection_made(self, transport: asyncio.BaseTransport) -> None:
@@ -196,7 +196,7 @@ class RTPClient:
             """Signal retry if RTSP session fails to get a response."""
             _LOGGER.debug("Stream recepient offline")
 
-        def datagram_received(self, data: str, addr: Any) -> None:
+        def datagram_received(self, data: bytes, addr: Any) -> None:
             """Signals when new data is available."""
             if self.callback:
                 self.data.append(data[12:])
