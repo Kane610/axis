@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import httpx
 from packaging import version
-import xmltodict  # type: ignore[import]
+import xmltodict
 
 from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscovery

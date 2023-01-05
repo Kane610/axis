@@ -7,7 +7,7 @@ import enum
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-import xmltodict  # type: ignore[import]
+import xmltodict
 
 from .vapix.interfaces.api import APIItems
 from .vapix.models.api import APIItem
