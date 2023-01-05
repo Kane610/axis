@@ -17,11 +17,14 @@ if TYPE_CHECKING:
 
 
 SubscriptionCallback = Callable[["Event"], None]
-SubscriptionType = tuple[SubscriptionCallback, Optional[tuple["EventTopic", ...]]]
+SubscriptionType = tuple[
+    SubscriptionCallback,
+    Optional[tuple["EventTopic", ...]],
+    Optional[tuple["EventOperation", ...]],
+]
 UnsubscribeType = Callable[[], None]
 
 ID_FILTER_ALL = "*"
-TOPIC_FILTER_ALL = "*"
 
 LOGGER = logging.getLogger(__name__)
 
@@ -99,9 +102,26 @@ EVENT_TOPIC = "topic"
 EVENT_TYPE = "type"
 EVENT_VALUE = "value"
 
-OPERATION_INITIALIZED = "Initialized"
-OPERATION_CHANGED = "Changed"
-OPERATION_DELETED = "Deleted"
+
+class EventOperation(str, enum.Enum):
+    """Possible operations of an event."""
+
+    INITIALIZED = "Initialized"
+    CHANGED = "Changed"
+    DELETED = "Deleted"
+    UNKNOWN = "Unknown"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "EventOperation":
+        """Set default enum member if an unknown value is provided."""
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.warning("Unsupported operation %s", value)
+        return EventOperation.UNKNOWN
+
+
+OPERATION_INITIALIZED = EventOperation.INITIALIZED
+OPERATION_CHANGED = EventOperation.CHANGED
+OPERATION_DELETED = EventOperation.DELETED
 
 NOTIFICATION_MESSAGE = ("MetadataStream", "Event", "NotificationMessage")
 MESSAGE = NOTIFICATION_MESSAGE + ("Message", "Message")
@@ -139,6 +159,7 @@ class Event:
     group: EventGroup
     id: str
     is_tripped: bool
+    operation: EventOperation
     source: str
     state: str
     topic: str
@@ -152,9 +173,12 @@ class Event:
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(data)
 
+        operation = EventOperation(data[EVENT_OPERATION])
         state = data[EVENT_VALUE]
         topic = topic_base = data[EVENT_TOPIC]
 
+        source: str
+        index: str
         if not (source := data.get(EVENT_SOURCE, "")):
             # Topics from VMD4 et. al provide source and index at the end of the topic
             topic_base, _, index = topic.rpartition("/")
@@ -170,6 +194,7 @@ class Event:
             group=TOPIC_TO_GROUP.get(_topic_base, EventGroup.NONE),
             id=index,
             is_tripped=state == TOPIC_TO_STATE.get(topic_base, "1"),
+            operation=operation,
             source=source,
             state=state,
             topic=topic,
@@ -224,16 +249,19 @@ class EventManager(APIItems):
         subscribers: list[SubscriptionType] = (
             self._subscribers.get(event.id, []) + self._subscribers[ID_FILTER_ALL]
         )
-        for callback, topic_filter in subscribers:
+        for callback, topic_filter, operation_filter in subscribers:
             if topic_filter is not None and event.topic not in topic_filter:
+                continue
+            if operation_filter is not None and event.operation not in operation_filter:
                 continue
             callback(event)
 
     def subscribe(
         self,
         callback: SubscriptionCallback,
-        topic_filter: tuple[EventTopic, ...] | EventTopic | None = None,
         id_filter: tuple[str] | str | None = None,
+        topic_filter: tuple[EventTopic, ...] | EventTopic | None = None,
+        operation_filter: tuple[EventOperation, ...] | EventOperation | None = None,
     ) -> UnsubscribeType:
         """Subscribe to events.
 
@@ -242,7 +270,9 @@ class EventManager(APIItems):
         """
         if isinstance(topic_filter, EventTopic):
             topic_filter = (topic_filter,)
-        subscription = (callback, topic_filter)
+        if isinstance(operation_filter, EventOperation):
+            operation_filter = (operation_filter,)
+        subscription = (callback, topic_filter, operation_filter)
 
         _id_filter: tuple[str]
         if id_filter is None:
@@ -297,7 +327,10 @@ class EventManager(APIItems):
             if not event:
                 continue
 
-            if event[EVENT_OPERATION] not in (OPERATION_INITIALIZED, OPERATION_CHANGED):
+            if event[EVENT_OPERATION] not in (
+                EventOperation.INITIALIZED,
+                EventOperation.CHANGED,
+            ):
                 LOGGER.debug("Unsupported event operation %s", event[EVENT_OPERATION])
                 continue
 
