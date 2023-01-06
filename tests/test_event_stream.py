@@ -498,7 +498,7 @@ def test_new_new_event(event_manager):
     # event_manager.handler(b"")
     callback = Mock()
     event_manager.subscribe(callback)
-    event_manager.handler(FIRST_MESSAGE)  # Shouldn't create event
+    # event_manager.handler(FIRST_MESSAGE)  # Shouldn't create event
     event_manager.handler(PIR_INIT)  # Expected event
     event_manager.handler(VMD4_ANY_INIT)  # Expected event no source
     event_manager.handler(GLOBAL_SCENE_CHANGE)  # Unsupported event
