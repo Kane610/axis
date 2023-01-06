@@ -158,7 +158,7 @@ class Event:
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(data)
 
-        operation = EventOperation(data[EVENT_OPERATION])
+        operation = EventOperation(data.get(EVENT_OPERATION))
         state = data[EVENT_VALUE]
         topic = topic_base = data[EVENT_TOPIC]
 
@@ -185,21 +185,31 @@ class Event:
             topic_base=_topic_base,
         )
 
-    @classmethod
-    def from_bytes(cls, data: bytes) -> "Event":
+    @staticmethod
+    def from_bytes(data: bytes) -> "Event":
         """Parse metadata xml."""
         raw = xmltodict.parse(data, process_namespaces=True, namespaces=NAMESPACES)
         assert raw.get("MetadataStream") is not None  # Empty data
 
-        event = {}
-        event[EVENT_TOPIC] = traverse(raw, TOPIC)
-        # event[EVENT_TIMESTAMP] = traverse(raw, TIMESTAMP)
-        event[EVENT_OPERATION] = traverse(raw, OPERATION)
+        topic = traverse(raw, TOPIC)
+        # timestamp = traverse(raw, TIMESTAMP)
+        operation = traverse(raw, OPERATION)
 
+        source = source_idx = ""
         if match := traverse(raw, SOURCE):
-            event[EVENT_SOURCE], event[EVENT_SOURCE_IDX] = extract_name_value(match)  # type: ignore[arg-type]
+            source, source_idx = extract_name_value(match)  # type: ignore[arg-type]
 
+        data_type = data_value = ""
         if match := traverse(raw, DATA):
-            event[EVENT_TYPE], event[EVENT_VALUE] = extract_name_value(match)  # type: ignore[arg-type]
+            data_type, data_value = extract_name_value(match)  # type: ignore[arg-type]
 
-        return Event.from_dict(event)
+        return Event.from_dict(
+            {
+                EVENT_OPERATION: operation,
+                EVENT_TOPIC: topic,
+                EVENT_SOURCE: source,
+                EVENT_SOURCE_IDX: source_idx,
+                EVENT_TYPE: data_type,
+                EVENT_VALUE: data_value,
+            }
+        )

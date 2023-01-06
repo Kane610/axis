@@ -65,7 +65,7 @@ class StreamManager:
         Playing - Connection is healthy.
         Retry - if there is no connection to device.
         """
-        if signal == Signal.DATA and self.event and len(self.device.event) > 0:
+        if signal == Signal.DATA and self.event:
             self.device.event.handler(self.data)
 
         elif signal == Signal.FAILED:

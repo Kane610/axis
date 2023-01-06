@@ -296,6 +296,8 @@ def test_create_event(input: bytes, expected: tuple) -> None:
             {
                 "operation": "Initialized",
                 "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "source": "",
+                "source_idx": "",
                 "type": "active",
                 "value": "0",
             },
@@ -305,6 +307,8 @@ def test_create_event(input: bytes, expected: tuple) -> None:
             {
                 "operation": "Changed",
                 "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "source": "",
+                "source_idx": "",
                 "type": "active",
                 "value": "1",
             },

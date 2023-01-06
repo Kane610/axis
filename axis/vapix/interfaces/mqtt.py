@@ -1,8 +1,7 @@
 """MQTT Client api."""
 
-import json
-
 import attr
+import orjson
 
 from ...models.event import EventOperation
 from ..models.mqtt import Client
@@ -66,7 +65,7 @@ class ClientConfig:
 
 def mqtt_json_to_event(msg: str) -> dict:
     """Convert JSON message from MQTT to event format."""
-    message = json.loads(msg)
+    message = orjson.loads(msg)
     topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")
 
     source = source_idx = ""
@@ -78,7 +77,7 @@ def mqtt_json_to_event(msg: str) -> dict:
         data_type, data_value = next(iter(message["message"]["data"].items()))
 
     return {
-        "operation": EventOperation.CHANGED,
+        "operation": EventOperation.INITIALIZED,
         "topic": topic,
         "source": source,
         "source_idx": source_idx,

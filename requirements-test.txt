@@ -9,4 +9,5 @@ pytest
 pytest-asyncio
 pytest-cov
 respx==0.20.1
+types-orjson==3.6.2
 types-xmltodict==v0.13.0.1
