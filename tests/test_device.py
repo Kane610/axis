@@ -11,9 +11,9 @@ def test_device(axis_device):
     assert axis_device.config
     assert axis_device.vapix
     assert axis_device.stream
-    assert axis_device.event
-    assert axis_device.event.signal is None
+    assert axis_device.event is not None
+    assert len(axis_device.event) == 0
 
-    mock_callback = Mock()
-    axis_device.enable_events(mock_callback)
-    assert axis_device.event.signal == mock_callback
+    axis_device.enable_events()
+    axis_device.event.subscribe(Mock())
+    assert len(axis_device.event) == 1

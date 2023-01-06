@@ -1,20 +1,19 @@
-"""Test Axis event stream.
+"""Test Axis event class.
 
-pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
+pytest --cov-report term-missing --cov=axis.models.event tests/test_event.py
 """
 
-from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.event_stream import EventManager
-from axis.models.event import Event, EventGroup
+from axis.models.event import Event, EventGroup, EventOperation
 
 from .event_fixtures import (
     AUDIO_INIT,
     DAYNIGHT_INIT,
     FENCE_GUARD_INIT,
+    FIRST_MESSAGE,
     GLOBAL_SCENE_CHANGE,
     LIGHT_STATUS_INIT,
     LOITERING_GUARD_INIT,
@@ -24,33 +23,15 @@ from .event_fixtures import (
     PIR_INIT,
     PORT_0_INIT,
     PORT_ANY_INIT,
-    PTZ_MOVE_END,
     PTZ_MOVE_INIT,
-    PTZ_MOVE_START,
-    PTZ_PRESET_AT_1_FALSE,
-    PTZ_PRESET_AT_2_TRUE,
     PTZ_PRESET_INIT_1,
-    PTZ_PRESET_INIT_2,
-    PTZ_PRESET_INIT_3,
     RELAY_INIT,
+    RULE_ENGINE_REGION_DETECTOR_INIT,
+    STORAGE_ALERT_INIT,
     VMD3_INIT,
+    VMD4_ANY_CHANGE,
     VMD4_ANY_INIT,
 )
-
-
-@pytest.fixture
-def event_manager(axis_device: AxisDevice) -> EventManager:
-    """Return mocked event manager."""
-    axis_device.enable_events()
-    return axis_device.event
-
-
-@pytest.fixture
-def subscriber(event_manager: EventManager) -> Mock:
-    """Return mocked event manager."""
-    callback = Mock()
-    event_manager.subscribe(callback)
-    return callback
 
 
 @pytest.mark.parametrize(
@@ -236,16 +217,25 @@ def subscriber(event_manager: EventManager) -> Mock:
                 "tripped": False,
             },
         ),
+        # Unsupported event
+        (
+            GLOBAL_SCENE_CHANGE,
+            {
+                "topic": "tns1:VideoSource/GlobalSceneChange/ImagingService",
+                "source": "Source",
+                "source_idx": "0",
+                "group": EventGroup.NONE,
+                "type": "VMD4",
+                "state": "0",
+                "tripped": False,
+            },
+        ),
     ],
 )
-def test_create_event(
-    event_manager: EventManager, subscriber: Mock, input: bytes, expected: tuple
-) -> None:
+def test_create_event(input: bytes, expected: tuple) -> None:
     """Verify that a new audio event can be managed."""
-    event_manager.handler(input)
-    assert subscriber.call_count == 1
+    event = Event.from_bytes(input)
 
-    event: Event = subscriber.call_args[0][0]
     assert event.topic == expected["topic"]
     assert event.source == expected["source"]
     assert event.id == expected["source_idx"]
@@ -254,103 +244,87 @@ def test_create_event(
     assert event.is_tripped is expected["tripped"]
 
 
-def test_pir_init(event_manager: EventManager, subscriber: Mock) -> None:
-    """Verify that a new PIR event can be managed."""
-    event_manager.handler(PIR_INIT)
-    assert subscriber.call_count == 1
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        (
+            PIR_INIT,
+            {
+                "operation": "Initialized",
+                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "source": "sensor",
+                "source_idx": "0",
+                "type": "state",
+                "value": "0",
+            },
+        ),
+        (
+            PIR_CHANGE,
+            {
+                "operation": "Changed",
+                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "source": "sensor",
+                "source_idx": "0",
+                "type": "state",
+                "value": "1",
+            },
+        ),
+        (
+            RULE_ENGINE_REGION_DETECTOR_INIT,
+            {
+                "operation": "Initialized",
+                "source": "VideoSource",
+                "source_idx": "0",
+                "topic": "tns1:RuleEngine/MotionRegionDetector/Motion",
+                "type": "State",
+                "value": "0",
+            },
+        ),
+        (
+            STORAGE_ALERT_INIT,
+            {
+                "operation": "Initialized",
+                "source": "disk_id",
+                "source_idx": "NetworkShare",
+                "topic": "tnsaxis:Storage/Alert",
+                "type": "overall_health",
+                "value": "-3",
+            },
+        ),
+        (
+            VMD4_ANY_INIT,
+            {
+                "operation": "Initialized",
+                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "type": "active",
+                "value": "0",
+            },
+        ),
+        (
+            VMD4_ANY_CHANGE,
+            {
+                "operation": "Changed",
+                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "type": "active",
+                "value": "1",
+            },
+        ),
+    ],
+)
+def test_parse_event_xml(input: bytes, expected: dict):
+    """Verify that first message doesn't do anything."""
 
-    event: Event = subscriber.call_args[0][0]
-    assert event.state == "0"
-    assert not event.is_tripped
-
-    event_manager.handler(PIR_CHANGE)
-    event: Event = subscriber.call_args[0][0]
-    assert event.state == "1"
-    assert event.is_tripped
-
-
-def test_ptz_preset(event_manager: EventManager, subscriber: Mock) -> None:
-    """Verify that a new PTZ preset event can be managed."""
-    event_manager.handler(PTZ_PRESET_INIT_1)
-    assert subscriber.call_count == 1
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
-    assert event.id == "1"
-    assert event.state == "1"
-
-    event_manager.handler(PTZ_PRESET_INIT_2)
-    assert subscriber.call_count == 2
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
-    assert event.id == "2"
-    assert event.state == "0"
-
-    event_manager.handler(PTZ_PRESET_INIT_3)
-    assert subscriber.call_count == 3
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
-    assert event.id == "3"
-    assert event.state == "0"
-
-    event_manager.handler(PTZ_PRESET_AT_1_FALSE)
-    assert subscriber.call_count == 4
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.state == "0"
-    assert not event.is_tripped
-
-    event_manager.handler(PTZ_PRESET_AT_2_TRUE)
-    assert subscriber.call_count == 5
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.state == "1"
-    assert event.is_tripped
-
-
-def test_ptz_move(event_manager: EventManager, subscriber: Mock) -> None:
-    """Verify that a new PTZ move event can be managed."""
-    event_manager.handler(PTZ_MOVE_INIT)
-    assert subscriber.call_count == 1
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:Move/Channel_1"
-    assert event.source == "PTZConfigurationToken"
-    assert event.id == "1"
-    assert event.group == EventGroup.PTZ
-    assert event.state == "0"
-
-    event_manager.handler(PTZ_MOVE_START)
-    assert subscriber.call_count == 2
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:Move/Channel_1"
-    assert event.id == "1"
-    assert event.state == "1"
-    assert event.is_tripped
-
-    event_manager.handler(PTZ_MOVE_END)
-    assert subscriber.call_count == 3
-
-    event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:Move/Channel_1"
-    assert event.id == "1"
-    assert event.state == "0"
-    assert not event.is_tripped
+    with patch.object(Event, "from_dict") as mock_from_dict:
+        assert Event.from_bytes(input)
+        assert mock_from_dict.call_args[0][0] == expected
 
 
-def test_unsupported_event(event_manager: EventManager, subscriber: Mock) -> None:
-    """Verify that unsupported events aren't signalled to subscribers."""
-    event_manager.handler(GLOBAL_SCENE_CHANGE)
-    subscriber.assert_not_called()
+def test_from_bytes_empty_data():
+    """Verify that first message doesn't do anything."""
+    with pytest.raises(AssertionError):
+        Event.from_bytes(FIRST_MESSAGE)
 
 
-def test_initialize_event_twice(event_manager: EventManager, subscriber: Mock) -> None:
-    """Verify that initialize with an already existing event doesn't create."""
-    event_manager.handler(VMD4_ANY_INIT)
-    assert subscriber.call_count == 1
-
-    event_manager.handler(VMD4_ANY_INIT)
-    assert subscriber.call_count == 2
+def test_unknown_event_operation():
+    """Verify unknown event operation is caught."""
+    assert EventOperation("") == EventOperation.UNKNOWN

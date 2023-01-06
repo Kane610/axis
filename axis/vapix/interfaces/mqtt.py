@@ -4,7 +4,7 @@ import json
 
 import attr
 
-from ...event_stream import OPERATION_CHANGED
+from ...models.event import EventOperation
 from ..models.mqtt import Client
 from .api import APIItems, Body
 
@@ -78,7 +78,7 @@ def mqtt_json_to_event(msg: str) -> dict:
         data_type, data_value = next(iter(message["message"]["data"].items()))
 
     return {
-        "operation": OPERATION_CHANGED,
+        "operation": EventOperation.CHANGED,
         "topic": topic,
         "source": source,
         "source_idx": source_idx,

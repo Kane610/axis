@@ -11,6 +11,7 @@ from axis.rtsp import Signal, State
 from axis.stream_manager import RETRY_TIMER, StreamManager
 
 from .conftest import HOST
+from .event_fixtures import AUDIO_INIT
 
 
 @pytest.fixture
@@ -70,18 +71,20 @@ async def test_initialize_stream(rtsp_client, stream_manager):
     stream_manager.stream.stop.assert_called()  # RTSPClient stop can now be called
 
     # Data from rtspclient
-    stream_manager.stream.rtp.data = "Summerwheen"
-    assert stream_manager.data == "Summerwheen"
+    stream_manager.stream.rtp.data = AUDIO_INIT
+    assert stream_manager.data == AUDIO_INIT
 
     # Session callback
-    stream_manager.device.event.update = MagicMock()
-    stream_manager.event = True
+    stream_manager.device.event.handler = MagicMock()
+    stream_manager.device.event.subscribe(MagicMock())
+    stream_manager.device.enable_events()
+    # stream_manager.event = True
     mock_connection_status_callback = MagicMock()
     stream_manager.connection_status_callback.append(mock_connection_status_callback)
 
     # Signal new data is available through event callbacks update method
     stream_manager.session_callback(Signal.DATA)
-    stream_manager.device.event.update.assert_called_with("Summerwheen")
+    stream_manager.device.event.handler.assert_called_with(AUDIO_INIT)
 
     # Signal state is playing on the connection status callbacks
     stream_manager.session_callback(Signal.PLAYING)

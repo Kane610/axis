@@ -2,7 +2,7 @@
 
 from typing import List
 
-from ...event_stream import traverse
+from ...models.event import traverse
 from ..models.event_instance import EventInstance
 from .api import APIItems
 

@@ -12,9 +12,9 @@ import axis
 LOGGER = logging.getLogger(__name__)
 
 
-def event_handler(action, event):
+def event_handler(event):
     """Receive and print events from RTSP stream."""
-    LOGGER.info(f"{action} {event}")
+    LOGGER.info(event)
 
 
 async def axis_device(
@@ -66,7 +66,8 @@ async def main(
         await device.vapix.initialize()
 
     if events:
-        device.enable_events(event_callback=event_handler)
+        device.enable_events()
+        device.event.subscribe(event_handler)
         device.stream.start()
 
     try:
