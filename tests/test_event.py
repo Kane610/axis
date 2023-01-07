@@ -38,6 +38,18 @@ from .event_fixtures import (
     "input,expected",
     [
         (
+            FIRST_MESSAGE,
+            {
+                "topic": "",
+                "source": "",
+                "source_idx": "",
+                "group": EventGroup.NONE,
+                "type": "",
+                "state": "",
+                "tripped": False,
+            },
+        ),
+        (
             AUDIO_INIT,
             {
                 "topic": "tns1:AudioSource/tnsaxis:TriggerLevel",
@@ -248,6 +260,10 @@ def test_create_event(input: bytes, expected: tuple) -> None:
     "input,expected",
     [
         (
+            FIRST_MESSAGE,
+            {},
+        ),
+        (
             PIR_INIT,
             {
                 "operation": "Initialized",
@@ -316,17 +332,11 @@ def test_create_event(input: bytes, expected: tuple) -> None:
     ],
 )
 def test_parse_event_xml(input: bytes, expected: dict):
-    """Verify that first message doesn't do anything."""
+    """Verify parse_event_xml output."""
 
     with patch.object(Event, "from_dict") as mock_from_dict:
         assert Event.from_bytes(input)
         assert mock_from_dict.call_args[0][0] == expected
-
-
-def test_from_bytes_empty_data():
-    """Verify that first message doesn't do anything."""
-    with pytest.raises(AssertionError):
-        Event.from_bytes(FIRST_MESSAGE)
 
 
 def test_unknown_event_operation():

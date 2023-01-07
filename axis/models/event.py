@@ -182,7 +182,9 @@ class Event:
     def from_bytes(data: bytes) -> "Event":
         """Parse metadata xml."""
         raw = xmltodict.parse(data, process_namespaces=True, namespaces=NAMESPACES)
-        assert raw.get("MetadataStream") is not None  # Empty data
+
+        if raw.get("MetadataStream") is None:
+            return Event.from_dict({})
 
         topic = traverse(raw, TOPIC)
         # timestamp = traverse(raw, TIMESTAMP)

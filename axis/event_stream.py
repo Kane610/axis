@@ -42,10 +42,7 @@ class EventManager:
         if isinstance(data, dict):
             event = Event.from_dict(data)
         else:
-            try:
-                event = Event.from_bytes(data)
-            except AssertionError:
-                return
+            event = Event.from_bytes(data)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(event)
