@@ -55,8 +55,8 @@ class EventTopic(enum.Enum):
     PIR = "tns1:Device/tnsaxis:Sensor/PIR"
     PORT_INPUT = "tns1:Device/tnsaxis:IO/Port"
     PORT_SUPERVISED_INPUT = "tns1:Device/tnsaxis:IO/SupervisedPort"
-    PTZ_IS_MOVING = "tns1:PTZController/tnsaxis:Move/Channel_1"
-    PTZ_ON_PRESET = "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
+    PTZ_IS_MOVING = "tns1:PTZController/tnsaxis:Move"
+    PTZ_ON_PRESET = "tns1:PTZController/tnsaxis:PTZPresets"
     RELAY = "tns1:Device/Trigger/Relay"
     SOUND_TRIGGER_LEVEL = "tns1:AudioSource/tnsaxis:TriggerLevel"
     UNKNOWN = "unknown"
@@ -92,8 +92,6 @@ TOPIC_TO_STATE = {
     EventTopic.LIGHT_STATUS: "ON",
     EventTopic.RELAY: "active",
 }
-
-BLACK_LISTED_TOPICS = ["tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"]
 
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
@@ -153,36 +151,31 @@ class Event:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Event":
         """Create event instance from dict."""
-        assert data[EVENT_TOPIC] not in BLACK_LISTED_TOPICS
-
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(data)
-
         operation = EventOperation(data.get(EVENT_OPERATION))
-        state = data[EVENT_VALUE]
-        topic = topic_base = data[EVENT_TOPIC]
+        topic = data.get(EVENT_TOPIC, "")
+        source = data.get(EVENT_SOURCE, "")
+        source_idx = data.get(EVENT_SOURCE_IDX, "")
+        value = data.get(EVENT_VALUE, "")
 
-        source: str
-        index: str
-        if not (source := data.get(EVENT_SOURCE, "")):
-            # Topics from VMD4 et. al provide source and index at the end of the topic
-            topic_base, _, index = topic.rpartition("/")
+        if (topic_base := EventTopic(topic)) == EventTopic.UNKNOWN:
+            _topic_base, _, _source_idx = topic.rpartition("/")
+            topic_base = EventTopic(_topic_base)
+            if source_idx == "":
+                source_idx = _source_idx
 
-        elif index := data.get(EVENT_SOURCE_IDX, ""):
-            # Regex returned empty string
-            index = index if index != "-1" else ""
+        if source_idx == "-1":
+            source_idx = "ANY" if source != "port" else ""
 
-        _topic_base = EventTopic(topic_base)
         return cls(
             data=data,
-            group=TOPIC_TO_GROUP.get(_topic_base, EventGroup.NONE),
-            id=index,
-            is_tripped=state == TOPIC_TO_STATE.get(_topic_base, "1"),
+            group=TOPIC_TO_GROUP.get(topic_base, EventGroup.NONE),
+            id=source_idx,
+            is_tripped=value == TOPIC_TO_STATE.get(topic_base, "1"),
             operation=operation,
             source=source,
-            state=state,
+            state=value,
             topic=topic,
-            topic_base=_topic_base,
+            topic_base=topic_base,
         )
 
     @staticmethod

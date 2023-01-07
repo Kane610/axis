@@ -1,5 +1,7 @@
 """MQTT Client api."""
 
+from typing import Any
+
 import attr
 import orjson
 
@@ -63,7 +65,7 @@ class ClientConfig:
     autoReconnect: bool = attr.ib(default=True)
 
 
-def mqtt_json_to_event(msg: str) -> dict:
+def mqtt_json_to_event(msg: str) -> dict[str, Any]:
     """Convert JSON message from MQTT to event format."""
     message = orjson.loads(msg)
     topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")

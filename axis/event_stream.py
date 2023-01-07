@@ -21,6 +21,8 @@ UnsubscribeType = Callable[[], None]
 
 ID_FILTER_ALL = "*"
 
+
+BLACK_LISTED_TOPICS = ["tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"]
 LOGGER = logging.getLogger(__name__)
 
 
@@ -37,16 +39,19 @@ class EventManager:
 
     def handler(self, data: bytes | dict[str, Any]) -> None:
         """Create event and pass it along to subscribers."""
-        try:
-            if isinstance(data, dict):
-                event = Event.from_dict(data)
-            else:
-                event = Event.from_bytes(data)
-        except AssertionError:
-            return
+        if isinstance(data, dict):
+            event = Event.from_dict(data)
         else:
-            if event.topic_base == EventTopic.UNKNOWN:
+            try:
+                event = Event.from_bytes(data)
+            except AssertionError:
                 return
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(event)
+
+        if event.topic_base == EventTopic.UNKNOWN or event.topic in BLACK_LISTED_TOPICS:
+            return
 
         subscribers: list[SubscriptionType] = (
             self._subscribers.get(event.id, []) + self._subscribers[ID_FILTER_ALL]
