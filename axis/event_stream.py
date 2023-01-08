@@ -11,16 +11,15 @@ if TYPE_CHECKING:
     from .device import AxisDevice
 
 
-SubscriptionCallback = Callable[["Event"], None]
+SubscriptionCallback = Callable[[Event], None]
 SubscriptionType = tuple[
     SubscriptionCallback,
-    Optional[tuple["EventTopic", ...]],
-    Optional[tuple["EventOperation", ...]],
+    Optional[tuple[EventTopic, ...]],
+    Optional[tuple[EventOperation, ...]],
 ]
 UnsubscribeType = Callable[[], None]
 
 ID_FILTER_ALL = "*"
-
 
 BLACK_LISTED_TOPICS = ["tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"]
 LOGGER = logging.getLogger(__name__)
@@ -35,6 +34,7 @@ class EventManager:
     def __init__(self, device: "AxisDevice") -> None:
         """Ready information about events."""
         self.device = device
+        self._known_topics = set()
         self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
 
     def handler(self, data: bytes | dict[str, Any]) -> None:
@@ -49,6 +49,15 @@ class EventManager:
 
         if event.topic_base == EventTopic.UNKNOWN or event.topic in BLACK_LISTED_TOPICS:
             return
+
+        known = (unique_topic := f"{event.topic}_{event.id}") not in self._known_topics
+        self._known_topics.add(unique_topic)
+
+        if event.operation == EventOperation.UNKNOWN:
+            # MQTT events does not report operation
+            event.operation = (
+                EventOperation.INITIALIZED if known else EventOperation.CHANGED
+            )
 
         subscribers: list[SubscriptionType] = (
             self._subscribers.get(event.id, []) + self._subscribers[ID_FILTER_ALL]

@@ -9,7 +9,7 @@ import pytest
 
 from axis.device import AxisDevice
 from axis.event_stream import EventManager
-from axis.models.event import Event, EventGroup
+from axis.models.event import Event, EventGroup, EventOperation
 
 from .event_fixtures import (
     AUDIO_INIT,
@@ -339,6 +339,35 @@ def test_ptz_move(event_manager: EventManager, subscriber: Mock) -> None:
     assert event.id == "1"
     assert event.state == "0"
     assert not event.is_tripped
+
+
+def test_mqtt_event(event_manager: EventManager, subscriber: Mock) -> None:
+    """Verify that unsupported events aren't signalled to subscribers."""
+    mqtt_event = {
+        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+        "source": "sensor",
+        "source_idx": "0",
+        "type": "state",
+        "value": "0",
+    }
+    event_manager.handler(mqtt_event)
+    assert subscriber.call_count == 1
+
+    event: Event = subscriber.call_args[0][0]
+    assert event.operation == EventOperation.INITIALIZED
+    assert event.topic == "tns1:Device/tnsaxis:Sensor/PIR"
+    assert event.id == "0"
+    assert event.state == "0"
+    assert not event.is_tripped
+
+    mqtt_event["value"] = "1"
+    event_manager.handler(mqtt_event)
+    assert subscriber.call_count == 2
+
+    event: Event = subscriber.call_args[0][0]
+    assert event.operation == EventOperation.CHANGED
+    assert event.state == "1"
+    assert event.is_tripped
 
 
 def test_unsupported_event(event_manager: EventManager, subscriber: Mock) -> None:

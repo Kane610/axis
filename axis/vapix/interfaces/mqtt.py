@@ -79,7 +79,7 @@ def mqtt_json_to_event(msg: str) -> dict[str, Any]:
         data_type, data_value = next(iter(message["message"]["data"].items()))
 
     return {
-        "operation": EventOperation.INITIALIZED,
+        # "operation": EventOperation.INITIALIZED,
         "topic": topic,
         "source": source,
         "source_idx": source_idx,
