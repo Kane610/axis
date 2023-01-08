@@ -34,7 +34,7 @@ class EventManager:
     def __init__(self, device: "AxisDevice") -> None:
         """Ready information about events."""
         self.device = device
-        self._known_topics = set()
+        self._known_topics: set[str] = set()
         self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
 
     def handler(self, data: bytes | dict[str, Any]) -> None:
@@ -92,6 +92,8 @@ class EventManager:
             _id_filter = (ID_FILTER_ALL,)
         elif isinstance(id_filter, str):
             _id_filter = (id_filter,)
+        else:
+            _id_filter = id_filter
 
         for obj_id in _id_filter:
             if obj_id not in self._subscribers:

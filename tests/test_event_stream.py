@@ -9,7 +9,7 @@ import pytest
 
 from axis.device import AxisDevice
 from axis.event_stream import EventManager
-from axis.models.event import Event, EventGroup, EventOperation
+from axis.models.event import Event, EventGroup, EventOperation, EventTopic
 
 from .event_fixtures import (
     AUDIO_INIT,
@@ -35,6 +35,10 @@ from .event_fixtures import (
     RELAY_INIT,
     VMD3_INIT,
     VMD4_ANY_INIT,
+    VMD4_C1P1_CHANGE,
+    VMD4_C1P1_INIT,
+    VMD4_C1P2_CHANGE,
+    VMD4_C1P2_INIT,
 )
 
 
@@ -383,3 +387,84 @@ def test_initialize_event_twice(event_manager: EventManager, subscriber: Mock) -
 
     event_manager.handler(VMD4_ANY_INIT)
     assert subscriber.call_count == 2
+
+
+def test_subscription(event_manager: EventManager) -> None:
+    """Validate subscription mechanisms work."""
+    subscriber_any = Mock()
+    subscriber_vmd4 = Mock()
+    subscriber_vmd4_c1p1 = Mock()
+    subscriber_vmd4_c1p2 = Mock()
+
+    unsub_any = event_manager.subscribe(subscriber_any)
+    assert len(event_manager) == 1
+
+    unsub_vmd4 = event_manager.subscribe(
+        subscriber_vmd4,
+        topic_filter=EventTopic.MOTION_DETECTION_4,
+    )
+    assert len(event_manager) == 2
+
+    unsub_vmd4_c1p1 = event_manager.subscribe(
+        subscriber_vmd4_c1p1,
+        id_filter="Camera1Profile1",
+        topic_filter=EventTopic.MOTION_DETECTION_4,
+        operation_filter=EventOperation.INITIALIZED,
+    )
+    assert len(event_manager) == 3
+
+    unsub_vmd4_c1p2 = event_manager.subscribe(
+        subscriber_vmd4_c1p2,
+        id_filter=("Camera1Profile2",),
+        topic_filter=(EventTopic.MOTION_DETECTION_4,),
+        operation_filter=(EventOperation.INITIALIZED, EventOperation.CHANGED),
+    )
+    assert len(event_manager) == 4
+
+    # Validate subscription matching
+    event_manager.handler(PIR_INIT)
+    assert subscriber_any.call_count == 1
+    assert subscriber_vmd4.call_count == 0
+    assert subscriber_vmd4_c1p1.call_count == 0
+    assert subscriber_vmd4_c1p2.call_count == 0
+
+    event_manager.handler(VMD4_C1P1_INIT)
+    assert subscriber_any.call_count == 2
+    assert subscriber_vmd4.call_count == 1
+    assert subscriber_vmd4_c1p1.call_count == 1
+    assert subscriber_vmd4_c1p2.call_count == 0
+
+    event_manager.handler(VMD4_C1P2_INIT)
+    assert subscriber_any.call_count == 3
+    assert subscriber_vmd4.call_count == 2
+    assert subscriber_vmd4_c1p1.call_count == 1
+    assert subscriber_vmd4_c1p2.call_count == 1
+
+    event_manager.handler(VMD4_C1P1_CHANGE)
+    assert subscriber_any.call_count == 4
+    assert subscriber_vmd4.call_count == 3
+    assert subscriber_vmd4_c1p1.call_count == 1
+    assert subscriber_vmd4_c1p2.call_count == 1
+
+    event_manager.handler(VMD4_C1P2_CHANGE)
+    assert subscriber_any.call_count == 5
+    assert subscriber_vmd4.call_count == 4
+    assert subscriber_vmd4_c1p1.call_count == 1
+    assert subscriber_vmd4_c1p2.call_count == 2
+
+    # validate unsubscribing
+    unsub_any()
+    assert len(event_manager) == 3
+    unsub_vmd4()
+    assert len(event_manager) == 2
+    unsub_vmd4_c1p1()
+    assert len(event_manager) == 1
+    unsub_vmd4_c1p2()
+    assert len(event_manager) == 0
+
+    # Validate no exception when unsubscribe with no subscription exist
+    unsub_any()
+
+    # Validate no exception when unsubscribe with no object ID exist
+    event_manager._subscribers.pop("Camera1Profile1")
+    unsub_vmd4_c1p1()
