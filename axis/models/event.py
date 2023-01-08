@@ -101,11 +101,6 @@ EVENT_TOPIC = "topic"
 EVENT_TYPE = "type"
 EVENT_VALUE = "value"
 
-
-OPERATION_INITIALIZED = EventOperation.INITIALIZED
-OPERATION_CHANGED = EventOperation.CHANGED
-OPERATION_DELETED = EventOperation.DELETED
-
 NOTIFICATION_MESSAGE = ("MetadataStream", "Event", "NotificationMessage")
 MESSAGE = NOTIFICATION_MESSAGE + ("Message", "Message")
 TOPIC = NOTIFICATION_MESSAGE + ("Topic", "#text")
@@ -114,7 +109,7 @@ OPERATION = MESSAGE + ("@PropertyOperation",)
 SOURCE = MESSAGE + ("Source",)
 DATA = MESSAGE + ("Data",)
 
-NAMESPACES = {
+XML_NAMESPACES = {
     "http://www.onvif.org/ver10/schema": None,
     "http://docs.oasis-open.org/wsn/b-2": None,
 }
@@ -126,12 +121,14 @@ def traverse(data: dict, keys: tuple | list) -> dict:
     return traverse(data.get(head, {}), tail) if tail else data.get(head, {})
 
 
-def extract_name_value(data: dict) -> tuple:
+def extract_name_value(
+    data: dict[str, list[dict[str, str]] | dict[str, str]]
+) -> tuple[str, str]:
     """Extract name and value from a simple item, take first dictionary if it is a list."""
     item = data.get("SimpleItem", {})
     if isinstance(item, list):
         item = item[0]
-    return (item.get("@Name", ""), item.get("@Value", ""))
+    return item.get("@Name", ""), item.get("@Value", "")
 
 
 @dataclass
@@ -181,7 +178,7 @@ class Event:
     @staticmethod
     def from_bytes(data: bytes) -> "Event":
         """Parse metadata xml."""
-        raw = xmltodict.parse(data, process_namespaces=True, namespaces=NAMESPACES)
+        raw = xmltodict.parse(data, process_namespaces=True, namespaces=XML_NAMESPACES)
 
         if raw.get("MetadataStream") is None:
             return Event.from_dict({})
@@ -192,11 +189,11 @@ class Event:
 
         source = source_idx = ""
         if match := traverse(raw, SOURCE):
-            source, source_idx = extract_name_value(match)  # type: ignore[arg-type]
+            source, source_idx = extract_name_value(match)
 
         data_type = data_value = ""
         if match := traverse(raw, DATA):
-            data_type, data_value = extract_name_value(match)  # type: ignore[arg-type]
+            data_type, data_value = extract_name_value(match)
 
         return Event.from_dict(
             {

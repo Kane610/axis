@@ -28,9 +28,6 @@ LOGGER = logging.getLogger(__name__)
 class EventManager:
     """Initialize new events and update states of existing events."""
 
-    path = ""
-    signal: Callable | None = None
-
     def __init__(self, device: "AxisDevice") -> None:
         """Ready information about events."""
         self.device = device
