@@ -19,7 +19,7 @@ from .conftest import HOST, RTSP_PORT
 @pytest.fixture
 async def rtsp_client(axis_device) -> RTSPClient:
     """Return the RTSP client."""
-    axis_device.enable_events(event_callback=Mock())
+    axis_device.enable_events()
     with patch("axis.rtsp.RTSP_PORT", RTSP_PORT):
         axis_device.stream.start()
     yield axis_device.stream.stream
