@@ -21,7 +21,10 @@ UnsubscribeType = Callable[[], None]
 
 ID_FILTER_ALL = "*"
 
-BLACK_LISTED_TOPICS = ["tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"]
+BLACK_LISTED_TOPICS = [
+    "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data",
+    "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/xinternal_data",
+]
 LOGGER = logging.getLogger(__name__)
 
 
