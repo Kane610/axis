@@ -1,7 +1,5 @@
 """Base class for applications."""
 
-from typing import Optional
-
 from ..api import APIItem
 
 
@@ -24,7 +22,7 @@ class ApplicationAPIItem(APIItem):
         return self.raw["name"]
 
     @property
-    def perspective(self) -> Optional[list]:
+    def perspective(self) -> list | None:
         """Perspective for improve triggers based on heights."""
         return self.raw.get("perspective")
 
