@@ -5,7 +5,7 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 URL = "/axis-cgi/com/ptz.cgi"
 
@@ -54,9 +54,7 @@ SUPPORTED_QUERIES = (
 )
 
 
-def limit(
-    num: Union[int, float], minimum: Union[int, float], maximum: Union[int, float]
-) -> Union[int, float]:
+def limit(num: float | int, minimum: float | int, maximum: float | int) -> float | int:
     """Limits input 'num' between minimum and maximum values."""
     return max(min(num, maximum), minimum)
 
@@ -166,7 +164,7 @@ class PtzControl:
             on = Bright mode.
             off = Normal mode.
         """
-        data: Dict[str, Optional[Union[float, int, str]]] = {}
+        data: Dict[str, float | int | str | None] = {}
         if camera:
             data["camera"] = camera
         if center:

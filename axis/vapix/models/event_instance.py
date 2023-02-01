@@ -1,7 +1,5 @@
 """Event service and action service APIs available in Axis network device."""
 
-from typing import Union
-
 from .api import APIItem
 
 
@@ -68,13 +66,13 @@ class EventInstance(APIItem):
         return self.raw["data"]["MessageInstance"].get("@isProperty") != "true"
 
     @property
-    def source(self) -> Union[dict, list]:
+    def source(self) -> dict | list:
         """Event source information."""
         message = self.raw["data"]["MessageInstance"]
         return message.get("SourceInstance", {}).get("SimpleItemInstance", {})
 
     @property
-    def data(self) -> Union[dict, list]:
+    def data(self) -> dict | list:
         """Event data description."""
         message = self.raw["data"]["MessageInstance"]
         return message.get("DataInstance", {}).get("SimpleItemInstance", {})

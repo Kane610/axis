@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, Union
+from typing import TYPE_CHECKING, Callable, Optional
 
 import httpx
 from packaging import version
@@ -69,7 +69,7 @@ class Vapix:
         self.mqtt: Optional[MqttClient] = None
         self.object_analytics: Optional[ObjectAnalytics] = None
         self.params: Optional[Params] = None
-        self.ports: Union[IoPortManagement, Ports, None] = None
+        self.ports: IoPortManagement | Ports | None = None
         self.ptz: Optional[PtzControl] = None
         self.stream_profiles: Optional[StreamProfiles] = None
         self.user_groups: Optional[UserGroups] = None
@@ -271,7 +271,7 @@ class Vapix:
         path: str,
         kwargs_xmltodict: Optional[dict] = None,
         **kwargs: dict,
-    ) -> Union[dict, str]:
+    ) -> dict | str:
         """Make a request to the API."""
         url = self.device.config.url + path
 

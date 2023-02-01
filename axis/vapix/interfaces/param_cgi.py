@@ -6,7 +6,7 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
 import asyncio
-from typing import Dict, Union
+from typing import Dict
 
 from ..models.param_cgi import Param
 from ..models.stream_profile import StreamProfile
@@ -287,7 +287,7 @@ class Params(APIItems):
         return self[PROPERTIES]["API.Metadata.Version"]  # type: ignore
 
     @property
-    def api_ptz_presets_version(self) -> Union[str, bool]:
+    def api_ptz_presets_version(self) -> bool | str:
         """Preset index for device home position at start-up.
 
         As of version 2.00 of the PTZ preset API Properties.API.PTZ.Presets.Version=2.00
