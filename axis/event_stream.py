@@ -1,7 +1,5 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional
 

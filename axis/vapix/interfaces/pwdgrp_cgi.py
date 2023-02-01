@@ -12,7 +12,6 @@ sgrp: Colon separated existing secondary group names of the account.
     This argument sets the user access rights for the user account.
 comment: The comment field of the account.
 """
-from __future__ import annotations
 
 import re
 from typing import Dict, Optional
