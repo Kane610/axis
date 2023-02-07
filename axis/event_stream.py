@@ -1,9 +1,7 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
-from __future__ import annotations
-
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 from .models.event import Event, EventOperation, EventTopic
 
@@ -14,8 +12,8 @@ if TYPE_CHECKING:
 SubscriptionCallback = Callable[[Event], None]
 SubscriptionType = tuple[
     SubscriptionCallback,
-    Optional[tuple[EventTopic, ...]],
-    Optional[tuple[EventOperation, ...]],
+    tuple[EventTopic, ...] | None,
+    tuple[EventOperation, ...] | None,
 ]
 UnsubscribeType = Callable[[], None]
 

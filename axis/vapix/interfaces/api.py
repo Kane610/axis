@@ -2,7 +2,7 @@
 
 import logging
 from pprint import pformat
-from typing import Any, ItemsView, Iterator, KeysView, Optional, ValuesView
+from typing import Any, ItemsView, Iterator, KeysView, ValuesView
 
 import attr
 
@@ -74,7 +74,7 @@ class APIItems:
         """Return item values."""
         return self._items.values()
 
-    def get(self, obj_id: str, default: Optional[Any] = None):
+    def get(self, obj_id: str, default: Any | None = None):
         """Get item value based on key, return default if no match."""
         if obj_id in self:
             return self[obj_id]

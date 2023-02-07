@@ -7,8 +7,6 @@ covers a specific region of interest. The API is also able to simplify the insta
 process by fine tuning an area digitally after the camera has been manually pointed at a scene.
 """
 
-from typing import Optional
-
 import attr
 
 from ..models.view_area import Geometry, ViewArea
@@ -74,8 +72,8 @@ class ViewAreas(APIItems):
     async def set_geometry(
         self,
         geometry: Geometry,
-        view_area_id: Optional[int] = None,
-        view_area: Optional[ViewArea] = None,
+        view_area_id: int | None = None,
+        view_area: ViewArea | None = None,
     ) -> None:
         """Restore geometry of a view area back to default values.
 
@@ -106,8 +104,8 @@ class ViewAreas(APIItems):
 
     async def reset_geometry(
         self,
-        view_area_id: Optional[int] = None,
-        view_area: Optional[ViewArea] = None,
+        view_area_id: int | None = None,
+        view_area: ViewArea | None = None,
     ) -> None:
         """Restore geometry of a view area back to default values.
 

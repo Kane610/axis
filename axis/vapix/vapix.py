@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, Union
+from typing import TYPE_CHECKING, Callable
 
 import httpx
 from packaging import version
@@ -58,24 +58,24 @@ class Vapix:
         self.device = device
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
-        self.api_discovery: Optional[ApiDiscovery] = None
-        self.applications: Optional[Applications] = None
-        self.basic_device_info: Optional[BasicDeviceInfo] = None
-        self.event_instances: Optional[EventInstances] = None
-        self.fence_guard: Optional[FenceGuard] = None
-        self.light_control: Optional[LightControl] = None
-        self.loitering_guard: Optional[LoiteringGuard] = None
-        self.motion_guard: Optional[MotionGuard] = None
-        self.mqtt: Optional[MqttClient] = None
-        self.object_analytics: Optional[ObjectAnalytics] = None
-        self.params: Optional[Params] = None
-        self.ports: Union[IoPortManagement, Ports, None] = None
-        self.ptz: Optional[PtzControl] = None
-        self.stream_profiles: Optional[StreamProfiles] = None
-        self.user_groups: Optional[UserGroups] = None
-        self.users: Optional[Users] = None
-        self.view_areas: Optional[ViewAreas] = None
-        self.vmd4: Optional[Vmd4] = None
+        self.api_discovery: ApiDiscovery | None = None
+        self.applications: Applications | None = None
+        self.basic_device_info: BasicDeviceInfo | None = None
+        self.event_instances: EventInstances | None = None
+        self.fence_guard: FenceGuard | None = None
+        self.light_control: LightControl | None = None
+        self.loitering_guard: LoiteringGuard | None = None
+        self.motion_guard: MotionGuard | None = None
+        self.mqtt: MqttClient | None = None
+        self.object_analytics: ObjectAnalytics | None = None
+        self.params: Params | None = None
+        self.ports: IoPortManagement | Ports | None = None
+        self.ptz: PtzControl | None = None
+        self.stream_profiles: StreamProfiles | None = None
+        self.user_groups: UserGroups | None = None
+        self.users: Users | None = None
+        self.view_areas: ViewAreas | None = None
+        self.vmd4: Vmd4 | None = None
 
     @property
     def firmware_version(self) -> str:
@@ -269,9 +269,9 @@ class Vapix:
         self,
         method: str,
         path: str,
-        kwargs_xmltodict: Optional[dict] = None,
+        kwargs_xmltodict: dict | None = None,
         **kwargs: dict,
-    ) -> Union[dict, str]:
+    ) -> dict | str:
         """Make a request to the API."""
         url = self.device.config.url + path
 

@@ -12,10 +12,9 @@ sgrp: Colon separated existing secondary group names of the account.
     This argument sets the user access rights for the user account.
 comment: The comment field of the account.
 """
-from __future__ import annotations
 
 import re
-from typing import Dict, Optional
+from typing import Dict
 
 from ..models.pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER, User
 from .api import APIItems
@@ -91,9 +90,9 @@ class Users(APIItems):
         self,
         user: str,
         *,
-        pwd: Optional[str] = None,
-        sgrp: Optional[str] = None,
-        comment: Optional[str] = None,
+        pwd: str | None = None,
+        sgrp: str | None = None,
+        comment: str | None = None,
     ) -> None:
         """Update user."""
         data = {"action": "update", "user": user}

@@ -1,7 +1,5 @@
 """Object Analytics API data model."""
 
-from typing import Optional
-
 from .api import ApplicationAPIItem
 
 
@@ -19,7 +17,7 @@ class ObjectAnalyticsScenario(ApplicationAPIItem):
         return self.raw["objectClassifications"]
 
     @property
-    def perspectives(self) -> Optional[list]:
+    def perspectives(self) -> list | None:
         """Perspectives for improve triggers based on heights."""
         return self.raw.get("perspectives")
 

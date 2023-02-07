@@ -78,7 +78,6 @@ async def test_initialize_stream(rtsp_client, stream_manager):
     stream_manager.device.event.handler = MagicMock()
     stream_manager.device.event.subscribe(MagicMock())
     stream_manager.device.enable_events()
-    # stream_manager.event = True
     mock_connection_status_callback = MagicMock()
     stream_manager.connection_status_callback.append(mock_connection_status_callback)
 

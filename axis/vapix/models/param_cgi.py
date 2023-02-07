@@ -5,7 +5,7 @@ https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from .api import APIItem
 
@@ -17,7 +17,7 @@ class Param(APIItem):
         """Evaluate object membership to parameter group."""
         return obj_id in self.raw
 
-    def get(self, obj_id: str, default: Optional[Any] = None) -> Any:
+    def get(self, obj_id: str, default: Any | None = None) -> Any:
         """Get object if stored in raw else return default."""
         return self.raw.get(obj_id, default)
 

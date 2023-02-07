@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List
 
 from .rtsp import RTSPClient, Signal, State
 
@@ -27,7 +27,7 @@ class StreamManager:
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = False
-        self.stream: Optional[RTSPClient] = None
+        self.stream: RTSPClient | None = None
 
         self.connection_status_callback: List[Callable] = []
 

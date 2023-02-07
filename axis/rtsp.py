@@ -9,7 +9,7 @@ from collections import deque
 import enum
 import logging
 import socket
-from typing import Any, Callable, Deque, Dict, List, Optional
+from typing import Any, Callable, Deque, Dict, List
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,9 +54,9 @@ class RTSPClient(asyncio.Protocol):
 
         self.method = RTSPMethods(self.session)
 
-        self.transport: Optional[asyncio.BaseTransport] = None
-        self.keep_alive_handle: Optional[asyncio.TimerHandle] = None
-        self.time_out_handle: Optional[asyncio.TimerHandle] = None
+        self.transport: asyncio.BaseTransport | None = None
+        self.keep_alive_handle: asyncio.TimerHandle | None = None
+        self.time_out_handle: asyncio.TimerHandle | None = None
 
     async def start(self) -> None:
         """Start RTSP session."""
@@ -133,7 +133,7 @@ class RTSPClient(asyncio.Protocol):
         self.stop()
         self.callback(Signal.FAILED)
 
-    def connection_lost(self, exc: Optional[Exception]) -> None:
+    def connection_lost(self, exc: Exception | None) -> None:
         """Happens when device closes connection or stop() has been called."""
         _LOGGER.debug("RTSP session lost connection")
 
@@ -144,7 +144,7 @@ class RTPClient:
     When data is received send a signal on callback to whoever is interested.
     """
 
-    def __init__(self, loop: Any, callback: Optional[Callable] = None) -> None:
+    def __init__(self, loop: Any, callback: Callable | None = None) -> None:
         """Configure and bind socket.
 
         We need to bind the port for RTSP before setting up the endpoint
@@ -178,11 +178,11 @@ class RTPClient:
     class UDPClient:
         """Datagram recepient for device data."""
 
-        def __init__(self, callback: Optional[Callable]) -> None:
+        def __init__(self, callback: Callable | None) -> None:
             """Signal events to subscriber using callback."""
             self.callback = callback
             self.data: Deque[bytes] = deque()
-            self.transport: Optional[asyncio.BaseTransport] = None
+            self.transport: asyncio.BaseTransport | None = None
 
         def connection_made(self, transport: asyncio.BaseTransport) -> None:
             """Execute when port is up and listening.
@@ -192,7 +192,7 @@ class RTPClient:
             _LOGGER.debug("Stream listener online")
             self.transport = transport
 
-        def connection_lost(self, exc: Optional[Exception]) -> None:
+        def connection_lost(self, exc: Exception | None) -> None:
             """Signal retry if RTSP session fails to get a response."""
             _LOGGER.debug("Stream recepient offline")
 
@@ -211,7 +211,7 @@ class RTSPSession:
 
     def __init__(self, url: str, host: str, username: str, password: str) -> None:
         """Session parameters."""
-        self._basic_auth: Optional[str] = None
+        self._basic_auth: str | None = None
         self.sequence = 0
 
         self.url = url
@@ -232,27 +232,27 @@ class RTSPSession:
         ]
 
         # Information as part of ack from device
-        self.rtsp_version: Optional[int] = None
-        self.status_code: Optional[int] = None
-        self.status_text: Optional[str] = None
-        self.sequence_ack: Optional[int] = None
-        self.date: Optional[str] = None
-        self.methods_ack: Optional[List[str]] = None
+        self.rtsp_version: int | None = None
+        self.status_code: int | None = None
+        self.status_text: str | None = None
+        self.sequence_ack: int | None = None
+        self.date: str | None = None
+        self.methods_ack: List[str] | None = None
         self.basic = False
         self.digest = False
-        self.realm: Optional[str] = None
-        self.nonce: Optional[str] = None
-        self.stale: Optional[bool] = None
-        self.content_type: Optional[str] = None
-        self.content_base: Optional[str] = None
-        self.content_length: Optional[int] = None
-        self.session_id: Optional[str] = None
+        self.realm: str | None = None
+        self.nonce: str | None = None
+        self.stale: bool | None = None
+        self.content_type: str | None = None
+        self.content_base: str | None = None
+        self.content_length: int | None = None
+        self.session_id: str | None = None
         self.session_timeout = 0
-        self.transport_ack: Optional[str] = None
-        self.range: Optional[str] = None
-        self.rtp_info: Optional[str] = None
-        self.sdp: Optional[List[str]] = None
-        self.control_url: Optional[str] = None
+        self.transport_ack: str | None = None
+        self.range: str | None = None
+        self.rtp_info: str | None = None
+        self.sdp: List[str] | None = None
+        self.control_url: str | None = None
 
     @property
     def method(self) -> str:
