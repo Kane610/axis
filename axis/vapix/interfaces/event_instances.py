@@ -53,7 +53,6 @@ def get_events(data: dict) -> List[dict]:
     """
     events = []
     for key, value in data.items():
-
         if key.startswith("@"):  # Value is an attribute so skip
             continue
 
