@@ -30,6 +30,7 @@ class StreamManager:
         self.stream: RTSPClient | None = None
 
         self.connection_status_callback: List[Callable] = []
+        self.background_tasks: set[asyncio.Task] = set()
 
     @property
     def stream_url(self) -> str:
@@ -97,7 +98,9 @@ class StreamManager:
                 self.device.config.password,
                 self.session_callback,
             )
-            asyncio.create_task(self.stream.start())
+            task = asyncio.create_task(self.stream.start())
+            self.background_tasks.add(task)
+            task.add_done_callback(self.background_tasks.discard)
 
     def stop(self) -> None:
         """Stop stream."""
