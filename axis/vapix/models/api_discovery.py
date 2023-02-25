@@ -98,7 +98,7 @@ class Api(APIItem):
     """API Discovery item."""
 
     @property
-    def id(self) -> ApiId:
+    def api_id(self) -> ApiId:
         """ID of API."""
         return ApiId(self.raw["id"])
 
