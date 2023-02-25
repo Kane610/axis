@@ -80,6 +80,10 @@ class ApiStatus(enum.Enum):
     """The API discovery status."""
 
     OFFICIAL = "official"
+    RELEASED = "released"
+    BETA = "beta"
+    ALPHA = "alpha"
+    DEPRECATED = "deprecated"
 
     UNKNOWN = "unknown"
 
