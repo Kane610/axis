@@ -34,7 +34,7 @@ class ApiId(enum.Enum):
     IO_PORT_MANAGEMENT = "io-port-management"
     LIGHT_CONTROL = "light-control"
     MEDIA_CLIP = "mediaclip"
-    MDNSSD = "mdnssd"
+    MDNS_SD = "mdnssd"
     MQTT_CLIENT = "mqtt-client"
     NETWORK_SETTINGS = "network-settings"
     NETWORK_SPEAKER_PAIRING = "network-speaker-pairing"
@@ -72,7 +72,7 @@ class ApiId(enum.Enum):
     @classmethod
     def _missing_(cls, value: object) -> "ApiId":
         """Set default enum member if an unknown value is provided."""
-        LOGGER.warning("Unsupported event key %s", value)
+        LOGGER.info("Unsupported API discovery ID %s", value)
         return ApiId.UNKNOWN
 
 
@@ -90,7 +90,7 @@ class ApiStatus(enum.Enum):
     @classmethod
     def _missing_(cls, value: object) -> "ApiStatus":
         """Set default enum member if an unknown value is provided."""
-        LOGGER.warning("Unsupported event key %s", value)
+        LOGGER.warning("Unsupported API discovery status %s", value)
         return ApiStatus.UNKNOWN
 
 
