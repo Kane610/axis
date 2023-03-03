@@ -109,7 +109,7 @@ class Api(APIItem):
 
     @property
     def status(self) -> ApiStatus:
-        """Name of API."""
+        """Status of API."""
         return ApiStatus(self.raw.get("status", ""))
 
     @property
