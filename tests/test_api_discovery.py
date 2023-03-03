@@ -9,6 +9,7 @@ import pytest
 import respx
 
 from axis.vapix.interfaces.api_discovery import API_DISCOVERY_ID, ApiDiscovery
+from axis.vapix.models.api_discovery import ApiId, ApiStatus
 
 from .conftest import HOST
 
@@ -40,9 +41,13 @@ async def test_get_api_list(api_discovery):
     assert len(api_discovery.values()) == 15
 
     item = api_discovery[API_DISCOVERY_ID]
+    assert item.api_id == ApiId.API_DISCOVERY
     assert item.id == "api-discovery"
     assert item.name == "API Discovery Service"
+    assert item.status == ApiStatus.UNKNOWN
     assert item.version == "1.0"
+
+    assert ApiId("") == ApiId.UNKNOWN
 
 
 @respx.mock
