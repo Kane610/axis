@@ -1,9 +1,8 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
-from http import HTTPStatus
 import logging
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 import httpx
 from packaging import version
@@ -47,6 +46,7 @@ from .models.api import ApiRequest
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
+    from .models.api import VT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -321,12 +321,11 @@ class Vapix:
 
         return {}
 
-    async def request2(self, api_request: ApiRequest) -> dict[str, Any]:
+    async def request2(self, api_request: ApiRequest["VT"]) -> str:
         """Make a request to the device."""
         url = self.device.config.url + api_request.path
-        data: dict[str, Any] = {}
-
         LOGGER.debug("%s %s", url, api_request.data)
+
         try:
             response = await self.device.config.session.request(
                 api_request.method,
@@ -336,16 +335,6 @@ class Vapix:
                 json=api_request.data,
             )
             response.raise_for_status()
-
-            LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
-
-            if response.status_code != api_request.http_code:
-                return data
-
-            if api_request.content_type not in response.headers.get("Content-Type", ""):
-                return data
-
-            data = api_request.process_raw(response.text)
 
         except httpx.HTTPStatusError as errh:
             LOGGER.debug("%s, %s", response, errh)
@@ -362,4 +351,12 @@ class Vapix:
             LOGGER.debug("%s", err)
             raise RequestError("Unknown error: {}".format(err))
 
-        return data
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
+
+        # if response.status_code != api_request.http_code:
+        #     return data
+
+        # if api_request.content_type not in response.headers.get("Content-Type", ""):
+        #     return data
+        return response.text

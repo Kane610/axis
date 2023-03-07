@@ -2,15 +2,24 @@
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Any, Callable, List
-
-import orjson
+from typing import Any, Callable, Generic, List, TypeVar
 
 CONTEXT = "Axis library"
 
 
 @dataclass
-class ApiRequest(ABC):
+class ApiItem(ABC):
+    """API item class."""
+
+    id: str
+
+
+ApiItemT = TypeVar("ApiItemT", bound="ApiItem")
+VT = TypeVar("VT")
+
+
+@dataclass
+class ApiRequest(ABC, Generic[VT]):
     """Create API request body."""
 
     method: str
@@ -20,16 +29,9 @@ class ApiRequest(ABC):
     content_type: str
     error_codes: dict[int, str]
 
-    def process_raw(self, raw: str) -> dict[str, Any]:
+    def process_raw(self, raw: str) -> VT:
         """Process raw data."""
-        return orjson.loads(raw)
-
-
-@dataclass
-class ApiItem(ABC):
-    """API item class."""
-
-    id: str
+        raise NotImplementedError
 
 
 class APIItem:

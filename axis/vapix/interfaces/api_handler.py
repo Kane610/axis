@@ -8,47 +8,40 @@ from typing import (
     ItemsView,
     Iterator,
     KeysView,
-    Type,
-    TypeVar,
     ValuesView,
 )
 
 if TYPE_CHECKING:
-    from ..models.api import ApiItem
     from ..models.api_discovery import ApiId
     from ..vapix import Vapix
 
-_ItemT = TypeVar("_ItemT", bound="ApiItem")
+from ..models.api import ApiItemT, ApiRequest
 
 
-class ApiHandler(ABC, Generic[_ItemT]):
+class ApiHandler(ABC, Generic[ApiItemT]):
     """Base class for a map of API Items."""
 
     api_id: "ApiId"
-    item_cls: Type[_ItemT]
-    path: str
+    api_request: ApiRequest[dict[str, ApiItemT]]
 
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
         self.vapix = vapix
-        self._items: dict[str, _ItemT] = {}
+        self._items: dict[str, ApiItemT] = {}
 
     async def update(self) -> None:
         """Refresh data."""
-        raise NotImplementedError
+        response = await self.vapix.request2(self.api_request)
+        raw = self.api_request.process_raw(response)
+        self.process_raw(raw)
 
-    def process_raw(self, raw: dict[str, Any]) -> set:
+    def process_raw(self, raw: dict[str, ApiItemT]) -> set[str]:
         """Process raw and return a set of new IDs."""
-        new_items: set[str] = set()
-
-        for id in raw:
-            if id in self._items:
-                new_items.add(id)
-            self._items[id] = self.item_cls(*raw[id])
-
+        new_items = {id for id in raw if id in self._items}
+        self._items = raw
         return new_items
 
-    def items(self) -> ItemsView[str, _ItemT]:
+    def items(self) -> ItemsView[str, ApiItemT]:
         """Return items."""
         return self._items.items()
 
@@ -56,17 +49,17 @@ class ApiHandler(ABC, Generic[_ItemT]):
         """Return item keys."""
         return self._items.keys()
 
-    def values(self) -> ValuesView[_ItemT]:
+    def values(self) -> ValuesView[ApiItemT]:
         """Return item values."""
         return self._items.values()
 
-    def get(self, obj_id: str, default: Any | None = None) -> _ItemT | Any | None:
+    def get(self, obj_id: str, default: Any | None = None) -> ApiItemT | Any | None:
         """Get item value based on key, return default if no match."""
         if obj_id in self:
             return self[obj_id]
         return default
 
-    def __getitem__(self, obj_id: str) -> _ItemT:
+    def __getitem__(self, obj_id: str) -> ApiItemT:
         """Get item value based on key."""
         return self._items[obj_id]
 
