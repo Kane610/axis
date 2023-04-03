@@ -14,46 +14,46 @@ from .api import CONTEXT, ApiItem, ApiRequest
 API_VERSION = "1.0"
 
 
-class TypedPirSensorConfiguration(TypedDict):
-    """Device outlet table type definition."""
+class PirSensorConfigurationT(TypedDict):
+    """Pir sensor configuration representation."""
 
     id: str
     sensitivityConfigurable: bool
     sensitivity: NotRequired[float]
 
 
-class TypedListSensorsData(TypedDict):
-    """"""
+class ListSensorsDataT(TypedDict):
+    """List of Pir sensor configuration data."""
 
-    sensors: list[TypedPirSensorConfiguration]
+    sensors: list[PirSensorConfigurationT]
 
 
 class TypedListSensorsResponse(TypedDict):
-    """"""
+    """ListSensors response."""
 
     apiVersion: str
     context: str
     method: str
-    data: TypedListSensorsData
+    data: ListSensorsDataT
 
 
-class TypedGetSensitivityData(TypedDict):
-    """"""
+class GetSensitivityDataT(TypedDict):
+    """Sensitivity data."""
 
     sensitivity: float
 
 
-class TypedGetSensitivityResponse(TypedDict):
-    """"""
+class GetSensitivityResponseT(TypedDict):
+    """GetSensitivity response."""
 
     apiVersion: str
     context: str
     method: str
-    data: TypedGetSensitivityData
+    data: GetSensitivityDataT
 
 
-class TypedSetSensitivityResponse(TypedDict):
-    """"""
+class SetSensitivityResponseT(TypedDict):
+    """SetSensitivity response."""
 
     apiVersion: str
     context: str
@@ -62,10 +62,25 @@ class TypedSetSensitivityResponse(TypedDict):
 
 @dataclass
 class PirSensorConfiguration(ApiItem):
-    """"""
+    """Pir sensor configuration representation."""
 
     configurable: bool
     sensitivity: float | None = None
+
+
+class ApiVersionsT(TypedDict):
+    """List of supported API versions."""
+
+    apiVersions: list[str]
+
+
+class GetSupportedVersionsT(TypedDict):
+    """ListSensors response."""
+
+    apiVersion: str
+    context: str
+    method: str
+    data: ApiVersionsT
 
 
 general_error_codes = {
@@ -109,11 +124,16 @@ class ListSensorsRequest(ApiRequest[dict[str, PirSensorConfiguration]]):
         )
 
     def process_raw(self, raw: str) -> dict[str, PirSensorConfiguration]:
-        """"""
+        """Prepare Pir sensor configuration dictionary."""
         data: TypedListSensorsResponse = orjson.loads(raw)
         sensors = data.get("data", {}).get("sensors", [])
         return {
-            sensor["id"]: PirSensorConfiguration(*sensor.values()) for sensor in sensors
+            sensor["id"]: PirSensorConfiguration(
+                id=sensor["id"],
+                configurable=sensor["sensitivityConfigurable"],
+                sensitivity=sensor.get("sensitivity"),
+            )
+            for sensor in sensors
         }
 
 
@@ -147,8 +167,8 @@ class GetSensitivityRequest(ApiRequest[float | None]):
         )
 
     def process_raw(self, raw: str) -> float | None:
-        """"""
-        data: TypedGetSensitivityResponse = orjson.loads(raw)
+        """Prepare sensitivity value."""
+        data: GetSensitivityResponseT = orjson.loads(raw)
         return data.get("data", {}).get("sensitivity")
 
 
@@ -184,12 +204,12 @@ class SetSensitivityRequest(ApiRequest[None]):
         )
 
     def process_raw(self, raw: str) -> None:
-        """"""
+        """No expected data in response."""
         return None
 
 
 @dataclass
-class SupportedVersionsRequest(ApiRequest[list[str]]):
+class GetSupportedVersionsRequest(ApiRequest[list[str]]):
     """Request object for listing supported API versions."""
 
     @classmethod
@@ -197,7 +217,7 @@ class SupportedVersionsRequest(ApiRequest[list[str]]):
         cls,
         *,
         context: str = CONTEXT,
-    ) -> "SupportedVersionsRequest":
+    ) -> "GetSupportedVersionsRequest":
         """Create supported API versions request."""
         return cls(
             method="post",
@@ -212,5 +232,6 @@ class SupportedVersionsRequest(ApiRequest[list[str]]):
         )
 
     def process_raw(self, raw: str) -> list[str]:
-        """"""
-        return []
+        """Process supported versions."""
+        data: GetSupportedVersionsT = orjson.loads(raw)
+        return data.get("data", {}).get("apiVersions", [])

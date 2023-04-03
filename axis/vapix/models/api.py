@@ -14,12 +14,12 @@ class ApiItem(ABC):
     id: str
 
 
-ApiItemT = TypeVar("ApiItemT", bound="ApiItem")
-VT = TypeVar("VT")
+ApiItemT = TypeVar("ApiItemT", bound=ApiItem)
+ApiDataT = TypeVar("ApiDataT")
 
 
 @dataclass
-class ApiRequest(ABC, Generic[VT]):
+class ApiRequest(ABC, Generic[ApiDataT]):
     """Create API request body."""
 
     method: str
@@ -29,7 +29,7 @@ class ApiRequest(ABC, Generic[VT]):
     content_type: str
     error_codes: dict[int, str]
 
-    def process_raw(self, raw: str) -> VT:
+    def process_raw(self, raw: str) -> ApiDataT:
         """Process raw data."""
         raise NotImplementedError
 
