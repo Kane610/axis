@@ -31,6 +31,7 @@ class StreamManager:
 
         self.connection_status_callback: List[Callable] = []
         self.background_tasks: set[asyncio.Task] = set()
+        self.retry_timer: asyncio.TimerHandle | None = None
 
     @property
     def stream_url(self) -> str:
@@ -106,10 +107,17 @@ class StreamManager:
         """Stop stream."""
         if self.stream and self.stream.session.state != State.STOPPED:
             self.stream.stop()
+        self.cancel_retry()
 
     def retry(self) -> None:
         """No connection to device, retry connection after 15 seconds."""
+        self.cancel_retry()
         loop = asyncio.get_running_loop()
         self.stream = None
-        loop.call_later(RETRY_TIMER, self.start)
+        self.retry_timer = loop.call_later(RETRY_TIMER, self.start)
         _LOGGER.debug("Reconnecting to %s", self.device.config.host)
+
+    def cancel_retry(self) -> None:
+        """Cancel scheduled retry."""
+        if self.retry_timer is not None:
+            self.retry_timer.cancel()
