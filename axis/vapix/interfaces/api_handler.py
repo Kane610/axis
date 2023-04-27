@@ -32,14 +32,7 @@ class ApiHandler(ABC, Generic[ApiItemT]):
     async def update(self) -> None:
         """Refresh data."""
         response = await self.vapix.request2(self.api_request)
-        raw = self.api_request.process_raw(response)
-        self.process_raw(raw)
-
-    def process_raw(self, raw: dict[str, ApiItemT]) -> set[str]:
-        """Process raw and return a set of new IDs."""
-        new_items = {id for id in raw if id in self._items}
-        self._items = raw
-        return new_items
+        self._items = self.api_request.process_raw(response)
 
     def items(self) -> ItemsView[str, ApiItemT]:
         """Return items."""

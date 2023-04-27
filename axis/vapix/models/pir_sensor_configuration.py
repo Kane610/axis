@@ -4,7 +4,6 @@ The PIR sensor configuration API helps you list and configure
 the sensitivity of the PIR (passive infrared) sensors on your Axis device.
 """
 from dataclasses import dataclass
-from http import HTTPStatus
 
 import orjson
 from typing_extensions import NotRequired, TypedDict
@@ -97,31 +96,28 @@ sensor_specific_error_codes = general_error_codes | {
     2201: "Sensor does not have configurable sensitivity",
 }
 
+ListSensorsT = dict[str, PirSensorConfiguration]
+
 
 @dataclass
-class ListSensorsRequest(ApiRequest[dict[str, PirSensorConfiguration]]):
+class ListSensorsRequest(ApiRequest[ListSensorsT]):
     """Request object for listing PIR sensors."""
 
-    @classmethod
-    def create(
-        cls,
-        *,
-        context: str = CONTEXT,
-        version: str = API_VERSION,
-    ) -> "ListSensorsRequest":
-        """Create list sensors request."""
-        return cls(
-            method="post",
-            path="/axis-cgi/pirsensor.cgi",
-            data={
-                "apiVersion": version,
-                "context": context,
-                "method": "listSensors",
-            },
-            http_code=HTTPStatus.OK,
-            content_type="application/json",
-            error_codes=general_error_codes,
-        )
+    method = "post"
+    path = "/axis-cgi/pirsensor.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "listSensors",
+        }
 
     def process_raw(self, raw: str) -> dict[str, PirSensorConfiguration]:
         """Prepare Pir sensor configuration dictionary."""
@@ -141,30 +137,25 @@ class ListSensorsRequest(ApiRequest[dict[str, PirSensorConfiguration]]):
 class GetSensitivityRequest(ApiRequest[float | None]):
     """Request object for getting PIR sensor sensitivity."""
 
-    @classmethod
-    def create(
-        cls,
-        id: int,
-        *,
-        context: str = CONTEXT,
-        version: str = API_VERSION,
-    ) -> "GetSensitivityRequest":
-        """Create get sensitivity request."""
-        return cls(
-            method="post",
-            path="/axis-cgi/pirsensor.cgi",
-            data={
-                "apiVersion": version,
-                "context": context,
-                "method": "getSensitivity",
-                "params": {
-                    "id": id,
-                },
+    method = "post"
+    path = "/axis-cgi/pirsensor.cgi"
+    content_type = "application/json"
+    error_codes = sensor_specific_error_codes
+
+    id: int
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "getSensitivity",
+            "params": {
+                "id": self.id,
             },
-            http_code=HTTPStatus.OK,
-            content_type="application/json",
-            error_codes=sensor_specific_error_codes,
-        )
+        }
 
     def process_raw(self, raw: str) -> float | None:
         """Prepare sensitivity value."""
@@ -176,32 +167,27 @@ class GetSensitivityRequest(ApiRequest[float | None]):
 class SetSensitivityRequest(ApiRequest[None]):
     """Request object for setting PIR sensor sensitivity."""
 
-    @classmethod
-    def create(
-        cls,
-        id: int,
-        sensitivity: float,
-        *,
-        context: str = CONTEXT,
-        version: str = API_VERSION,
-    ) -> "SetSensitivityRequest":
-        """Create set sensitivity request."""
-        return cls(
-            method="post",
-            path="/axis-cgi/pirsensor.cgi",
-            data={
-                "apiVersion": version,
-                "context": context,
-                "method": "setSensitivity",
-                "params": {
-                    "id": id,
-                    "sensitivity": sensitivity,
-                },
+    method = "post"
+    path = "/axis-cgi/pirsensor.cgi"
+    content_type = "application/json"
+    error_codes = sensor_specific_error_codes
+
+    id: int
+    sensitivity: float
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "setSensitivity",
+            "params": {
+                "id": self.id,
+                "sensitivity": self.sensitivity,
             },
-            http_code=HTTPStatus.OK,
-            content_type="application/json",
-            error_codes=sensor_specific_error_codes,
-        )
+        }
 
     def process_raw(self, raw: str) -> None:
         """No expected data in response."""
@@ -212,24 +198,19 @@ class SetSensitivityRequest(ApiRequest[None]):
 class GetSupportedVersionsRequest(ApiRequest[list[str]]):
     """Request object for listing supported API versions."""
 
-    @classmethod
-    def create(
-        cls,
-        *,
-        context: str = CONTEXT,
-    ) -> "GetSupportedVersionsRequest":
-        """Create supported API versions request."""
-        return cls(
-            method="post",
-            path="/axis-cgi/pirsensor.cgi",
-            data={
-                "context": context,
-                "method": "getSupportedVersions",
-            },
-            http_code=HTTPStatus.OK,
-            content_type="application/json",
-            error_codes=general_error_codes,
-        )
+    method = "post"
+    path = "/axis-cgi/pirsensor.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "context": self.context,
+            "method": "getSupportedVersions",
+        }
 
     def process_raw(self, raw: str) -> list[str]:
         """Process supported versions."""

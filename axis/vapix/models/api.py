@@ -1,7 +1,7 @@
 """API management class and base class for the different end points."""
 
-from abc import ABC
-from dataclasses import dataclass
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, List, TypeVar
 
 CONTEXT = "Axis library"
@@ -22,13 +22,14 @@ ApiDataT = TypeVar("ApiDataT")
 class ApiRequest(ABC, Generic[ApiDataT]):
     """Create API request body."""
 
-    method: str
-    path: str
-    data: dict[str, Any]
-    http_code: int
-    content_type: str
-    error_codes: dict[int, str]
+    method: str = field(init=False)
+    path: str = field(init=False)
+    data: dict[str, Any] = field(init=False)
 
+    content_type: str = field(init=False)
+    error_codes: dict[int, str] = field(init=False)
+
+    @abstractmethod
     def process_raw(self, raw: str) -> ApiDataT:
         """Process raw data."""
         raise NotImplementedError

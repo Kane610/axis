@@ -354,9 +354,4 @@ class Vapix:
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
 
-        # if response.status_code != api_request.http_code:
-        #     return data
-
-        # if api_request.content_type not in response.headers.get("Content-Type", ""):
-        #     return data
         return response.text
