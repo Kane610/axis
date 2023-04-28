@@ -29,28 +29,27 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
         """List all PIR sensors of device."""
         assert self.vapix.api_discovery
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        api_request = ListSensorsRequest(discovery_item.version)
-        raw = await self.vapix.request2(api_request)
-        return api_request.process_raw(raw)
+        assert hasattr(discovery_item, "version")
+        return await self.vapix.request2(ListSensorsRequest(discovery_item.version))
 
-    async def get_sensitivity(self, id: int) -> float:
+    async def get_sensitivity(self, id: int) -> float | None:
         """Retrieve configured sensitivity of specific sensor."""
         assert self.vapix.api_discovery
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        api_request = GetSensitivityRequest(id, discovery_item.version)
-        raw = await self.vapix.request2(api_request)
-        return api_request.process_raw(raw)
+        assert hasattr(discovery_item, "version")
+        return await self.vapix.request2(
+            GetSensitivityRequest(id, discovery_item.version)
+        )
 
     async def set_sensitivity(self, id: int, sensitivity: float) -> None:
         """Configure sensitivity of specific sensor."""
         assert self.vapix.api_discovery
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        api_request = SetSensitivityRequest(id, sensitivity, discovery_item.version)
-        raw = await self.vapix.request2(api_request)
-        return api_request.process_raw(raw)
+        assert hasattr(discovery_item, "version")
+        return await self.vapix.request2(
+            SetSensitivityRequest(id, sensitivity, discovery_item.version)
+        )
 
     async def get_supported_versions(self) -> list[str]:
         """List suppoerted API versions."""
-        api_request = GetSupportedVersionsRequest()
-        raw = await self.vapix.request2(api_request)
-        return api_request.process_raw(raw)
+        return await self.vapix.request2(GetSupportedVersionsRequest())

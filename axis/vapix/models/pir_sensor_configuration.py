@@ -119,7 +119,7 @@ class ListSensorsRequest(ApiRequest[ListSensorsT]):
             "method": "listSensors",
         }
 
-    def process_raw(self, raw: str) -> dict[str, PirSensorConfiguration]:
+    def process_raw(self, raw: str) -> ListSensorsT:
         """Prepare Pir sensor configuration dictionary."""
         data: TypedListSensorsResponse = orjson.loads(raw)
         sensors = data.get("data", {}).get("sensors", [])

@@ -321,7 +321,7 @@ class Vapix:
 
         return {}
 
-    async def request2(self, api_request: ApiRequest["ApiDataT"]) -> str:
+    async def request2(self, api_request: ApiRequest["ApiDataT"]) -> "ApiDataT":
         """Make a request to the device."""
         url = self.device.config.url + api_request.path
         LOGGER.debug("%s %s", url, api_request.data)
@@ -354,4 +354,5 @@ class Vapix:
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
 
+        return api_request.process_raw(response.text)
         return response.text

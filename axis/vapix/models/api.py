@@ -32,7 +32,6 @@ class ApiRequest(ABC, Generic[ApiDataT]):
     @abstractmethod
     def process_raw(self, raw: str) -> ApiDataT:
         """Process raw data."""
-        raise NotImplementedError
 
 
 class APIItem:
