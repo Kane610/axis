@@ -163,6 +163,9 @@ class Vapix:
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
 
+        if self.pir_sensor_configuration.api_id.value in self.api_discovery:
+            tasks.append(self.pir_sensor_configuration.update())
+
         if tasks:
             await asyncio.gather(*tasks)
 

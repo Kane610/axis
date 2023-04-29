@@ -21,10 +21,6 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     api_id = ApiId.PIR_SENSOR_CONFIGURATION
     api_request = ListSensorsRequest()
 
-    async def update(self) -> None:
-        """Refresh data."""
-        self._items = await self.list_sensors()
-
     async def list_sensors(self) -> ListSensorsT:
         """List all PIR sensors of device."""
         assert self.vapix.api_discovery

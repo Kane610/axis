@@ -29,7 +29,20 @@ async def test_get_api_list(
 ) -> None:
     """Test list_sensors call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
-        json=response_list_sensors,
+        json={
+            "apiVersion": "1.0",
+            "context": "Axis library",
+            "method": "listSensors",
+            "data": {
+                "sensors": [
+                    {
+                        "id": 0,
+                        "sensitivityConfigurable": True,
+                        "sensitivity": 0.94117647409439087,
+                    }
+                ]
+            },
+        },
     )
     await pir_sensor_configuration.update()
 
@@ -131,19 +144,3 @@ async def test_supported_versions(
         "method": "getSupportedVersions",
         "context": "Axis library",
     }
-
-
-response_list_sensors = {
-    "apiVersion": "1.0",
-    "context": "Axis library",
-    "method": "listSensors",
-    "data": {
-        "sensors": [
-            {
-                "id": 0,
-                "sensitivityConfigurable": True,
-                "sensitivity": 0.94117647409439087,
-            }
-        ]
-    },
-}
