@@ -13,6 +13,13 @@ from .api import CONTEXT, ApiItem, ApiRequest
 API_VERSION = "1.0"
 
 
+class ErrorDataT(TypedDict):
+    """Error data in response."""
+
+    code: int
+    message: str
+
+
 class PirSensorConfigurationT(TypedDict):
     """Pir sensor configuration representation."""
 
@@ -27,13 +34,14 @@ class ListSensorsDataT(TypedDict):
     sensors: list[PirSensorConfigurationT]
 
 
-class TypedListSensorsResponse(TypedDict):
+class ListSensorsResponseT(TypedDict):
     """ListSensors response."""
 
     apiVersion: str
     context: str
     method: str
     data: ListSensorsDataT
+    error: NotRequired[ErrorDataT]
 
 
 class GetSensitivityDataT(TypedDict):
@@ -49,6 +57,7 @@ class GetSensitivityResponseT(TypedDict):
     context: str
     method: str
     data: GetSensitivityDataT
+    error: NotRequired[ErrorDataT]
 
 
 class SetSensitivityResponseT(TypedDict):
@@ -57,14 +66,7 @@ class SetSensitivityResponseT(TypedDict):
     apiVersion: str
     context: str
     method: str
-
-
-@dataclass
-class PirSensorConfiguration(ApiItem):
-    """Pir sensor configuration representation."""
-
-    configurable: bool
-    sensitivity: float | None = None
+    error: NotRequired[ErrorDataT]
 
 
 class ApiVersionsT(TypedDict):
@@ -73,13 +75,14 @@ class ApiVersionsT(TypedDict):
     apiVersions: list[str]
 
 
-class GetSupportedVersionsT(TypedDict):
+class GetSupportedVersionsResponseT(TypedDict):
     """ListSensors response."""
 
     apiVersion: str
     context: str
     method: str
     data: ApiVersionsT
+    error: NotRequired[ErrorDataT]
 
 
 general_error_codes = {
@@ -95,6 +98,15 @@ sensor_specific_error_codes = general_error_codes | {
     2200: "Invalid sensor ID",
     2201: "Sensor does not have configurable sensitivity",
 }
+
+
+@dataclass
+class PirSensorConfiguration(ApiItem):
+    """Pir sensor configuration representation."""
+
+    configurable: bool
+    sensitivity: float | None = None
+
 
 ListSensorsT = dict[str, PirSensorConfiguration]
 
@@ -121,7 +133,7 @@ class ListSensorsRequest(ApiRequest[ListSensorsT]):
 
     def process_raw(self, raw: str) -> ListSensorsT:
         """Prepare Pir sensor configuration dictionary."""
-        data: TypedListSensorsResponse = orjson.loads(raw)
+        data: ListSensorsResponseT = orjson.loads(raw)
         sensors = data.get("data", {}).get("sensors", [])
         return {
             sensor["id"]: PirSensorConfiguration(
@@ -214,5 +226,5 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
 
     def process_raw(self, raw: str) -> list[str]:
         """Process supported versions."""
-        data: GetSupportedVersionsT = orjson.loads(raw)
+        data: GetSupportedVersionsResponseT = orjson.loads(raw)
         return data.get("data", {}).get("apiVersions", [])
