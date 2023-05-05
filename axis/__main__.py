@@ -63,9 +63,7 @@ async def main(
         return
 
     if params:
-        # await device.vapix.initialize()
-        await device.vapix.pir_sensor_configuration.update()
-        print(device.vapix.pir_sensor_configuration._items)
+        await device.vapix.initialize()
 
     if events:
         device.enable_events()
