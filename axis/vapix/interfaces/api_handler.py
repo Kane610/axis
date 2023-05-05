@@ -1,4 +1,4 @@
-"""API handler class and base class for a API endpoint."""
+"""API handler class and base class for an API endpoint."""
 
 from abc import ABC
 from typing import (
