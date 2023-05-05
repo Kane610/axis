@@ -1,8 +1,37 @@
 """API management class and base class for the different end points."""
 
-from typing import Callable, List
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Callable, Generic, List, TypeVar
 
 CONTEXT = "Axis library"
+
+
+@dataclass
+class ApiItem(ABC):
+    """API item class."""
+
+    id: str
+
+
+ApiItemT = TypeVar("ApiItemT", bound=ApiItem)
+ApiDataT = TypeVar("ApiDataT")
+
+
+@dataclass
+class ApiRequest(ABC, Generic[ApiDataT]):
+    """Create API request body."""
+
+    method: str = field(init=False)
+    path: str = field(init=False)
+    data: dict[str, Any] = field(init=False)
+
+    content_type: str = field(init=False)
+    error_codes: dict[int, str] = field(init=False)
+
+    @abstractmethod
+    def process_raw(self, raw: str) -> ApiDataT:
+        """Process raw data."""
 
 
 class APIItem:

@@ -28,6 +28,7 @@ from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
 from .interfaces.mqtt import API_DISCOVERY_ID as MQTT_ID, MqttClient
 from .interfaces.param_cgi import Params
+from .interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 from .interfaces.port_cgi import Ports
 from .interfaces.port_management import (
     API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID,
@@ -41,9 +42,11 @@ from .interfaces.stream_profiles import (
 )
 from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
+from .models.api import ApiRequest
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
+    from .models.api import ApiDataT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -76,6 +79,8 @@ class Vapix:
         self.users: Users | None = None
         self.view_areas: ViewAreas | None = None
         self.vmd4: Vmd4 | None = None
+
+        self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
 
     @property
     def firmware_version(self) -> str:
@@ -157,6 +162,9 @@ class Vapix:
         ):
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
+
+        if self.pir_sensor_configuration.api_id.value in self.api_discovery:
+            tasks.append(self.pir_sensor_configuration.update())
 
         if tasks:
             await asyncio.gather(*tasks)
@@ -315,3 +323,39 @@ class Vapix:
             raise RequestError("Unknown error: {}".format(err))
 
         return {}
+
+    async def request2(self, api_request: ApiRequest["ApiDataT"]) -> "ApiDataT":
+        """Make a request to the device."""
+        url = self.device.config.url + api_request.path
+        LOGGER.debug("%s %s", url, api_request.data)
+
+        try:
+            response = await self.device.config.session.request(
+                api_request.method,
+                url,
+                auth=self.auth,
+                timeout=TIME_OUT,
+                json=api_request.data,
+            )
+            response.raise_for_status()
+
+        except httpx.HTTPStatusError as errh:
+            LOGGER.debug("%s, %s", response, errh)
+            raise_error(response.status_code)
+
+        except httpx.TimeoutException:
+            raise RequestError("Timeout")
+
+        except httpx.TransportError as errc:
+            LOGGER.debug("%s", errc)
+            raise RequestError("Connection error: {}".format(errc))
+
+        except httpx.RequestError as err:
+            LOGGER.debug("%s", err)
+            raise RequestError("Unknown error: {}".format(err))
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
+
+        return api_request.process_raw(response.text)
+        return response.text
