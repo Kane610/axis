@@ -8,16 +8,16 @@ import json
 import pytest
 import respx
 
-from axis.vapix.interfaces.api_discovery import API_DISCOVERY_ID, ApiDiscovery
+from axis.vapix.interfaces.api_discovery import ApiDiscoveryHandler
 from axis.vapix.models.api_discovery import ApiId, ApiStatus
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def api_discovery(axis_device) -> ApiDiscovery:
+def api_discovery(axis_device) -> ApiDiscoveryHandler:
     """Return the api_discovery mock object."""
-    return ApiDiscovery(axis_device.vapix)
+    return ApiDiscoveryHandler(axis_device.vapix)
 
 
 @respx.mock
@@ -40,7 +40,7 @@ async def test_get_api_list(api_discovery):
 
     assert len(api_discovery.values()) == 15
 
-    item = api_discovery[API_DISCOVERY_ID]
+    item = api_discovery[ApiId.API_DISCOVERY.value]
     assert item.api_id == ApiId.API_DISCOVERY
     assert item.id == "api-discovery"
     assert item.name == "API Discovery Service"
@@ -63,10 +63,11 @@ async def test_get_supported_versions(api_discovery):
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/apidiscovery.cgi"
     assert json.loads(route.calls.last.request.content) == {
-        "method": "getSupportedVersions"
+        "context": "Axis library",
+        "method": "getSupportedVersions",
     }
 
-    assert response["data"] == {"apiVersions": ["1.0"]}
+    assert response == ["1.0"]
 
 
 response_getApiList = {

@@ -3,9 +3,8 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
-import pytest
-
 import httpx
+import pytest
 import respx
 
 from axis.errors import MethodNotAllowed, PathNotFound, RequestError, Unauthorized
@@ -17,7 +16,6 @@ from axis.vapix.interfaces.stream_profiles import StreamProfile
 from axis.vapix.interfaces.user_groups import UNKNOWN
 from axis.vapix.vapix import Vapix
 
-from .test_api_discovery import response_getApiList as api_discovery_response
 from .applications.test_applications import (
     list_applications_response as applications_response,
 )
@@ -30,15 +28,16 @@ from .applications.test_loitering_guard import (
 from .applications.test_motion_guard import (
     response_get_configuration as motion_guard_response,
 )
-from .test_basic_device_info import (
-    response_getAllProperties as basic_device_info_response,
-)
 from .applications.test_vmd4 import response_get_configuration as vmd4_response
 from .conftest import HOST
 from .event_fixtures import EVENT_INSTANCES
+from .test_api_discovery import response_getApiList as api_discovery_response
+from .test_basic_device_info import (
+    response_getAllProperties as basic_device_info_response,
+)
 from .test_light_control import response_getLightInformation as light_control_response
-from .test_port_management import response_getPorts as io_port_management_response
 from .test_param_cgi import response_param_cgi as param_cgi_response
+from .test_port_management import response_getPorts as io_port_management_response
 from .test_stream_profiles import response_list as stream_profiles_response
 
 
@@ -195,7 +194,7 @@ async def test_initialize_api_discovery_unsupported(vapix):
 
     await vapix.initialize_api_discovery()
 
-    assert vapix.api_discovery
+    assert len(vapix.api_discovery) == 0
 
 
 @respx.mock

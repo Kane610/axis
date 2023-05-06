@@ -47,5 +47,5 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
         )
 
     async def get_supported_versions(self) -> list[str]:
-        """List suppoerted API versions."""
+        """List supported API versions."""
         return await self.vapix.request2(GetSupportedVersionsRequest())
