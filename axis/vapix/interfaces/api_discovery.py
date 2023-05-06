@@ -24,9 +24,7 @@ class ApiDiscoveryHandler(ApiHandler[Api]):
 
     async def get_api_list(self) -> ListApisT:
         """List all APIs registered on API Discovery service."""
-        assert self.vapix.api_discovery
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
-        assert hasattr(discovery_item, "version")
+        discovery_item = self[self.api_id.value]
         return await self.vapix.request2(ListApisRequest(discovery_item.version))
 
     async def get_supported_versions(self) -> list[str]:

@@ -79,7 +79,7 @@ class Vapix:
         self.view_areas: ViewAreas | None = None
         self.vmd4: Vmd4 | None = None
 
-        self.api_discovery = ApiDiscoveryHandler(self)
+        self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
 
     @property

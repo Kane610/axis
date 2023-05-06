@@ -120,7 +120,7 @@ class ApiDescriptionT(TypedDict):
 class ListApisDataT(TypedDict):
     """List of Pir sensor configuration data."""
 
-    sensors: list[ApiDescriptionT]
+    apiList: list[ApiDescriptionT]
 
 
 class ListApisResponseT(TypedDict):
