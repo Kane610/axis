@@ -108,7 +108,7 @@ class ErrorDataT(TypedDict):
 
 
 class ApiDescriptionT(TypedDict):
-    """Pir sensor configuration representation."""
+    """API description representation."""
 
     docLink: str
     id: str
@@ -118,13 +118,13 @@ class ApiDescriptionT(TypedDict):
 
 
 class ListApisDataT(TypedDict):
-    """List of Pir sensor configuration data."""
+    """List of API description data."""
 
     apiList: list[ApiDescriptionT]
 
 
 class ListApisResponseT(TypedDict):
-    """ListSensors response."""
+    """ListApis response."""
 
     apiVersion: str
     context: str
@@ -140,7 +140,7 @@ class ApiVersionsT(TypedDict):
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """ListSensors response."""
+    """ListApis response."""
 
     apiVersion: str
     context: str
@@ -179,7 +179,7 @@ ListApisT = dict[str, Api]
 
 @dataclass
 class ListApisRequest(ApiRequest[ListApisT]):
-    """Request object for listing PIR sensors."""
+    """Request object for listing API descriptions."""
 
     method = "post"
     path = "/axis-cgi/apidiscovery.cgi"
@@ -198,7 +198,7 @@ class ListApisRequest(ApiRequest[ListApisT]):
         }
 
     def process_raw(self, raw: str) -> ListApisT:
-        """Prepare Pir sensor configuration dictionary."""
+        """Prepare API description dictionary."""
         data: ListApisResponseT = orjson.loads(raw)
         apis = data.get("data", {}).get("apiList", [])
         return {
