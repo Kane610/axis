@@ -8,6 +8,7 @@ import json
 import pytest
 import respx
 
+from axis.device import AxisDevice
 from axis.vapix.interfaces.api_discovery import ApiDiscoveryHandler
 from axis.vapix.models.api_discovery import ApiId, ApiStatus
 
@@ -15,9 +16,9 @@ from .conftest import HOST
 
 
 @pytest.fixture
-def api_discovery(axis_device) -> ApiDiscoveryHandler:
+def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
     """Return the api_discovery mock object."""
-    return ApiDiscoveryHandler(axis_device.vapix)
+    return axis_device.vapix.api_discovery
 
 
 @respx.mock
@@ -46,6 +47,9 @@ async def test_get_api_list(api_discovery):
     assert item.name == "API Discovery Service"
     assert item.status == ApiStatus.UNKNOWN
     assert item.version == "1.0"
+
+    items = await api_discovery.get_api_list()
+    assert len(items) == 15
 
     assert ApiId("") == ApiId.UNKNOWN
 
