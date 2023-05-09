@@ -39,7 +39,7 @@ class DeviceInformationDescriptionT(TypedDict):
 class PropertiesDataT(TypedDict):
     """List of API description data."""
 
-    apiList: list[DeviceInformationDescriptionT]
+    propertyList: DeviceInformationDescriptionT
 
 
 class GetAllPropertiesResponseT(TypedDict):
@@ -126,7 +126,7 @@ class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesT]):
     def process_raw(self, raw: str) -> GetAllPropertiesT:
         """Prepare API description dictionary."""
         data: GetAllPropertiesResponseT = orjson.loads(raw)
-        device_information = data.get("data", {}).get("propertyList", [])
+        device_information = data.get("data", {}).get("propertyList", {})
         return {
             "0": DeviceInformation(
                 id="0",

@@ -10,6 +10,7 @@ import xmltodict
 
 from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
+from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
     APPLICATION_STATE_RUNNING,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
@@ -20,7 +21,7 @@ from .interfaces.applications.loitering_guard import LoiteringGuard
 from .interfaces.applications.motion_guard import MotionGuard
 from .interfaces.applications.object_analytics import ObjectAnalytics
 from .interfaces.applications.vmd4 import Vmd4
-from .interfaces.basic_device_info import BasicDeviceInfo
+from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
 from .interfaces.mqtt import API_DISCOVERY_ID as MQTT_ID, MqttClient
@@ -76,7 +77,7 @@ class Vapix:
         self.vmd4: Vmd4 | None = None
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
-        self.basic_device_info = BasicDeviceInfo(self)
+        self.basic_device_info = BasicDeviceInfoHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
 
     @property
@@ -158,14 +159,18 @@ class Vapix:
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
 
-        async def do_api_request(api) -> None:
-            """Perform update of API."""
+        async def do_api_request(api: ApiHandler) -> None:
+            """Try update of API."""
             try:
                 await api.update()
             except Unauthorized:  # Probably a viewer account
                 pass
 
-        for api in (self.basic_device_info, self.pir_sensor_configuration):
+        apis: tuple[ApiHandler, ...] = (
+            self.basic_device_info,
+            self.pir_sensor_configuration,
+        )
+        for api in apis:
             if api.api_id.value not in self.api_discovery:
                 continue
             tasks.append(do_api_request(api))

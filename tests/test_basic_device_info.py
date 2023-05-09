@@ -9,20 +9,20 @@ import pytest
 import respx
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.basic_device_info import BasicDeviceInfo
+from axis.vapix.interfaces.basic_device_info import BasicDeviceInfoHandler
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfo:
+def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
     """Return the basic_device_info mock object."""
     return axis_device.vapix.basic_device_info
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_all_properties(basic_device_info: BasicDeviceInfo):
+async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     """Test get all properties api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=response_getAllProperties,
@@ -56,7 +56,7 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfo):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_supported_versions(basic_device_info: BasicDeviceInfo):
+async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json={
