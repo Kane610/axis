@@ -8,20 +8,21 @@ import json
 import pytest
 import respx
 
+from axis.device import AxisDevice
 from axis.vapix.interfaces.basic_device_info import BasicDeviceInfo
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def basic_device_info(axis_device) -> BasicDeviceInfo:
+def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfo:
     """Return the basic_device_info mock object."""
-    return BasicDeviceInfo(axis_device.vapix)
+    return axis_device.vapix.basic_device_info
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_all_properties(basic_device_info):
+async def test_get_all_properties(basic_device_info: BasicDeviceInfo):
     """Test get all properties api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=response_getAllProperties,
@@ -55,10 +56,13 @@ async def test_get_all_properties(basic_device_info):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_supported_versions(basic_device_info):
+async def test_get_supported_versions(basic_device_info: BasicDeviceInfo):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
-        json=response_getSupportedVersions,
+        json={
+            "method": "getSupportedVersions",
+            "data": {"apiVersions": ["1.1"]},
+        },
     )
     response = await basic_device_info.get_supported_versions()
 
@@ -66,10 +70,11 @@ async def test_get_supported_versions(basic_device_info):
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
     assert json.loads(route.calls.last.request.content) == {
+        "context": "Axis library",
         "method": "getSupportedVersions",
     }
 
-    assert response["data"] == {"apiVersions": ["1.1"]}
+    assert response == ["1.1"]
 
 
 response_getAllProperties = {
@@ -92,10 +97,4 @@ response_getAllProperties = {
             "BuildDate": "Apr 29 2020 06:50",
         }
     },
-}
-
-
-response_getSupportedVersions = {
-    "method": "getSupportedVersions",
-    "data": {"apiVersions": ["1.1"]},
 }
