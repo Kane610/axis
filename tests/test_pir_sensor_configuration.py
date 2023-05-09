@@ -4,7 +4,7 @@ pytest --cov-report term-missing --cov=axis.vapix.interfaces.pir_sensor_configur
 """
 
 import json
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import pytest
 import respx

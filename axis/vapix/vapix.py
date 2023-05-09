@@ -9,7 +9,7 @@ from packaging import version
 import xmltodict
 
 from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
-from .interfaces.api_discovery import ApiDiscovery
+from .interfaces.api_discovery import ApiDiscoveryHandler
 from .interfaces.applications import (
     APPLICATION_STATE_RUNNING,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
@@ -61,7 +61,6 @@ class Vapix:
         self.device = device
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
-        self.api_discovery: ApiDiscovery | None = None
         self.applications: Applications | None = None
         self.basic_device_info: BasicDeviceInfo | None = None
         self.event_instances: EventInstances | None = None
@@ -80,6 +79,7 @@ class Vapix:
         self.view_areas: ViewAreas | None = None
         self.vmd4: Vmd4 | None = None
 
+        self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
 
     @property
@@ -144,7 +144,6 @@ class Vapix:
 
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        self.api_discovery = ApiDiscovery(self)
         try:
             await self.api_discovery.update()
         except PathNotFound:  # Device doesn't support API discovery
