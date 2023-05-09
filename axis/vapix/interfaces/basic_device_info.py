@@ -13,8 +13,6 @@ from ..models.basic_device_info import (
 )
 from .api_handler import ApiHandler
 
-API_VERSION = "1.1"
-
 
 class BasicDeviceInfo(ApiHandler[DeviceInformation]):
     """Basic device information for Axis devices."""

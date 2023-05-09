@@ -59,7 +59,6 @@ class Vapix:
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.applications: Applications | None = None
-        # self.basic_device_info: BasicDeviceInfo | None = None
         self.event_instances: EventInstances | None = None
         self.fence_guard: FenceGuard | None = None
         self.light_control: LightControl | None = None
@@ -160,7 +159,7 @@ class Vapix:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
 
         async def do_api_request(api) -> None:
-            """"""
+            """Perform update of API."""
             try:
                 await api.update()
             except Unauthorized:  # Probably a viewer account

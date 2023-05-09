@@ -1,4 +1,4 @@
-""""""
+"""Basic device information description."""
 
 from dataclasses import dataclass
 
