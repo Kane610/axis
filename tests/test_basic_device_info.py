@@ -4,6 +4,7 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 """
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 import respx
@@ -17,6 +18,8 @@ from .conftest import HOST
 @pytest.fixture
 def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
     """Return the basic_device_info mock object."""
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    api_discovery_mock.__getitem__().version = "1.0"
     return axis_device.vapix.basic_device_info
 
 
@@ -52,6 +55,9 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     assert basic_device_info.socserialnumber == ""
     assert basic_device_info.version == "9.80.1"
     assert basic_device_info.weburl == "http://www.axis.com"
+
+    items = await basic_device_info.get_all_properties()
+    assert len(items) == 1
 
 
 @respx.mock
