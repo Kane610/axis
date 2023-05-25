@@ -1,6 +1,7 @@
 """Basic Device Info api.
 
-AXIS Basic device information API can be used to retrieve simple information about the product.
+AXIS Basic device information API can be used to retrieve
+ simple information about the product.
 This information is used to identify basic properties of the product.
 """
 
