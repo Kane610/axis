@@ -49,7 +49,6 @@ def vapix(axis_device: AxisDevice) -> Vapix:
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize(vapix: Vapix):
     """Verify that you can initialize all APIs."""
     respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
@@ -115,7 +114,6 @@ async def test_initialize(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_api_discovery(vapix: Vapix):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
     respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
@@ -160,7 +158,6 @@ async def test_initialize_api_discovery(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_api_discovery_unauthorized(vapix: Vapix):
     """Test initialize api discovery doesnt break due to exception."""
     respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
@@ -188,7 +185,6 @@ async def test_initialize_api_discovery_unauthorized(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_api_discovery_unsupported(vapix: Vapix):
     """Test initialize api discovery doesnt break due to exception."""
     respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
@@ -199,7 +195,6 @@ async def test_initialize_api_discovery_unsupported(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_param_cgi(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
@@ -226,7 +221,6 @@ async def test_initialize_param_cgi(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_params_no_data(vapix: Vapix):
     """Verify that you can list parameters."""
     param_route = respx.get(
@@ -239,7 +233,6 @@ async def test_initialize_params_no_data(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_applications(vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
     respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
@@ -292,7 +285,6 @@ async def test_initialize_applications(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_applications_unauthorized(vapix: Vapix):
     """Verify initialize applications doesnt break on too low credentials."""
     respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
@@ -313,7 +305,6 @@ async def test_initialize_applications_unauthorized(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_applications_not_running(vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
     respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
@@ -339,7 +330,6 @@ async def test_initialize_applications_not_running(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_event_instances(vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
     respx.post(f"http://{HOST}:80/vapix/services").respond(
@@ -353,7 +343,6 @@ async def test_initialize_event_instances(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_applications_dont_load_without_params(vapix: Vapix):
     """Applications depends on param cgi to be loaded first."""
     param_route = respx.get(
@@ -371,7 +360,6 @@ async def test_applications_dont_load_without_params(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_users(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
@@ -393,7 +381,6 @@ ptz=
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_initialize_users_fails_due_to_low_credentials(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(401)
@@ -404,7 +391,6 @@ async def test_initialize_users_fails_due_to_low_credentials(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_load_user_groups(vapix: Vapix):
     """Verify that you can load user groups."""
     respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
@@ -424,7 +410,6 @@ async def test_load_user_groups(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_load_user_groups_from_pwdgrpcgi(vapix: Vapix):
     """Verify that you can load user groups from pwdgrp.cgi."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
@@ -457,7 +442,6 @@ ptz=
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_load_user_groups_fails_when_not_supported(vapix: Vapix):
     """Verify that load user groups still initialize class even when not supported."""
     respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(404)
@@ -468,14 +452,12 @@ async def test_load_user_groups_fails_when_not_supported(vapix: Vapix):
     assert vapix.access_rights == UNKNOWN
 
 
-@pytest.mark.asyncio
 async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix):
     """Verify that not loading user groups still returns a proper string of vapix.access_rights."""
     assert vapix.access_rights == UNKNOWN
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_json_error(vapix: Vapix):
     """Verify that a JSON error returns an empty dict."""
     respx.get(f"http://{HOST}:80").respond(
@@ -486,7 +468,6 @@ async def test_request_json_error(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_plain_text_error(vapix: Vapix):
     """Verify that a plain text error returns an empty string."""
     respx.get(f"http://{HOST}:80").respond(
@@ -497,7 +478,6 @@ async def test_request_plain_text_error(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_401_raises_unauthorized(vapix: Vapix):
     """Verify that a 401 raises Unauthorized exception.
 
@@ -510,7 +490,6 @@ async def test_request_401_raises_unauthorized(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_404_raises_path_not_found(vapix: Vapix):
     """Verify that a 404 raises PathNotFound exception.
 
@@ -523,7 +502,6 @@ async def test_request_404_raises_path_not_found(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_405_raises_method_not_allowed(vapix: Vapix):
     """Verify that a 405 raises MethodNotAllowed exception."""
     respx.get(f"http://{HOST}:80").respond(405)
@@ -533,7 +511,6 @@ async def test_request_405_raises_method_not_allowed(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_timeout(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.get(f"http://{HOST}:80").side_effect = httpx.TimeoutException
@@ -543,7 +520,6 @@ async def test_request_timeout(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_transport_error(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.get(f"http://{HOST}:80").side_effect = httpx.TransportError
@@ -553,7 +529,6 @@ async def test_request_transport_error(vapix: Vapix):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_request_request_error(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.get(f"http://{HOST}:80").side_effect = httpx.RequestError

@@ -24,7 +24,6 @@ def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     """Test get all properties api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
@@ -61,7 +60,6 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
