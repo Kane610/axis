@@ -5,7 +5,7 @@ video codecs, resolutions, frame rates and compressions,
 and should be used to retrieve a video stream from your Axis product.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import orjson
 from typing_extensions import NotRequired, TypedDict
@@ -95,14 +95,16 @@ class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesT]):
 
     api_version: str = API_VERSION
     context: str = CONTEXT
+    profiles: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Initialize request data."""
+        profile_list = [{"name": profile} for profile in self.profiles]
         self.data = {
             "apiVersion": self.api_version,
             "context": self.context,
             "method": "list",
-            "params": {"streamProfileName": []},
+            "params": {"streamProfileName": profile_list},
         }
 
     def process_raw(self, raw: str) -> ListStreamProfilesT:
