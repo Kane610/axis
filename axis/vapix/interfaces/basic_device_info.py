@@ -1,170 +1,103 @@
 """Basic Device Info api.
 
-AXIS Basic device information API can be used to retrieve simple information about the product.
+AXIS Basic device information API can be used to retrieve
+ simple information about the product.
 This information is used to identify basic properties of the product.
 """
 
-import attr
+from ..models.api_discovery import ApiId
+from ..models.basic_device_info import (
+    DeviceInformation,
+    GetAllPropertiesRequest,
+    GetAllPropertiesT,
+    GetSupportedVersionsRequest,
+)
+from .api_handler import ApiHandler
 
-from ..models.api import APIItem
-from .api import APIItems, Body
 
-URL = "/axis-cgi/basicdeviceinfo.cgi"
-
-API_DISCOVERY_ID = "basic-device-info"
-API_VERSION = "1.1"
-
-
-class BasicDeviceInfo(APIItems):
+class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
     """Basic device information for Axis devices."""
 
-    item_cls = APIItem
-    path = URL
+    api_id = ApiId.BASIC_DEVICE_INFO
+    api_request = GetAllPropertiesRequest()
 
-    def __getitem__(self, obj_id: str) -> str:  # type: ignore[override]
-        """self["string"] will return self._item["string"].raw."""
-        return self._items[obj_id].raw
-
-    async def update(self) -> None:
-        """Refresh data."""
-        raw = await self.get_all_properties()
-        self.process_raw(raw)
-
-    @staticmethod
-    def pre_process_raw(raw: dict) -> dict:
-        """Return a dictionary of device information."""
-        return raw.get("data", {}).get("propertyList", {})
-
-    async def get_all_properties(self) -> dict:
+    async def get_all_properties(self) -> GetAllPropertiesT:
         """List all properties of basic device info."""
-        return await self.vapix.request(
-            "post",
-            URL,
-            json=attr.asdict(
-                Body("getAllProperties", API_VERSION),
-                filter=attr.filters.exclude(attr.fields(Body).params),
-            ),
+        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        return await self.vapix.request2(
+            GetAllPropertiesRequest(discovery_item.version)
         )
 
-    async def get_supported_versions(self) -> dict:
-        """Supported versions of basic device info."""
-        return await self.vapix.request(
-            "post",
-            URL,
-            json=attr.asdict(
-                Body("getSupportedVersions", API_VERSION),
-                filter=attr.filters.include(attr.fields(Body).method),
-            ),
-        )
+    async def get_supported_versions(self) -> list[str]:
+        """List supported API versions."""
+        return await self.vapix.request2(GetSupportedVersionsRequest())
 
     @property
     def architecture(self) -> str:
-        """SOC architecture.
-
-        ApiVersion 1.1.
-        """
-        return self["Architecture"]
+        """SOC architecture."""
+        return self["0"].architecture
 
     @property
     def brand(self) -> str:
-        """Device branding.
-
-        ApiVersion 1.1.
-        """
-        return self["Brand"]
+        """Device branding."""
+        return self["0"].brand
 
     @property
     def builddate(self) -> str:
-        """Firmware build date.
-
-        ApiVersion 1.1.
-        """
-        return self["BuildDate"]
+        """Firmware build date."""
+        return self["0"].build_date
 
     @property
     def hardwareid(self) -> str:
-        """Device hardware ID.
-
-        ApiVersion 1.1.
-        """
-        return self["HardwareID"]
+        """Device hardware ID."""
+        return self["0"].hardware_id
 
     @property
     def prodfullname(self) -> str:
-        """Device product full name.
-
-        ApiVersion 1.1.
-        """
-        return self["ProdFullName"]
+        """Device product full name."""
+        return self["0"].product_full_name
 
     @property
     def prodnbr(self) -> str:
-        """Device product number.
-
-        ApiVersion 1.1.
-        """
-        return self["ProdNbr"]
+        """Device product number."""
+        return self["0"].product_number
 
     @property
     def prodshortname(self) -> str:
-        """Device product short name.
-
-        ApiVersion 1.1.
-        """
-        return self["ProdShortName"]
+        """Device product short name."""
+        return self["0"].product_short_name
 
     @property
     def prodtype(self) -> str:
-        """Device product type.
-
-        ApiVersion 1.1.
-        """
-        return self["ProdType"]
+        """Device product type."""
+        return self["0"].product_type
 
     @property
     def prodvariant(self) -> str:
-        """Device product variant.
-
-        ApiVersion 1.1.
-        """
-        return self["ProdVariant"]
+        """Device product variant."""
+        return self["0"].product_variant
 
     @property
     def serialnumber(self) -> str:
-        """Device serial number.
-
-        ApiVersion 1.1.
-        """
-        return self["SerialNumber"]
+        """Device serial number."""
+        return self["0"].serial_number
 
     @property
     def soc(self) -> str:
-        """System on chip variant.
-
-        ApiVersion 1.1.
-        """
-        return self["Soc"]
+        """System on chip variant."""
+        return self["0"].soc
 
     @property
     def socserialnumber(self) -> str:
-        """SOC serial number.
-
-        ApiVersion 1.1.
-        """
-        return self["SocSerialNumber"]
+        """SOC serial number."""
+        return self["0"].soc_serial_number
 
     @property
     def version(self) -> str:
-        """Firmware version.
-
-        ApiVersion 1.1.
-        """
-        return self["Version"]
+        """Firmware version."""
+        return self["0"].version
 
     @property
     def weburl(self) -> str:
-        """Device home page URL.
-
-        ApiVersion 1.1.
-        """
-        return self["WebURL"]
+        """Device home page URL."""
+        return self["0"].web_url

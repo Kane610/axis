@@ -10,6 +10,7 @@ import xmltodict
 
 from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
+from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
     APPLICATION_STATE_RUNNING,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
@@ -20,10 +21,7 @@ from .interfaces.applications.loitering_guard import LoiteringGuard
 from .interfaces.applications.motion_guard import MotionGuard
 from .interfaces.applications.object_analytics import ObjectAnalytics
 from .interfaces.applications.vmd4 import Vmd4
-from .interfaces.basic_device_info import (
-    API_DISCOVERY_ID as BASIC_DEVICE_INFO_ID,
-    BasicDeviceInfo,
-)
+from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
 from .interfaces.mqtt import API_DISCOVERY_ID as MQTT_ID, MqttClient
@@ -62,7 +60,6 @@ class Vapix:
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.applications: Applications | None = None
-        self.basic_device_info: BasicDeviceInfo | None = None
         self.event_instances: EventInstances | None = None
         self.fence_guard: FenceGuard | None = None
         self.light_control: LightControl | None = None
@@ -80,6 +77,7 @@ class Vapix:
         self.vmd4: Vmd4 | None = None
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
+        self.basic_device_info = BasicDeviceInfoHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
 
     @property
@@ -152,7 +150,6 @@ class Vapix:
         tasks = []
 
         for api_id, api_class, api_attr in (
-            (BASIC_DEVICE_INFO_ID, BasicDeviceInfo, "basic_device_info"),
             (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
             (LIGHT_CONTROL_ID, LightControl, "light_control"),
             (MQTT_ID, MqttClient, "mqtt"),
@@ -162,8 +159,21 @@ class Vapix:
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
 
-        if self.pir_sensor_configuration.api_id.value in self.api_discovery:
-            tasks.append(self.pir_sensor_configuration.update())
+        async def do_api_request(api: ApiHandler) -> None:
+            """Try update of API."""
+            try:
+                await api.update()
+            except Unauthorized:  # Probably a viewer account
+                pass
+
+        apis: tuple[ApiHandler, ...] = (
+            self.basic_device_info,
+            self.pir_sensor_configuration,
+        )
+        for api in apis:
+            if api.api_id.value not in self.api_discovery:
+                continue
+            tasks.append(do_api_request(api))
 
         if tasks:
             await asyncio.gather(*tasks)
