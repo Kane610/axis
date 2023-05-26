@@ -34,10 +34,7 @@ from .interfaces.port_management import (
 )
 from .interfaces.ptz import PtzControl
 from .interfaces.pwdgrp_cgi import Users
-from .interfaces.stream_profiles import (
-    API_DISCOVERY_ID as STREAM_PROFILES_ID,
-    StreamProfiles,
-)
+from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
 from .models.api import ApiRequest
@@ -70,7 +67,6 @@ class Vapix:
         self.params: Params | None = None
         self.ports: IoPortManagement | Ports | None = None
         self.ptz: PtzControl | None = None
-        self.stream_profiles: StreamProfiles | None = None
         self.user_groups: UserGroups | None = None
         self.users: Users | None = None
         self.view_areas: ViewAreas | None = None
@@ -79,6 +75,7 @@ class Vapix:
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
+        self.stream_profiles = StreamProfilesHandler(self)
 
     @property
     def firmware_version(self) -> str:
@@ -118,7 +115,7 @@ class Vapix:
     @property
     def streaming_profiles(self) -> list:
         """List streaming profiles."""
-        if self.stream_profiles:
+        if len(self.stream_profiles) > 0:
             return list(self.stream_profiles.values())
         return self.params.stream_profiles  # type: ignore[union-attr]
 
@@ -153,7 +150,6 @@ class Vapix:
             (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
             (LIGHT_CONTROL_ID, LightControl, "light_control"),
             (MQTT_ID, MqttClient, "mqtt"),
-            (STREAM_PROFILES_ID, StreamProfiles, "stream_profiles"),
             (VIEW_AREAS_ID, ViewAreas, "view_areas"),
         ):
             if api_id in self.api_discovery:
@@ -169,6 +165,7 @@ class Vapix:
         apis: tuple[ApiHandler, ...] = (
             self.basic_device_info,
             self.pir_sensor_configuration,
+            self.stream_profiles,
         )
         for api in apis:
             if api.api_id.value not in self.api_discovery:
@@ -197,7 +194,7 @@ class Vapix:
             if not self.ports:
                 tasks.append(self.params.update_ports())
 
-            if not self.stream_profiles:
+            if len(self.stream_profiles) == 0:
                 tasks.append(self.params.update_stream_profiles())
 
             if self.view_areas:
