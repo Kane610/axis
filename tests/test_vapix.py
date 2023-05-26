@@ -13,8 +13,8 @@ from axis.vapix.interfaces.applications import (
     APPLICATION_STATE_RUNNING,
     APPLICATION_STATE_STOPPED,
 )
-from axis.vapix.interfaces.stream_profiles import StreamProfile
 from axis.vapix.interfaces.user_groups import UNKNOWN
+from axis.vapix.models.stream_profile import StreamProfile as StreamProfile
 from axis.vapix.vapix import Vapix
 
 from .applications.test_applications import (
@@ -181,7 +181,7 @@ async def test_initialize_api_discovery_unauthorized(vapix: Vapix):
     assert vapix.ports is None
     assert vapix.light_control is None
     assert vapix.mqtt is not None
-    assert vapix.stream_profiles is None
+    assert len(vapix.stream_profiles) == 0
 
 
 @respx.mock
@@ -216,7 +216,7 @@ async def test_initialize_param_cgi(vapix: Vapix):
     assert len(vapix.ports.values()) == 1
     assert len(vapix.light_control.values()) == 1
     assert vapix.mqtt is None
-    assert vapix.stream_profiles is None
+    assert len(vapix.stream_profiles) == 0
     assert vapix.streaming_profiles is not None
 
 

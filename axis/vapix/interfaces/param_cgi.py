@@ -539,6 +539,13 @@ class Params(APIItems):
 
         for raw_profile in raw_profiles.values():  # Convert profile keys to lower case
             profile = dict((k.lower(), v) for k, v in raw_profile.items())
-            profiles.append(StreamProfile(profile["name"], profile, self.vapix.request))
+            profiles.append(
+                StreamProfile(
+                    id=profile["name"],
+                    name=profile["name"],
+                    description=profile["description"],
+                    parameters=profile["parameters"],
+                )
+            )
 
         return profiles

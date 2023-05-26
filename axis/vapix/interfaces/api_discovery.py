@@ -13,8 +13,6 @@ from ..models.api_discovery import (
 )
 from .api_handler import ApiHandler
 
-URL = "/axis-cgi/apidiscovery.cgi"
-
 
 class ApiDiscoveryHandler(ApiHandler[Api]):
     """API Discovery for Axis devices."""
