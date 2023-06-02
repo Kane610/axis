@@ -92,19 +92,19 @@ general_error_codes = {
 class Geometry:
     """Represent a geometry object."""
 
-    horizontalOffset: int
-    horizontalSize: int
-    verticalOffset: int
-    verticalSize: int
+    horizontal_offset: int
+    horizontal_size: int
+    vertical_offset: int
+    vertical_size: int
 
     @classmethod
     def from_dict(cls, data: GeometryT) -> "Geometry":
         """Create geometry object from dict."""
         return Geometry(
-            horizontalOffset=data["horizontalOffset"],
-            horizontalSize=data["horizontalSize"],
-            verticalOffset=data["verticalOffset"],
-            verticalSize=data["verticalSize"],
+            horizontal_offset=data["horizontalOffset"],
+            horizontal_size=data["horizontalSize"],
+            vertical_offset=data["verticalOffset"],
+            vertical_size=data["verticalSize"],
         )
 
 
@@ -215,10 +215,10 @@ class SetGeometryRequest(ListViewAreasRequest):
                 "viewArea": {
                     "id": self.id,
                     "rectangularGeometry": {
-                        "horizontalOffset": self.geometry.horizontalOffset,
-                        "horizontalSize": self.geometry.horizontalSize,
-                        "verticalOffset": self.geometry.verticalOffset,
-                        "verticalSize": self.geometry.verticalSize,
+                        "horizontalOffset": self.geometry.horizontal_offset,
+                        "horizontalSize": self.geometry.horizontal_size,
+                        "verticalOffset": self.geometry.vertical_offset,
+                        "verticalSize": self.geometry.vertical_size,
                     },
                 }
             },
