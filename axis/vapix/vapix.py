@@ -36,7 +36,7 @@ from .interfaces.ptz import PtzControl
 from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UNKNOWN, UserGroups
-from .interfaces.view_areas import API_DISCOVERY_ID as VIEW_AREAS_ID, ViewAreas
+from .interfaces.view_areas import ViewAreaHandler
 from .models.api import ApiRequest
 
 if TYPE_CHECKING:
@@ -69,13 +69,13 @@ class Vapix:
         self.ptz: PtzControl | None = None
         self.user_groups: UserGroups | None = None
         self.users: Users | None = None
-        self.view_areas: ViewAreas | None = None
         self.vmd4: Vmd4 | None = None
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
         self.stream_profiles = StreamProfilesHandler(self)
+        self.view_areas = ViewAreaHandler(self)
 
     @property
     def firmware_version(self) -> str:
@@ -150,7 +150,6 @@ class Vapix:
             (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
             (LIGHT_CONTROL_ID, LightControl, "light_control"),
             (MQTT_ID, MqttClient, "mqtt"),
-            (VIEW_AREAS_ID, ViewAreas, "view_areas"),
         ):
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
@@ -166,6 +165,7 @@ class Vapix:
             self.basic_device_info,
             self.pir_sensor_configuration,
             self.stream_profiles,
+            self.view_areas,
         )
         for api in apis:
             if api.api_id.value not in self.api_discovery:
@@ -197,7 +197,7 @@ class Vapix:
             if len(self.stream_profiles) == 0:
                 tasks.append(self.params.update_stream_profiles())
 
-            if self.view_areas:
+            if len(self.view_areas) != 0:  # API Discovery supported?
                 tasks.append(self.params.update_image())
 
         if tasks:

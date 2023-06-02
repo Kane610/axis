@@ -1,73 +1,277 @@
 """View area API data model."""
 
-import attr
+from dataclasses import dataclass
 
-from .api import APIItem
+import orjson
+from typing_extensions import NotRequired, TypedDict
+
+from .api import CONTEXT, ApiItem, ApiRequest
+
+API_VERSION = "1.0"
 
 
-@attr.s
+class ErrorDataT(TypedDict):
+    """Error data in response."""
+
+    code: int
+    message: str
+
+
+class GeometryT(TypedDict):
+    """Represent a geometry object."""
+
+    horizontalOffset: int
+    horizontalSize: int
+    verticalOffset: int
+    verticalSize: int
+
+
+class SizeT(TypedDict):
+    """Represent a size object."""
+
+    horizontal: int
+    vertical: int
+
+
+class ViewAreaT(TypedDict):
+    """View area representation."""
+
+    id: int
+    source: int
+    camera: int
+    configurable: bool
+    rectangularGeometry: NotRequired[GeometryT]
+    canvasSize: NotRequired[SizeT]
+    minSize: NotRequired[SizeT]
+    maxSize: NotRequired[SizeT]
+    grid: NotRequired[GeometryT]
+
+
+class ListViewAreasDataT(TypedDict):
+    """List of view areas data."""
+
+    viewAreas: list[ViewAreaT]
+
+
+class ListViewAreasResponseT(TypedDict):
+    """List view areas response."""
+
+    apiVersion: str
+    context: str
+    method: str
+    data: ListViewAreasDataT
+    error: NotRequired[ErrorDataT]
+
+
+class ApiVersionsT(TypedDict):
+    """List of supported API versions."""
+
+    apiVersions: list[str]
+
+
+class GetSupportedVersionsResponseT(TypedDict):
+    """Get supported versions response."""
+
+    apiVersion: str
+    context: str
+    method: str
+    data: ApiVersionsT
+    error: NotRequired[ErrorDataT]
+
+
+general_error_codes = {
+    1100: "Internal error",
+    2100: "API version not supported",
+    2101: "Invalid JSON",
+    2102: "Method not supported",
+    2103: "Required parameter missing",
+    2104: "Invalid parameter value specified",
+}
+
+
+@dataclass
 class Geometry:
     """Represent a geometry object."""
 
-    horizontalOffset: int = attr.ib()
-    horizontalSize: int = attr.ib()
-    verticalOffset: int = attr.ib()
-    verticalSize: int = attr.ib()
+    horizontal_offset: int
+    horizontal_size: int
+    vertical_offset: int
+    vertical_size: int
+
+    @classmethod
+    def from_dict(cls, data: GeometryT) -> "Geometry":
+        """Create geometry object from dict."""
+        return Geometry(
+            horizontal_offset=data["horizontalOffset"],
+            horizontal_size=data["horizontalSize"],
+            vertical_offset=data["verticalOffset"],
+            vertical_size=data["verticalSize"],
+        )
 
 
-@attr.s
+@dataclass
 class Size:
     """Represent a size object."""
 
-    horizontal: int = attr.ib()
-    vertical: int = attr.ib()
+    horizontal: int
+    vertical: int
+
+    @classmethod
+    def from_dict(cls, item: SizeT) -> "Size":
+        """Create size object from dict."""
+        return Size(horizontal=item["horizontal"], vertical=item["vertical"])
 
 
-class ViewArea(APIItem):
+@dataclass
+class ViewArea(ApiItem):
     """View area object."""
 
-    @property
-    def source(self) -> int:
-        """Image source that created view area."""
-        return self.raw["source"]
-
-    @property
-    def camera(self) -> int:
-        """View area used by streaming, PTZ and other APIs."""
-        return self.raw["camera"]
-
-    @property
-    def configurable(self) -> bool:
-        """Define if a view can be configured.
-
-        Some view areas can not be configured and are thus unable to be changed
-        with regards to geometry, etc.
-        """
-        return self.raw["configurable"]
+    camera: int
+    source: int
+    configurable: bool
 
     # These are only listed if the geometry of the view area can be configured.
 
-    @property
-    def canvas_size(self) -> Size:
-        """Define size of the overview image that the view area geometry is defined on."""
-        return Size(**self.raw["canvasSize"])
+    canvas_size: Size | None = None
+    rectangular_geometry: Geometry | None = None
+    min_size: Size | None = None
+    max_size: Size | None = None
+    grid: Geometry | None = None
 
-    @property
-    def rectangular_geometry(self) -> Geometry:
-        """Define a geometry for the view area as a rectangle related to the canvas."""
-        return Geometry(**self.raw["rectangularGeometry"])
 
-    @property
-    def min_size(self) -> Size:
-        """Define the minimum size that a view area can have."""
-        return Size(**self.raw["minSize"])
+ListViewAreasT = dict[str, ViewArea]
 
-    @property
-    def max_size(self) -> Size:
-        """Define the maximum size that a view area can have."""
-        return Size(**self.raw["maxSize"])
 
-    @property
-    def grid(self) -> Geometry:
-        """Define the grid that a geometry is applied to on the canvas due to device limitations."""
-        return Geometry(**self.raw["grid"])
+@dataclass
+class ListViewAreasRequest(ApiRequest[ListViewAreasT]):
+    """Request object for listing view areas."""
+
+    method = "post"
+    path = "/axis-cgi/viewarea/info.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "list",
+        }
+
+    def process_raw(self, raw: str) -> ListViewAreasT:
+        """Prepare view area dictionary."""
+        data: ListViewAreasResponseT = orjson.loads(raw)
+        items = data.get("data", {}).get("viewAreas", [])
+
+        def create_geometry(item: GeometryT | None) -> Geometry | None:
+            """Create geometry object."""
+            if item is None:
+                return None
+            return Geometry.from_dict(item)
+
+        def create_size(item: SizeT | None) -> Size | None:
+            """Create size object."""
+            if item is None:
+                return None
+            return Size.from_dict(item)
+
+        return {
+            str(item["id"]): ViewArea(
+                id=str(item["id"]),
+                camera=item["camera"],
+                source=item["source"],
+                configurable=item["configurable"],
+                canvas_size=create_size(item.get("canvasSize")),
+                rectangular_geometry=create_geometry(item.get("rectangularGeometry")),
+                min_size=create_size(item.get("minSize")),
+                max_size=create_size(item.get("maxSize")),
+                grid=create_geometry(item.get("grid")),
+            )
+            for item in items
+        }
+
+
+@dataclass
+class SetGeometryRequest(ListViewAreasRequest):
+    """Request object for setting geometry of a view area."""
+
+    path = "/axis-cgi/viewarea/configure.cgi"
+    error_codes = general_error_codes
+
+    id: int | None = None
+    geometry: Geometry | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        assert self.id is not None and self.geometry is not None
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "setGeometry",
+            "params": {
+                "viewArea": {
+                    "id": self.id,
+                    "rectangularGeometry": {
+                        "horizontalOffset": self.geometry.horizontal_offset,
+                        "horizontalSize": self.geometry.horizontal_size,
+                        "verticalOffset": self.geometry.vertical_offset,
+                        "verticalSize": self.geometry.vertical_size,
+                    },
+                }
+            },
+        }
+
+
+@dataclass
+class ResetGeometryRequest(ListViewAreasRequest):
+    """Request object for resetting geometry of a view area."""
+
+    path = "/axis-cgi/viewarea/configure.cgi"
+    error_codes = general_error_codes
+
+    id: int | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        assert self.id is not None
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "resetGeometry",
+            "params": {"viewArea": {"id": self.id}},
+        }
+
+
+@dataclass
+class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+    """Request object for listing supported API versions."""
+
+    method = "post"
+    path = "/axis-cgi/viewarea/info.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "context": self.context,
+            "method": "getSupportedVersions",
+        }
+
+    def process_raw(self, raw: str) -> list[str]:
+        """Process supported versions."""
+        data: GetSupportedVersionsResponseT = orjson.loads(raw)
+        return data.get("data", {}).get("apiVersions", [])
+
+
+@dataclass
+class GetSupportedConfigVersionsRequest(GetSupportedVersionsRequest):
+    """Request object for listing supported API versions."""
+
+    path = "/axis-cgi/viewarea/configure.cgi"

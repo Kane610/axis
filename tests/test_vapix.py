@@ -99,7 +99,7 @@ async def test_initialize(vapix: Vapix):
     assert vapix.light_control
     assert vapix.mqtt
     assert vapix.stream_profiles
-    assert vapix.view_areas
+    assert len(vapix.view_areas) == 0
 
     assert vapix.params.brand == "AXIS"
     assert vapix.firmware_version == "9.80.1"
@@ -142,7 +142,7 @@ async def test_initialize_api_discovery(vapix: Vapix):
     assert vapix.light_control
     assert vapix.mqtt
     assert vapix.stream_profiles
-    assert vapix.view_areas
+    assert len(vapix.view_areas) == 0
 
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
