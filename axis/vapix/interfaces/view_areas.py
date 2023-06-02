@@ -7,9 +7,6 @@ covers a specific region of interest. The API is also able to simplify the insta
 process by fine tuning an area digitally after the camera has been manually pointed at a scene.
 """
 
-from dataclasses import asdict
-
-import attr
 
 from ..models.api_discovery import ApiId
 from ..models.view_area import (
@@ -21,20 +18,18 @@ from ..models.view_area import (
     ResetGeometryRequest,
     SetGeometryRequest,
     ViewArea,
-    ViewArea2,
 )
-from .api import APIItems, Body
 from .api_handler import ApiHandler
 
 
-class ViewAreaHandler(ApiHandler[ViewArea2]):
-    """PIR sensor configuration for Axis devices."""
+class ViewAreaHandler(ApiHandler[ViewArea]):
+    """View areas for Axis devices."""
 
     api_id = ApiId.VIEW_AREA
     api_request = ListViewAreasRequest()
 
     async def list_view_areas(self) -> ListViewAreasT:
-        """List all PIR sensors of device."""
+        """List all view areas of device."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         return await self.vapix.request2(ListViewAreasRequest(discovery_item.version))
 

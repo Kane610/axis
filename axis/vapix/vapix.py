@@ -69,7 +69,6 @@ class Vapix:
         self.ptz: PtzControl | None = None
         self.user_groups: UserGroups | None = None
         self.users: Users | None = None
-        # self.view_areas: ViewAreas | None = None
         self.vmd4: Vmd4 | None = None
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)

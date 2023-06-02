@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import orjson
 from typing_extensions import NotRequired, TypedDict
 
-from .api import CONTEXT, APIItem, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest
 
 API_VERSION = "1.0"
 
@@ -34,7 +34,7 @@ class SizeT(TypedDict):
 
 
 class ViewAreaT(TypedDict):
-    """Pir sensor configuration representation."""
+    """View area representation."""
 
     id: int
     source: int
@@ -53,7 +53,7 @@ class ListViewAreasDataT(TypedDict):
 
 
 class ListViewAreasResponseT(TypedDict):
-    """ListSensors response."""
+    """List view areas response."""
 
     apiVersion: str
     context: str
@@ -69,7 +69,7 @@ class ApiVersionsT(TypedDict):
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """ListSensors response."""
+    """Get supported versions response."""
 
     apiVersion: str
     context: str
@@ -99,7 +99,7 @@ class Geometry:
 
     @classmethod
     def from_dict(cls, data: GeometryT) -> "Geometry":
-        """Create event instance from dict."""
+        """Create geometry object from dict."""
         return Geometry(
             horizontalOffset=data["horizontalOffset"],
             horizontalSize=data["horizontalSize"],
@@ -117,12 +117,12 @@ class Size:
 
     @classmethod
     def from_dict(cls, item: SizeT) -> "Size":
-        """Create size object."""
+        """Create size object from dict."""
         return Size(horizontal=item["horizontal"], vertical=item["vertical"])
 
 
 @dataclass
-class ViewArea2(ApiItem):
+class ViewArea(ApiItem):
     """View area object."""
 
     camera: int
@@ -138,7 +138,7 @@ class ViewArea2(ApiItem):
     grid: Geometry | None = None
 
 
-ListViewAreasT = dict[str, ViewArea2]
+ListViewAreasT = dict[str, ViewArea]
 
 
 @dataclass
@@ -179,7 +179,7 @@ class ListViewAreasRequest(ApiRequest[ListViewAreasT]):
             return Size.from_dict(item)
 
         return {
-            str(item["id"]): ViewArea2(
+            str(item["id"]): ViewArea(
                 id=str(item["id"]),
                 camera=item["camera"],
                 source=item["source"],
@@ -274,56 +274,3 @@ class GetSupportedConfigVersionsRequest(GetSupportedVersionsRequest):
     """Request object for listing supported API versions."""
 
     path = "/axis-cgi/viewarea/configure.cgi"
-
-
-##########
-
-
-class ViewArea(APIItem):
-    """View area object."""
-
-    @property
-    def source(self) -> int:
-        """Image source that created view area."""
-        return self.raw["source"]
-
-    @property
-    def camera(self) -> int:
-        """View area used by streaming, PTZ and other APIs."""
-        return self.raw["camera"]
-
-    @property
-    def configurable(self) -> bool:
-        """Define if a view can be configured.
-
-        Some view areas can not be configured and are thus unable to be changed
-        with regards to geometry, etc.
-        """
-        return self.raw["configurable"]
-
-    # These are only listed if the geometry of the view area can be configured.
-
-    @property
-    def canvas_size(self) -> Size:
-        """Define size of the overview image that the view area geometry is defined on."""
-        return Size(**self.raw["canvasSize"])
-
-    @property
-    def rectangular_geometry(self) -> Geometry:
-        """Define a geometry for the view area as a rectangle related to the canvas."""
-        return Geometry(**self.raw["rectangularGeometry"])
-
-    @property
-    def min_size(self) -> Size:
-        """Define the minimum size that a view area can have."""
-        return Size(**self.raw["minSize"])
-
-    @property
-    def max_size(self) -> Size:
-        """Define the maximum size that a view area can have."""
-        return Size(**self.raw["maxSize"])
-
-    @property
-    def grid(self) -> Geometry:
-        """Define the grid that a geometry is applied to on the canvas due to device limitations."""
-        return Geometry(**self.raw["grid"])
