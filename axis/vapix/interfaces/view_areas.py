@@ -7,139 +7,67 @@ covers a specific region of interest. The API is also able to simplify the insta
 process by fine tuning an area digitally after the camera has been manually pointed at a scene.
 """
 
+from dataclasses import asdict
+
 import attr
 
-from ..models.view_area import Geometry, ViewArea
+from ..models.api_discovery import ApiId
+from ..models.view_area import (
+    Geometry,
+    GetSupportedConfigVersionsRequest,
+    GetSupportedVersionsRequest,
+    ListViewAreasRequest,
+    ListViewAreasT,
+    ResetGeometryRequest,
+    SetGeometryRequest,
+    ViewArea,
+    ViewArea2,
+)
 from .api import APIItems, Body
-
-URL = "/axis-cgi/viewarea"
-URL_INFO = f"{URL}/info.cgi"
-URL_CONFIG = f"{URL}/configure.cgi"
-
-API_DISCOVERY_ID = "view-area"
-API_VERSION = "1.0"
+from .api_handler import ApiHandler
 
 
-class ViewAreas(APIItems):
-    """View areas for Axis devices."""
+class ViewAreaHandler(ApiHandler[ViewArea2]):
+    """PIR sensor configuration for Axis devices."""
 
-    item_cls = ViewArea
-    path = URL
+    api_id = ApiId.VIEW_AREA
+    api_request = ListViewAreasRequest()
 
-    async def update(self) -> None:
-        """Refresh data."""
-        raw = await self.list()
-        self.process_raw(raw)
+    async def list_view_areas(self) -> ListViewAreasT:
+        """List all PIR sensors of device."""
+        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        return await self.vapix.request2(ListViewAreasRequest(discovery_item.version))
 
-    @staticmethod
-    def pre_process_raw(raw: dict) -> dict:
-        """Return a dictionary of view areas."""
-        view_area_data = raw.get("data", {}).get("viewAreas", [])
-        return {str(api["id"]): api for api in view_area_data}
+    async def set_geometry(self, id: int, geometry: Geometry) -> ListViewAreasT:
+        """Set geometry of a view area.
 
-    async def list(self) -> dict:
-        """List the content of a view area.
-
-        It is possible to list either one or multiple profiles and if the parameter
-        streamProfileName is the empty list [] all available stream profiles will be listed.
-        Security level: Viewer
-        """
-        return await self.vapix.request(
-            "post",
-            URL_INFO,
-            json=attr.asdict(
-                Body("list", API_VERSION),
-                filter=attr.filters.exclude(attr.fields(Body).params),
-            ),
-        )
-
-    async def get_supported_versions(self) -> dict:
-        """Retrieve a list of supported API versions.
-
-        Request info.cgi
-        Security level: Viewer
+        Security level: Admin
         Method: POST
         """
-        return await self.vapix.request(
-            "post",
-            URL_INFO,
-            json=attr.asdict(
-                Body("getSupportedVersions", API_VERSION),
-                filter=attr.filters.include(attr.fields(Body).method),
-            ),
+        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        return await self.vapix.request2(
+            SetGeometryRequest(
+                id=id,
+                geometry=geometry,
+                api_version=discovery_item.version,
+            )
         )
 
-    async def set_geometry(
-        self,
-        geometry: Geometry,
-        view_area_id: int | None = None,
-        view_area: ViewArea | None = None,
-    ) -> None:
+    async def reset_geometry(self, id: int) -> ListViewAreasT:
         """Restore geometry of a view area back to default values.
 
         Security level: Admin
         Method: POST
         """
-        if view_area:
-            view_area_id = int(view_area.id)
-
-        raw = await self.vapix.request(
-            "post",
-            URL_CONFIG,
-            json=attr.asdict(
-                Body(
-                    "setGeometry",
-                    API_VERSION,
-                    params={
-                        "viewArea": {
-                            "id": view_area_id,
-                            "rectangularGeometry": attr.asdict(geometry),
-                        }
-                    },
-                ),
-            ),
+        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        return await self.vapix.request2(
+            ResetGeometryRequest(id=id, api_version=discovery_item.version)
         )
 
-        self.process_raw(raw)
+    async def get_supported_versions(self) -> list[str]:
+        """List supported API versions."""
+        return await self.vapix.request2(GetSupportedVersionsRequest())
 
-    async def reset_geometry(
-        self,
-        view_area_id: int | None = None,
-        view_area: ViewArea | None = None,
-    ) -> None:
-        """Restore geometry of a view area back to default values.
-
-        Security level: Admin
-        Method: POST
-        """
-        if view_area:
-            view_area_id = int(view_area.id)
-
-        raw = await self.vapix.request(
-            "post",
-            URL_CONFIG,
-            json=attr.asdict(
-                Body(
-                    "resetGeometry",
-                    API_VERSION,
-                    params={"viewArea": {"id": view_area_id}},
-                ),
-            ),
-        )
-        self.process_raw(raw)
-
-    async def get_supported_config_versions(self) -> dict:
-        """Retrieve a list of supported API versions.
-
-        Request info.cgi
-        Security level: Viewer
-        Method: POST
-        """
-        return await self.vapix.request(
-            "post",
-            URL_CONFIG,
-            json=attr.asdict(
-                Body("getSupportedVersions", API_VERSION),
-                filter=attr.filters.include(attr.fields(Body).method),
-            ),
-        )
+    async def get_supported_config_versions(self) -> list[str]:
+        """List supported configure API versions."""
+        return await self.vapix.request2(GetSupportedConfigVersionsRequest())
