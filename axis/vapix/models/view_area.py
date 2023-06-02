@@ -39,6 +39,7 @@ class ViewAreaT(TypedDict):
     id: int
     source: int
     camera: int
+    configurable: bool
     rectangularGeometry: NotRequired[GeometryT]
     canvasSize: NotRequired[SizeT]
     minSize: NotRequired[SizeT]
