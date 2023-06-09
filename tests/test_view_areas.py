@@ -62,21 +62,6 @@ async def test_list_view_areas(view_areas: ViewAreaHandler):
                         "source": 0,
                         "camera": 2,
                         "configurable": False,
-                        # "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        # "rectangularGeometry": {
-                        #     "horizontalOffset": 0,
-                        #     "horizontalSize": 2592,
-                        #     "verticalOffset": 0,
-                        #     "verticalSize": 1944,
-                        # },
-                        # "minSize": {"horizontal": 64, "vertical": 64},
-                        # "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        # "grid": {
-                        #     "horizontalOffset": 0,
-                        #     "horizontalSize": 1,
-                        #     "verticalOffset": 0,
-                        #     "verticalSize": 1,
-                        # },
                     },
                 ]
             },
