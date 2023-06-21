@@ -1,13 +1,12 @@
 """MQTT Client api."""
 
 from dataclasses import dataclass
+from typing import Any
 
+import orjson
 from typing_extensions import NotRequired, TypedDict
 
-from .api import CONTEXT, APIItem, ApiRequest
-
-# from typing import Literal
-
+from .api import CONTEXT, ApiRequest
 
 API_VERSION = "1.0"
 
@@ -22,44 +21,48 @@ class ErrorDataT(TypedDict):
 class MessageT(TypedDict):
     """Represent a message object."""
 
-    message: str
-    qos: int
-    retain: bool
-    topic: str
     useDefault: bool
+    message: NotRequired[str]
+    qos: NotRequired[int]
+    retain: NotRequired[bool]
+    topic: NotRequired[str]
 
 
 class ServerT(TypedDict):
     """Represent a server object."""
 
     host: str
-    port: int
-    protocol: str
-    # protocol: Literal["ssl", "tcp", "ws", "wss"]
+    protocol: str  # Literal["ssl", "tcp", "ws", "wss"]
+    alpnProtocol: NotRequired[str]
+    basepath: NotRequired[str]
+    port: NotRequired[int]
 
 
 class SslT(TypedDict):
     """Represent a SSL object."""
 
     validateServerCert: bool
+    CACertID: NotRequired[str]
+    clientCertID: NotRequired[str]
 
 
 class ConfigT(TypedDict):
     """Represent client config."""
 
-    autoReconnect: bool
-    cleanSession: bool
-    clientId: str
-    connectMessage: MessageT
-    connectTimeout: int
-    deviceTopicPrefix: str
-    disconnectMessage: MessageT
-    keepAliveInterval: int
-    lastWillTestament: MessageT
-    password: str
     server: ServerT
-    ssl: SslT
-    username: str
+    autoReconnect: NotRequired[bool]
+    cleanSession: NotRequired[bool]
+    clientId: NotRequired[str]
+    connectMessage: NotRequired[MessageT]
+    connectTimeout: NotRequired[int]
+    deviceTopicPrefix: NotRequired[str]
+    disconnectMessage: NotRequired[MessageT]
+    lastWillTestament: NotRequired[MessageT]
+    password: NotRequired[str]
+    keepAliveInterval: NotRequired[int]
+    keepExistingPassword: NotRequired[bool]
+    ssl: NotRequired[SslT]
+    username: NotRequired[str]
 
 
 class StatusT(TypedDict):
@@ -86,6 +89,41 @@ class GetClientStatusResponseT(TypedDict):
     error: NotRequired[ErrorDataT]
 
 
+class EventFilterT(TypedDict):
+    """Event filter."""
+
+    topicFilter: str
+    qos: int
+    retain: str
+
+
+class EventPublicationConfigT(TypedDict):
+    """Event publication config."""
+
+    appendEventTopic: bool
+    customTopicPrefix: str
+    eventFilterList: list[EventFilterT]
+    includeTopicNamespaces: bool
+    includeSerialNumberInPayload: bool
+    topicPrefix: str
+
+
+class EventPublicationConfigDataT(TypedDict):
+    """Event publication config data."""
+
+    eventPublicationConfig: EventPublicationConfigT
+
+
+class GetEventPublicationConfigResponseT(TypedDict):
+    """Represent event publication config."""
+
+    apiVersion: str
+    context: str
+    method: str
+    data: EventPublicationConfigDataT
+    error: NotRequired[ErrorDataT]
+
+
 general_error_codes = {
     1100: "Internal error",
     2100: "API version not supported",
@@ -96,13 +134,279 @@ general_error_codes = {
 }
 
 
-class Client(APIItem):
-    """MQTT client."""
+@dataclass
+class Message:
+    """Message description."""
+
+    use_default: bool = True
+    topic: str | None = None
+    message: str | None = None
+    retain: bool | None = None
+    qos: int | None = None
+
+    def to_dict(self) -> MessageT:
+        """Create json dict from object."""
+        data: MessageT = {"useDefault": self.use_default}
+        if self.topic is not None:
+            data["topic"] = self.topic
+        if self.message is not None:
+            data["message"] = self.message
+        if self.retain is not None:
+            data["retain"] = self.retain
+        if self.qos is not None:
+            data["qos"] = self.qos
+        return data
 
 
 @dataclass
-class ListViewAreasRequest(ApiRequest[None]):
-    """Request object for listing view areas."""
+class Server:
+    """Represent server config."""
+
+    host: str
+    protocol: str = "tcp"  # "ssl", "tcp", "ws", "wss"
+    alpn_protocol: str | None = None
+    basepath: str | None = None
+    port: int | None = None
+
+    @classmethod
+    def from_dict(cls, data: ServerT) -> "Server":
+        """Create server object from dict."""
+        return Server(
+            host=data["host"],
+            protocol=data["protocol"],
+            alpn_protocol=data.get("alpnProtocol"),
+            basepath=data.get("basepath"),
+            port=data.get("port"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Create json dict from object."""
+        data = {"host": self.host}
+        if self.protocol is not None:
+            data["protocol"] = self.protocol
+        if self.alpn_protocol is not None:
+            data["alpnProtocol"] = self.alpn_protocol
+        if self.basepath is not None:
+            data["basepath"] = self.basepath
+        if self.port is not None:
+            data["port"] = self.port
+        return data
+
+
+@dataclass
+class Ssl:
+    """Represent SSL config."""
+
+    validate_server_cert: bool = False
+    ca_cert_id: str | None = None
+    client_cert_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Create json dict from object."""
+        data = {"validateServerCert": self.validate_server_cert}
+        if self.ca_cert_id is not None:
+            data["caCertId"] = self.ca_cert_id
+        if self.client_cert_id is not None:
+            data["clientCertId"] = self.client_cert_id
+        return data
+
+
+@dataclass
+class ClientConfig:
+    """Represent client config."""
+
+    server: Server
+    activate_on_reboot: bool | None = None
+    auto_reconnect: bool | None = None
+    clean_session: bool | None = None
+    client_id: str | None = None
+    connect_message: Message | None = None
+    connect_timeout: int | None = None
+    disconnect_message: Message | None = None
+    keep_alive_interval: int | None = None
+    last_will_testament: Message | None = None
+    password: str | None = None
+    ssl: Ssl | None = None
+    username: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: ConfigT) -> "ClientConfig":
+        """Create client status object from dict."""
+        return ClientConfig(server=Server.from_dict(data["server"]))
+
+    def to_dict(self) -> ConfigT:
+        """Create json dict from object."""
+        data: ConfigT = {"server": self.server.to_dict()}
+        if self.activate_on_reboot is not None:
+            data["activateOnReboot"] = self.activate_on_reboot
+        if self.auto_reconnect is not None:
+            data["autoReconnect"] = self.auto_reconnect
+        if self.clean_session is not None:
+            data["cleanSession"] = self.clean_session
+        if self.client_id is not None:
+            data["clientId"] = self.client_id
+        if self.connect_message is not None:
+            data["connectMessage"] = self.connect_message.to_dict()
+        if self.connect_timeout is not None:
+            data["connectTimeout"] = self.connect_timeout
+        if self.disconnect_message is not None:
+            data["disconnectMessage"] = self.disconnect_message.to_dict()
+        if self.keep_alive_interval is not None:
+            data["keepAliveInterval"] = self.keep_alive_interval
+        if self.last_will_testament is not None:
+            data["lastWillTestament"] = self.last_will_testament.to_dict()
+        if self.password is not None:
+            data["password"] = self.password
+        if self.ssl is not None:
+            data["ssl"] = self.ssl.to_dict()
+        if self.username is not None:
+            data["username"] = self.username
+        return data
+
+
+@dataclass
+class ClientStatus:
+    """Represent client status."""
+
+    connection_status: str
+    state: str
+
+    @classmethod
+    def from_dict(cls, data: StatusT) -> "ClientStatus":
+        """Create client status object from dict."""
+        return ClientStatus(
+            connection_status=data["connectionStatus"],
+            state=data["state"],
+        )
+
+
+@dataclass
+class ClientConfigStatus:
+    """GetClientStatus response."""
+
+    config: ClientConfig
+    status: ClientStatus
+
+    @classmethod
+    def from_dict(cls, data: ClientStatusDataT) -> "ClientConfigStatus":
+        """Create client config status object from dict."""
+        return ClientConfigStatus(
+            config=ClientConfig.from_dict(data["config"]),
+            status=ClientStatus.from_dict(data["status"]),
+        )
+
+
+@dataclass
+class EventFilter:
+    """Event filter."""
+
+    topic_filter: str
+    qos: int | None = None
+    retain: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: EventFilterT) -> "EventFilter":
+        """Create event filter object from dict."""
+        return EventFilter(
+            topic_filter=data["topicFilter"],
+            qos=data.get("qos"),
+            retain=data.get("retain"),
+        )
+
+    @classmethod
+    def from_list(cls, data: list[EventFilterT]) -> "list[EventFilter]":
+        """Create event filter object from dict."""
+        return [EventFilter.from_dict(item) for item in data]
+
+    def to_dict(self) -> EventFilterT:
+        """Create json dict from object."""
+        data: EventFilterT = {"topicFilter": self.topic_filter}
+        if self.qos is not None:
+            data["qos"] = self.qos
+        if self.retain is not None:
+            data["retain"] = self.retain
+        return data
+
+    @classmethod
+    def to_list(cls, data: "list[EventFilter]") -> list[EventFilterT]:
+        """Create json list from object."""
+        return [item.to_dict() for item in data]
+
+
+@dataclass
+class EventPublicationConfig:
+    """Event publication config."""
+
+    topic_prefix: str | None = None
+    custom_topic_prefix: str | None = None
+    append_event_topic: bool | None = None
+    include_topic_namespaces: bool | None = None
+    include_serial_number_in_payload: bool | None = None
+    event_filter_list: list[EventFilter] | None = None
+
+    @classmethod
+    def from_dict(cls, data: EventPublicationConfigT) -> "EventPublicationConfig":
+        """Create client config status object from dict."""
+        return EventPublicationConfig(
+            topic_prefix=data["topicPrefix"],
+            custom_topic_prefix=data["customTopicPrefix"],
+            append_event_topic=data["appendEventTopic"],
+            include_topic_namespaces=data["includeTopicNamespaces"],
+            include_serial_number_in_payload=data["includeSerialNumberInPayload"],
+            event_filter_list=EventFilter.from_list(data["eventFilterList"]),
+        )
+
+    def to_dict(self) -> EventPublicationConfigT:
+        """Create json dict from object."""
+        data: EventPublicationConfigT = {}
+        if self.topic_prefix is not None:
+            data["topicPrefix"] = self.topic_prefix
+        if self.custom_topic_prefix is not None:
+            data["customTopicPrefix"] = self.custom_topic_prefix
+        if self.append_event_topic is not None:
+            data["appendEventTopic"] = self.append_event_topic
+        if self.include_topic_namespaces is not None:
+            data["includeTopicNamespaces"] = self.include_topic_namespaces
+        if self.include_serial_number_in_payload is not None:
+            data["includeSerialNumberInPayload"] = self.include_serial_number_in_payload
+        if self.event_filter_list is not None:
+            data["eventFilterList"] = [
+                event_filter.to_dict() for event_filter in self.event_filter_list
+            ]
+        return data
+
+
+@dataclass
+class ConfigureClientRequest(ApiRequest[None]):
+    """Request object for configuring MQTT client."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/client.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+    client_config: ClientConfig | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        assert self.client_config is not None
+        print(self.client_config.to_dict())
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "configureClient",
+            "params": self.client_config.to_dict(),
+        }
+
+    def process_raw(self, raw: str) -> None:
+        """Prepare view area dictionary."""
+
+
+@dataclass
+class ActivateClientRequest(ApiRequest[None]):
+    """Request object for activating MQTT client."""
 
     method = "post"
     path = "/axis-cgi/mqtt/client.cgi"
@@ -117,8 +421,100 @@ class ListViewAreasRequest(ApiRequest[None]):
         self.data = {
             "apiVersion": self.api_version,
             "context": self.context,
-            "method": "configureClient",
-            "params": None,
+            "method": "activateClient",
+        }
+
+    def process_raw(self, raw: str) -> None:
+        """Prepare view area dictionary."""
+
+
+@dataclass
+class DeactivateClientRequest(ActivateClientRequest):
+    """Request object for deactivating MQTT client."""
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "deactivateClient",
+        }
+
+
+@dataclass
+class GetClientStatusRequest(ApiRequest[ClientConfigStatus]):
+    """Request object for getting MQTT client status."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/client.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "getClientStatus",
+        }
+
+    def process_raw(self, raw: str) -> ClientConfigStatus:
+        """Prepare view area dictionary."""
+        data: GetClientStatusResponseT = orjson.loads(raw)
+        print(data)
+        return ClientConfigStatus.from_dict(data["data"])
+
+
+@dataclass
+class GetEventPublicationConfigRequest(ApiRequest[ClientConfigStatus]):
+    """Request object for getting MQTT event publication config."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/event.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "getEventPublicationConfig",
+        }
+
+    def process_raw(self, raw: str) -> EventPublicationConfig:
+        """Prepare view area dictionary."""
+        data: GetEventPublicationConfigResponseT = orjson.loads(raw)
+        return EventPublicationConfig.from_dict(data["data"]["eventPublicationConfig"])
+
+
+@dataclass
+class ConfigureEventPublicationRequest(ApiRequest[None]):
+    """Request object for configuring event publication over MQTT."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/event.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+    config: EventPublicationConfig | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        assert self.config is not None
+        self.data = {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "configureEventPublication",
+            "params": self.config.to_dict(),
         }
 
     def process_raw(self, raw: str) -> None:
