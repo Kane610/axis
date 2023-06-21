@@ -24,7 +24,7 @@ from .interfaces.applications.vmd4 import Vmd4
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
-from .interfaces.mqtt import API_DISCOVERY_ID as MQTT_ID, MqttClient
+from .interfaces.mqtt import MqttClientHandler
 from .interfaces.param_cgi import Params
 from .interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 from .interfaces.port_cgi import Ports
@@ -62,7 +62,6 @@ class Vapix:
         self.light_control: LightControl | None = None
         self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
-        self.mqtt: MqttClient | None = None
         self.object_analytics: ObjectAnalytics | None = None
         self.params: Params | None = None
         self.ports: IoPortManagement | Ports | None = None
@@ -73,6 +72,7 @@ class Vapix:
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
+        self.mqtt = MqttClientHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
         self.stream_profiles = StreamProfilesHandler(self)
         self.view_areas = ViewAreaHandler(self)
@@ -149,7 +149,6 @@ class Vapix:
         for api_id, api_class, api_attr in (
             (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
             (LIGHT_CONTROL_ID, LightControl, "light_control"),
-            (MQTT_ID, MqttClient, "mqtt"),
         ):
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
@@ -157,12 +156,14 @@ class Vapix:
         async def do_api_request(api: ApiHandler) -> None:
             """Try update of API."""
             try:
-                await api.update()
+                if api.api_request is not None:
+                    await api.update()
             except Unauthorized:  # Probably a viewer account
                 pass
 
         apis: tuple[ApiHandler, ...] = (
             self.basic_device_info,
+            self.mqtt,
             self.pir_sensor_configuration,
             self.stream_profiles,
             self.view_areas,

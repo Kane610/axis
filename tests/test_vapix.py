@@ -97,7 +97,7 @@ async def test_initialize(vapix: Vapix):
     assert vapix.api_discovery
     assert vapix.basic_device_info
     assert vapix.light_control
-    assert vapix.mqtt
+    assert vapix.mqtt is not None
     assert vapix.stream_profiles
     assert len(vapix.view_areas) == 0
 
@@ -140,7 +140,7 @@ async def test_initialize_api_discovery(vapix: Vapix):
     assert vapix.api_discovery
     assert vapix.basic_device_info
     assert vapix.light_control
-    assert vapix.mqtt
+    assert vapix.mqtt is not None
     assert vapix.stream_profiles
     assert len(vapix.view_areas) == 0
 
@@ -153,7 +153,7 @@ async def test_initialize_api_discovery(vapix: Vapix):
     assert len(vapix.basic_device_info) == 1
     assert len(vapix.ports) == 1
     assert len(vapix.light_control) == 1
-    assert vapix.mqtt is not None
+    assert len(vapix.mqtt) == 0
     assert len(vapix.stream_profiles) == 1
 
 
@@ -215,7 +215,7 @@ async def test_initialize_param_cgi(vapix: Vapix):
     assert len(vapix.basic_device_info) == 0
     assert len(vapix.ports.values()) == 1
     assert len(vapix.light_control.values()) == 1
-    assert vapix.mqtt is None
+    assert len(vapix.mqtt) == 0
     assert len(vapix.stream_profiles) == 0
     assert vapix.streaming_profiles is not None
 
