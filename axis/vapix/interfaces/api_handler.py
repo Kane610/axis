@@ -22,7 +22,7 @@ class ApiHandler(ABC, Generic[ApiItemT]):
     """Base class for a map of API Items."""
 
     api_id: "ApiId"
-    api_request: ApiRequest[dict[str, ApiItemT]]
+    api_request: ApiRequest[dict[str, ApiItemT]] | None
 
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
@@ -31,6 +31,8 @@ class ApiHandler(ABC, Generic[ApiItemT]):
 
     async def update(self) -> None:
         """Refresh data."""
+        if self.api_request is None:
+            return
         self._items = await self.vapix.request2(self.api_request)
 
     def items(self) -> ItemsView[str, ApiItemT]:

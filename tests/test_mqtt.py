@@ -4,31 +4,28 @@ pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 import respx
 
-from axis.vapix.interfaces.mqtt import (
-    ClientConfig,
-    Message,
-    MqttClient,
-    Server,
-    Ssl,
-    mqtt_json_to_event,
-)
+from axis.device import AxisDevice
+from axis.vapix.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
+from axis.vapix.models.mqtt import ClientConfig, Message, Server, Ssl
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def mqtt_client(axis_device) -> MqttClient:
+def mqtt_client(axis_device: AxisDevice) -> MqttClientHandler:
     """Return the mqtt_client mock object."""
-    return MqttClient(axis_device.vapix)
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    api_discovery_mock.__getitem__().version = "1.0"
+    return axis_device.vapix.mqtt
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_client_config_simple(mqtt_client):
+async def test_client_config_simple(mqtt_client: MqttClientHandler):
     """Test simple MQTT client configuration."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
 
@@ -44,59 +41,58 @@ async def test_client_config_simple(mqtt_client):
         "apiVersion": "1.0",
         "context": "Axis library",
         "params": {
-            "server": {"host": "192.168.0.1", "port": 1883, "protocol": "tcp"},
-            "lastWillTestament": {"useDefault": True},
-            "connectMessage": {"useDefault": True},
-            "disconnectMessage": {"useDefault": True},
-            "ssl": {"validateServerCert": False},
-            "activateOnReboot": True,
-            "clientId": "",
-            "keepAliveInterval": 60,
-            "connectTimeout": 60,
-            "cleanSession": True,
-            "autoReconnect": True,
+            "server": {"host": "192.168.0.1", "protocol": "tcp"},
         },
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_client_config_advanced(mqtt_client):
+async def test_client_config_advanced(mqtt_client: MqttClientHandler):
     """Test advanced MQTT client configuration."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
 
     client_config = ClientConfig(
-        Server("192.168.0.1"),
-        lastWillTestament=Message(
-            useDefault=False,
+        Server(
+            "192.168.0.1",
+            protocol="ws",
+            alpn_protocol="alpn",
+            basepath="base",
+            port=1883,
+        ),
+        last_will_testament=Message(
+            use_default=False,
             topic="LWT/client_1",
             message="client_1 LWT",
             retain=True,
             qos=1,
         ),
-        connectMessage=Message(
-            useDefault=False,
+        connect_message=Message(
+            use_default=False,
             topic="connected/client_1",
             message="client_1 connected",
             retain=False,
             qos=1,
         ),
-        disconnectMessage=Message(
-            useDefault=False,
+        disconnect_message=Message(
+            use_default=False,
             topic="disconnected/client_1",
             message="client_1 disconnected",
             retain=False,
             qos=1,
         ),
-        ssl=Ssl(validateServerCert=True),
-        activateOnReboot=False,
+        ssl=Ssl(
+            validate_server_cert=True,
+            ca_cert_id="CA ID",
+            client_cert_id="Client ID",
+        ),
+        activate_on_reboot=False,
         username="root",
         password="pass",
-        clientId="client_1",
-        keepAliveInterval=90,
-        connectTimeout=90,
-        cleanSession=False,
-        autoReconnect=False,
+        client_id="client_1",
+        keep_alive_interval=90,
+        connect_timeout=90,
+        clean_session=False,
+        auto_reconnect=False,
     )
 
     await mqtt_client.configure_client(client_config)
@@ -109,7 +105,13 @@ async def test_client_config_advanced(mqtt_client):
         "apiVersion": "1.0",
         "context": "Axis library",
         "params": {
-            "server": {"host": "192.168.0.1", "port": 1883, "protocol": "tcp"},
+            "server": {
+                "host": "192.168.0.1",
+                "port": 1883,
+                "protocol": "ws",
+                "alpnProtocol": "alpn",
+                "basepath": "base",
+            },
             "lastWillTestament": {
                 "useDefault": False,
                 "topic": "LWT/client_1",
@@ -131,7 +133,11 @@ async def test_client_config_advanced(mqtt_client):
                 "retain": False,
                 "qos": 1,
             },
-            "ssl": {"validateServerCert": True},
+            "ssl": {
+                "validateServerCert": True,
+                "CACertID": "CA ID",
+                "clientCertID": "Client ID",
+            },
             "activateOnReboot": False,
             "clientId": "client_1",
             "keepAliveInterval": 90,
@@ -145,8 +151,7 @@ async def test_client_config_advanced(mqtt_client):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_activate_client(mqtt_client):
+async def test_activate_client(mqtt_client: MqttClientHandler):
     """Test activate client method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
 
@@ -159,13 +164,11 @@ async def test_activate_client(mqtt_client):
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "activateClient",
-        "params": {},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_deactivate_client(mqtt_client):
+async def test_deactivate_client(mqtt_client: MqttClientHandler):
     """Test deactivate client method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
 
@@ -178,15 +181,15 @@ async def test_deactivate_client(mqtt_client):
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "deactivateClient",
-        "params": {},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_client_status(mqtt_client):
+async def test_get_client_status(mqtt_client: MqttClientHandler):
     """Test get client status method."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
+    route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi").respond(
+        json=response_get_client_status,
+    )
 
     await mqtt_client.get_client_status()
 
@@ -197,13 +200,11 @@ async def test_get_client_status(mqtt_client):
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "getClientStatus",
-        "params": {},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_event_publication_config(mqtt_client):
+async def test_get_event_publication_config_small(mqtt_client: MqttClientHandler):
     """Test get event publication config method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi").respond(
         json={
@@ -236,21 +237,27 @@ async def test_get_event_publication_config(mqtt_client):
         "method": "getEventPublicationConfig",
     }
 
-    assert response["data"] == {
-        "eventPublicationConfig": {
-            "topicPrefix": "default",
-            "customTopicPrefix": "",
-            "appendEventTopic": True,
-            "includeTopicNamespaces": True,
-            "includeSerialNumberInPayload": False,
-            "eventFilterList": [{"topicFilter": "//.", "qos": 0, "retain": "none"}],
-        }
+    assert response.topic_prefix == "default"
+    assert response.custom_topic_prefix == ""
+    assert response.append_event_topic is True
+    assert response.include_topic_namespaces is True
+    assert response.include_serial_number_in_payload is False
+    assert response.event_filter_list[0].topic_filter == "//."
+    assert response.event_filter_list[0].qos == 0
+    assert response.event_filter_list[0].retain == "none"
+
+    assert response.to_dict() == {
+        "topicPrefix": "default",
+        "customTopicPrefix": "",
+        "appendEventTopic": True,
+        "includeTopicNamespaces": True,
+        "includeSerialNumberInPayload": False,
+        "eventFilterList": [{"topicFilter": "//.", "qos": 0, "retain": "none"}],
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_configure_event_publication_all_topics(mqtt_client):
+async def test_configure_event_publication_all_topics(mqtt_client: MqttClientHandler):
     """Test configure event publication method with all topics."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi")
 
@@ -268,8 +275,9 @@ async def test_configure_event_publication_all_topics(mqtt_client):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_configure_event_publication_specific_topics(mqtt_client):
+async def test_configure_event_publication_specific_topics(
+    mqtt_client: MqttClientHandler,
+):
     """Test configure event publication method with specific topics."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi")
 
@@ -297,7 +305,6 @@ async def test_configure_event_publication_specific_topics(mqtt_client):
     }
 
 
-@pytest.mark.asyncio
 async def test_convert_json_to_event():
     """Verify conversion from json to event."""
     event = mqtt_json_to_event(

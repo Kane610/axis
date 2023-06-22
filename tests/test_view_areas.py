@@ -37,27 +37,6 @@ async def test_list_view_areas(view_areas: ViewAreaHandler):
             "data": {
                 "viewAreas": [
                     {
-                        "id": 1000008,
-                        "source": 0,
-                        "camera": 8,
-                        "configurable": True,
-                        "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        "rectangularGeometry": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 2592,
-                            "verticalOffset": 0,
-                            "verticalSize": 1944,
-                        },
-                        "minSize": {"horizontal": 64, "vertical": 64},
-                        "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        "grid": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 1,
-                            "verticalOffset": 0,
-                            "verticalSize": 1,
-                        },
-                    },
-                    {
                         "id": 1000001,
                         "source": 0,
                         "camera": 1,
@@ -79,130 +58,10 @@ async def test_list_view_areas(view_areas: ViewAreaHandler):
                         },
                     },
                     {
-                        "id": 1000007,
-                        "source": 0,
-                        "camera": 7,
-                        "configurable": True,
-                        "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        "rectangularGeometry": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 2592,
-                            "verticalOffset": 0,
-                            "verticalSize": 1944,
-                        },
-                        "minSize": {"horizontal": 64, "vertical": 64},
-                        "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        "grid": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 1,
-                            "verticalOffset": 0,
-                            "verticalSize": 1,
-                        },
-                    },
-                    {
-                        "id": 1000006,
-                        "source": 0,
-                        "camera": 6,
-                        "configurable": True,
-                        "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        "rectangularGeometry": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 2592,
-                            "verticalOffset": 0,
-                            "verticalSize": 1944,
-                        },
-                        "minSize": {"horizontal": 64, "vertical": 64},
-                        "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        "grid": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 1,
-                            "verticalOffset": 0,
-                            "verticalSize": 1,
-                        },
-                    },
-                    {
-                        "id": 1000005,
-                        "source": 0,
-                        "camera": 5,
-                        "configurable": True,
-                        "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        "rectangularGeometry": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 2592,
-                            "verticalOffset": 0,
-                            "verticalSize": 1944,
-                        },
-                        "minSize": {"horizontal": 64, "vertical": 64},
-                        "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        "grid": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 1,
-                            "verticalOffset": 0,
-                            "verticalSize": 1,
-                        },
-                    },
-                    {
-                        "id": 1000004,
-                        "source": 0,
-                        "camera": 4,
-                        "configurable": True,
-                        "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        "rectangularGeometry": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 2592,
-                            "verticalOffset": 0,
-                            "verticalSize": 1944,
-                        },
-                        "minSize": {"horizontal": 64, "vertical": 64},
-                        "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        "grid": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 1,
-                            "verticalOffset": 0,
-                            "verticalSize": 1,
-                        },
-                    },
-                    {
-                        "id": 1000003,
-                        "source": 0,
-                        "camera": 3,
-                        "configurable": True,
-                        "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        "rectangularGeometry": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 2592,
-                            "verticalOffset": 0,
-                            "verticalSize": 1944,
-                        },
-                        "minSize": {"horizontal": 64, "vertical": 64},
-                        "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        "grid": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 1,
-                            "verticalOffset": 0,
-                            "verticalSize": 1,
-                        },
-                    },
-                    {
                         "id": 1000002,
                         "source": 0,
                         "camera": 2,
-                        "configurable": True,
-                        "canvasSize": {"horizontal": 2592, "vertical": 1944},
-                        "rectangularGeometry": {
-                            "horizontalOffset": 783,
-                            "horizontalSize": 683,
-                            "verticalOffset": 122,
-                            "verticalSize": 512,
-                        },
-                        "minSize": {"horizontal": 64, "vertical": 64},
-                        "maxSize": {"horizontal": 2592, "vertical": 1944},
-                        "grid": {
-                            "horizontalOffset": 0,
-                            "horizontalSize": 1,
-                            "verticalOffset": 0,
-                            "verticalSize": 1,
-                        },
+                        "configurable": False,
                     },
                 ]
             },
@@ -219,7 +78,7 @@ async def test_list_view_areas(view_areas: ViewAreaHandler):
         "context": "Axis library",
     }
 
-    assert len(view_areas) == 8
+    assert len(view_areas) == 2
 
     view_area = view_areas["1000001"]
     assert view_area.id == "1000001"
@@ -245,6 +104,21 @@ async def test_list_view_areas(view_areas: ViewAreaHandler):
     assert view_area.grid.horizontal_size == 1
     assert view_area.grid.vertical_offset == 0
     assert view_area.grid.vertical_size == 1
+
+    items = await view_areas.list_view_areas()
+    assert len(items) == 2
+
+    view_area = items["1000002"]
+    assert view_area.id == "1000002"
+    assert view_area.source == 0
+    assert view_area.camera == 2
+    assert not view_area.configurable
+
+    assert view_area.canvas_size is None
+    assert view_area.rectangular_geometry is None
+    assert view_area.max_size is None
+    assert view_area.min_size is None
+    assert view_area.grid is None
 
 
 @respx.mock
