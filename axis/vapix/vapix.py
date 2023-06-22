@@ -23,7 +23,7 @@ from .interfaces.applications.object_analytics import ObjectAnalytics
 from .interfaces.applications.vmd4 import Vmd4
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
-from .interfaces.light_control import API_DISCOVERY_ID as LIGHT_CONTROL_ID, LightControl
+from .interfaces.light_control import LightControl, LightHandler
 from .interfaces.mqtt import MqttClientHandler
 from .interfaces.param_cgi import Params
 from .interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
@@ -59,7 +59,6 @@ class Vapix:
         self.applications: Applications | None = None
         self.event_instances: EventInstances | None = None
         self.fence_guard: FenceGuard | None = None
-        self.light_control: LightControl | None = None
         self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
         self.object_analytics: ObjectAnalytics | None = None
@@ -72,6 +71,7 @@ class Vapix:
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
+        self.light_control = LightHandler(self)
         self.mqtt = MqttClientHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
         self.stream_profiles = StreamProfilesHandler(self)
@@ -148,7 +148,7 @@ class Vapix:
 
         for api_id, api_class, api_attr in (
             (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
-            (LIGHT_CONTROL_ID, LightControl, "light_control"),
+            # (LIGHT_CONTROL_ID, LightControl, "light_control"),
         ):
             if api_id in self.api_discovery:
                 tasks.append(self._initialize_api_attribute(api_class, api_attr))
@@ -162,6 +162,7 @@ class Vapix:
 
         apis: tuple[ApiHandler, ...] = (
             self.basic_device_info,
+            self.light_control,
             self.mqtt,
             self.pir_sensor_configuration,
             self.stream_profiles,
@@ -203,7 +204,10 @@ class Vapix:
         if tasks:
             await asyncio.gather(*tasks)
 
-        if not self.light_control and self.params.light_control:
+        if (
+            self.light_control.api_id.value not in self.api_discovery
+            and self.params.light_control
+        ):
             await self._initialize_api_attribute(LightControl, "light_control")
 
         if not self.ports:

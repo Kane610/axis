@@ -4,23 +4,26 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 import respx
 
-from axis.vapix.interfaces.light_control import LightControl
+from axis.device import AxisDevice
+from axis.vapix.interfaces.light_control import LightControl, LightHandler
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def light_control(axis_device) -> LightControl:
+def light_control(axis_device: AxisDevice) -> LightControl | LightHandler:
     """Return the light_control mock object."""
-    return LightControl(axis_device.vapix)
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    api_discovery_mock.__getitem__().version = "1.0"
+    return axis_device.vapix.light_control
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_update(light_control):
     """Test update method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -61,7 +64,6 @@ async def test_update(light_control):
 
     item = light_control["led0"]
     assert item.id == "led0"
-    assert item.light_id == "led0"
     assert item.light_type == "IR"
     assert item.enabled is True
     assert item.synchronize_day_night_mode is True
@@ -74,7 +76,6 @@ async def test_update(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_service_capabilities(light_control):
     """Test get service capabilities API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -116,8 +117,7 @@ async def test_get_service_capabilities(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_light_information(light_control):
+async def test_get_light_information(light_control: LightHandler):
     """Test get light information API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
@@ -149,30 +149,24 @@ async def test_get_light_information(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getLightInformation",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
     }
 
-    assert response["data"] == {
-        "items": [
-            {
-                "lightID": "led0",
-                "lightType": "IR",
-                "enabled": True,
-                "synchronizeDayNightMode": True,
-                "lightState": False,
-                "automaticIntensityMode": False,
-                "automaticAngleOfIlluminationMode": False,
-                "nrOfLEDs": 1,
-                "error": False,
-                "errorInfo": "",
-            }
-        ]
-    }
+    light = response["led0"]
+    assert light.id == "led0"
+    assert light.light_type == "IR"
+    assert light.enabled is True
+    assert light.synchronize_day_night_mode is True
+    assert light.light_state is False
+    assert light.automatic_intensity_mode is False
+    assert light.automatic_angle_of_illumination_mode is False
+    assert light.number_of_leds == 1
+    assert light.error is False
+    assert light.error_info == ""
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_activate_light(light_control):
     """Test activating light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -197,7 +191,6 @@ async def test_activate_light(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_deactivate_light(light_control):
     """Test deactivating light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -222,7 +215,6 @@ async def test_deactivate_light(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_enable_light(light_control):
     """Test enabling light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -247,7 +239,6 @@ async def test_enable_light(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_disable_light(light_control):
     """Test disabling light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -272,7 +263,6 @@ async def test_disable_light(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_light_status(light_control):
     """Test get light status API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -299,7 +289,6 @@ async def test_get_light_status(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_automatic_intensity_mode(light_control):
     """Test set automatic intensity mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -324,7 +313,6 @@ async def test_set_automatic_intensity_mode(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_manual_intensity(light_control):
     """Test get valid intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -351,7 +339,6 @@ async def test_get_manual_intensity(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_manual_intensity(light_control):
     """Test set manual intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -376,7 +363,6 @@ async def test_set_manual_intensity(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_valid_intensity(light_control):
     """Test get valid intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -403,7 +389,6 @@ async def test_get_valid_intensity(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_individual_intensity(light_control):
     """Test set individual intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -428,7 +413,6 @@ async def test_set_individual_intensity(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_individual_intensity(light_control):
     """Test get individual intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -455,7 +439,6 @@ async def test_get_individual_intensity(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_current_intensity(light_control):
     """Test get current intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -482,7 +465,6 @@ async def test_get_current_intensity(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_automatic_angle_of_illumination_mode(light_control):
     """Test set automatic angle of illumination mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -507,7 +489,6 @@ async def test_set_automatic_angle_of_illumination_mode(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_valid_angle_of_illumination(light_control):
     """Test get valid angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -537,7 +518,6 @@ async def test_get_valid_angle_of_illumination(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_manual_angle_of_illumination(light_control):
     """Test set manual angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -562,7 +542,6 @@ async def test_set_manual_angle_of_illumination(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_manual_angle_of_illumination(light_control):
     """Test get manual angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -590,7 +569,6 @@ async def test_get_manual_angle_of_illumination(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_current_angle_of_illumination(light_control):
     """Test get current angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -618,7 +596,6 @@ async def test_get_current_angle_of_illumination(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_light_synchronization_day_night_mode(light_control):
     """Test set light synchronization day night mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -643,7 +620,6 @@ async def test_set_light_synchronization_day_night_mode(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_light_synchronization_day_night_mode(light_control):
     """Test get light synchronization day night mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -671,7 +647,6 @@ async def test_get_light_synchronization_day_night_mode(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(

@@ -179,7 +179,7 @@ async def test_initialize_api_discovery_unauthorized(vapix: Vapix):
 
     assert len(vapix.basic_device_info) == 0
     assert vapix.ports is None
-    assert vapix.light_control is None
+    assert vapix.light_control is not None
     assert vapix.mqtt is not None
     assert len(vapix.stream_profiles) == 0
 
