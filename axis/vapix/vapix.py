@@ -156,8 +156,7 @@ class Vapix:
         async def do_api_request(api: ApiHandler) -> None:
             """Try update of API."""
             try:
-                if api.api_request is not None:
-                    await api.update()
+                await api.update()
             except Unauthorized:  # Probably a viewer account
                 pass
 
