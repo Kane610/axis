@@ -8,6 +8,7 @@ from ..models.api_discovery import ApiId
 from ..models.mqtt import (
     ActivateClientRequest,
     ClientConfig,
+    ClientConfigStatus,
     ConfigureClientRequest,
     ConfigureEventPublicationRequest,
     DeactivateClientRequest,
@@ -75,7 +76,7 @@ class MqttClientHandler(ApiHandler):
             DeactivateClientRequest(discovery_item.version)
         )
 
-    async def get_client_status(self) -> dict:
+    async def get_client_status(self) -> ClientConfigStatus:
         """Get MQTT Client status."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         return await self.vapix.request2(GetClientStatusRequest(discovery_item.version))

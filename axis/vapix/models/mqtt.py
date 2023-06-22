@@ -1,7 +1,6 @@
 """MQTT Client api."""
 
 from dataclasses import dataclass
-from typing import Any
 
 import orjson
 from typing_extensions import NotRequired, TypedDict
@@ -32,7 +31,7 @@ class ServerT(TypedDict):
     """Represent a server object."""
 
     host: str
-    protocol: str  # Literal["ssl", "tcp", "ws", "wss"]
+    protocol: NotRequired[str]  # Literal["ssl", "tcp", "ws", "wss"]
     alpnProtocol: NotRequired[str]
     basepath: NotRequired[str]
     port: NotRequired[int]
@@ -50,6 +49,7 @@ class ConfigT(TypedDict):
     """Represent client config."""
 
     server: ServerT
+    activateOnReboot: NotRequired[bool]
     autoReconnect: NotRequired[bool]
     cleanSession: NotRequired[bool]
     clientId: NotRequired[str]
@@ -93,19 +93,19 @@ class EventFilterT(TypedDict):
     """Event filter."""
 
     topicFilter: str
-    qos: int
-    retain: str
+    qos: NotRequired[int]
+    retain: NotRequired[str]
 
 
 class EventPublicationConfigT(TypedDict):
     """Event publication config."""
 
-    appendEventTopic: bool
-    customTopicPrefix: str
-    eventFilterList: list[EventFilterT]
-    includeTopicNamespaces: bool
-    includeSerialNumberInPayload: bool
-    topicPrefix: str
+    appendEventTopic: NotRequired[bool]
+    customTopicPrefix: NotRequired[str]
+    eventFilterList: NotRequired[list[EventFilterT]]
+    includeTopicNamespaces: NotRequired[bool]
+    includeSerialNumberInPayload: NotRequired[bool]
+    topicPrefix: NotRequired[str]
 
 
 class EventPublicationConfigDataT(TypedDict):
@@ -179,9 +179,9 @@ class Server:
             port=data.get("port"),
         )
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> ServerT:
         """Create json dict from object."""
-        data = {"host": self.host}
+        data: ServerT = {"host": self.host}
         if self.protocol is not None:
             data["protocol"] = self.protocol
         if self.alpn_protocol is not None:
@@ -201,13 +201,13 @@ class Ssl:
     ca_cert_id: str | None = None
     client_cert_id: str | None = None
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> SslT:
         """Create json dict from object."""
-        data = {"validateServerCert": self.validate_server_cert}
+        data: SslT = {"validateServerCert": self.validate_server_cert}
         if self.ca_cert_id is not None:
-            data["caCertId"] = self.ca_cert_id
+            data["CACertID"] = self.ca_cert_id
         if self.client_cert_id is not None:
-            data["clientCertId"] = self.client_cert_id
+            data["clientCertID"] = self.client_cert_id
         return data
 
 
@@ -469,7 +469,7 @@ class GetClientStatusRequest(ApiRequest[ClientConfigStatus]):
 
 
 @dataclass
-class GetEventPublicationConfigRequest(ApiRequest[ClientConfigStatus]):
+class GetEventPublicationConfigRequest(ApiRequest[EventPublicationConfig]):
     """Request object for getting MQTT event publication config."""
 
     method = "post"
