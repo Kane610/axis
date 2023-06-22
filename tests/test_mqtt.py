@@ -52,7 +52,13 @@ async def test_client_config_advanced(mqtt_client: MqttClientHandler):
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
 
     client_config = ClientConfig(
-        Server("192.168.0.1", port=1883),
+        Server(
+            "192.168.0.1",
+            protocol="ws",
+            alpn_protocol="alpn",
+            basepath="base",
+            port=1883,
+        ),
         last_will_testament=Message(
             use_default=False,
             topic="LWT/client_1",
@@ -74,7 +80,11 @@ async def test_client_config_advanced(mqtt_client: MqttClientHandler):
             retain=False,
             qos=1,
         ),
-        ssl=Ssl(validate_server_cert=True),
+        ssl=Ssl(
+            validate_server_cert=True,
+            ca_cert_id="CA ID",
+            client_cert_id="Client ID",
+        ),
         activate_on_reboot=False,
         username="root",
         password="pass",
@@ -95,7 +105,13 @@ async def test_client_config_advanced(mqtt_client: MqttClientHandler):
         "apiVersion": "1.0",
         "context": "Axis library",
         "params": {
-            "server": {"host": "192.168.0.1", "port": 1883, "protocol": "tcp"},
+            "server": {
+                "host": "192.168.0.1",
+                "port": 1883,
+                "protocol": "ws",
+                "alpnProtocol": "alpn",
+                "basepath": "base",
+            },
             "lastWillTestament": {
                 "useDefault": False,
                 "topic": "LWT/client_1",
@@ -117,7 +133,11 @@ async def test_client_config_advanced(mqtt_client: MqttClientHandler):
                 "retain": False,
                 "qos": 1,
             },
-            "ssl": {"validateServerCert": True},
+            "ssl": {
+                "validateServerCert": True,
+                "CACertID": "CA ID",
+                "clientCertID": "Client ID",
+            },
             "activateOnReboot": False,
             "clientId": "client_1",
             "keepAliveInterval": 90,
@@ -184,7 +204,7 @@ async def test_get_client_status(mqtt_client: MqttClientHandler):
 
 
 @respx.mock
-async def test_get_event_publication_config(mqtt_client: MqttClientHandler):
+async def test_get_event_publication_config_small(mqtt_client: MqttClientHandler):
     """Test get event publication config method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi").respond(
         json={
@@ -225,6 +245,15 @@ async def test_get_event_publication_config(mqtt_client: MqttClientHandler):
     assert response.event_filter_list[0].topic_filter == "//."
     assert response.event_filter_list[0].qos == 0
     assert response.event_filter_list[0].retain == "none"
+
+    assert response.to_dict() == {
+        "topicPrefix": "default",
+        "customTopicPrefix": "",
+        "appendEventTopic": True,
+        "includeTopicNamespaces": True,
+        "includeSerialNumberInPayload": False,
+        "eventFilterList": [{"topicFilter": "//.", "qos": 0, "retain": "none"}],
+    }
 
 
 @respx.mock

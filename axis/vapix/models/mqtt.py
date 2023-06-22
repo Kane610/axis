@@ -370,9 +370,7 @@ class EventPublicationConfig:
         if self.include_serial_number_in_payload is not None:
             data["includeSerialNumberInPayload"] = self.include_serial_number_in_payload
         if self.event_filter_list is not None:
-            data["eventFilterList"] = [
-                event_filter.to_dict() for event_filter in self.event_filter_list
-            ]
+            data["eventFilterList"] = EventFilter.to_list(self.event_filter_list)
         return data
 
 
@@ -392,7 +390,6 @@ class ConfigureClientRequest(ApiRequest[None]):
     def __post_init__(self) -> None:
         """Initialize request data."""
         assert self.client_config is not None
-        print(self.client_config.to_dict())
         self.data = {
             "apiVersion": self.api_version,
             "context": self.context,
