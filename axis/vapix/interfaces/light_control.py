@@ -21,6 +21,7 @@ from ..models.light_control import (
     GetManualAngleOfIlluminationRequest,
     GetManualIntensityRequest,
     GetServiceCapabilities,
+    GetSupportedVersionsRequest,
     GetValidAngleOfIllumination,
     GetValidIntensityRequest,
     Light,
@@ -237,16 +238,9 @@ class LightHandler(ApiHandler):
             )
         )
 
-    async def get_supported_versions(self) -> dict:
-        """Supported versions of light control."""
-        return await self.vapix.request(
-            "post",
-            URL,
-            json=attr.asdict(
-                Body("getSupportedVersions", API_VERSION),
-                filter=attr.filters.include(attr.fields(Body).method),
-            ),
-        )
+    async def get_supported_versions(self) -> list[str]:
+        """List supported API versions."""
+        return await self.vapix.request2(GetSupportedVersionsRequest())
 
 
 class LightControl(APIItems):

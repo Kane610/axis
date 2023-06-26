@@ -662,10 +662,11 @@ async def test_get_supported_versions(light_control):
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
-        "method": "getSupportedVersions"
+        "method": "getSupportedVersions",
+        "context": "Axis library",
     }
 
-    assert response["data"] == {"apiVersions": ["1.1"]}
+    assert response == ["1.1"]
 
 
 response_getLightInformation = {

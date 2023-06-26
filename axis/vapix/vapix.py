@@ -146,12 +146,8 @@ class Vapix:
 
         tasks = []
 
-        for api_id, api_class, api_attr in (
-            (IO_PORT_MANAGEMENT_ID, IoPortManagement, "ports"),
-            # (LIGHT_CONTROL_ID, LightControl, "light_control"),
-        ):
-            if api_id in self.api_discovery:
-                tasks.append(self._initialize_api_attribute(api_class, api_attr))
+        if IO_PORT_MANAGEMENT_ID in self.api_discovery:
+            tasks.append(self._initialize_api_attribute(IoPortManagement, "ports"))
 
         async def do_api_request(api: ApiHandler) -> None:
             """Try update of API."""

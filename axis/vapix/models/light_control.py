@@ -157,6 +157,22 @@ class GetLightSynchronizationDayNightModeResponseT(TypedDict):
     error: NotRequired[ErrorDataT]
 
 
+class ApiVersionsT(TypedDict):
+    """List of supported API versions."""
+
+    apiVersions: list[str]
+
+
+class GetSupportedVersionsResponseT(TypedDict):
+    """Get supported versions response."""
+
+    apiVersion: str
+    context: str
+    method: str
+    data: ApiVersionsT
+    error: NotRequired[ErrorDataT]
+
+
 general_error_codes = {
     1100: "Internal error",
     2100: "API version not supported",
@@ -535,7 +551,7 @@ class SetIndividualIntensityRequest(ApiRequest[None]):
     api_version: str = API_VERSION
     context: str = CONTEXT
     light_id: str | None = None
-    led_id: str | None = None
+    led_id: int | None = None
     intensity: int | None = None
 
     def __post_init__(self) -> None:
@@ -648,7 +664,7 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[None]):
 
 
 @dataclass
-class GetValidAngleOfIllumination(ApiRequest[Range]):
+class GetValidAngleOfIllumination(ApiRequest[list[Range]]):
     """Request object for getting angle of illumination range."""
 
     method = "post"
@@ -822,6 +838,30 @@ class GetLightSynchronizeDayNightModeRequest(ApiRequest[bool]):
         """If light is on or off."""
         data: GetLightSynchronizationDayNightModeResponseT = orjson.loads(raw)
         return data["data"]["synchronize"]
+
+
+@dataclass
+class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+    """Request object for listing supported API versions."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    context: str = CONTEXT
+
+    def __post_init__(self) -> None:
+        """Initialize request data."""
+        self.data = {
+            "context": self.context,
+            "method": "getSupportedVersions",
+        }
+
+    def process_raw(self, raw: str) -> list[str]:
+        """Process supported versions."""
+        data: GetSupportedVersionsResponseT = orjson.loads(raw)
+        return data.get("data", {}).get("apiVersions", [])
 
 
 class Light(APIItem):
