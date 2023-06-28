@@ -10,13 +10,13 @@ import pytest
 import respx
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.light_control import LightControl, LightHandler
+from axis.vapix.interfaces.light_control import LightHandler
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def light_control(axis_device: AxisDevice) -> LightControl | LightHandler:
+def light_control(axis_device: AxisDevice) -> LightHandler:
     """Return the light_control mock object."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"

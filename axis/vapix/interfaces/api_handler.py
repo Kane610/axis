@@ -23,16 +23,29 @@ class ApiHandler(ABC, Generic[ApiItemT]):
 
     api_id: "ApiId"
     api_request: ApiRequest[dict[str, ApiItemT]] | None
+    default_api_version: str | None = None
 
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
         self.vapix = vapix
         self._items: dict[str, ApiItemT] = {}
+        self.initialized = False
+
+    def supported(self) -> bool:
+        """Is API supported by the device."""
+        return self.api_id.value in self.vapix.api_discovery
+
+    def api_version(self) -> str | None:
+        """Latest API version supported."""
+        if (discovery_item := self.vapix.api_discovery[self.api_id.value]) is not None:
+            return discovery_item.version
+        return self.default_api_version
 
     async def update(self) -> None:
         """Refresh data."""
         if self.api_request is None:
             return
+        self.initialized = True
         self._items = await self.vapix.request2(self.api_request)
 
     def items(self) -> ItemsView[str, ApiItemT]:

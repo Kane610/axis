@@ -23,7 +23,7 @@ from .interfaces.applications.object_analytics import ObjectAnalytics
 from .interfaces.applications.vmd4 import Vmd4
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
-from .interfaces.light_control import LightControl, LightHandler
+from .interfaces.light_control import LightHandler
 from .interfaces.mqtt import MqttClientHandler
 from .interfaces.param_cgi import Params
 from .interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
@@ -80,28 +80,28 @@ class Vapix:
     @property
     def firmware_version(self) -> str:
         """Firmware version of device."""
-        if self.basic_device_info:
+        if self.basic_device_info.supported():
             return self.basic_device_info.version
         return self.params.firmware_version  # type: ignore[union-attr]
 
     @property
     def product_number(self) -> str:
         """Product number of device."""
-        if self.basic_device_info:
+        if self.basic_device_info.supported():
             return self.basic_device_info.prodnbr
         return self.params.prodnbr  # type: ignore[union-attr]
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
-        if self.basic_device_info:
+        if self.basic_device_info.supported():
             return self.basic_device_info.prodtype
         return self.params.prodtype  # type: ignore[union-attr]
 
     @property
     def serial_number(self) -> str:
         """Device serial number."""
-        if self.basic_device_info:
+        if self.basic_device_info.supported():
             return self.basic_device_info.serialnumber
         return self.params.system_serialnumber  # type: ignore[union-attr]
 
@@ -115,7 +115,7 @@ class Vapix:
     @property
     def streaming_profiles(self) -> list:
         """List streaming profiles."""
-        if len(self.stream_profiles) > 0:
+        if self.stream_profiles.supported():
             return list(self.stream_profiles.values())
         return self.params.stream_profiles  # type: ignore[union-attr]
 
@@ -165,7 +165,7 @@ class Vapix:
             self.view_areas,
         )
         for api in apis:
-            if api.api_id.value not in self.api_discovery:
+            if not api.supported():
                 continue
             tasks.append(do_api_request(api))
 
@@ -185,26 +185,26 @@ class Vapix:
             tasks.append(self.params.update_properties())
             tasks.append(self.params.update_ptz())
 
-            if not self.basic_device_info:
+            if not self.basic_device_info.supported():
                 tasks.append(self.params.update_brand())
 
             if not self.ports:
                 tasks.append(self.params.update_ports())
 
-            if len(self.stream_profiles) == 0:
+            if not self.stream_profiles.supported():
                 tasks.append(self.params.update_stream_profiles())
 
-            if len(self.view_areas) != 0:  # API Discovery supported?
+            if self.view_areas.supported():
                 tasks.append(self.params.update_image())
 
         if tasks:
             await asyncio.gather(*tasks)
 
-        if (
-            self.light_control.api_id.value not in self.api_discovery
-            and self.params.light_control
-        ):
-            await self._initialize_api_attribute(LightControl, "light_control")
+        if not self.light_control.supported() and self.params.light_control:
+            try:
+                await self.light_control.update()
+            except Unauthorized:  # Probably a viewer account
+                pass
 
         if not self.ports:
             self.ports = Ports(self)
