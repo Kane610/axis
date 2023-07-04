@@ -461,7 +461,6 @@ class GetClientStatusRequest(ApiRequest[ClientConfigStatus]):
     def process_raw(self, raw: str) -> ClientConfigStatus:
         """Prepare view area dictionary."""
         data: GetClientStatusResponseT = orjson.loads(raw)
-        print(data)
         return ClientConfigStatus.from_dict(data["data"])
 
 

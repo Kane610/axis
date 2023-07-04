@@ -4,23 +4,26 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 import respx
 
-from axis.vapix.interfaces.light_control import LightControl
+from axis.device import AxisDevice
+from axis.vapix.interfaces.light_control import LightHandler
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def light_control(axis_device) -> LightControl:
+def light_control(axis_device: AxisDevice) -> LightHandler:
     """Return the light_control mock object."""
-    return LightControl(axis_device.vapix)
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    api_discovery_mock.__getitem__().version = "1.0"
+    return axis_device.vapix.light_control
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_update(light_control):
     """Test update method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -61,7 +64,6 @@ async def test_update(light_control):
 
     item = light_control["led0"]
     assert item.id == "led0"
-    assert item.light_id == "led0"
     assert item.light_type == "IR"
     assert item.enabled is True
     assert item.synchronize_day_night_mode is True
@@ -74,8 +76,7 @@ async def test_update(light_control):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_service_capabilities(light_control):
+async def test_get_service_capabilities(light_control: LightHandler):
     """Test get service capabilities API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
@@ -100,24 +101,21 @@ async def test_get_service_capabilities(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getServiceCapabilities",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
     }
 
-    assert response["data"] == {
-        "automaticIntensitySupport": True,
-        "manualIntensitySupport": True,
-        "individualIntensitySupport": False,
-        "getCurrentIntensitySupport": True,
-        "manualAngleOfIlluminationSupport": False,
-        "automaticAngleOfIlluminationSupport": False,
-        "dayNightSynchronizeSupport": True,
-    }
+    response.automatic_intensity_support is True
+    response.manual_intensity_support is True
+    response.get_current_intensity_support is True
+    response.individual_intensity_support is False
+    response.automatic_angle_of_illumination_support is False
+    response.manual_angle_of_illumination_support is False
+    response.day_night_synchronize_support is True
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_light_information(light_control):
+async def test_get_light_information(light_control: LightHandler):
     """Test get light information API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
@@ -149,30 +147,24 @@ async def test_get_light_information(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getLightInformation",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
     }
 
-    assert response["data"] == {
-        "items": [
-            {
-                "lightID": "led0",
-                "lightType": "IR",
-                "enabled": True,
-                "synchronizeDayNightMode": True,
-                "lightState": False,
-                "automaticIntensityMode": False,
-                "automaticAngleOfIlluminationMode": False,
-                "nrOfLEDs": 1,
-                "error": False,
-                "errorInfo": "",
-            }
-        ]
-    }
+    light = response["led0"]
+    assert light.id == "led0"
+    assert light.light_type == "IR"
+    assert light.enabled is True
+    assert light.synchronize_day_night_mode is True
+    assert light.light_state is False
+    assert light.automatic_intensity_mode is False
+    assert light.automatic_angle_of_illumination_mode is False
+    assert light.number_of_leds == 1
+    assert light.error is False
+    assert light.error_info == ""
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_activate_light(light_control):
     """Test activating light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -190,14 +182,13 @@ async def test_activate_light(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "activateLight",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_deactivate_light(light_control):
     """Test deactivating light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -215,14 +206,13 @@ async def test_deactivate_light(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "deactivateLight",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_enable_light(light_control):
     """Test enabling light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -240,14 +230,13 @@ async def test_enable_light(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "enableLight",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_disable_light(light_control):
     """Test disabling light API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -265,14 +254,13 @@ async def test_disable_light(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "disableLight",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_light_status(light_control):
     """Test get light status API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -290,16 +278,15 @@ async def test_get_light_status(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getLightStatus",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {"status": False}
+    assert response is False
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_automatic_intensity_mode(light_control):
     """Test set automatic intensity mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -317,14 +304,13 @@ async def test_set_automatic_intensity_mode(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "setAutomaticIntensityMode",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0", "enabled": True},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_manual_intensity(light_control):
     """Test get valid intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -342,16 +328,15 @@ async def test_get_manual_intensity(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getManualIntensity",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {"intensity": 1000}
+    assert response == 1000
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_manual_intensity(light_control):
     """Test set manual intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -369,14 +354,13 @@ async def test_set_manual_intensity(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "setManualIntensity",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0", "intensity": 1000},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_valid_intensity(light_control):
     """Test get valid intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -394,16 +378,16 @@ async def test_get_valid_intensity(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getValidIntensity",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {"ranges": [{"low": 0, "high": 1000}]}
+    assert response.low == 0
+    assert response.high == 1000
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_individual_intensity(light_control):
     """Test set individual intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -421,14 +405,13 @@ async def test_set_individual_intensity(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "setIndividualIntensity",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0", "LEDID": 1, "intensity": 1000},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_individual_intensity(light_control):
     """Test get individual intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -446,16 +429,15 @@ async def test_get_individual_intensity(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getIndividualIntensity",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0", "LEDID": 1},
     }
 
-    assert response["data"] == {"intensity": 1000}
+    assert response == 1000
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_current_intensity(light_control):
     """Test get current intensity API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -473,16 +455,15 @@ async def test_get_current_intensity(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getCurrentIntensity",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {"intensity": 1000}
+    assert response == 1000
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_automatic_angle_of_illumination_mode(light_control):
     """Test set automatic angle of illumination mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -500,15 +481,14 @@ async def test_set_automatic_angle_of_illumination_mode(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "setAutomaticAngleOfIlluminationMode",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0", "enabled": True},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_valid_angle_of_illumination(light_control):
+async def test_get_valid_angle_of_illumination(light_control: LightHandler):
     """Test get valid angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
@@ -526,18 +506,18 @@ async def test_get_valid_angle_of_illumination(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getValidAngleOfIllumination",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {
-        "ranges": [{"low": 10, "high": 30}, {"low": 20, "high": 50}]
-    }
+    assert response[0].low == 10
+    assert response[0].high == 30
+    assert response[1].low == 20
+    assert response[1].high == 50
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_manual_angle_of_illumination(light_control):
     """Test set manual angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -555,14 +535,13 @@ async def test_set_manual_angle_of_illumination(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "setManualAngleOfIllumination",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0", "angleOfIllumination": 30},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_manual_angle_of_illumination(light_control):
     """Test get manual angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -581,16 +560,15 @@ async def test_get_manual_angle_of_illumination(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getManualAngleOfIllumination",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {"angleOfIllumination": 30}
+    assert response == 30
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_current_angle_of_illumination(light_control):
     """Test get current angle of illumination API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -609,16 +587,15 @@ async def test_get_current_angle_of_illumination(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getCurrentAngleOfIllumination",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {"angleOfIllumination": 20}
+    assert response == 20
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_light_synchronization_day_night_mode(light_control):
     """Test set light synchronization day night mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -636,22 +613,21 @@ async def test_set_light_synchronization_day_night_mode(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "setLightSynchronizationDayNightMode",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0", "enabled": True},
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_light_synchronization_day_night_mode(light_control):
+async def test_get_light_synchronization_day_night_mode(light_control: LightHandler):
     """Test get light synchronization day night mode API."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
             "context": "my context",
             "method": "getLightSynchronizeDayNightMode",
-            "data": {"enabled": True},
+            "data": {"synchronize": True},
         },
     )
 
@@ -662,16 +638,15 @@ async def test_get_light_synchronization_day_night_mode(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getLightSynchronizationDayNightMode",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
         "params": {"lightID": "led0"},
     }
 
-    assert response["data"] == {"enabled": True}
+    assert response is True
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
@@ -687,10 +662,11 @@ async def test_get_supported_versions(light_control):
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
-        "method": "getSupportedVersions"
+        "method": "getSupportedVersions",
+        "context": "Axis library",
     }
 
-    assert response["data"] == {"apiVersions": ["1.1"]}
+    assert response == ["1.1"]
 
 
 response_getLightInformation = {
