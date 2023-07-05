@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, List, TypeVar
 
+from typing_extensions import Self
+
 CONTEXT = "Axis library"
 
 
@@ -12,6 +14,20 @@ class ApiItem(ABC):
     """API item class."""
 
     id: str
+
+
+@dataclass
+class ApiItemX(ApiItem):
+    """API request class."""
+
+    @classmethod
+    @abstractmethod
+    def decode(cls, raw: str) -> dict[str, Self]:
+        """Decode string to class object."""
+
+    # def __str__(self) -> str:
+    #     """Convert class to string."""
+    #     return self.__repr__()
 
 
 ApiItemT = TypeVar("ApiItemT", bound=ApiItem)

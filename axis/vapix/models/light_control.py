@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 
 import orjson
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiItemX, ApiRequest
 
 API_VERSION = "1.1"
 
@@ -184,7 +184,7 @@ general_error_codes = {
 
 
 @dataclass
-class LightInformation(ApiItem):
+class LightInformation(ApiItemX):
     """Light information item."""
 
     enabled: bool
@@ -198,9 +198,21 @@ class LightInformation(ApiItem):
     error_info: str
 
     @classmethod
-    def from_dict(cls, data: LightInformationT) -> "LightInformation":
+    def decode(cls, raw: str) -> dict[str, Self]:
+        """Decode string to class object."""
+        data: GetLightInformationResponseT = orjson.loads(raw)
+        return cls.from_list(data["data"]["items"])
+
+    @classmethod
+    def from_list(cls, data: list[LightInformationT]) -> dict[str, Self]:
+        """Create light information objects from list."""
+        lights = [cls.from_dict(item) for item in data]
+        return {light.id: light for light in lights}
+
+    @classmethod
+    def from_dict(cls, data: LightInformationT) -> Self:
         """Create light information object from dict."""
-        return LightInformation(
+        return cls(
             id=data["lightID"],
             enabled=data["enabled"],
             light_state=data["lightState"],
@@ -214,12 +226,6 @@ class LightInformation(ApiItem):
             error=data["error"],
             error_info=data["errorInfo"],
         )
-
-    @classmethod
-    def from_list(cls, data: list[LightInformationT]) -> dict[str, "LightInformation"]:
-        """Create light information objects from list."""
-        lights = [LightInformation.from_dict(item) for item in data]
-        return {light.id: light for light in lights}
 
 
 @dataclass
@@ -262,8 +268,7 @@ class GetLightInformation(ApiRequest[dict[str, LightInformation]]):
 
     def process_raw(self, raw: bytes) -> dict[str, LightInformation]:
         """Prepare light information dictionary."""
-        data: GetLightInformationResponseT = orjson.loads(raw)
-        return LightInformation.from_list(data["data"]["items"])
+        return LightInformation.decode(raw)
 
 
 @dataclass
