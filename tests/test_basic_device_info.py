@@ -36,7 +36,7 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getAllProperties",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
     }
 

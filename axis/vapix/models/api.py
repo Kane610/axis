@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, List, TypeVar
+from typing import Any, Callable, Generic, List, Type, TypeVar
 
 from typing_extensions import Self
 
@@ -21,11 +21,8 @@ ApiDataT = TypeVar("ApiDataT")
 
 
 @dataclass
-class ApiResponse(ABC, Generic[ApiDataT]):
+class ApiResponseSupportDecode(ABC):
     """Response from API request."""
-
-    data: ApiDataT
-    # error: str
 
     @classmethod
     @abstractmethod
@@ -33,7 +30,18 @@ class ApiResponse(ABC, Generic[ApiDataT]):
         """Decode string to class object."""
 
 
-ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponse)
+@dataclass
+class ApiResponse(ApiResponseSupportDecode, Generic[ApiDataT]):
+    """Response from API request.
+
+    Generics can't be used with TypeVar("X", bound=class).
+    """
+
+    data: ApiDataT
+    # error: str
+
+
+ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponseSupportDecode)
 
 
 @dataclass
@@ -42,8 +50,12 @@ class ApiRequest2(ABC, Generic[ApiResponseT]):
 
     method: str = field(init=False)
     path: str = field(init=False)
-    data: dict[str, Any] = field(init=False)
-    response: ApiResponseT = field(init=False)
+    response: Type[ApiResponseT] = field(init=False)
+
+    @property
+    @abstractmethod
+    def data(self) -> dict[str, Any]:
+        """Request data."""
 
 
 @dataclass

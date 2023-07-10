@@ -12,14 +12,17 @@ from ..models.basic_device_info import (
     GetAllPropertiesT,
     GetSupportedVersionsRequest,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler2
 
 
-class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
+class BasicDeviceInfoHandler(ApiHandler2[DeviceInformation]):
     """Basic device information for Axis devices."""
 
     api_id = ApiId.BASIC_DEVICE_INFO
-    api_request = GetAllPropertiesRequest()
+
+    async def _api_request(self) -> dict[str, DeviceInformation]:
+        """Get default data of basic device information."""
+        return await self.get_all_properties()
 
     async def get_all_properties(self) -> GetAllPropertiesT:
         """List all properties of basic device info."""

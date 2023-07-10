@@ -1,6 +1,7 @@
 """Basic device information description."""
 
 from dataclasses import dataclass
+from typing import Any
 
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
@@ -138,12 +139,11 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
     def decode(cls, raw: str) -> Self:
         """Prepare API description dictionary."""
         data: GetAllPropertiesResponseT = orjson.loads(raw)
-        device_information = data.get("data", {}).get("propertyList", {})
         return cls(
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=DeviceInformation.decode(device_information),
+            data=DeviceInformation.decode(data["data"]["propertyList"]),
         )
 
 
@@ -160,9 +160,10 @@ class GetAllPropertiesRequest(ApiRequest2[GetAllPropertiesResponse]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def data(self) -> dict[str, Any]:
         """Initialize request data."""
-        self.data = {
+        return {
             "apiVersion": self.api_version,
             "context": self.context,
             "method": "getAllProperties",
@@ -203,9 +204,10 @@ class GetSupportedVersionsRequest(ApiRequest2[GetSupportedVersionsResponse]):
 
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def data(self) -> dict[str, Any]:
         """Initialize request data."""
-        self.data = {
+        return {
             "context": self.context,
             "method": "getSupportedVersions",
         }
