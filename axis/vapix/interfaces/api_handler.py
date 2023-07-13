@@ -99,9 +99,13 @@ class ApiHandler2(ABC, Generic[ApiItemT]):
         """Is API supported by the device."""
         return self.api_id.value in self.vapix.api_discovery
 
+    @property
     def api_version(self) -> str | None:
         """Latest API version supported."""
-        if (discovery_item := self.vapix.api_discovery[self.api_id.value]) is not None:
+        if (
+            discovery_item := self.vapix.api_discovery.get(self.api_id.value)
+        ) is not None:
+            # if (discovery_item := self.vapix.api_discovery[self.api_id.value]) is not None:
             return discovery_item.version
         return self.default_api_version
 
@@ -113,9 +117,8 @@ class ApiHandler2(ABC, Generic[ApiItemT]):
         """Refresh data."""
         # if self.api_request is None:
         #     return
-        self.initialized = True
-
         self._items = await self._api_request()
+        self.initialized = True
 
     def items(self) -> ItemsView[str, ApiItemT]:
         """Return items."""

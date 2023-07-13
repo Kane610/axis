@@ -5,26 +5,33 @@ about what APIs are supported per device.
 """
 
 from ..models.api_discovery import (
+    API_VERSION,
     Api,
     ApiId,
     GetSupportedVersionsRequest,
     ListApisRequest,
     ListApisT,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler2
 
 
-class ApiDiscoveryHandler(ApiHandler[Api]):
+class ApiDiscoveryHandler(ApiHandler2[Api]):
     """API Discovery for Axis devices."""
 
     api_id = ApiId.API_DISCOVERY
-    api_request = ListApisRequest()
+    default_api_version = API_VERSION
+
+    async def _api_request(self) -> dict[str, Api]:
+        """Get default data of API discovery."""
+        return await self.get_api_list()
 
     async def get_api_list(self) -> ListApisT:
         """List all APIs registered on API Discovery service."""
-        discovery_item = self[self.api_id.value]
-        return await self.vapix.request2(ListApisRequest(discovery_item.version))
+        version = self.api_version or API_VERSION
+        response = await self.vapix.request3(ListApisRequest(version))
+        return {api.id: api for api in response.data}
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        return await self.vapix.request2(GetSupportedVersionsRequest())
+        response = await self.vapix.request3(GetSupportedVersionsRequest())
+        return response.data
