@@ -260,7 +260,7 @@ class GetLightInformation(ApiRequest[dict[str, LightInformation]]):
             "method": "getLightInformation",
         }
 
-    def process_raw(self, raw: str) -> dict[str, LightInformation]:
+    def process_raw(self, raw: bytes) -> dict[str, LightInformation]:
         """Prepare light information dictionary."""
         data: GetLightInformationResponseT = orjson.loads(raw)
         return LightInformation.from_list(data["data"]["items"])
@@ -316,7 +316,7 @@ class GetServiceCapabilities(ApiRequest[ServiceCapabilities]):
             "method": "getServiceCapabilities",
         }
 
-    def process_raw(self, raw: str) -> ServiceCapabilities:
+    def process_raw(self, raw: bytes) -> ServiceCapabilities:
         """Prepare light information dictionary."""
         data: GetServiceCapabilitiesResponseT = orjson.loads(raw)
         return ServiceCapabilities.from_dict(data["data"])
@@ -345,7 +345,7 @@ class ActivateLightRequest(ApiRequest[None]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No return data to process."""
 
 
@@ -417,7 +417,7 @@ class GetLightStatusRequest(ApiRequest[bool]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> bool:
+    def process_raw(self, raw: bytes) -> bool:
         """If light is on or off."""
         data: GetLightStatusResponseT = orjson.loads(raw)
         return data["data"]["status"]
@@ -448,7 +448,7 @@ class SetAutomaticIntensityModeRequest(ApiRequest[None]):
             "params": {"lightID": self.light_id, "enabled": self.enabled},
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No return data to process."""
 
 
@@ -475,7 +475,7 @@ class GetValidIntensityRequest(ApiRequest[Range]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> Range:
+    def process_raw(self, raw: bytes) -> Range:
         """If light is on or off."""
         data: GetValidRangesResponseT = orjson.loads(raw)
         return Range.from_dict(data["data"]["ranges"][0])
@@ -506,7 +506,7 @@ class SetManualIntensityRequest(ApiRequest[None]):
             "params": {"lightID": self.light_id, "intensity": self.intensity},
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No return data to process."""
 
 
@@ -533,7 +533,7 @@ class GetManualIntensityRequest(ApiRequest[int]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> int:
+    def process_raw(self, raw: bytes) -> int:
         """If light is on or off."""
         data: GetIntensityResponseT = orjson.loads(raw)
         return data["data"]["intensity"]
@@ -570,7 +570,7 @@ class SetIndividualIntensityRequest(ApiRequest[None]):
             },
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No return data to process."""
 
 
@@ -599,7 +599,7 @@ class GetIndividualIntensityRequest(ApiRequest[int]):
             "params": {"lightID": self.light_id, "LEDID": self.led_id},
         }
 
-    def process_raw(self, raw: str) -> int:
+    def process_raw(self, raw: bytes) -> int:
         """Process light intensity."""
         data: GetIntensityResponseT = orjson.loads(raw)
         return data["data"]["intensity"]
@@ -628,7 +628,7 @@ class GetCurrentIntensityRequest(ApiRequest[int]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> int:
+    def process_raw(self, raw: bytes) -> int:
         """If light is on or off."""
         data: GetIntensityResponseT = orjson.loads(raw)
         return data["data"]["intensity"]
@@ -659,7 +659,7 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[None]):
             "params": {"lightID": self.light_id, "enabled": self.enabled},
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No return data to process."""
 
 
@@ -686,7 +686,7 @@ class GetValidAngleOfIllumination(ApiRequest[list[Range]]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> list[Range]:
+    def process_raw(self, raw: bytes) -> list[Range]:
         """If light is on or off."""
         data: GetValidRangesResponseT = orjson.loads(raw)
         return Range.from_list(data["data"]["ranges"])
@@ -720,7 +720,7 @@ class SetManualAngleOfIlluminationModeRequest(ApiRequest[None]):
             },
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No return data to process."""
 
 
@@ -747,7 +747,7 @@ class GetManualAngleOfIlluminationRequest(ApiRequest[int]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> int:
+    def process_raw(self, raw: bytes) -> int:
         """Angle of illumination."""
         data: GetAngleOfIlluminationResponseT = orjson.loads(raw)
         return data["data"]["angleOfIllumination"]
@@ -776,7 +776,7 @@ class GetCurrentAngleOfIlluminationRequest(ApiRequest[int]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> int:
+    def process_raw(self, raw: bytes) -> int:
         """Angle of illumination."""
         data: GetAngleOfIlluminationResponseT = orjson.loads(raw)
         return data["data"]["angleOfIllumination"]
@@ -807,7 +807,7 @@ class SetLightSynchronizeDayNightModeRequest(ApiRequest[None]):
             "params": {"lightID": self.light_id, "enabled": self.enabled},
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No return data to process."""
 
 
@@ -834,7 +834,7 @@ class GetLightSynchronizeDayNightModeRequest(ApiRequest[bool]):
             "params": {"lightID": self.light_id},
         }
 
-    def process_raw(self, raw: str) -> bool:
+    def process_raw(self, raw: bytes) -> bool:
         """If light is on or off."""
         data: GetLightSynchronizationDayNightModeResponseT = orjson.loads(raw)
         return data["data"]["synchronize"]
@@ -858,7 +858,7 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
             "method": "getSupportedVersions",
         }
 
-    def process_raw(self, raw: str) -> list[str]:
+    def process_raw(self, raw: bytes) -> list[str]:
         """Process supported versions."""
         data: GetSupportedVersionsResponseT = orjson.loads(raw)
         return data.get("data", {}).get("apiVersions", [])

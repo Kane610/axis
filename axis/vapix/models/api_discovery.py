@@ -197,7 +197,7 @@ class ListApisRequest(ApiRequest[ListApisT]):
             "method": "getApiList",
         }
 
-    def process_raw(self, raw: str) -> ListApisT:
+    def process_raw(self, raw: bytes) -> ListApisT:
         """Prepare API description dictionary."""
         data: ListApisResponseT = orjson.loads(raw)
         apis = data.get("data", {}).get("apiList", [])
@@ -230,7 +230,7 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
             "method": "getSupportedVersions",
         }
 
-    def process_raw(self, raw: str) -> list[str]:
+    def process_raw(self, raw: bytes) -> list[str]:
         """Process supported versions."""
         data: GetSupportedVersionsResponseT = orjson.loads(raw)
         return data.get("data", {}).get("apiVersions", [])

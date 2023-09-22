@@ -123,7 +123,7 @@ class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesT]):
             "method": "getAllProperties",
         }
 
-    def process_raw(self, raw: str) -> GetAllPropertiesT:
+    def process_raw(self, raw: bytes) -> GetAllPropertiesT:
         """Prepare API description dictionary."""
         data: GetAllPropertiesResponseT = orjson.loads(raw)
         device_information = data.get("data", {}).get("propertyList", {})
@@ -166,7 +166,7 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
             "method": "getSupportedVersions",
         }
 
-    def process_raw(self, raw: str) -> list[str]:
+    def process_raw(self, raw: bytes) -> list[str]:
         """Process supported versions."""
         data: GetSupportedVersionsResponseT = orjson.loads(raw)
         return data.get("data", {}).get("apiVersions", [])

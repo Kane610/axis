@@ -30,7 +30,7 @@ class ApiRequest(ABC, Generic[ApiDataT]):
     error_codes: dict[int, str] = field(init=False)
 
     @abstractmethod
-    def process_raw(self, raw: str) -> ApiDataT:
+    def process_raw(self, raw: bytes) -> ApiDataT:
         """Process raw data."""
 
 

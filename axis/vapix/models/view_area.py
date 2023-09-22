@@ -162,7 +162,7 @@ class ListViewAreasRequest(ApiRequest[ListViewAreasT]):
             "method": "list",
         }
 
-    def process_raw(self, raw: str) -> ListViewAreasT:
+    def process_raw(self, raw: bytes) -> ListViewAreasT:
         """Prepare view area dictionary."""
         data: ListViewAreasResponseT = orjson.loads(raw)
         items = data.get("data", {}).get("viewAreas", [])
@@ -264,7 +264,7 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
             "method": "getSupportedVersions",
         }
 
-    def process_raw(self, raw: str) -> list[str]:
+    def process_raw(self, raw: bytes) -> list[str]:
         """Process supported versions."""
         data: GetSupportedVersionsResponseT = orjson.loads(raw)
         return data.get("data", {}).get("apiVersions", [])

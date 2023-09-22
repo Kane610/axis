@@ -397,7 +397,7 @@ class ConfigureClientRequest(ApiRequest[None]):
             "params": self.client_config.to_dict(),
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """Prepare view area dictionary."""
 
 
@@ -421,7 +421,7 @@ class ActivateClientRequest(ApiRequest[None]):
             "method": "activateClient",
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """Prepare view area dictionary."""
 
 
@@ -458,7 +458,7 @@ class GetClientStatusRequest(ApiRequest[ClientConfigStatus]):
             "method": "getClientStatus",
         }
 
-    def process_raw(self, raw: str) -> ClientConfigStatus:
+    def process_raw(self, raw: bytes) -> ClientConfigStatus:
         """Prepare view area dictionary."""
         data: GetClientStatusResponseT = orjson.loads(raw)
         return ClientConfigStatus.from_dict(data["data"])
@@ -484,7 +484,7 @@ class GetEventPublicationConfigRequest(ApiRequest[EventPublicationConfig]):
             "method": "getEventPublicationConfig",
         }
 
-    def process_raw(self, raw: str) -> EventPublicationConfig:
+    def process_raw(self, raw: bytes) -> EventPublicationConfig:
         """Prepare view area dictionary."""
         data: GetEventPublicationConfigResponseT = orjson.loads(raw)
         return EventPublicationConfig.from_dict(data["data"]["eventPublicationConfig"])
@@ -513,5 +513,5 @@ class ConfigureEventPublicationRequest(ApiRequest[None]):
             "params": self.config.to_dict(),
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """Prepare view area dictionary."""
