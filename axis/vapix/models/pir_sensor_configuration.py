@@ -131,7 +131,7 @@ class ListSensorsRequest(ApiRequest[ListSensorsT]):
             "method": "listSensors",
         }
 
-    def process_raw(self, raw: str) -> ListSensorsT:
+    def process_raw(self, raw: bytes) -> ListSensorsT:
         """Prepare Pir sensor configuration dictionary."""
         data: ListSensorsResponseT = orjson.loads(raw)
         sensors = data.get("data", {}).get("sensors", [])
@@ -169,7 +169,7 @@ class GetSensitivityRequest(ApiRequest[float | None]):
             },
         }
 
-    def process_raw(self, raw: str) -> float | None:
+    def process_raw(self, raw: bytes) -> float | None:
         """Prepare sensitivity value."""
         data: GetSensitivityResponseT = orjson.loads(raw)
         return data.get("data", {}).get("sensitivity")
@@ -201,7 +201,7 @@ class SetSensitivityRequest(ApiRequest[None]):
             },
         }
 
-    def process_raw(self, raw: str) -> None:
+    def process_raw(self, raw: bytes) -> None:
         """No expected data in response."""
         return None
 
@@ -224,7 +224,7 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
             "method": "getSupportedVersions",
         }
 
-    def process_raw(self, raw: str) -> list[str]:
+    def process_raw(self, raw: bytes) -> list[str]:
         """Process supported versions."""
         data: GetSupportedVersionsResponseT = orjson.loads(raw)
         return data.get("data", {}).get("apiVersions", [])

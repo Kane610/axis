@@ -107,7 +107,7 @@ class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesT]):
             "params": {"streamProfileName": profile_list},
         }
 
-    def process_raw(self, raw: str) -> ListStreamProfilesT:
+    def process_raw(self, raw: bytes) -> ListStreamProfilesT:
         """Prepare API description dictionary."""
         data: ListStreamProfilesResponseT = orjson.loads(raw)
         stream_profiles = data.get("data", {}).get("streamProfile", [])
@@ -140,7 +140,7 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
             "method": "getSupportedVersions",
         }
 
-    def process_raw(self, raw: str) -> list[str]:
+    def process_raw(self, raw: bytes) -> list[str]:
         """Process supported versions."""
         data: GetSupportedVersionsResponseT = orjson.loads(raw)
         return data.get("data", {}).get("apiVersions", [])

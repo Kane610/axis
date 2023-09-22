@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Callable
 
 import httpx
+import orjson
 from packaging import version
 import xmltodict
 
@@ -332,22 +333,33 @@ class Vapix:
 
     async def request2(self, api_request: ApiRequest["ApiDataT"]) -> "ApiDataT":
         """Make a request to the device."""
-        url = self.device.config.url + api_request.path
-        LOGGER.debug("%s %s", url, api_request.data)
+        bytes_data = await self.do_request(
+            api_request.method,
+            api_request.path,
+            content=orjson.dumps(api_request.data),
+        )
+        return api_request.process_raw(bytes_data)
+
+    async def do_request(
+        self,
+        method: str,
+        path: str,
+        content: bytes | None = None,
+        params: str | None = None,
+    ) -> bytes:
+        """Make a request to the device."""
+        url = self.device.config.url + path
+        LOGGER.debug("%s, %s, %s, %s", method, url, content, params)
 
         try:
             response = await self.device.config.session.request(
-                api_request.method,
+                method,
                 url,
+                content=content,
+                params=params,
                 auth=self.auth,
                 timeout=TIME_OUT,
-                json=api_request.data,
             )
-            response.raise_for_status()
-
-        except httpx.HTTPStatusError as errh:
-            LOGGER.debug("%s, %s", response, errh)
-            raise_error(response.status_code)
 
         except httpx.TimeoutException:
             raise RequestError("Timeout")
@@ -360,8 +372,19 @@ class Vapix:
             LOGGER.debug("%s", err)
             raise RequestError("Unknown error: {}".format(err))
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
+        try:
+            response.raise_for_status()
 
-        return api_request.process_raw(response.text)
-        return response.text
+        except httpx.HTTPStatusError as errh:
+            LOGGER.debug("%s, %s", response, errh)
+            raise_error(response.status_code)
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                "Response: %s from %s %s",
+                response.content,
+                self.device.config.host,
+                path,
+            )
+
+        return response.content
