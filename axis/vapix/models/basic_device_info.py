@@ -6,7 +6,7 @@ from typing import Any
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest2, ApiRequest3, ApiResponse
 
 API_VERSION = "1.1"
 
@@ -136,9 +136,9 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
     # error: ErrorDataT | None = None
 
     @classmethod
-    def decode(cls, raw: str) -> Self:
+    def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
-        data: GetAllPropertiesResponseT = orjson.loads(raw)
+        data: GetAllPropertiesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
             context=data["context"],
@@ -171,6 +171,28 @@ class GetAllPropertiesRequest(ApiRequest2[GetAllPropertiesResponse]):
 
 
 @dataclass
+class GetAllPropertiesRequest2(ApiRequest3):
+    """Request object for basic device info."""
+
+    method = "post"
+    path = "/axis-cgi/basicdeviceinfo.cgi"
+    content_type = "application/json"
+    error_codes = error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def data(self) -> dict[str, Any]:
+        """Initialize request data."""
+        return {
+            "apiVersion": self.api_version,
+            "context": self.context,
+            "method": "getAllProperties",
+        }
+
+
+@dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
     """Response object for supported versions."""
 
@@ -181,9 +203,9 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
     # error: ErrorDataT | None = None
 
     @classmethod
-    def decode(cls, raw: str) -> Self:
+    def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
+        data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
             context=data["context"],

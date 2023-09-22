@@ -105,7 +105,6 @@ class ApiHandler2(ABC, Generic[ApiItemT]):
         if (
             discovery_item := self.vapix.api_discovery.get(self.api_id.value)
         ) is not None:
-            # if (discovery_item := self.vapix.api_discovery[self.api_id.value]) is not None:
             return discovery_item.version
         return self.default_api_version
 
@@ -115,8 +114,6 @@ class ApiHandler2(ABC, Generic[ApiItemT]):
 
     async def update(self) -> None:
         """Refresh data."""
-        # if self.api_request is None:
-        #     return
         self._items = await self._api_request()
         self.initialized = True
 

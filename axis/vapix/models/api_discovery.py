@@ -204,9 +204,9 @@ class GetAllApisResponse(ApiResponse[list[Api]]):
     # error: ErrorDataT | None = None
 
     @classmethod
-    def decode(cls, raw: str) -> Self:
+    def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
-        data: ListApisResponseT = orjson.loads(raw)
+        data: ListApisResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
             context=data["context"],
@@ -249,9 +249,9 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
     # error: ErrorDataT | None = None
 
     @classmethod
-    def decode(cls, raw: str) -> Self:
+    def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
+        data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
             context=data["context"],

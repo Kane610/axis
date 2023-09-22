@@ -26,8 +26,8 @@ class ApiResponseSupportDecode(ABC):
 
     @classmethod
     @abstractmethod
-    def decode(cls, raw: str) -> Self:
-        """Decode string to class object."""
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Decode data to class object."""
 
 
 @dataclass
@@ -51,6 +51,19 @@ class ApiRequest2(ABC, Generic[ApiResponseT]):
     method: str = field(init=False)
     path: str = field(init=False)
     response: Type[ApiResponseT] = field(init=False)
+
+    @property
+    @abstractmethod
+    def data(self) -> dict[str, Any]:
+        """Request data."""
+
+
+@dataclass
+class ApiRequest3(ABC):
+    """Create API request body."""
+
+    method: str = field(init=False)
+    path: str = field(init=False)
 
     @property
     @abstractmethod
