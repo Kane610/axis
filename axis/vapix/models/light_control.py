@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiItemX, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest
 
 API_VERSION = "1.1"
 
@@ -184,7 +184,7 @@ general_error_codes = {
 
 
 @dataclass
-class LightInformation(ApiItemX):
+class LightInformation(ApiItem):
     """Light information item."""
 
     enabled: bool
@@ -196,18 +196,6 @@ class LightInformation(ApiItemX):
     synchronize_day_night_mode: bool
     error: bool
     error_info: str
-
-    @classmethod
-    def decode(cls, raw: str) -> dict[str, Self]:
-        """Decode string to class object."""
-        data: GetLightInformationResponseT = orjson.loads(raw)
-        return cls.from_list(data["data"]["items"])
-
-    @classmethod
-    def from_list(cls, data: list[LightInformationT]) -> dict[str, Self]:
-        """Create light information objects from list."""
-        lights = [cls.from_dict(item) for item in data]
-        return {light.id: light for light in lights}
 
     @classmethod
     def from_dict(cls, data: LightInformationT) -> Self:
@@ -226,6 +214,12 @@ class LightInformation(ApiItemX):
             error=data["error"],
             error_info=data["errorInfo"],
         )
+
+    @classmethod
+    def from_list(cls, data: list[LightInformationT]) -> dict[str, Self]:
+        """Create light information objects from list."""
+        lights = [cls.from_dict(item) for item in data]
+        return {light.id: light for light in lights}
 
 
 @dataclass
@@ -268,7 +262,8 @@ class GetLightInformation(ApiRequest[dict[str, LightInformation]]):
 
     def process_raw(self, raw: bytes) -> dict[str, LightInformation]:
         """Prepare light information dictionary."""
-        return LightInformation.decode(raw)
+        data: GetLightInformationResponseT = orjson.loads(raw)
+        return LightInformation.from_list(data["data"]["items"])
 
 
 @dataclass

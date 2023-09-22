@@ -64,6 +64,8 @@ async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler)
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json={
+            "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.1"]},
         },
@@ -74,6 +76,7 @@ async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler)
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
     assert json.loads(route.calls.last.request.content) == {
+        # "apiVersion": "1.1",
         "context": "Axis library",
         "method": "getSupportedVersions",
     }
@@ -83,6 +86,8 @@ async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler)
 
 response_getAllProperties = {
     "apiVersion": "1.1",
+    "context": "Axis library",
+    "method": "getAllProperties",
     "data": {
         "propertyList": {
             "Architecture": "armv7hf",

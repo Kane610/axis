@@ -16,22 +16,34 @@ class ApiItem(ABC):
     id: str
 
 
+ApiItemT = TypeVar("ApiItemT", bound=ApiItem)
+ApiDataT = TypeVar("ApiDataT")
+
+
 @dataclass
-class ApiItemX(ApiItem):
-    """API request class."""
+class ApiResponse(ABC, Generic[ApiDataT]):
+    """Response from API request."""
+
+    data: ApiDataT
+    # error: str
 
     @classmethod
     @abstractmethod
-    def decode(cls, raw: str) -> dict[str, Self]:
+    def decode(cls, raw: str) -> Self:
         """Decode string to class object."""
 
-    # def __str__(self) -> str:
-    #     """Convert class to string."""
-    #     return self.__repr__()
+
+ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponse)
 
 
-ApiItemT = TypeVar("ApiItemT", bound=ApiItem)
-ApiDataT = TypeVar("ApiDataT")
+@dataclass
+class ApiRequest2(ABC, Generic[ApiResponseT]):
+    """Create API request body."""
+
+    method: str = field(init=False)
+    path: str = field(init=False)
+    data: dict[str, Any] = field(init=False)
+    response: ApiResponseT = field(init=False)
 
 
 @dataclass

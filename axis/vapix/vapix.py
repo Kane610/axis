@@ -38,7 +38,7 @@ from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import ViewAreaHandler
-from .models.api import ApiRequest
+from .models.api import ApiRequest, ApiRequest2, ApiResponse, ApiResponseT
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
@@ -339,6 +339,15 @@ class Vapix:
             content=orjson.dumps(api_request.data),
         )
         return api_request.process_raw(bytes_data)
+
+    async def request3(self, api_request: ApiRequest2[ApiResponseT]) -> ApiResponseT:
+        """Make a request to the device."""
+        bytes_data = await self.do_request(
+            api_request.method,
+            api_request.path,
+            content=orjson.dumps(api_request.data),
+        )
+        return api_request.response.decode(bytes_data)
 
     async def do_request(
         self,

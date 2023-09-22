@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 
 import orjson
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
 
 API_VERSION = "1.1"
 
@@ -99,18 +99,63 @@ class DeviceInformation(ApiItem):
     version: str
     web_url: str
 
+    @classmethod
+    def decode(cls, raw: DeviceInformationDescriptionT) -> Self:
+        """Decode dict to class object."""
+        return cls(
+            id="0",
+            architecture=raw["Architecture"],
+            brand=raw["Brand"],
+            build_date=raw["BuildDate"],
+            hardware_id=raw["HardwareID"],
+            product_full_name=raw["ProdFullName"],
+            product_number=raw["ProdNbr"],
+            product_short_name=raw["ProdShortName"],
+            product_type=raw["ProdType"],
+            product_variant=raw["ProdVariant"],
+            serial_number=raw["SerialNumber"],
+            soc=raw["Soc"],
+            soc_serial_number=raw["SocSerialNumber"],
+            version=raw["Version"],
+            web_url=raw["WebURL"],
+        )
+
 
 GetAllPropertiesT = dict[str, DeviceInformation]
 
 
 @dataclass
-class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesT]):
-    """Request object for listing API descriptions."""
+class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
+    """Response object for basic device info."""
+
+    api_version: str
+    context: str
+    method: str
+    data: DeviceInformation
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, raw: str) -> Self:
+        """Prepare API description dictionary."""
+        data: GetAllPropertiesResponseT = orjson.loads(raw)
+        device_information = data.get("data", {}).get("propertyList", {})
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=DeviceInformation.decode(device_information),
+        )
+
+
+@dataclass
+class GetAllPropertiesRequest(ApiRequest2[GetAllPropertiesResponse]):
+    """Request object for basic device info."""
 
     method = "post"
     path = "/axis-cgi/basicdeviceinfo.cgi"
     content_type = "application/json"
     error_codes = error_codes
+    response = GetAllPropertiesResponse
 
     api_version: str = API_VERSION
     context: str = CONTEXT
@@ -123,39 +168,38 @@ class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesT]):
             "method": "getAllProperties",
         }
 
-    def process_raw(self, raw: bytes) -> GetAllPropertiesT:
+
+@dataclass
+class GetSupportedVersionsResponse(ApiResponse[list[str]]):
+    """Response object for supported versions."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[str]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, raw: str) -> Self:
         """Prepare API description dictionary."""
-        data: GetAllPropertiesResponseT = orjson.loads(raw)
-        device_information = data.get("data", {}).get("propertyList", {})
-        return {
-            "0": DeviceInformation(
-                id="0",
-                architecture=device_information["Architecture"],
-                brand=device_information["Brand"],
-                build_date=device_information["BuildDate"],
-                hardware_id=device_information["HardwareID"],
-                product_full_name=device_information["ProdFullName"],
-                product_number=device_information["ProdNbr"],
-                product_short_name=device_information["ProdShortName"],
-                product_type=device_information["ProdType"],
-                product_variant=device_information["ProdVariant"],
-                serial_number=device_information["SerialNumber"],
-                soc=device_information["Soc"],
-                soc_serial_number=device_information["SocSerialNumber"],
-                version=device_information["Version"],
-                web_url=device_information["WebURL"],
-            )
-        }
+        data: GetSupportedVersionsResponseT = orjson.loads(raw)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data.get("data", {}).get("apiVersions", []),
+        )
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+class GetSupportedVersionsRequest(ApiRequest2[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"
     path = "/axis-cgi/basicdeviceinfo.cgi"
     content_type = "application/json"
     error_codes = error_codes
+    response = GetSupportedVersionsResponse
 
     context: str = CONTEXT
 
@@ -165,8 +209,3 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
             "context": self.context,
             "method": "getSupportedVersions",
         }
-
-    def process_raw(self, raw: bytes) -> list[str]:
-        """Process supported versions."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
-        return data.get("data", {}).get("apiVersions", [])

@@ -46,7 +46,16 @@ class ApiHandler(ABC, Generic[ApiItemT]):
         if self.api_request is None:
             return
         self.initialized = True
-        self._items = await self.vapix.request2(self.api_request)
+
+        if isinstance(self.api_request, ApiRequest):
+            self._items = await self.vapix.request2(self.api_request)
+            return
+
+        response = await self.vapix.request3(self.api_request)
+        if isinstance(response.data, (list, dict)):
+            self._items = {item.id: item for item in response.data}
+            return
+        self._items = {"0": response.data}
 
     def items(self) -> ItemsView[str, ApiItemT]:
         """Return items."""
