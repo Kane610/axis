@@ -229,13 +229,15 @@ class ListApisRequest(ApiRequest2[GetAllApisResponse]):
     context: str = CONTEXT
 
     @property
-    def data(self) -> dict[str, Any]:
+    def content(self) -> bytes:
         """Initialize request data."""
-        return {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getApiList",
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getApiList",
+            }
+        )
 
 
 @dataclass
@@ -273,9 +275,11 @@ class GetSupportedVersionsRequest(ApiRequest2[GetSupportedVersionsResponse]):
     context: str = CONTEXT
 
     @property
-    def data(self) -> dict[str, Any]:
+    def content(self) -> bytes:
         """Initialize request data."""
-        return {
-            "context": self.context,
-            "method": "getSupportedVersions",
-        }
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )

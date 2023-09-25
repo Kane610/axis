@@ -54,21 +54,8 @@ class ApiRequest2(ABC, Generic[ApiResponseT]):
 
     @property
     @abstractmethod
-    def data(self) -> dict[str, Any]:
-        """Request data."""
-
-
-@dataclass
-class ApiRequest3(ABC):
-    """Create API request body."""
-
-    method: str = field(init=False)
-    path: str = field(init=False)
-
-    @property
-    @abstractmethod
-    def data(self) -> dict[str, Any]:
-        """Request data."""
+    def content(self) -> bytes:
+        """Request content."""
 
 
 @dataclass

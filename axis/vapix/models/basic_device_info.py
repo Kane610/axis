@@ -6,7 +6,7 @@ from typing import Any
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiRequest3, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
 
 API_VERSION = "1.1"
 
@@ -161,17 +161,19 @@ class GetAllPropertiesRequest(ApiRequest2[GetAllPropertiesResponse]):
     context: str = CONTEXT
 
     @property
-    def data(self) -> dict[str, Any]:
+    def content(self) -> bytes:
         """Initialize request data."""
-        return {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getAllProperties",
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getAllProperties",
+            }
+        )
 
 
 @dataclass
-class GetAllPropertiesRequest2(ApiRequest3):
+class GetAllPropertiesRequest2(ApiRequest2):
     """Request object for basic device info."""
 
     method = "post"
@@ -183,13 +185,15 @@ class GetAllPropertiesRequest2(ApiRequest3):
     context: str = CONTEXT
 
     @property
-    def data(self) -> dict[str, Any]:
+    def content(self) -> bytes:
         """Initialize request data."""
-        return {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getAllProperties",
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getAllProperties",
+            }
+        )
 
 
 @dataclass
@@ -227,9 +231,11 @@ class GetSupportedVersionsRequest(ApiRequest2[GetSupportedVersionsResponse]):
     context: str = CONTEXT
 
     @property
-    def data(self) -> dict[str, Any]:
+    def content(self) -> bytes:
         """Initialize request data."""
-        return {
-            "context": self.context,
-            "method": "getSupportedVersions",
-        }
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )

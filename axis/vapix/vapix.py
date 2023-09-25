@@ -345,7 +345,7 @@ class Vapix:
         bytes_data = await self.do_request(
             api_request.method,
             api_request.path,
-            content=orjson.dumps(api_request.data),
+            content=api_request.content,
         )
         return api_request.response.decode(bytes_data)
 
