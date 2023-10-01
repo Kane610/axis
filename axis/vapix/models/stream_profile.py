@@ -8,9 +8,9 @@ and should be used to retrieve a video stream from your Axis product.
 from dataclasses import dataclass, field
 
 import orjson
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest, ApiRequest2, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -80,12 +80,49 @@ class StreamProfile(ApiItem):
     description: str
     parameters: str
 
+    @classmethod
+    def decode(cls, raw: StreamProfileT) -> Self:
+        """Decode dict to class object."""
+        return cls(
+            id=raw["name"],
+            name=raw["name"],
+            description=raw["description"],
+            parameters=raw["parameters"],
+        )
+
+    @classmethod
+    def decode_from_list(cls, raw: list[StreamProfileT]) -> dict[str, Self]:
+        """Decode list[dict] to list of class objects."""
+        return {item.id: item for item in [cls.decode(item) for item in raw]}
+
 
 ListStreamProfilesT = dict[str, StreamProfile]
 
 
 @dataclass
-class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesT]):
+class ListStreamProfilesResponse(ApiResponse[ListStreamProfilesT]):
+    """Response object for list sensors response."""
+
+    api_version: str
+    context: str
+    method: str
+    data: ListStreamProfilesT
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: ListStreamProfilesResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=StreamProfile.decode_from_list(data["data"].get("streamProfile", [])),
+        )
+
+
+@dataclass
+class ListStreamProfilesRequest(ApiRequest2):
     """Request object for listing stream profiles descriptions."""
 
     method = "post"
@@ -97,33 +134,22 @@ class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesT]):
     context: str = CONTEXT
     profiles: list[str] = field(default_factory=list)
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         profile_list = [{"name": profile} for profile in self.profiles]
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "list",
-            "params": {"streamProfileName": profile_list},
-        }
-
-    def process_raw(self, raw: bytes) -> ListStreamProfilesT:
-        """Prepare API description dictionary."""
-        data: ListStreamProfilesResponseT = orjson.loads(raw)
-        stream_profiles = data.get("data", {}).get("streamProfile", [])
-        return {
-            stream_profile["name"]: StreamProfile(
-                id=stream_profile["name"],
-                name=stream_profile["name"],
-                description=stream_profile["description"],
-                parameters=stream_profile["parameters"],
-            )
-            for stream_profile in stream_profiles
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "list",
+                "params": {"streamProfileName": profile_list},
+            }
+        )
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+class GetSupportedVersionsRequest(ApiRequest2):
     """Request object for listing supported API versions."""
 
     method = "post"
@@ -133,14 +159,34 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
 
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "context": self.context,
-            "method": "getSupportedVersions",
-        }
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )
 
-    def process_raw(self, raw: bytes) -> list[str]:
-        """Process supported versions."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
-        return data.get("data", {}).get("apiVersions", [])
+
+@dataclass
+class GetSupportedVersionsResponse(ApiResponse[list[str]]):
+    """Response object for supported versions."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[str]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data.get("data", {}).get("apiVersions", []),
+        )

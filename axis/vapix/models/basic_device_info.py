@@ -138,7 +138,6 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
-        print(bytes_data)
         data: GetAllPropertiesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],

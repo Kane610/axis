@@ -26,7 +26,7 @@ class PirSensorConfigurationHandler(ApiHandler2[PirSensorConfiguration]):
     # api_request = ListSensorsRequest()
 
     async def _api_request(self) -> ListSensorsT:
-        """Get default data of basic device information."""
+        """Get default data of PIR sensor configuration."""
         return await self.list_sensors()
 
     async def list_sensors(self) -> ListSensorsT:

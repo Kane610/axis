@@ -138,7 +138,6 @@ class ListSensorsResponse(ApiResponse[ListSensorsT]):
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
         """Prepare response data."""
-        print(bytes_data)
         data: ListSensorsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],

@@ -11,26 +11,35 @@ can be saved in a stream profile.
 from ..models.api_discovery import ApiId
 from ..models.stream_profile import (
     GetSupportedVersionsRequest,
+    GetSupportedVersionsResponse,
     ListStreamProfilesRequest,
+    ListStreamProfilesResponse,
     ListStreamProfilesT,
     StreamProfile,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler2
 
 
-class StreamProfilesHandler(ApiHandler[StreamProfile]):
+class StreamProfilesHandler(ApiHandler2[StreamProfile]):
     """API Discovery for Axis devices."""
 
     api_id = ApiId.STREAM_PROFILES
-    api_request = ListStreamProfilesRequest()
+
+    async def _api_request(self) -> ListStreamProfilesT:
+        """Get default data of stream profiles."""
+        return await self.list_stream_profiles()
 
     async def list_stream_profiles(self) -> ListStreamProfilesT:
-        """List all APIs registered on API Discovery service."""
+        """List all stream profiles."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        return await self.vapix.request2(
+        bytes_data = await self.vapix.new_request(
             ListStreamProfilesRequest(discovery_item.version)
         )
+        response = ListStreamProfilesResponse.decode(bytes_data)
+        return response.data
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        return await self.vapix.request2(GetSupportedVersionsRequest())
+        bytes_data = await self.vapix.new_request(GetSupportedVersionsRequest())
+        response = GetSupportedVersionsResponse.decode(bytes_data)
+        return response.data
