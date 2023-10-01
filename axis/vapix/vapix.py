@@ -340,14 +340,13 @@ class Vapix:
         )
         return api_request.process_raw(bytes_data)
 
-    async def request3(self, api_request: ApiRequest2[ApiResponseT]) -> ApiResponseT:
+    async def new_request(self, api_request: ApiRequest2) -> bytes:
         """Make a request to the device."""
-        bytes_data = await self.do_request(
-            api_request.method,
-            api_request.path,
+        return await self.do_request(
+            method=api_request.method,
+            path=api_request.path,
             content=api_request.content,
         )
-        return api_request.response.decode(bytes_data)
 
     async def do_request(
         self,

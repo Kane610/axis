@@ -138,6 +138,7 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
+        print(bytes_data)
         data: GetAllPropertiesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -148,32 +149,7 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
 
 
 @dataclass
-class GetAllPropertiesRequest(ApiRequest2[GetAllPropertiesResponse]):
-    """Request object for basic device info."""
-
-    method = "post"
-    path = "/axis-cgi/basicdeviceinfo.cgi"
-    content_type = "application/json"
-    error_codes = error_codes
-    response = GetAllPropertiesResponse
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getAllProperties",
-            }
-        )
-
-
-@dataclass
-class GetAllPropertiesRequest2(ApiRequest2):
+class GetAllPropertiesRequest(ApiRequest2):
     """Request object for basic device info."""
 
     method = "post"
@@ -219,14 +195,13 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2[GetSupportedVersionsResponse]):
+class GetSupportedVersionsRequest(ApiRequest2):
     """Request object for listing supported API versions."""
 
     method = "post"
     path = "/axis-cgi/basicdeviceinfo.cgi"
     content_type = "application/json"
     error_codes = error_codes
-    response = GetSupportedVersionsResponse
 
     context: str = CONTEXT
 

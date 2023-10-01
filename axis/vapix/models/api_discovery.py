@@ -216,14 +216,13 @@ class GetAllApisResponse(ApiResponse[list[Api]]):
 
 
 @dataclass
-class ListApisRequest(ApiRequest2[GetAllApisResponse]):
+class ListApisRequest(ApiRequest2):
     """Request object for listing API descriptions."""
 
     method = "post"
     path = "/axis-cgi/apidiscovery.cgi"
     content_type = "application/json"
     error_codes = error_codes
-    response = GetAllApisResponse
 
     api_version: str = API_VERSION
     context: str = CONTEXT
@@ -263,14 +262,13 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2[GetSupportedVersionsResponse]):
+class GetSupportedVersionsRequest(ApiRequest2):
     """Request object for listing supported API versions."""
 
     method = "post"
     path = "/axis-cgi/apidiscovery.cgi"
     content_type = "application/json"
     error_codes = error_codes
-    response = GetSupportedVersionsResponse
 
     context: str = CONTEXT
 

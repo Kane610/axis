@@ -9,8 +9,10 @@ from ..models.api_discovery import ApiId
 from ..models.basic_device_info import (
     DeviceInformation,
     GetAllPropertiesRequest,
+    GetAllPropertiesResponse,
     GetAllPropertiesT,
     GetSupportedVersionsRequest,
+    GetSupportedVersionsResponse,
 )
 from .api_handler import ApiHandler2
 
@@ -27,14 +29,16 @@ class BasicDeviceInfoHandler(ApiHandler2[DeviceInformation]):
     async def get_all_properties(self) -> GetAllPropertiesT:
         """List all properties of basic device info."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        response = await self.vapix.request3(
+        bytes_data = await self.vapix.new_request(
             GetAllPropertiesRequest(discovery_item.version)
         )
+        response = GetAllPropertiesResponse.decode(bytes_data)
         return {"0": response.data}
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response = await self.vapix.request3(GetSupportedVersionsRequest())
+        bytes_data = await self.vapix.new_request(GetSupportedVersionsRequest())
+        response = GetSupportedVersionsResponse.decode(bytes_data)
         return response.data
 
     @property

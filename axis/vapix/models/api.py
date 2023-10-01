@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, List, Type, TypeVar
+from typing import Any, Callable, Coroutine, Generic, List, Protocol, Type, TypeVar
 
 from typing_extensions import Self
 
@@ -45,12 +45,11 @@ ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponseSupportDecode)
 
 
 @dataclass
-class ApiRequest2(ABC, Generic[ApiResponseT]):
+class ApiRequest2(ABC):
     """Create API request body."""
 
     method: str = field(init=False)
     path: str = field(init=False)
-    response: Type[ApiResponseT] = field(init=False)
 
     @property
     @abstractmethod
