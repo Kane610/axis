@@ -6,9 +6,9 @@ the sensitivity of the PIR (passive infrared) sensors on your Axis device.
 from dataclasses import dataclass
 
 import orjson
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -107,12 +107,49 @@ class PirSensorConfiguration(ApiItem):
     configurable: bool
     sensitivity: float | None = None
 
+    @classmethod
+    def decode(cls, raw: PirSensorConfigurationT) -> Self:
+        """Decode dict to class object."""
+        return cls(
+            id=raw["id"],
+            configurable=raw["sensitivityConfigurable"],
+            sensitivity=raw.get("sensitivity"),
+        )
+
+    @classmethod
+    def decode_from_list(cls, raw: list[PirSensorConfigurationT]) -> dict[str, Self]:
+        """Decode list[dict] to list of class objects."""
+        return {item.id: item for item in [cls.decode(item) for item in raw]}
+
 
 ListSensorsT = dict[str, PirSensorConfiguration]
 
 
 @dataclass
-class ListSensorsRequest(ApiRequest[ListSensorsT]):
+class ListSensorsResponse(ApiResponse[ListSensorsT]):
+    """Response object for list sensors response."""
+
+    api_version: str
+    context: str
+    method: str
+    data: ListSensorsT
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        print(bytes_data)
+        data: ListSensorsResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=PirSensorConfiguration.decode_from_list(data["data"]["sensors"]),
+        )
+
+
+@dataclass
+class ListSensorsRequest(ApiRequest2):
     """Request object for listing PIR sensors."""
 
     method = "post"
@@ -123,30 +160,42 @@ class ListSensorsRequest(ApiRequest[ListSensorsT]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "listSensors",
-        }
-
-    def process_raw(self, raw: bytes) -> ListSensorsT:
-        """Prepare Pir sensor configuration dictionary."""
-        data: ListSensorsResponseT = orjson.loads(raw)
-        sensors = data.get("data", {}).get("sensors", [])
-        return {
-            sensor["id"]: PirSensorConfiguration(
-                id=sensor["id"],
-                configurable=sensor["sensitivityConfigurable"],
-                sensitivity=sensor.get("sensitivity"),
-            )
-            for sensor in sensors
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "listSensors",
+            }
+        )
 
 
 @dataclass
-class GetSensitivityRequest(ApiRequest[float | None]):
+class GetSensitivityResponse(ApiResponse[float | None]):
+    """Response object for get sensitivity response."""
+
+    api_version: str
+    context: str
+    method: str
+    data: float | None
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetSensitivityResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["sensitivity"],
+        )
+
+
+@dataclass
+class GetSensitivityRequest(ApiRequest2):
     """Request object for getting PIR sensor sensitivity."""
 
     method = "post"
@@ -158,25 +207,23 @@ class GetSensitivityRequest(ApiRequest[float | None]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getSensitivity",
-            "params": {
-                "id": self.id,
-            },
-        }
-
-    def process_raw(self, raw: bytes) -> float | None:
-        """Prepare sensitivity value."""
-        data: GetSensitivityResponseT = orjson.loads(raw)
-        return data.get("data", {}).get("sensitivity")
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getSensitivity",
+                "params": {
+                    "id": self.id,
+                },
+            }
+        )
 
 
 @dataclass
-class SetSensitivityRequest(ApiRequest[None]):
+class SetSensitivityRequest(ApiRequest2):
     """Request object for setting PIR sensor sensitivity."""
 
     method = "post"
@@ -189,25 +236,24 @@ class SetSensitivityRequest(ApiRequest[None]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setSensitivity",
-            "params": {
-                "id": self.id,
-                "sensitivity": self.sensitivity,
-            },
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No expected data in response."""
-        return None
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setSensitivity",
+                "params": {
+                    "id": self.id,
+                    "sensitivity": self.sensitivity,
+                },
+            }
+        )
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+class GetSupportedVersionsRequest(ApiRequest2):
     """Request object for listing supported API versions."""
 
     method = "post"
@@ -217,14 +263,34 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
 
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "context": self.context,
-            "method": "getSupportedVersions",
-        }
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )
 
-    def process_raw(self, raw: bytes) -> list[str]:
-        """Process supported versions."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
-        return data.get("data", {}).get("apiVersions", [])
+
+@dataclass
+class GetSupportedVersionsResponse(ApiResponse[list[str]]):
+    """Response object for supported versions."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[str]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data.get("data", {}).get("apiVersions", []),
+        )

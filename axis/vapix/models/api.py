@@ -34,7 +34,7 @@ class ApiResponseSupportDecode(ABC):
 class ApiResponse(ApiResponseSupportDecode, Generic[ApiDataT]):
     """Response from API request.
 
-    Generics can't be used with TypeVar("X", bound=class).
+    Class with generic can't be used in a TypeVar("X", bound=class) statement.
     """
 
     data: ApiDataT
