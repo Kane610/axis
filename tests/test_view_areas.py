@@ -127,6 +127,7 @@ async def test_get_supported_versions(view_areas: ViewAreaHandler):
     route = respx.post(f"http://{HOST}:80{URL_INFO}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.0"]},
         },
@@ -291,6 +292,7 @@ async def test_get_supported_config_versions(view_areas: ViewAreaHandler):
     route = respx.post(f"http://{HOST}:80{URL_CONFIG}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.0"]},
         },
@@ -319,6 +321,7 @@ async def test_general_error_101(view_areas: ViewAreaHandler):
     respx.post(f"http://{HOST}:80{URL_INFO}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "error": {
                 "code": 101,
@@ -342,6 +345,7 @@ async def test_general_error_102(view_areas: ViewAreaHandler):
     respx.post(f"http://{HOST}:80{URL_INFO}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "error": {
                 "code": 102,
@@ -365,6 +369,7 @@ async def test_general_error_103(view_areas: ViewAreaHandler):
     respx.post(f"http://{HOST}:80{URL_INFO}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "error": {
                 "code": 103,
@@ -388,6 +393,7 @@ async def test_method_specific_error_200(view_areas: ViewAreaHandler):
     respx.post(f"http://{HOST}:80{URL_CONFIG}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "error": {
                 "code": 200,
@@ -409,6 +415,7 @@ async def test_method_specific_error_201(view_areas: ViewAreaHandler):
     respx.post(f"http://{HOST}:80{URL_CONFIG}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "error": {
                 "code": 201,
@@ -430,6 +437,7 @@ async def test_method_specific_error_202(view_areas: ViewAreaHandler):
     respx.post(f"http://{HOST}:80{URL_CONFIG}").respond(
         json={
             "apiVersion": "1.0",
+            "context": "",
             "method": "getSupportedVersions",
             "error": {
                 "code": 202,

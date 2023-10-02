@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
 
 API_VERSION = "1.0"
 
