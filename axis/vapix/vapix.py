@@ -38,7 +38,7 @@ from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import ViewAreaHandler
-from .models.api import ApiRequest, ApiRequest2, ApiResponseT
+from .models.api import ApiRequest, ApiRequest2
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
@@ -155,6 +155,8 @@ class Vapix:
             try:
                 await api.update()
             except Unauthorized:  # Probably a viewer account
+                pass
+            except NotImplementedError:
                 pass
 
         apis: tuple[ApiHandler, ...] = (

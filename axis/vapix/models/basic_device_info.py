@@ -1,7 +1,6 @@
 """Basic device information description."""
 
 from dataclasses import dataclass
-from typing import Any
 
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict

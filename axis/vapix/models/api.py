@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine, Generic, List, Protocol, Type, TypeVar
+from typing import Any, Callable, Generic, List, TypeVar
 
 from typing_extensions import Self
 

@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any
 
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict

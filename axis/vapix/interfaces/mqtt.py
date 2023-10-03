@@ -15,9 +15,11 @@ from ..models.mqtt import (
     EventFilter,
     EventPublicationConfig,
     GetClientStatusRequest,
+    GetClientStatusResponse,
     GetEventPublicationConfigRequest,
+    GetEventPublicationConfigResponse,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler2
 
 URL = "/axis-cgi/mqtt"
 URL_CLIENT = f"{URL}/client.cgi"
@@ -51,42 +53,50 @@ def mqtt_json_to_event(msg: str) -> dict[str, Any]:
     }
 
 
-class MqttClientHandler(ApiHandler):
+class MqttClientHandler(ApiHandler2[Any]):
     """MQTT Client for Axis devices."""
 
     api_id = ApiId.MQTT_CLIENT
-    api_request = None
+    default_api_version = API_VERSION
+
+    async def _api_request(self) -> dict[str, None]:
+        """Get API data method defined by subsclass."""
+        raise NotImplementedError
 
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        return await self.vapix.request2(
+        await self.vapix.new_request(
             ConfigureClientRequest(discovery_item.version, client_config=client_config)
         )
 
     async def activate(self) -> None:
         """Activate MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        return await self.vapix.request2(ActivateClientRequest(discovery_item.version))
+        await self.vapix.new_request(ActivateClientRequest(discovery_item.version))
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        return await self.vapix.request2(
-            DeactivateClientRequest(discovery_item.version)
-        )
+        await self.vapix.new_request(DeactivateClientRequest(discovery_item.version))
 
     async def get_client_status(self) -> ClientConfigStatus:
         """Get MQTT Client status."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        return await self.vapix.request2(GetClientStatusRequest(discovery_item.version))
+        bytes_data = await self.vapix.new_request(
+            GetClientStatusRequest(discovery_item.version)
+        )
+        response = GetClientStatusResponse.decode(bytes_data)
+        return response.data
 
     async def get_event_publication_config(self) -> EventPublicationConfig:
         """Get MQTT Client event publication config."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        return await self.vapix.request2(
+        bytes_data = await self.vapix.new_request(
             GetEventPublicationConfigRequest(discovery_item.version)
         )
+        response = GetEventPublicationConfigResponse.decode(bytes_data)
+        return response.data
 
     async def configure_event_publication(
         self, topics: list[str] = DEFAULT_TOPICS
@@ -97,6 +107,6 @@ class MqttClientHandler(ApiHandler):
             [{"topicFilter": topic} for topic in topics]
         )
         config = EventPublicationConfig(event_filter_list=event_filters)
-        return await self.vapix.request2(
+        await self.vapix.new_request(
             ConfigureEventPublicationRequest(discovery_item.version, config=config)
         )

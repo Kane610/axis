@@ -10,6 +10,7 @@ can be saved in a stream profile.
 
 from ..models.api_discovery import ApiId
 from ..models.stream_profile import (
+    API_VERSION,
     GetSupportedVersionsRequest,
     GetSupportedVersionsResponse,
     ListStreamProfilesRequest,
@@ -24,6 +25,7 @@ class StreamProfilesHandler(ApiHandler2[StreamProfile]):
     """API Discovery for Axis devices."""
 
     api_id = ApiId.STREAM_PROFILES
+    default_api_version = API_VERSION
 
     async def _api_request(self) -> ListStreamProfilesT:
         """Get default data of stream profiles."""

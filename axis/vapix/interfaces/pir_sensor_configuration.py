@@ -6,6 +6,7 @@ the sensitivity of the PIR (passive infrared) sensors on your Axis device.
 
 from ..models.api_discovery import ApiId
 from ..models.pir_sensor_configuration import (
+    API_VERSION,
     GetSensitivityRequest,
     GetSensitivityResponse,
     GetSupportedVersionsRequest,
@@ -23,7 +24,7 @@ class PirSensorConfigurationHandler(ApiHandler2[PirSensorConfiguration]):
     """PIR sensor configuration for Axis devices."""
 
     api_id = ApiId.PIR_SENSOR_CONFIGURATION
-    # api_request = ListSensorsRequest()
+    default_api_version = API_VERSION
 
     async def _api_request(self) -> ListSensorsT:
         """Get default data of PIR sensor configuration."""

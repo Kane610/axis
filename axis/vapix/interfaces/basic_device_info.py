@@ -7,6 +7,7 @@ This information is used to identify basic properties of the product.
 
 from ..models.api_discovery import ApiId
 from ..models.basic_device_info import (
+    API_VERSION,
     DeviceInformation,
     GetAllPropertiesRequest,
     GetAllPropertiesResponse,
@@ -21,6 +22,7 @@ class BasicDeviceInfoHandler(ApiHandler2[DeviceInformation]):
     """Basic device information for Axis devices."""
 
     api_id = ApiId.BASIC_DEVICE_INFO
+    default_api_version = API_VERSION
 
     async def _api_request(self) -> dict[str, DeviceInformation]:
         """Get default data of basic device information."""
