@@ -23,7 +23,7 @@ def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_api_list(api_discovery):
+async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=response_getApiList,
@@ -56,7 +56,7 @@ async def test_get_api_list(api_discovery):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_supported_versions(api_discovery):
+async def test_get_supported_versions(api_discovery: ApiDiscoveryHandler):
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=response_getSupportedVersions,
@@ -77,6 +77,7 @@ async def test_get_supported_versions(api_discovery):
 response_getApiList = {
     "method": "getApiList",
     "apiVersion": "1.0",
+    "context": "Axis library",
     "data": {
         "apiList": [
             {
@@ -174,6 +175,8 @@ response_getApiList = {
 }
 
 response_getSupportedVersions = {
+    "apiVersion": "1.0",
+    "context": "Axis library",
     "method": "getSupportedVersions",
     "data": {"apiVersions": ["1.0"]},
 }

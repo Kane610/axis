@@ -67,7 +67,12 @@ async def test_initialize(vapix: Vapix):
         json=stream_profiles_response,
     )
     respx.post(f"http://{HOST}:80/axis-cgi/viewarea/info.cgi").respond(
-        json={"apiVersion": "1.0", "method": "list", "data": {"viewAreas": []}}
+        json={
+            "apiVersion": "1.0",
+            "context": "",
+            "method": "list",
+            "data": {"viewAreas": []},
+        }
     )
 
     respx.get(
@@ -132,7 +137,12 @@ async def test_initialize_api_discovery(vapix: Vapix):
         json=stream_profiles_response,
     )
     respx.post(f"http://{HOST}:80/axis-cgi/viewarea/info.cgi").respond(
-        json={"apiVersion": "1.0", "method": "list", "data": {"viewAreas": []}}
+        json={
+            "apiVersion": "1.0",
+            "context": "",
+            "method": "list",
+            "data": {"viewAreas": []},
+        }
     )
 
     await vapix.initialize_api_discovery()

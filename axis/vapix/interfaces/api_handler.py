@@ -1,6 +1,6 @@
 """API handler class and base class for an API endpoint."""
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,14 +15,13 @@ if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
     from ..vapix import Vapix
 
-from ..models.api import ApiItemT, ApiRequest
+from ..models.api import ApiItemT
 
 
 class ApiHandler(ABC, Generic[ApiItemT]):
     """Base class for a map of API Items."""
 
     api_id: "ApiId"
-    api_request: ApiRequest[dict[str, ApiItemT]] | None
     default_api_version: str | None = None
 
     def __init__(self, vapix: "Vapix") -> None:
@@ -35,18 +34,23 @@ class ApiHandler(ABC, Generic[ApiItemT]):
         """Is API supported by the device."""
         return self.api_id.value in self.vapix.api_discovery
 
+    @property
     def api_version(self) -> str | None:
         """Latest API version supported."""
-        if (discovery_item := self.vapix.api_discovery[self.api_id.value]) is not None:
+        if (
+            discovery_item := self.vapix.api_discovery.get(self.api_id.value)
+        ) is not None:
             return discovery_item.version
         return self.default_api_version
 
+    @abstractmethod
+    async def _api_request(self) -> dict[str, ApiItemT]:
+        """Get API data method defined by subsclass."""
+
     async def update(self) -> None:
         """Refresh data."""
-        if self.api_request is None:
-            return
+        self._items = await self._api_request()
         self.initialized = True
-        self._items = await self.vapix.request2(self.api_request)
 
     def items(self) -> ItemsView[str, ApiItemT]:
         """Return items."""

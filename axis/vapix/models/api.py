@@ -2,7 +2,9 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, List, TypeVar
+from typing import Callable, Generic, List, TypeVar
+
+from typing_extensions import Self
 
 CONTEXT = "Axis library"
 
@@ -19,19 +21,40 @@ ApiDataT = TypeVar("ApiDataT")
 
 
 @dataclass
-class ApiRequest(ABC, Generic[ApiDataT]):
+class ApiResponseSupportDecode(ABC):
+    """Response from API request."""
+
+    @classmethod
+    @abstractmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Decode data to class object."""
+
+
+@dataclass
+class ApiResponse(ApiResponseSupportDecode, Generic[ApiDataT]):
+    """Response from API request.
+
+    Class with generic can't be used in a TypeVar("X", bound=class) statement.
+    """
+
+    data: ApiDataT
+    # error: str
+
+
+ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponseSupportDecode)
+
+
+@dataclass
+class ApiRequest(ABC):
     """Create API request body."""
 
     method: str = field(init=False)
     path: str = field(init=False)
-    data: dict[str, Any] = field(init=False)
 
-    content_type: str = field(init=False)
-    error_codes: dict[int, str] = field(init=False)
-
+    @property
     @abstractmethod
-    def process_raw(self, raw: bytes) -> ApiDataT:
-        """Process raw data."""
+    def content(self) -> bytes:
+        """Request content."""
 
 
 class APIItem:

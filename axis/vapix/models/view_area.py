@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 
 import orjson
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -138,34 +138,9 @@ class ViewArea(ApiItem):
     max_size: Size | None = None
     grid: Geometry | None = None
 
-
-ListViewAreasT = dict[str, ViewArea]
-
-
-@dataclass
-class ListViewAreasRequest(ApiRequest[ListViewAreasT]):
-    """Request object for listing view areas."""
-
-    method = "post"
-    path = "/axis-cgi/viewarea/info.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    def __post_init__(self) -> None:
-        """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "list",
-        }
-
-    def process_raw(self, raw: bytes) -> ListViewAreasT:
-        """Prepare view area dictionary."""
-        data: ListViewAreasResponseT = orjson.loads(raw)
-        items = data.get("data", {}).get("viewAreas", [])
+    @classmethod
+    def decode(cls, raw: ViewAreaT) -> Self:
+        """Decode dict to class object."""
 
         def create_geometry(item: GeometryT | None) -> Geometry | None:
             """Create geometry object."""
@@ -179,20 +154,71 @@ class ListViewAreasRequest(ApiRequest[ListViewAreasT]):
                 return None
             return Size.from_dict(item)
 
-        return {
-            str(item["id"]): ViewArea(
-                id=str(item["id"]),
-                camera=item["camera"],
-                source=item["source"],
-                configurable=item["configurable"],
-                canvas_size=create_size(item.get("canvasSize")),
-                rectangular_geometry=create_geometry(item.get("rectangularGeometry")),
-                min_size=create_size(item.get("minSize")),
-                max_size=create_size(item.get("maxSize")),
-                grid=create_geometry(item.get("grid")),
-            )
-            for item in items
-        }
+        return cls(
+            id=str(raw["id"]),
+            camera=raw["camera"],
+            source=raw["source"],
+            configurable=raw["configurable"],
+            canvas_size=create_size(raw.get("canvasSize")),
+            rectangular_geometry=create_geometry(raw.get("rectangularGeometry")),
+            min_size=create_size(raw.get("minSize")),
+            max_size=create_size(raw.get("maxSize")),
+            grid=create_geometry(raw.get("grid")),
+        )
+
+    @classmethod
+    def decode_from_list(cls, raw: list[ViewAreaT]) -> dict[str, Self]:
+        """Decode list[dict] to list of class objects."""
+        return {str(item.id): item for item in [cls.decode(item) for item in raw]}
+
+
+ListViewAreasT = dict[str, ViewArea]
+
+
+@dataclass
+class ListViewAreasResponse(ApiResponse[ListViewAreasT]):
+    """Response object for list view areas response."""
+
+    api_version: str
+    context: str
+    method: str
+    data: ListViewAreasT
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: ListViewAreasResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=ViewArea.decode_from_list(data.get("data", {}).get("viewAreas", [])),
+        )
+
+
+@dataclass
+class ListViewAreasRequest(ApiRequest):
+    """Request object for listing view areas."""
+
+    method = "post"
+    path = "/axis-cgi/viewarea/info.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "list",
+            }
+        )
 
 
 @dataclass
@@ -205,25 +231,28 @@ class SetGeometryRequest(ListViewAreasRequest):
     id: int | None = None
     geometry: Geometry | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.id is not None and self.geometry is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setGeometry",
-            "params": {
-                "viewArea": {
-                    "id": self.id,
-                    "rectangularGeometry": {
-                        "horizontalOffset": self.geometry.horizontal_offset,
-                        "horizontalSize": self.geometry.horizontal_size,
-                        "verticalOffset": self.geometry.vertical_offset,
-                        "verticalSize": self.geometry.vertical_size,
-                    },
-                }
-            },
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setGeometry",
+                "params": {
+                    "viewArea": {
+                        "id": self.id,
+                        "rectangularGeometry": {
+                            "horizontalOffset": self.geometry.horizontal_offset,
+                            "horizontalSize": self.geometry.horizontal_size,
+                            "verticalOffset": self.geometry.vertical_offset,
+                            "verticalSize": self.geometry.vertical_size,
+                        },
+                    }
+                },
+            }
+        )
 
 
 @dataclass
@@ -235,19 +264,22 @@ class ResetGeometryRequest(ListViewAreasRequest):
 
     id: int | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "resetGeometry",
-            "params": {"viewArea": {"id": self.id}},
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "resetGeometry",
+                "params": {"viewArea": {"id": self.id}},
+            }
+        )
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"
@@ -257,17 +289,37 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
 
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "context": self.context,
-            "method": "getSupportedVersions",
-        }
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )
 
-    def process_raw(self, raw: bytes) -> list[str]:
-        """Process supported versions."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
-        return data.get("data", {}).get("apiVersions", [])
+
+@dataclass
+class GetSupportedVersionsResponse(ApiResponse[list[str]]):
+    """Response object for supported versions."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[str]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data.get("data", {}).get("apiVersions", []),
+        )
 
 
 @dataclass

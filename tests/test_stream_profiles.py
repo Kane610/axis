@@ -59,6 +59,7 @@ async def test_list_stream_profiles_no_profiles(
         json={
             "method": "list",
             "apiVersion": "1.0",
+            "context": "",
             "data": {
                 "maxProfiles": 0,
             },
@@ -91,6 +92,7 @@ async def test_get_supported_versions(stream_profiles: StreamProfilesHandler) ->
 response_list = {
     "method": "list",
     "apiVersion": "1.0",
+    "context": "",
     "data": {
         "streamProfile": [
             {
@@ -105,6 +107,8 @@ response_list = {
 
 
 response_getSupportedVersions = {
+    "apiVersion": "1.0",
+    "context": "Axis library",
     "method": "getSupportedVersions",
     "data": {"apiVersions": ["1.0"]},
 }

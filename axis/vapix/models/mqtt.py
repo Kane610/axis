@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 
 import orjson
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiRequest
+from .api import CONTEXT, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -375,7 +375,7 @@ class EventPublicationConfig:
 
 
 @dataclass
-class ConfigureClientRequest(ApiRequest[None]):
+class ConfigureClientRequest(ApiRequest):
     """Request object for configuring MQTT client."""
 
     method = "post"
@@ -387,22 +387,22 @@ class ConfigureClientRequest(ApiRequest[None]):
     context: str = CONTEXT
     client_config: ClientConfig | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.client_config is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "configureClient",
-            "params": self.client_config.to_dict(),
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """Prepare view area dictionary."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "configureClient",
+                "params": self.client_config.to_dict(),
+            }
+        )
 
 
 @dataclass
-class ActivateClientRequest(ApiRequest[None]):
+class ActivateClientRequest(ApiRequest):
     """Request object for activating MQTT client."""
 
     method = "post"
@@ -413,33 +413,58 @@ class ActivateClientRequest(ApiRequest[None]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "activateClient",
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """Prepare view area dictionary."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "activateClient",
+            }
+        )
 
 
 @dataclass
 class DeactivateClientRequest(ActivateClientRequest):
     """Request object for deactivating MQTT client."""
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "deactivateClient",
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "deactivateClient",
+            }
+        )
 
 
 @dataclass
-class GetClientStatusRequest(ApiRequest[ClientConfigStatus]):
+class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
+    """Response object for get client status request."""
+
+    api_version: str
+    context: str
+    method: str
+    data: ClientConfigStatus
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetClientStatusResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=ClientConfigStatus.from_dict(data["data"]),
+        )
+
+
+@dataclass
+class GetClientStatusRequest(ApiRequest):
     """Request object for getting MQTT client status."""
 
     method = "post"
@@ -450,22 +475,44 @@ class GetClientStatusRequest(ApiRequest[ClientConfigStatus]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getClientStatus",
-        }
-
-    def process_raw(self, raw: bytes) -> ClientConfigStatus:
-        """Prepare view area dictionary."""
-        data: GetClientStatusResponseT = orjson.loads(raw)
-        return ClientConfigStatus.from_dict(data["data"])
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getClientStatus",
+            }
+        )
 
 
 @dataclass
-class GetEventPublicationConfigRequest(ApiRequest[EventPublicationConfig]):
+class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
+    """Response object for event publication config get request."""
+
+    api_version: str
+    context: str
+    method: str
+    data: EventPublicationConfig
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetEventPublicationConfigResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=EventPublicationConfig.from_dict(
+                data["data"]["eventPublicationConfig"]
+            ),
+        )
+
+
+@dataclass
+class GetEventPublicationConfigRequest(ApiRequest):
     """Request object for getting MQTT event publication config."""
 
     method = "post"
@@ -476,22 +523,20 @@ class GetEventPublicationConfigRequest(ApiRequest[EventPublicationConfig]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getEventPublicationConfig",
-        }
-
-    def process_raw(self, raw: bytes) -> EventPublicationConfig:
-        """Prepare view area dictionary."""
-        data: GetEventPublicationConfigResponseT = orjson.loads(raw)
-        return EventPublicationConfig.from_dict(data["data"]["eventPublicationConfig"])
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getEventPublicationConfig",
+            }
+        )
 
 
 @dataclass
-class ConfigureEventPublicationRequest(ApiRequest[None]):
+class ConfigureEventPublicationRequest(ApiRequest):
     """Request object for configuring event publication over MQTT."""
 
     method = "post"
@@ -503,15 +548,15 @@ class ConfigureEventPublicationRequest(ApiRequest[None]):
     context: str = CONTEXT
     config: EventPublicationConfig | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.config is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "configureEventPublication",
-            "params": self.config.to_dict(),
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """Prepare view area dictionary."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "configureEventPublication",
+                "params": self.config.to_dict(),
+            }
+        )

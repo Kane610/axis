@@ -5,7 +5,6 @@ import logging
 from typing import TYPE_CHECKING, Callable
 
 import httpx
-import orjson
 from packaging import version
 import xmltodict
 
@@ -42,7 +41,6 @@ from .models.api import ApiRequest
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
-    from .models.api import ApiDataT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -155,6 +153,8 @@ class Vapix:
             try:
                 await api.update()
             except Unauthorized:  # Probably a viewer account
+                pass
+            except NotImplementedError:
                 pass
 
         apis: tuple[ApiHandler, ...] = (
@@ -331,14 +331,13 @@ class Vapix:
 
         return {}
 
-    async def request2(self, api_request: ApiRequest["ApiDataT"]) -> "ApiDataT":
+    async def new_request(self, api_request: ApiRequest) -> bytes:
         """Make a request to the device."""
-        bytes_data = await self.do_request(
-            api_request.method,
-            api_request.path,
-            content=orjson.dumps(api_request.data),
+        return await self.do_request(
+            method=api_request.method,
+            path=api_request.path,
+            content=api_request.content,
         )
-        return api_request.process_raw(bytes_data)
 
     async def do_request(
         self,

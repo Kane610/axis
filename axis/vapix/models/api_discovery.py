@@ -5,9 +5,9 @@ import enum
 import logging
 
 import orjson
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -113,7 +113,7 @@ class ApiDescriptionT(TypedDict):
     docLink: str
     id: str
     name: str
-    status: str
+    status: NotRequired[str]
     version: str
 
 
@@ -173,12 +173,49 @@ class Api(ApiItem):
         """ID of API."""
         return ApiId(self.id)
 
+    @classmethod
+    def decode(cls, raw: ApiDescriptionT) -> Self:
+        """Decode dict to class object."""
+        return cls(
+            id=raw["id"],
+            name=raw["name"],
+            status=ApiStatus(raw.get("status", "")),
+            version=raw["version"],
+        )
+
+    @classmethod
+    def decode_from_list(cls, raw: list[ApiDescriptionT]) -> list[Self]:
+        """Decode list[dict] to list of class objects."""
+        return [cls.decode(item) for item in raw]
+
 
 ListApisT = dict[str, Api]
 
 
 @dataclass
-class ListApisRequest(ApiRequest[ListApisT]):
+class GetAllApisResponse(ApiResponse[list[Api]]):
+    """Response object for basic device info."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[Api]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: ListApisResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=Api.decode_from_list(data["data"]["apiList"]),
+        )
+
+
+@dataclass
+class ListApisRequest(ApiRequest):
     """Request object for listing API descriptions."""
 
     method = "post"
@@ -189,31 +226,42 @@ class ListApisRequest(ApiRequest[ListApisT]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getApiList",
-        }
-
-    def process_raw(self, raw: bytes) -> ListApisT:
-        """Prepare API description dictionary."""
-        data: ListApisResponseT = orjson.loads(raw)
-        apis = data.get("data", {}).get("apiList", [])
-        return {
-            api["id"]: Api(
-                id=api["id"],
-                name=api["name"],
-                status=ApiStatus(api.get("status", "")),
-                version=api["version"],
-            )
-            for api in apis
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getApiList",
+            }
+        )
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+class GetSupportedVersionsResponse(ApiResponse[list[str]]):
+    """Response object for supported versions."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[str]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data.get("data", {}).get("apiVersions", []),
+        )
+
+
+@dataclass
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"
@@ -223,14 +271,12 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
 
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "context": self.context,
-            "method": "getSupportedVersions",
-        }
-
-    def process_raw(self, raw: bytes) -> list[str]:
-        """Process supported versions."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
-        return data.get("data", {}).get("apiVersions", [])
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )
