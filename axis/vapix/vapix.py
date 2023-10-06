@@ -5,7 +5,6 @@ import logging
 from typing import TYPE_CHECKING, Callable
 
 import httpx
-import orjson
 from packaging import version
 import xmltodict
 
@@ -332,15 +331,6 @@ class Vapix:
             raise RequestError("Unknown error: {}".format(err))
 
         return {}
-
-    async def request2(self, api_request: ApiRequest["ApiDataT"]) -> "ApiDataT":
-        """Make a request to the device."""
-        bytes_data = await self.do_request(
-            api_request.method,
-            api_request.path,
-            content=orjson.dumps(api_request.data),
-        )
-        return api_request.process_raw(bytes_data)
 
     async def new_request(self, api_request: ApiRequest2) -> bytes:
         """Make a request to the device."""

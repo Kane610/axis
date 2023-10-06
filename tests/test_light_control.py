@@ -11,15 +11,27 @@ import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.light_control import LightHandler
+from axis.vapix.models.api_discovery import Api
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def light_control(axis_device: AxisDevice) -> LightHandler:
+async def light_control(axis_device: AxisDevice) -> LightHandler:
     """Return the light_control mock object."""
-    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
-    api_discovery_mock.__getitem__().version = "1.0"
+    axis_device.vapix.api_discovery._items = {
+        api.id: api
+        for api in [
+            Api.decode(
+                {
+                    "id": "light-control",
+                    "version": "1.0",
+                    "name": "Light Control",
+                    "docLink": "https://www.axis.com/partner_pages/vapix_library/#/",
+                }
+            )
+        ]
+    }
     return axis_device.vapix.light_control
 
 
@@ -29,6 +41,7 @@ async def test_update(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getLightInformation",
             "data": {
                 "items": [
@@ -56,7 +69,7 @@ async def test_update(light_control):
     assert route.calls.last.request.url.path == "/axis-cgi/lightcontrol.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "getLightInformation",
-        "apiVersion": "1.1",
+        "apiVersion": "1.0",
         "context": "Axis library",
     }
 
@@ -81,6 +94,7 @@ async def test_get_service_capabilities(light_control: LightHandler):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getServiceCapabilities",
             "data": {
                 "automaticIntensitySupport": True,
@@ -120,6 +134,7 @@ async def test_get_light_information(light_control: LightHandler):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getLightInformation",
             "data": {
                 "items": [
@@ -266,6 +281,7 @@ async def test_get_light_status(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getLightStatus",
             "data": {"status": False},
         },
@@ -292,6 +308,7 @@ async def test_set_automatic_intensity_mode(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "setAutomaticIntensityMode",
             "data": {},
         },
@@ -316,6 +333,7 @@ async def test_get_manual_intensity(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getManualIntensity",
             "data": {"intensity": 1000},
         },
@@ -342,6 +360,7 @@ async def test_set_manual_intensity(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "setManualIntensity",
             "data": {},
         },
@@ -366,6 +385,7 @@ async def test_get_valid_intensity(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getValidIntensity",
             "data": {"ranges": [{"low": 0, "high": 1000}]},
         },
@@ -417,6 +437,7 @@ async def test_get_individual_intensity(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getIndividualIntensity",
             "data": {"intensity": 1000},
         },
@@ -443,6 +464,7 @@ async def test_get_current_intensity(light_control):
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
             "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getCurrentIntensity",
             "data": {"intensity": 1000},
         },
@@ -651,6 +673,8 @@ async def test_get_supported_versions(light_control):
     """Test get supported versions api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/lightcontrol.cgi").respond(
         json={
+            "apiVersion": "1.1",
+            "context": "Axis library",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.1"]},
         },
@@ -671,6 +695,7 @@ async def test_get_supported_versions(light_control):
 
 response_getLightInformation = {
     "apiVersion": "1.1",
+    "context": "Axis library",
     "method": "getLightInformation",
     "data": {
         "items": [

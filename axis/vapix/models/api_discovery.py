@@ -113,7 +113,7 @@ class ApiDescriptionT(TypedDict):
     docLink: str
     id: str
     name: str
-    status: str
+    status: NotRequired[str]
     version: str
 
 

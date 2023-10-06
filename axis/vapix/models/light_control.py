@@ -1,11 +1,11 @@
 """Light Control API data model."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest
+from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
 
 API_VERSION = "1.1"
 
@@ -241,7 +241,29 @@ class Range:
 
 
 @dataclass
-class GetLightInformation(ApiRequest[dict[str, LightInformation]]):
+class ApiVersion:
+    """Handle API version."""
+
+    _default_api_version: str = field(init=False)
+    api_version: str | None = None
+
+    @property
+    def _api_version(self) -> str:
+        """API version or default API version."""
+        if self.api_version is not None:
+            return self.api_version
+        return self._default_api_version
+
+
+@dataclass
+class _ApiVersion(ApiVersion):
+    """Light control API version."""
+
+    _default_api_version = API_VERSION
+
+
+@dataclass
+class GetLightInformationRequest(ApiRequest2):
     """Request object for getting light information."""
 
     method = "post"
@@ -252,18 +274,39 @@ class GetLightInformation(ApiRequest[dict[str, LightInformation]]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getLightInformation",
-        }
+        assert self.api_version is not None
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getLightInformation",
+            }
+        )
 
-    def process_raw(self, raw: bytes) -> dict[str, LightInformation]:
-        """Prepare light information dictionary."""
-        data: GetLightInformationResponseT = orjson.loads(raw)
-        return LightInformation.from_list(data["data"]["items"])
+
+@dataclass
+class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
+    """Response object for getting light information."""
+
+    api_version: str
+    context: str
+    method: str
+    data: dict[str, LightInformation]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetLightInformationResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=LightInformation.from_list(data["data"]["items"]),
+        )
 
 
 @dataclass
@@ -297,8 +340,8 @@ class ServiceCapabilities:
 
 
 @dataclass
-class GetServiceCapabilities(ApiRequest[ServiceCapabilities]):
-    """Request object for getting light information."""
+class GetServiceCapabilitiesRequest(ApiRequest2):
+    """Request object for getting service capabilities."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -308,22 +351,42 @@ class GetServiceCapabilities(ApiRequest[ServiceCapabilities]):
     api_version: str = API_VERSION
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getServiceCapabilities",
-        }
-
-    def process_raw(self, raw: bytes) -> ServiceCapabilities:
-        """Prepare light information dictionary."""
-        data: GetServiceCapabilitiesResponseT = orjson.loads(raw)
-        return ServiceCapabilities.from_dict(data["data"])
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getServiceCapabilities",
+            }
+        )
 
 
 @dataclass
-class ActivateLightRequest(ApiRequest[None]):
+class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
+    """Response object for getting service capabilities."""
+
+    api_version: str
+    context: str
+    method: str
+    data: ServiceCapabilities
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetServiceCapabilitiesResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=ServiceCapabilities.from_dict(data["data"]),
+        )
+
+
+@dataclass
+class ActivateLightRequest(ApiRequest2):
     """Request object for activating light."""
 
     method = "post"
@@ -335,67 +398,76 @@ class ActivateLightRequest(ApiRequest[None]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "activateLight",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No return data to process."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "activateLight",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
 class DeactivateLightRequest(ActivateLightRequest):
     """Request object for activating light."""
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "deactivateLight",
-            "params": {"lightID": self.light_id},
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "deactivateLight",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
 class EnableLightRequest(ActivateLightRequest):
     """Request object for enabling light."""
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "enableLight",
-            "params": {"lightID": self.light_id},
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "enableLight",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
 class DisableLightRequest(ActivateLightRequest):
     """Request object for disabling light."""
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "disableLight",
-            "params": {"lightID": self.light_id},
-        }
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "disableLight",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class GetLightStatusRequest(ApiRequest[bool]):
+class GetLightStatusRequest(ApiRequest2):
     """Request object for getting light status."""
 
     method = "post"
@@ -407,24 +479,44 @@ class GetLightStatusRequest(ApiRequest[bool]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getLightStatus",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> bool:
-        """If light is on or off."""
-        data: GetLightStatusResponseT = orjson.loads(raw)
-        return data["data"]["status"]
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getLightStatus",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class SetAutomaticIntensityModeRequest(ApiRequest[None]):
+class GetLightStatusResponse(ApiResponse[bool]):
+    """Response object for getting light status."""
+
+    api_version: str
+    context: str
+    method: str
+    data: bool
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetLightStatusResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["status"],
+        )
+
+
+@dataclass
+class SetAutomaticIntensityModeRequest(ApiRequest2):
     """Enable the automatic light intensity control."""
 
     method = "post"
@@ -437,24 +529,24 @@ class SetAutomaticIntensityModeRequest(ApiRequest[None]):
     light_id: str | None = None
     enabled: bool | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
         assert self.enabled is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setAutomaticIntensityMode",
-            "params": {"lightID": self.light_id, "enabled": self.enabled},
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No return data to process."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setAutomaticIntensityMode",
+                "params": {"lightID": self.light_id, "enabled": self.enabled},
+            }
+        )
 
 
 @dataclass
-class GetValidIntensityRequest(ApiRequest[Range]):
-    """Request object for getting light status."""
+class GetValidIntensityRequest(ApiRequest2):
+    """Request object for getting valid intensity range of light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -465,24 +557,44 @@ class GetValidIntensityRequest(ApiRequest[Range]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getValidIntensity",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> Range:
-        """If light is on or off."""
-        data: GetValidRangesResponseT = orjson.loads(raw)
-        return Range.from_dict(data["data"]["ranges"][0])
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getValidIntensity",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class SetManualIntensityRequest(ApiRequest[None]):
+class GetValidIntensityResponse(ApiResponse[Range]):
+    """Response object for getting valid intensity range of light."""
+
+    api_version: str
+    context: str
+    method: str
+    data: Range
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetValidRangesResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=Range.from_dict(data["data"]["ranges"][0]),
+        )
+
+
+@dataclass
+class SetManualIntensityRequest(ApiRequest2):
     """Set manual light intensity."""
 
     method = "post"
@@ -495,23 +607,23 @@ class SetManualIntensityRequest(ApiRequest[None]):
     light_id: str | None = None
     intensity: int | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
         assert self.intensity is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setManualIntensity",
-            "params": {"lightID": self.light_id, "intensity": self.intensity},
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No return data to process."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setManualIntensity",
+                "params": {"lightID": self.light_id, "intensity": self.intensity},
+            }
+        )
 
 
 @dataclass
-class GetManualIntensityRequest(ApiRequest[int]):
+class GetManualIntensityRequest(ApiRequest2):
     """Request object for getting manual intensity."""
 
     method = "post"
@@ -523,24 +635,44 @@ class GetManualIntensityRequest(ApiRequest[int]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getManualIntensity",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> int:
-        """If light is on or off."""
-        data: GetIntensityResponseT = orjson.loads(raw)
-        return data["data"]["intensity"]
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getManualIntensity",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class SetIndividualIntensityRequest(ApiRequest[None]):
+class GetManualIntensityResponse(ApiResponse[int]):
+    """Response object for getting manual intensity."""
+
+    api_version: str
+    context: str
+    method: str
+    data: int
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetIntensityResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["intensity"],
+        )
+
+
+@dataclass
+class SetIndividualIntensityRequest(ApiRequest2):
     """Set individual light intensity."""
 
     method = "post"
@@ -554,28 +686,28 @@ class SetIndividualIntensityRequest(ApiRequest[None]):
     led_id: int | None = None
     intensity: int | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
         assert self.led_id is not None
         assert self.intensity is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setIndividualIntensity",
-            "params": {
-                "lightID": self.light_id,
-                "LEDID": self.led_id,
-                "intensity": self.intensity,
-            },
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No return data to process."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setIndividualIntensity",
+                "params": {
+                    "lightID": self.light_id,
+                    "LEDID": self.led_id,
+                    "intensity": self.intensity,
+                },
+            }
+        )
 
 
 @dataclass
-class GetIndividualIntensityRequest(ApiRequest[int]):
+class GetIndividualIntensityRequest(ApiRequest2):
     """Request object for getting individual intensity."""
 
     method = "post"
@@ -588,26 +720,46 @@ class GetIndividualIntensityRequest(ApiRequest[int]):
     light_id: str | None = None
     led_id: int | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
         assert self.led_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getIndividualIntensity",
-            "params": {"lightID": self.light_id, "LEDID": self.led_id},
-        }
-
-    def process_raw(self, raw: bytes) -> int:
-        """Process light intensity."""
-        data: GetIntensityResponseT = orjson.loads(raw)
-        return data["data"]["intensity"]
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getIndividualIntensity",
+                "params": {"lightID": self.light_id, "LEDID": self.led_id},
+            }
+        )
 
 
 @dataclass
-class GetCurrentIntensityRequest(ApiRequest[int]):
-    """Request object for getting manual intensity."""
+class GetIndividualIntensityResponse(ApiResponse[int]):
+    """Response object for getting individual intensity."""
+
+    api_version: str
+    context: str
+    method: str
+    data: int
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetIntensityResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["intensity"],
+        )
+
+
+@dataclass
+class GetCurrentIntensityRequest(ApiRequest2):
+    """Request object for getting current intensity."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -618,24 +770,44 @@ class GetCurrentIntensityRequest(ApiRequest[int]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getCurrentIntensity",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> int:
-        """If light is on or off."""
-        data: GetIntensityResponseT = orjson.loads(raw)
-        return data["data"]["intensity"]
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getCurrentIntensity",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[None]):
+class GetCurrentIntensityResponse(ApiResponse[int]):
+    """Response object for getting current intensity."""
+
+    api_version: str
+    context: str
+    method: str
+    data: int
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetIntensityResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["intensity"],
+        )
+
+
+@dataclass
+class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest2):
     """Enable the automatic angle of illumination control."""
 
     method = "post"
@@ -648,24 +820,24 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[None]):
     light_id: str | None = None
     enabled: bool | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
         assert self.enabled is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setAutomaticAngleOfIlluminationMode",
-            "params": {"lightID": self.light_id, "enabled": self.enabled},
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No return data to process."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setAutomaticAngleOfIlluminationMode",
+                "params": {"lightID": self.light_id, "enabled": self.enabled},
+            }
+        )
 
 
 @dataclass
-class GetValidAngleOfIllumination(ApiRequest[list[Range]]):
-    """Request object for getting angle of illumination range."""
+class GetValidAngleOfIlluminationRequest(ApiRequest2):
+    """Request object for getting valid angle of illumination range."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -676,24 +848,44 @@ class GetValidAngleOfIllumination(ApiRequest[list[Range]]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getValidAngleOfIllumination",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> list[Range]:
-        """If light is on or off."""
-        data: GetValidRangesResponseT = orjson.loads(raw)
-        return Range.from_list(data["data"]["ranges"])
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getValidAngleOfIllumination",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class SetManualAngleOfIlluminationModeRequest(ApiRequest[None]):
+class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
+    """Response object for getting valid angle of illumination range."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[Range]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetValidRangesResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=Range.from_list(data["data"]["ranges"]),
+        )
+
+
+@dataclass
+class SetManualAngleOfIlluminationModeRequest(ApiRequest2):
     """Set the manual angle of illumination."""
 
     method = "post"
@@ -706,26 +898,26 @@ class SetManualAngleOfIlluminationModeRequest(ApiRequest[None]):
     light_id: str | None = None
     angle_of_illumination: int | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
         assert self.angle_of_illumination is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setManualAngleOfIllumination",
-            "params": {
-                "lightID": self.light_id,
-                "angleOfIllumination": self.angle_of_illumination,
-            },
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No return data to process."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setManualAngleOfIllumination",
+                "params": {
+                    "lightID": self.light_id,
+                    "angleOfIllumination": self.angle_of_illumination,
+                },
+            }
+        )
 
 
 @dataclass
-class GetManualAngleOfIlluminationRequest(ApiRequest[int]):
+class GetManualAngleOfIlluminationRequest(ApiRequest2):
     """Request object for getting manual angle of illumination."""
 
     method = "post"
@@ -737,24 +929,44 @@ class GetManualAngleOfIlluminationRequest(ApiRequest[int]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getManualAngleOfIllumination",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> int:
-        """Angle of illumination."""
-        data: GetAngleOfIlluminationResponseT = orjson.loads(raw)
-        return data["data"]["angleOfIllumination"]
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getManualAngleOfIllumination",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class GetCurrentAngleOfIlluminationRequest(ApiRequest[int]):
+class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
+    """Response object for getting manual angle of illumination."""
+
+    api_version: str
+    context: str
+    method: str
+    data: int
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetAngleOfIlluminationResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["angleOfIllumination"],
+        )
+
+
+@dataclass
+class GetCurrentAngleOfIlluminationRequest(ApiRequest2):
     """Request object for getting current angle of illumination."""
 
     method = "post"
@@ -766,24 +978,44 @@ class GetCurrentAngleOfIlluminationRequest(ApiRequest[int]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getCurrentAngleOfIllumination",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> int:
-        """Angle of illumination."""
-        data: GetAngleOfIlluminationResponseT = orjson.loads(raw)
-        return data["data"]["angleOfIllumination"]
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getCurrentAngleOfIllumination",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class SetLightSynchronizeDayNightModeRequest(ApiRequest[None]):
+class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
+    """Response object for getting current angle of illumination."""
+
+    api_version: str
+    context: str
+    method: str
+    data: int
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetAngleOfIlluminationResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["angleOfIllumination"],
+        )
+
+
+@dataclass
+class SetLightSynchronizeDayNightModeRequest(ApiRequest2):
     """Enable automatic synchronization with the day/night mode."""
 
     method = "post"
@@ -796,24 +1028,24 @@ class SetLightSynchronizeDayNightModeRequest(ApiRequest[None]):
     light_id: str | None = None
     enabled: bool | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
         assert self.enabled is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "setLightSynchronizationDayNightMode",
-            "params": {"lightID": self.light_id, "enabled": self.enabled},
-        }
-
-    def process_raw(self, raw: bytes) -> None:
-        """No return data to process."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "setLightSynchronizationDayNightMode",
+                "params": {"lightID": self.light_id, "enabled": self.enabled},
+            }
+        )
 
 
 @dataclass
-class GetLightSynchronizeDayNightModeRequest(ApiRequest[bool]):
-    """Request object for getting current angle of illumination."""
+class GetLightSynchronizeDayNightModeRequest(ApiRequest2):
+    """Request object for getting day night mode synchronization setting."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -824,24 +1056,44 @@ class GetLightSynchronizeDayNightModeRequest(ApiRequest[bool]):
     context: str = CONTEXT
     light_id: str | None = None
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
         assert self.light_id is not None
-        self.data = {
-            "apiVersion": self.api_version,
-            "context": self.context,
-            "method": "getLightSynchronizationDayNightMode",
-            "params": {"lightID": self.light_id},
-        }
-
-    def process_raw(self, raw: bytes) -> bool:
-        """If light is on or off."""
-        data: GetLightSynchronizationDayNightModeResponseT = orjson.loads(raw)
-        return data["data"]["synchronize"]
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getLightSynchronizationDayNightMode",
+                "params": {"lightID": self.light_id},
+            }
+        )
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest[list[str]]):
+class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
+    """Response object for getting day night mode synchronization setting."""
+
+    api_version: str
+    context: str
+    method: str
+    data: bool
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetLightSynchronizationDayNightModeResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["synchronize"],
+        )
+
+
+@dataclass
+class GetSupportedVersionsRequest(ApiRequest2):
     """Request object for listing supported API versions."""
 
     method = "post"
@@ -851,14 +1103,34 @@ class GetSupportedVersionsRequest(ApiRequest[list[str]]):
 
     context: str = CONTEXT
 
-    def __post_init__(self) -> None:
+    @property
+    def content(self) -> bytes:
         """Initialize request data."""
-        self.data = {
-            "context": self.context,
-            "method": "getSupportedVersions",
-        }
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )
 
-    def process_raw(self, raw: bytes) -> list[str]:
-        """Process supported versions."""
-        data: GetSupportedVersionsResponseT = orjson.loads(raw)
-        return data.get("data", {}).get("apiVersions", [])
+
+@dataclass
+class GetSupportedVersionsResponse(ApiResponse[list[str]]):
+    """Response object for supported versions."""
+
+    api_version: str
+    context: str
+    method: str
+    data: list[str]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data.get("data", {}).get("apiVersions", []),
+        )

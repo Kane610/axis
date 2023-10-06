@@ -513,7 +513,6 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
 
 @dataclass
 class GetEventPublicationConfigRequest(ApiRequest2):
-    # class GetEventPublicationConfigRequest(ApiRequest[EventPublicationConfig]):
     """Request object for getting MQTT event publication config."""
 
     method = "post"
