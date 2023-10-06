@@ -19,7 +19,7 @@ from ..models.mqtt import (
     GetEventPublicationConfigRequest,
     GetEventPublicationConfigResponse,
 )
-from .api_handler import ApiHandler2
+from .api_handler import ApiHandler
 
 URL = "/axis-cgi/mqtt"
 URL_CLIENT = f"{URL}/client.cgi"
@@ -53,7 +53,7 @@ def mqtt_json_to_event(msg: str) -> dict[str, Any]:
     }
 
 
-class MqttClientHandler(ApiHandler2[Any]):
+class MqttClientHandler(ApiHandler[Any]):
     """MQTT Client for Axis devices."""
 
     api_id = ApiId.MQTT_CLIENT

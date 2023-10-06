@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.1"
 
@@ -263,7 +263,7 @@ class _ApiVersion(ApiVersion):
 
 
 @dataclass
-class GetLightInformationRequest(ApiRequest2):
+class GetLightInformationRequest(ApiRequest):
     """Request object for getting light information."""
 
     method = "post"
@@ -340,7 +340,7 @@ class ServiceCapabilities:
 
 
 @dataclass
-class GetServiceCapabilitiesRequest(ApiRequest2):
+class GetServiceCapabilitiesRequest(ApiRequest):
     """Request object for getting service capabilities."""
 
     method = "post"
@@ -386,7 +386,7 @@ class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
 
 
 @dataclass
-class ActivateLightRequest(ApiRequest2):
+class ActivateLightRequest(ApiRequest):
     """Request object for activating light."""
 
     method = "post"
@@ -467,7 +467,7 @@ class DisableLightRequest(ActivateLightRequest):
 
 
 @dataclass
-class GetLightStatusRequest(ApiRequest2):
+class GetLightStatusRequest(ApiRequest):
     """Request object for getting light status."""
 
     method = "post"
@@ -516,7 +516,7 @@ class GetLightStatusResponse(ApiResponse[bool]):
 
 
 @dataclass
-class SetAutomaticIntensityModeRequest(ApiRequest2):
+class SetAutomaticIntensityModeRequest(ApiRequest):
     """Enable the automatic light intensity control."""
 
     method = "post"
@@ -545,7 +545,7 @@ class SetAutomaticIntensityModeRequest(ApiRequest2):
 
 
 @dataclass
-class GetValidIntensityRequest(ApiRequest2):
+class GetValidIntensityRequest(ApiRequest):
     """Request object for getting valid intensity range of light."""
 
     method = "post"
@@ -594,7 +594,7 @@ class GetValidIntensityResponse(ApiResponse[Range]):
 
 
 @dataclass
-class SetManualIntensityRequest(ApiRequest2):
+class SetManualIntensityRequest(ApiRequest):
     """Set manual light intensity."""
 
     method = "post"
@@ -623,7 +623,7 @@ class SetManualIntensityRequest(ApiRequest2):
 
 
 @dataclass
-class GetManualIntensityRequest(ApiRequest2):
+class GetManualIntensityRequest(ApiRequest):
     """Request object for getting manual intensity."""
 
     method = "post"
@@ -672,7 +672,7 @@ class GetManualIntensityResponse(ApiResponse[int]):
 
 
 @dataclass
-class SetIndividualIntensityRequest(ApiRequest2):
+class SetIndividualIntensityRequest(ApiRequest):
     """Set individual light intensity."""
 
     method = "post"
@@ -707,7 +707,7 @@ class SetIndividualIntensityRequest(ApiRequest2):
 
 
 @dataclass
-class GetIndividualIntensityRequest(ApiRequest2):
+class GetIndividualIntensityRequest(ApiRequest):
     """Request object for getting individual intensity."""
 
     method = "post"
@@ -758,7 +758,7 @@ class GetIndividualIntensityResponse(ApiResponse[int]):
 
 
 @dataclass
-class GetCurrentIntensityRequest(ApiRequest2):
+class GetCurrentIntensityRequest(ApiRequest):
     """Request object for getting current intensity."""
 
     method = "post"
@@ -807,7 +807,7 @@ class GetCurrentIntensityResponse(ApiResponse[int]):
 
 
 @dataclass
-class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest2):
+class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest):
     """Enable the automatic angle of illumination control."""
 
     method = "post"
@@ -836,7 +836,7 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest2):
 
 
 @dataclass
-class GetValidAngleOfIlluminationRequest(ApiRequest2):
+class GetValidAngleOfIlluminationRequest(ApiRequest):
     """Request object for getting valid angle of illumination range."""
 
     method = "post"
@@ -885,7 +885,7 @@ class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
 
 
 @dataclass
-class SetManualAngleOfIlluminationModeRequest(ApiRequest2):
+class SetManualAngleOfIlluminationModeRequest(ApiRequest):
     """Set the manual angle of illumination."""
 
     method = "post"
@@ -917,7 +917,7 @@ class SetManualAngleOfIlluminationModeRequest(ApiRequest2):
 
 
 @dataclass
-class GetManualAngleOfIlluminationRequest(ApiRequest2):
+class GetManualAngleOfIlluminationRequest(ApiRequest):
     """Request object for getting manual angle of illumination."""
 
     method = "post"
@@ -966,7 +966,7 @@ class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
 
 
 @dataclass
-class GetCurrentAngleOfIlluminationRequest(ApiRequest2):
+class GetCurrentAngleOfIlluminationRequest(ApiRequest):
     """Request object for getting current angle of illumination."""
 
     method = "post"
@@ -1015,7 +1015,7 @@ class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
 
 
 @dataclass
-class SetLightSynchronizeDayNightModeRequest(ApiRequest2):
+class SetLightSynchronizeDayNightModeRequest(ApiRequest):
     """Enable automatic synchronization with the day/night mode."""
 
     method = "post"
@@ -1044,7 +1044,7 @@ class SetLightSynchronizeDayNightModeRequest(ApiRequest2):
 
 
 @dataclass
-class GetLightSynchronizeDayNightModeRequest(ApiRequest2):
+class GetLightSynchronizeDayNightModeRequest(ApiRequest):
     """Request object for getting day night mode synchronization setting."""
 
     method = "post"
@@ -1093,7 +1093,7 @@ class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2):
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"

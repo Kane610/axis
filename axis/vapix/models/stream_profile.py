@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -122,7 +122,7 @@ class ListStreamProfilesResponse(ApiResponse[ListStreamProfilesT]):
 
 
 @dataclass
-class ListStreamProfilesRequest(ApiRequest2):
+class ListStreamProfilesRequest(ApiRequest):
     """Request object for listing stream profiles descriptions."""
 
     method = "post"
@@ -149,7 +149,7 @@ class ListStreamProfilesRequest(ApiRequest2):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2):
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"

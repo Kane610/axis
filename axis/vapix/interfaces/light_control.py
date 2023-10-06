@@ -46,10 +46,10 @@ from ..models.light_control import (
     SetManualAngleOfIlluminationModeRequest,
     SetManualIntensityRequest,
 )
-from .api_handler import ApiHandler2
+from .api_handler import ApiHandler
 
 
-class LightHandler(ApiHandler2[LightInformation]):
+class LightHandler(ApiHandler[LightInformation]):
     """Light control for Axis devices."""
 
     api_id = ApiId.LIGHT_CONTROL

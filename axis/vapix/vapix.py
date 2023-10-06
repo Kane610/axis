@@ -37,11 +37,10 @@ from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import ViewAreaHandler
-from .models.api import ApiRequest, ApiRequest2
+from .models.api import ApiRequest
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
-    from .models.api import ApiDataT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -332,7 +331,7 @@ class Vapix:
 
         return {}
 
-    async def new_request(self, api_request: ApiRequest2) -> bytes:
+    async def new_request(self, api_request: ApiRequest) -> bytes:
         """Make a request to the device."""
         return await self.do_request(
             method=api_request.method,

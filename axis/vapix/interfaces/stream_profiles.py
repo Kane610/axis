@@ -18,10 +18,10 @@ from ..models.stream_profile import (
     ListStreamProfilesT,
     StreamProfile,
 )
-from .api_handler import ApiHandler2
+from .api_handler import ApiHandler
 
 
-class StreamProfilesHandler(ApiHandler2[StreamProfile]):
+class StreamProfilesHandler(ApiHandler[StreamProfile]):
     """API Discovery for Axis devices."""
 
     api_id = ApiId.STREAM_PROFILES

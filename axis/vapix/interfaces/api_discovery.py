@@ -14,10 +14,10 @@ from ..models.api_discovery import (
     ListApisRequest,
     ListApisT,
 )
-from .api_handler import ApiHandler2
+from .api_handler import ApiHandler
 
 
-class ApiDiscoveryHandler(ApiHandler2[Api]):
+class ApiDiscoveryHandler(ApiHandler[Api]):
     """API Discovery for Axis devices."""
 
     api_id = ApiId.API_DISCOVERY

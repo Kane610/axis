@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, List, TypeVar
+from typing import Callable, Generic, List, TypeVar
 
 from typing_extensions import Self
 
@@ -45,7 +45,7 @@ ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponseSupportDecode)
 
 
 @dataclass
-class ApiRequest2(ABC):
+class ApiRequest(ABC):
     """Create API request body."""
 
     method: str = field(init=False)
@@ -55,22 +55,6 @@ class ApiRequest2(ABC):
     @abstractmethod
     def content(self) -> bytes:
         """Request content."""
-
-
-@dataclass
-class ApiRequest(ABC, Generic[ApiDataT]):
-    """Create API request body."""
-
-    method: str = field(init=False)
-    path: str = field(init=False)
-    data: dict[str, Any] = field(init=False)
-
-    content_type: str = field(init=False)
-    error_codes: dict[int, str] = field(init=False)
-
-    @abstractmethod
-    def process_raw(self, raw: bytes) -> ApiDataT:
-        """Process raw data."""
 
 
 class APIItem:

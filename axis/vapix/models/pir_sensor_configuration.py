@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -148,7 +148,7 @@ class ListSensorsResponse(ApiResponse[ListSensorsT]):
 
 
 @dataclass
-class ListSensorsRequest(ApiRequest2):
+class ListSensorsRequest(ApiRequest):
     """Request object for listing PIR sensors."""
 
     method = "post"
@@ -194,7 +194,7 @@ class GetSensitivityResponse(ApiResponse[float | None]):
 
 
 @dataclass
-class GetSensitivityRequest(ApiRequest2):
+class GetSensitivityRequest(ApiRequest):
     """Request object for getting PIR sensor sensitivity."""
 
     method = "post"
@@ -222,7 +222,7 @@ class GetSensitivityRequest(ApiRequest2):
 
 
 @dataclass
-class SetSensitivityRequest(ApiRequest2):
+class SetSensitivityRequest(ApiRequest):
     """Request object for setting PIR sensor sensitivity."""
 
     method = "post"
@@ -252,7 +252,7 @@ class SetSensitivityRequest(ApiRequest2):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2):
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -375,7 +375,7 @@ class EventPublicationConfig:
 
 
 @dataclass
-class ConfigureClientRequest(ApiRequest2):
+class ConfigureClientRequest(ApiRequest):
     """Request object for configuring MQTT client."""
 
     method = "post"
@@ -402,7 +402,7 @@ class ConfigureClientRequest(ApiRequest2):
 
 
 @dataclass
-class ActivateClientRequest(ApiRequest2):
+class ActivateClientRequest(ApiRequest):
     """Request object for activating MQTT client."""
 
     method = "post"
@@ -464,7 +464,7 @@ class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
 
 
 @dataclass
-class GetClientStatusRequest(ApiRequest2):
+class GetClientStatusRequest(ApiRequest):
     """Request object for getting MQTT client status."""
 
     method = "post"
@@ -512,7 +512,7 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
 
 
 @dataclass
-class GetEventPublicationConfigRequest(ApiRequest2):
+class GetEventPublicationConfigRequest(ApiRequest):
     """Request object for getting MQTT event publication config."""
 
     method = "post"
@@ -536,7 +536,7 @@ class GetEventPublicationConfigRequest(ApiRequest2):
 
 
 @dataclass
-class ConfigureEventPublicationRequest(ApiRequest2):
+class ConfigureEventPublicationRequest(ApiRequest):
     """Request object for configuring event publication over MQTT."""
 
     method = "post"

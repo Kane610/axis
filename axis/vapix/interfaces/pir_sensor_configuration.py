@@ -17,10 +17,10 @@ from ..models.pir_sensor_configuration import (
     PirSensorConfiguration,
     SetSensitivityRequest,
 )
-from .api_handler import ApiHandler2
+from .api_handler import ApiHandler
 
 
-class PirSensorConfigurationHandler(ApiHandler2[PirSensorConfiguration]):
+class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     """PIR sensor configuration for Axis devices."""
 
     api_id = ApiId.PIR_SENSOR_CONFIGURATION

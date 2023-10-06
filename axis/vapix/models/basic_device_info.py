@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.1"
 
@@ -147,7 +147,7 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
 
 
 @dataclass
-class GetAllPropertiesRequest(ApiRequest2):
+class GetAllPropertiesRequest(ApiRequest):
     """Request object for basic device info."""
 
     method = "post"
@@ -193,7 +193,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2):
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"

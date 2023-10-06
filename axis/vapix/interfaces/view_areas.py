@@ -21,10 +21,10 @@ from ..models.view_area import (
     SetGeometryRequest,
     ViewArea,
 )
-from .api_handler import ApiHandler2
+from .api_handler import ApiHandler
 
 
-class ViewAreaHandler(ApiHandler2[ViewArea]):
+class ViewAreaHandler(ApiHandler[ViewArea]):
     """View areas for Axis devices."""
 
     api_id = ApiId.VIEW_AREA

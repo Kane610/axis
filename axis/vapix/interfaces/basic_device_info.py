@@ -15,10 +15,10 @@ from ..models.basic_device_info import (
     GetSupportedVersionsRequest,
     GetSupportedVersionsResponse,
 )
-from .api_handler import ApiHandler2
+from .api_handler import ApiHandler
 
 
-class BasicDeviceInfoHandler(ApiHandler2[DeviceInformation]):
+class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
     """Basic device information for Axis devices."""
 
     api_id = ApiId.BASIC_DEVICE_INFO

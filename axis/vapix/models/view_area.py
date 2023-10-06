@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -198,7 +198,7 @@ class ListViewAreasResponse(ApiResponse[ListViewAreasT]):
 
 
 @dataclass
-class ListViewAreasRequest(ApiRequest2):
+class ListViewAreasRequest(ApiRequest):
     """Request object for listing view areas."""
 
     method = "post"
@@ -279,7 +279,7 @@ class ResetGeometryRequest(ListViewAreasRequest):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2):
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"

@@ -7,7 +7,7 @@ import logging
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import CONTEXT, ApiItem, ApiRequest2, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 
 API_VERSION = "1.0"
 
@@ -215,7 +215,7 @@ class GetAllApisResponse(ApiResponse[list[Api]]):
 
 
 @dataclass
-class ListApisRequest(ApiRequest2):
+class ListApisRequest(ApiRequest):
     """Request object for listing API descriptions."""
 
     method = "post"
@@ -261,7 +261,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest2):
+class GetSupportedVersionsRequest(ApiRequest):
     """Request object for listing supported API versions."""
 
     method = "post"
