@@ -36,7 +36,9 @@ class IoPortManagement(ApiHandler):
         print(bytes_data)
         return GetPortsResponse.decode(bytes_data).data
 
-    async def set_ports(self, ports: list[PortConfiguration]) -> None:
+    async def set_ports(
+        self, ports: list[PortConfiguration] | PortConfiguration
+    ) -> None:
         """Configure one or more ports.
 
         Some of the available options are:
@@ -62,8 +64,8 @@ class IoPortManagement(ApiHandler):
 
     async def open(self, port_id: str) -> None:
         """Shortcut method to open a port."""
-        await self.set_ports([PortConfiguration(port_id, state="open")])
+        await self.set_ports(PortConfiguration(port_id, state="open"))
 
     async def close(self, port_id: str) -> None:
         """Shortcut method to close a port."""
-        await self.set_ports([PortConfiguration(port_id, state="closed")])
+        await self.set_ports(PortConfiguration(port_id, state="closed"))

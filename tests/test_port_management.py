@@ -81,7 +81,18 @@ async def test_set_ports(io_port_management):
     """Test set_ports call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
 
-    await io_port_management.set_ports([PortConfiguration("0", state="closed")])
+    await io_port_management.set_ports(
+        [
+            PortConfiguration(
+                "0",
+                usage="",
+                direction="",
+                name="",
+                normal_state="",
+                state="closed",
+            )
+        ]
+    )
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -90,7 +101,16 @@ async def test_set_ports(io_port_management):
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
-        "params": [{"port": "0", "state": "closed"}],
+        "params": [
+            {
+                "port": "0",
+                "usage": "",
+                "direction": "",
+                "name": "",
+                "normalState": "",
+                "state": "closed",
+            }
+        ],
     }
 
 
