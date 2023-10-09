@@ -23,7 +23,7 @@ class ErrorDataT(TypedDict):
 
 
 class PortItemT(TypedDict):
-    """"""
+    """Port representation."""
 
     port: str
     configurable: bool
@@ -35,21 +35,21 @@ class PortItemT(TypedDict):
 
 
 class PortDataT(TypedDict):
-    """"""
+    """Port get ports response."""
 
     numberOfPorts: int
     items: list[PortItemT]
 
 
 class SequenceT(TypedDict):
-    """"""
+    """Port sequence representation."""
 
     state: Literal["open", "closed"]
     time: int
 
 
 class GetPortsResponseT(TypedDict):
-    """"""
+    """Get ports response data."""
 
     apiVersion: str
     context: str
