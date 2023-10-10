@@ -28,10 +28,7 @@ from .interfaces.mqtt import MqttClientHandler
 from .interfaces.param_cgi import Params
 from .interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 from .interfaces.port_cgi import Ports
-from .interfaces.port_management import (
-    API_DISCOVERY_ID as IO_PORT_MANAGEMENT_ID,
-    IoPortManagement,
-)
+from .interfaces.port_management import IoPortManagement
 from .interfaces.ptz import PtzControl
 from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
@@ -62,7 +59,7 @@ class Vapix:
         self.motion_guard: MotionGuard | None = None
         self.object_analytics: ObjectAnalytics | None = None
         self.params: Params | None = None
-        self.ports: IoPortManagement | Ports | None = None
+        self._ports: Ports | None = None
         self.ptz: PtzControl | None = None
         self.user_groups: UserGroups | None = None
         self.users: Users | None = None
@@ -70,6 +67,7 @@ class Vapix:
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
+        self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
         self.mqtt = MqttClientHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
@@ -118,6 +116,13 @@ class Vapix:
             return list(self.stream_profiles.values())
         return self.params.stream_profiles  # type: ignore[union-attr]
 
+    @property
+    def ports(self) -> IoPortManagement | Ports:
+        """Temporary port property."""
+        if not self.io_port_management.supported() and self._ports is not None:
+            return self._ports
+        return self.io_port_management
+
     async def initialize(self) -> None:
         """Initialize Vapix functions."""
         await self.initialize_api_discovery()
@@ -143,11 +148,6 @@ class Vapix:
         except PathNotFound:  # Device doesn't support API discovery
             return
 
-        tasks = []
-
-        if IO_PORT_MANAGEMENT_ID in self.api_discovery:
-            tasks.append(self._initialize_api_attribute(IoPortManagement, "ports"))
-
         async def do_api_request(api: ApiHandler) -> None:
             """Try update of API."""
             try:
@@ -159,12 +159,16 @@ class Vapix:
 
         apis: tuple[ApiHandler, ...] = (
             self.basic_device_info,
+            self.io_port_management,
             self.light_control,
             self.mqtt,
             self.pir_sensor_configuration,
             self.stream_profiles,
             self.view_areas,
         )
+
+        tasks = []
+
         for api in apis:
             if not api.supported():
                 continue
@@ -189,7 +193,7 @@ class Vapix:
             if not self.basic_device_info.supported():
                 tasks.append(self.params.update_brand())
 
-            if not self.ports:
+            if not self.io_port_management.supported():
                 tasks.append(self.params.update_ports())
 
             if not self.stream_profiles.supported():
@@ -207,8 +211,8 @@ class Vapix:
             except Unauthorized:  # Probably a viewer account
                 pass
 
-        if not self.ports:
-            self.ports = Ports(self)
+        if not self.io_port_management.supported():
+            self._ports = Ports(self)
 
         if not self.ptz and self.params.ptz:
             self.ptz = PtzControl(self)

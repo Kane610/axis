@@ -1,89 +1,70 @@
 """I/O Port Management API.
 
-The I/O port management API makes it possible to retrieve information about the ports and apply product dependent configurations
+The I/O port management API makes it possible to retrieve
+information about the ports and apply product dependent configurations
 """
 
-import attr
+from ..models.api_discovery import ApiId
+from ..models.port_management import (
+    API_VERSION,
+    GetPortsRequest,
+    GetPortsResponse,
+    GetSupportedVersionsRequest,
+    GetSupportedVersionsResponse,
+    Port,
+    PortConfiguration,
+    Sequence,
+    SetPortsRequest,
+    SetStateSequenceRequest,
+)
+from .api_handler import ApiHandler
 
-from ..models.port_management import Port, PortSequence
-from ..models.port_management import Sequence  # noqa: F401
-from ..models.port_management import SetPort  # noqa: F401
-from .api import APIItems, Body
 
-URL = "/axis-cgi/io/portmanagement.cgi"
-
-API_DISCOVERY_ID = "io-port-management"
-API_VERSION = "1.0"
-
-
-class IoPortManagement(APIItems):
+class IoPortManagement(ApiHandler):
     """I/O port management for Axis devices."""
 
-    item_cls = Port
-    path = URL
+    api_id = ApiId.IO_PORT_MANAGEMENT
+    default_api_version = API_VERSION
 
-    async def update(self) -> None:
-        """Refresh data."""
-        raw = await self.get_ports()
-        self.process_raw(raw)
+    async def _api_request(self) -> dict[str, Port]:
+        """Get default data of I/O port management."""
+        return await self.get_ports()
 
-    @staticmethod
-    def pre_process_raw(raw: dict) -> dict:
-        """Return a dictionary of ports."""
-        if not raw:
-            return {}
+    async def get_ports(self) -> dict[str, Port]:
+        """List ports."""
+        bytes_data = await self.vapix.new_request(GetPortsRequest())
+        return GetPortsResponse.decode(bytes_data).data
 
-        if raw.get("data", {}).get("numberOfPorts", 0) == 0:
-            return {}
-
-        ports = raw["data"]["items"]
-        return {port["port"]: port for port in ports}
-
-    async def get_ports(self) -> dict:
-        """Retrieve information about all ports on the device and their capabilities."""
-        return await self.vapix.request(
-            "post",
-            URL,
-            json=attr.asdict(
-                Body("getPorts", API_VERSION),
-                filter=attr.filters.exclude(attr.fields(Body).params),
-            ),
-        )
-
-    async def set_ports(self, ports: list) -> None:
+    async def set_ports(
+        self, ports: list[PortConfiguration] | PortConfiguration
+    ) -> None:
         """Configure one or more ports.
 
         Some of the available options are:
         * Setting a nice name that can be used in the user interface.
-        * Configuring the states and what constitutes a normal and triggered state respectively.
+        * Configuring the states and what constitutes a normal
+            and triggered state respectively.
             This will make triggers activate in either open or closed circuits.
-        The reason the change is treated as a nice name is because it doesn’t affect the underlying behavior of the port.
-        Devices with configurable ports can change the direction to either input or output.
+        The reason the change is treated as a nice name is because it doesn’t
+          affect the underlying behavior of the port.
+        Devices with configurable ports can change the direction
+          to either input or output.
         """
-        await self.vapix.request(
-            "post",
-            URL,
-            json=attr.asdict(
-                Body("setPorts", API_VERSION, params=ports),
-                filter=lambda attr, value: value is not None,
-            ),
-        )
+        await self.vapix.new_request(SetPortsRequest(ports))
 
-    async def set_state_sequence(self, sequence: PortSequence) -> None:
+    async def set_state_sequence(self, port_id: str, sequence: list[Sequence]) -> None:
         """Apply a sequence of state changes with a delay in milliseconds between states."""
-        await self.vapix.request(
-            "post",
-            URL,
-            json=attr.asdict(Body("setStateSequence", API_VERSION, params=sequence)),
-        )
+        await self.vapix.new_request(SetStateSequenceRequest(port_id, sequence))
 
-    async def get_supported_versions(self) -> dict:
-        """Retrieve a list of supported API versions."""
-        return await self.vapix.request(
-            "post",
-            URL,
-            json=attr.asdict(
-                Body("getSupportedVersions", API_VERSION),
-                filter=attr.filters.include(attr.fields(Body).method),
-            ),
-        )
+    async def get_supported_versions(self) -> list[str]:
+        """List supported API versions."""
+        bytes_data = await self.vapix.new_request(GetSupportedVersionsRequest())
+        return GetSupportedVersionsResponse.decode(bytes_data).data
+
+    async def open(self, port_id: str) -> None:
+        """Shortcut method to open a port."""
+        await self.set_ports(PortConfiguration(port_id, state="open"))
+
+    async def close(self, port_id: str) -> None:
+        """Shortcut method to close a port."""
+        await self.set_ports(PortConfiguration(port_id, state="closed"))

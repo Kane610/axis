@@ -8,12 +8,8 @@ import json
 import pytest
 import respx
 
-from axis.vapix.interfaces.port_management import (
-    IoPortManagement,
-    PortSequence,
-    Sequence,
-    SetPort,
-)
+from axis.vapix.interfaces.port_management import IoPortManagement
+from axis.vapix.models.port_management import PortConfiguration, Sequence
 
 from .conftest import HOST
 
@@ -25,7 +21,6 @@ def io_port_management(axis_device) -> IoPortManagement:
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_ports(io_port_management):
     """Test get_ports call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
@@ -47,7 +42,6 @@ async def test_get_ports(io_port_management):
 
     item = io_port_management["0"]
     assert item.id == "0"
-    assert item.port == "0"
     assert item.name == "PIR sensor"
     assert item.configurable is False
     assert item.usage == ""
@@ -55,7 +49,7 @@ async def test_get_ports(io_port_management):
     assert item.state == "open"
     assert item.normalState == "open"
 
-    await item.open()
+    await io_port_management.open("0")
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -67,7 +61,7 @@ async def test_get_ports(io_port_management):
         "params": [{"port": "0", "state": "open"}],
     }
 
-    await item.close()
+    await io_port_management.close("0")
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -81,12 +75,22 @@ async def test_get_ports(io_port_management):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_ports(io_port_management):
     """Test set_ports call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
 
-    await io_port_management.set_ports([SetPort("0", state="closed")])
+    await io_port_management.set_ports(
+        [
+            PortConfiguration(
+                "0",
+                usage="",
+                direction="",
+                name="",
+                normal_state="",
+                state="closed",
+            )
+        ]
+    )
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -95,18 +99,26 @@ async def test_set_ports(io_port_management):
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
-        "params": [{"port": "0", "state": "closed"}],
+        "params": [
+            {
+                "port": "0",
+                "usage": "",
+                "direction": "",
+                "name": "",
+                "normalState": "",
+                "state": "closed",
+            }
+        ],
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_state_sequence(io_port_management):
     """Test setting state sequence call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
 
     await io_port_management.set_state_sequence(
-        PortSequence("0", [Sequence("open", 3000), Sequence("closed", 5000)])
+        "0", [Sequence("open", 3000), Sequence("closed", 5000)]
     )
 
     assert route.called
@@ -127,7 +139,6 @@ async def test_set_state_sequence(io_port_management):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_supported_versions(io_port_management):
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
@@ -140,9 +151,10 @@ async def test_get_supported_versions(io_port_management):
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
     assert json.loads(route.calls.last.request.content) == {
-        "method": "getSupportedVersions"
+        "method": "getSupportedVersions",
+        "context": "Axis library",
     }
-    assert response["data"] == {"apiVersions": ["1.0"]}
+    assert response == ["1.0"]
 
 
 response_getPorts = {
@@ -166,6 +178,8 @@ response_getPorts = {
 }
 
 response_getSupportedVersions = {
+    "apiVersion": "1.0",
+    "context": "",
     "method": "getSupportedVersions",
     "data": {"apiVersions": ["1.0"]},
 }
