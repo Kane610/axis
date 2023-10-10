@@ -31,7 +31,7 @@ class IoPortManagement(ApiHandler):
         return await self.get_ports()
 
     async def get_ports(self) -> dict[str, Port]:
-        """List all APIs registered on API Discovery service."""
+        """List ports."""
         bytes_data = await self.vapix.new_request(GetPortsRequest())
         return GetPortsResponse.decode(bytes_data).data
 
