@@ -35,7 +35,7 @@ class PortItemT(TypedDict):
 
 
 class PortDataT(TypedDict):
-    """Port get ports response."""
+    """Port getPorts response."""
 
     numberOfPorts: int
     items: list[PortItemT]
@@ -87,7 +87,7 @@ error_codes = {
 
 @dataclass
 class PortConfiguration:
-    """Port configuration used with set ports."""
+    """Port configuration used with set_ports interface."""
 
     port: str
     usage: str | None = None
@@ -165,7 +165,7 @@ class Port(ApiItem):
 
     @classmethod
     def from_dict(cls, data: PortItemT) -> Self:
-        """Create port object from dict."""
+        """Create object from dict."""
         return cls(
             id=data["port"],
             configurable=data["configurable"],
@@ -178,7 +178,7 @@ class Port(ApiItem):
 
     @classmethod
     def from_list(cls, data: list[PortItemT]) -> dict[str, Self]:
-        """Create port objects from list."""
+        """Create objects from list."""
         ports = [cls.from_dict(item) for item in data]
         return {port.id: port for port in ports}
 
@@ -249,7 +249,6 @@ class SetPortsRequest(ApiRequest):
         if not isinstance(self.port_config, list):
             self.port_config = [self.port_config]
         ports: list[dict[str, str]] = [port.to_dict() for port in self.port_config]
-
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -262,7 +261,7 @@ class SetPortsRequest(ApiRequest):
 
 @dataclass
 class SetStateSequenceRequest(ApiRequest):
-    """Request object for configuring ports."""
+    """Request object for configuring port sequence."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
@@ -279,7 +278,6 @@ class SetStateSequenceRequest(ApiRequest):
     def content(self) -> bytes:
         """Initialize request data."""
         sequence = [item.to_dict() for item in self.sequence]
-
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

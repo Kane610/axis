@@ -21,7 +21,6 @@ def io_port_management(axis_device) -> IoPortManagement:
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_ports(io_port_management):
     """Test get_ports call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
@@ -76,7 +75,6 @@ async def test_get_ports(io_port_management):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_ports(io_port_management):
     """Test set_ports call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
@@ -115,7 +113,6 @@ async def test_set_ports(io_port_management):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_set_state_sequence(io_port_management):
     """Test setting state sequence call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
@@ -142,7 +139,6 @@ async def test_set_state_sequence(io_port_management):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_supported_versions(io_port_management):
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(

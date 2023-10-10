@@ -159,14 +159,13 @@ class Vapix:
 
         apis: tuple[ApiHandler, ...] = (
             self.basic_device_info,
+            self.io_port_management,
             self.light_control,
             self.mqtt,
             self.pir_sensor_configuration,
             self.stream_profiles,
             self.view_areas,
         )
-        if self.io_port_management.supported():
-            apis += (self.io_port_management,)
 
         tasks = []
 
