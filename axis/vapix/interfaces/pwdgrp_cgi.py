@@ -16,8 +16,19 @@ comment: The comment field of the account.
 import re
 from typing import Dict
 
-from ..models.pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER, User
+from ..models.pwdgrp_cgi import (
+    ADMIN,
+    OPERATOR,
+    PTZ,
+    VIEWER,
+    CreateUserRequest,
+    DeleteUserRequest,
+    GetUsersRequest,
+    ModifyUserRequest,
+    User,
+)
 from .api import APIItems
+from .api_handler import ApiHandler
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
@@ -72,19 +83,14 @@ class Users(APIItems):
 
     async def list(self) -> str:
         """List current users."""
-        data = {"action": "get"}
-        return await self.vapix.request("post", URL, data=data)
+        data = await self.vapix.new_request(GetUsersRequest())
+        return data.decode()
 
     async def create(
         self, user: str, *, pwd: str, sgrp: str, comment: str | None = None
     ) -> None:
         """Create new user."""
-        data = {"action": "add", "user": user, "pwd": pwd, "grp": "users", "sgrp": sgrp}
-
-        if comment:
-            data["comment"] = comment
-
-        await self.vapix.request("post", URL, data=data)
+        await self.vapix.new_request(CreateUserRequest(user, pwd, sgrp, comment))
 
     async def modify(
         self,
@@ -95,21 +101,8 @@ class Users(APIItems):
         comment: str | None = None,
     ) -> None:
         """Update user."""
-        data = {"action": "update", "user": user}
-
-        if pwd:
-            data["pwd"] = pwd
-
-        if sgrp:
-            data["sgrp"] = sgrp
-
-        if comment:
-            data["comment"] = comment
-
-        await self.vapix.request("post", URL, data=data)
+        await self.vapix.new_request(ModifyUserRequest(user, pwd, sgrp, comment))
 
     async def delete(self, user: str) -> None:
         """Remove user."""
-        data = {"action": "remove", "user": user}
-
-        await self.vapix.request("post", URL, data=data)
+        await self.vapix.new_request(DeleteUserRequest(user))

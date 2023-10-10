@@ -52,9 +52,14 @@ class ApiRequest(ABC):
     path: str = field(init=False)
 
     @property
-    @abstractmethod
-    def content(self) -> bytes:
+    def content(self) -> bytes | None:
         """Request content."""
+        return None
+
+    @property
+    def data(self) -> dict[str, str] | None:
+        """Request data."""
+        return None
 
 
 class APIItem:
