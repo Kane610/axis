@@ -62,8 +62,9 @@ class Vapix:
         self._ports: Ports | None = None
         self.ptz: PtzControl | None = None
         self.user_groups: UserGroups | None = None
-        self.users: Users | None = None
         self.vmd4: Vmd4 | None = None
+
+        self.users = Users(self)
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
@@ -253,7 +254,6 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        self.users = Users(self)
         try:
             await self.users.update()
         except Unauthorized:

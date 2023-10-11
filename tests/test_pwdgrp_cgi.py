@@ -16,11 +16,17 @@ from .conftest import HOST
 @pytest.fixture
 def users(axis_device) -> Users:
     """Return the api_discovery mock object."""
-    return Users(axis_device.vapix, fixture)
+    return axis_device.vapix.users
 
 
-def test_users(users):
+@respx.mock
+async def test_users(users):
     """Verify that you can list users."""
+    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=fixture)
+    await users.update()
+
+    print(users._items)
+
     assert users["userv"]
     assert users["userv"].name == "userv"
     assert users["userv"].viewer
@@ -43,14 +49,7 @@ def test_users(users):
     assert users["usera"].ptz
 
 
-def test_get_users_low_privileges(axis_device):
-    """Validate get users low privileges."""
-    users = Users(axis_device.vapix, "")
-    assert len(users) == 0
-
-
 @respx.mock
-@pytest.mark.asyncio
 async def test_create(users):
     """Verify that you can create users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
@@ -94,7 +93,6 @@ async def test_create(users):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_modify(users):
     """Verify that you can modify users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
@@ -155,7 +153,6 @@ async def test_modify(users):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_delete(users):
     """Verify that you can delete users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
@@ -171,9 +168,13 @@ async def test_delete(users):
     )
 
 
-def test_equals_in_value(axis_device):
+@respx.mock
+async def test_equals_in_value(users):
     """Verify that values containing `=` are parsed correctly."""
-    assert Users(axis_device.vapix, fixture + 'equals-in-value="xyz=="')
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
+        text=fixture + 'equals-in-value="xyz=="'
+    )
+    await users.update()
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

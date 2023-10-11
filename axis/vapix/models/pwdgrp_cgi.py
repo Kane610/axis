@@ -1,10 +1,11 @@
 """Axis Vapix user management user class."""
 
 from dataclasses import dataclass
+import re
 
 from typing_extensions import NotRequired, Self, TypedDict
 
-from .api import APIItem, ApiItem, ApiRequest
+from .api import APIItem, ApiItem, ApiRequest, ApiResponse
 
 ADMIN = "admin"
 OPERATOR = "operator"
@@ -12,81 +13,55 @@ VIEWER = "viewer"
 PTZ = "ptz"
 
 
-class User(APIItem):
-    """Represents a user."""
+SGRP_VIEWER = VIEWER
+SGRP_OPERATOR = "{}:{}".format(VIEWER, OPERATOR)
+SGRP_ADMIN = "{}:{}:{}".format(VIEWER, OPERATOR, ADMIN)
+
+REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
+REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
+REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
+
+
+class UserGroupsT(TypedDict):
+    """Groups user belongs to."""
+
+    user: str
+    admin: bool
+    operator: bool
+    viewer: bool
+    ptz: bool
+
+
+@dataclass
+class User(ApiItem):
+    """Represents a user and the groups it belongs to."""
+
+    admin: bool
+    operator: bool
+    viewer: bool
+    ptz: bool
 
     @property
     def name(self) -> str:
         """User name."""
         return self.id
 
-    @property
-    def admin(self) -> bool:
-        """Is user part of admin group."""
-        return self.raw[ADMIN]
+    @classmethod
+    def decode(cls, user: str, data: UserGroupsT) -> Self:
+        """Create object from dict."""
+        return cls(
+            id=user,
+            admin=data["admin"],
+            operator=data["operator"],
+            viewer=data["viewer"],
+            ptz=data["ptz"],
+        )
 
-    @property
-    def operator(self) -> bool:
-        """Is user part of operator group."""
-        return self.raw[OPERATOR]
-
-    @property
-    def viewer(self) -> bool:
-        """Is user part of viewer group."""
-        return self.raw[VIEWER]
-
-    @property
-    def ptz(self) -> bool:
-        """Is user part of PTZ group."""
-        return self.raw[PTZ]
-
-
-# class User2(ApiItem):
-#     """Represents a user."""
-
-#     @property
-#     def name(self) -> str:
-#         """User name."""
-#         return self.id
-
-#     @property
-#     def admin(self) -> bool:
-#         """Is user part of admin group."""
-#         return self.raw[ADMIN]
-
-#     @property
-#     def operator(self) -> bool:
-#         """Is user part of operator group."""
-#         return self.raw[OPERATOR]
-
-#     @property
-#     def viewer(self) -> bool:
-#         """Is user part of viewer group."""
-#         return self.raw[VIEWER]
-
-#     @property
-#     def ptz(self) -> bool:
-#         """Is user part of PTZ group."""
-#         return self.raw[PTZ]
-
-#     @classmethod
-#     def from_dict(cls, data: PortItemT) -> Self:
-#         """Create object from dict."""
-#         return cls(
-#             id=data["port"],
-#             configurable=data["configurable"],
-#             direction=data["direction"],
-#             name=data["name"],
-#             normalState=data["normalState"],
-#             state=data["state"],
-#             usage=data["usage"],
-#         )
-
-#     @classmethod
-#     def from_list(cls, data: list[PortItemT]) -> dict[str, Self]:
-#         """Create objects from list."""
-#         ports = [cls.from_dict(item) for item in data]
-#         return {port.id: port for port in ports}
+    @classmethod
+    def from_dict(cls, data: dict[str, UserGroupsT]) -> dict[str, Self]:
+        """Create objects from list."""
+        # ports = [cls.from_dict(item) for item in data]
+        return {user: cls.decode(user, groups) for user, groups in data.items()}
 
 
 @dataclass
@@ -103,6 +78,37 @@ class GetUsersRequest(ApiRequest):
     def data(self) -> dict[str, str]:
         """Request data."""
         return {"action": "get"}
+
+
+@dataclass
+class GetUsersResponse(ApiResponse[dict[str, User]]):
+    """Response object for listing ports."""
+
+    data: dict[str, User]
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        if "=" not in (string_data := bytes_data.decode()):
+            return cls(data={})
+
+        data: dict[str, str] = dict(
+            group.split("=", 1) for group in string_data.splitlines()  # type: ignore
+        )
+
+        user_list = ["root"] + REGEX_STRING.findall(data["users"])
+
+        users = {
+            user: {
+                group: user in REGEX_STRING.findall(data[group])
+                for group in [ADMIN, OPERATOR, VIEWER, PTZ]
+            }
+            for user in user_list
+        }
+
+        #
+        return cls(data=User.from_dict(users))
 
 
 @dataclass
