@@ -8,7 +8,8 @@ import urllib
 import pytest
 import respx
 
-from axis.vapix.interfaces.pwdgrp_cgi import SGRP_ADMIN, Users
+from axis.vapix.interfaces.pwdgrp_cgi import Users
+from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
 
 from .conftest import HOST
 
@@ -22,10 +23,8 @@ def users(axis_device) -> Users:
 @respx.mock
 async def test_users(users):
     """Verify that you can list users."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=fixture)
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=fixture)
     await users.update()
-
-    print(users._items)
 
     assert users["userv"]
     assert users["userv"].name == "userv"
@@ -54,7 +53,7 @@ async def test_create(users):
     """Verify that you can create users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
-    await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN)
+    await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -72,7 +71,7 @@ async def test_create(users):
         ).encode()
     )
 
-    await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
+    await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -109,7 +108,7 @@ async def test_modify(users):
         ).encode()
     )
 
-    await users.modify("joe", sgrp=SGRP_ADMIN)
+    await users.modify("joe", sgrp=SecondaryGroup.ADMIN)
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -133,7 +132,7 @@ async def test_modify(users):
         ).encode()
     )
 
-    await users.modify("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
+    await users.modify("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
     assert route.called
     assert route.calls.last.request.method == "POST"

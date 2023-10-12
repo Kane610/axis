@@ -13,35 +13,16 @@ sgrp: Colon separated existing secondary group names of the account.
 comment: The comment field of the account.
 """
 
-import re
-from typing import Dict
-
 from ..models.pwdgrp_cgi import (
-    ADMIN,
-    OPERATOR,
-    PTZ,
-    VIEWER,
     CreateUserRequest,
     DeleteUserRequest,
     GetUsersRequest,
     GetUsersResponse,
     ModifyUserRequest,
+    SecondaryGroup,
     User,
 )
 from .api_handler import ApiHandler
-
-PROPERTY = "Properties.API.HTTP.Version=3"
-
-URL = "/axis-cgi/pwdgrp.cgi"
-URL_GET = URL + "?action=get"
-
-SGRP_VIEWER = VIEWER
-SGRP_OPERATOR = "{}:{}".format(VIEWER, OPERATOR)
-SGRP_ADMIN = "{}:{}:{}".format(VIEWER, OPERATOR, ADMIN)
-
-REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
-REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
-REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
 
 
 class Users(ApiHandler):
@@ -57,7 +38,12 @@ class Users(ApiHandler):
         return GetUsersResponse.decode(data).data
 
     async def create(
-        self, user: str, *, pwd: str, sgrp: str, comment: str | None = None
+        self,
+        user: str,
+        *,
+        pwd: str,
+        sgrp: SecondaryGroup,
+        comment: str | None = None,
     ) -> None:
         """Create new user."""
         await self.vapix.new_request(CreateUserRequest(user, pwd, sgrp, comment))
@@ -67,7 +53,7 @@ class Users(ApiHandler):
         user: str,
         *,
         pwd: str | None = None,
-        sgrp: str | None = None,
+        sgrp: SecondaryGroup | None = None,
         comment: str | None = None,
     ) -> None:
         """Update user."""

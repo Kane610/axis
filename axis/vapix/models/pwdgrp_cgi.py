@@ -1,21 +1,33 @@
 """Axis Vapix user management user class."""
 
 from dataclasses import dataclass
+import enum
 import re
 
 from typing_extensions import Self, TypedDict
 
 from .api import ApiItem, ApiRequest, ApiResponse
 
+
+class SecondaryGroup(enum.Enum):
+    """Supported user secondary groups.
+
+    Defines the user access rights for the account.
+    """
+
+    ADMIN = "viewer:operator:admin"
+    ADMIN_PTZ = "viewer:operator:admin:ptz"
+    OPERATOR = "viewer:operator"
+    OPERATOR_PTZ = "viewer:operator:ptz"
+    VIEWER = "viewer"
+    VIEWER_PTZ = "viewer:ptz"
+
+
 ADMIN = "admin"
 OPERATOR = "operator"
 VIEWER = "viewer"
 PTZ = "ptz"
 
-
-SGRP_VIEWER = VIEWER
-SGRP_OPERATOR = "{}:{}".format(VIEWER, OPERATOR)
-SGRP_ADMIN = "{}:{}:{}".format(VIEWER, OPERATOR, ADMIN)
 
 REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
 REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
@@ -123,7 +135,7 @@ class CreateUserRequest(ApiRequest):
 
     user: str
     pwd: str
-    sgrp: str
+    sgrp: SecondaryGroup
     comment: str | None = None
 
     @property
@@ -134,7 +146,7 @@ class CreateUserRequest(ApiRequest):
             "user": self.user,
             "pwd": self.pwd,
             "grp": "users",
-            "sgrp": self.sgrp,
+            "sgrp": self.sgrp.value,
         }
 
         if self.comment is not None:
@@ -154,7 +166,7 @@ class ModifyUserRequest(ApiRequest):
 
     user: str
     pwd: str | None = None
-    sgrp: str | None = None
+    sgrp: SecondaryGroup | None = None
     comment: str | None = None
 
     @property
@@ -166,7 +178,7 @@ class ModifyUserRequest(ApiRequest):
             data["pwd"] = self.pwd
 
         if self.sgrp:
-            data["sgrp"] = self.sgrp
+            data["sgrp"] = self.sgrp.value
 
         if self.comment:
             data["comment"] = self.comment
