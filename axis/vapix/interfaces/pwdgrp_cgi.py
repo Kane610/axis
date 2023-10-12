@@ -13,103 +13,52 @@ sgrp: Colon separated existing secondary group names of the account.
 comment: The comment field of the account.
 """
 
-import re
-from typing import Dict
-
-from ..models.pwdgrp_cgi import ADMIN, OPERATOR, PTZ, VIEWER, User
-from .api import APIItems
-
-PROPERTY = "Properties.API.HTTP.Version=3"
-
-URL = "/axis-cgi/pwdgrp.cgi"
-URL_GET = URL + "?action=get"
-
-SGRP_VIEWER = VIEWER
-SGRP_OPERATOR = "{}:{}".format(VIEWER, OPERATOR)
-SGRP_ADMIN = "{}:{}:{}".format(VIEWER, OPERATOR, ADMIN)
-
-REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
-REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
-REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
+from ..models.pwdgrp_cgi import (
+    CreateUserRequest,
+    DeleteUserRequest,
+    GetUsersRequest,
+    GetUsersResponse,
+    ModifyUserRequest,
+    SecondaryGroup,
+    User,
+)
+from .api_handler import ApiHandler
 
 
-class Users(APIItems):
+class Users(ApiHandler):
     """Represents all users of a device."""
 
-    item_cls = User
-    path = URL_GET
+    async def _api_request(self) -> dict[str, User]:
+        """Get default data of basic device information."""
+        return await self.list()
 
-    async def update(self) -> None:
-        """Update list of current users."""
-        users = await self.list()
-        self.process_raw(users)
-
-    @staticmethod
-    def pre_process_raw(raw: str) -> dict:  # type: ignore[override]
-        """Pre-process raw string.
-
-        Prepare users to work with APIItems.
-        Create booleans with user levels.
-        """
-        if "=" not in raw:
-            return {}
-
-        raw_dict: Dict[str, str] = dict(
-            group.split("=", 1) for group in raw.splitlines()  # type: ignore
-        )
-
-        raw_users = ["root"] + REGEX_STRING.findall(raw_dict["users"])
-
-        users = {
-            user: {
-                group: user in REGEX_STRING.findall(raw_dict[group])
-                for group in [ADMIN, OPERATOR, VIEWER, PTZ]
-            }
-            for user in raw_users
-        }
-
-        return users
-
-    async def list(self) -> str:
+    async def list(self) -> dict[str, User]:
         """List current users."""
-        data = {"action": "get"}
-        return await self.vapix.request("post", URL, data=data)
+        data = await self.vapix.new_request(GetUsersRequest())
+        return GetUsersResponse.decode(data).data
 
     async def create(
-        self, user: str, *, pwd: str, sgrp: str, comment: str | None = None
+        self,
+        user: str,
+        *,
+        pwd: str,
+        sgrp: SecondaryGroup,
+        comment: str | None = None,
     ) -> None:
         """Create new user."""
-        data = {"action": "add", "user": user, "pwd": pwd, "grp": "users", "sgrp": sgrp}
-
-        if comment:
-            data["comment"] = comment
-
-        await self.vapix.request("post", URL, data=data)
+        await self.vapix.new_request(CreateUserRequest(user, pwd, sgrp, comment))
 
     async def modify(
         self,
         user: str,
         *,
         pwd: str | None = None,
-        sgrp: str | None = None,
+        sgrp: SecondaryGroup | None = None,
         comment: str | None = None,
     ) -> None:
         """Update user."""
-        data = {"action": "update", "user": user}
-
-        if pwd:
-            data["pwd"] = pwd
-
-        if sgrp:
-            data["sgrp"] = sgrp
-
-        if comment:
-            data["comment"] = comment
-
-        await self.vapix.request("post", URL, data=data)
+        await self.vapix.new_request(ModifyUserRequest(user, pwd, sgrp, comment))
 
     async def delete(self, user: str) -> None:
         """Remove user."""
-        data = {"action": "remove", "user": user}
-
-        await self.vapix.request("post", URL, data=data)
+        await self.vapix.new_request(DeleteUserRequest(user))

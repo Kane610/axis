@@ -395,10 +395,7 @@ ptz=
 async def test_initialize_users_fails_due_to_low_credentials(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(401)
-
     await vapix.initialize_users()
-
-    assert vapix.users
 
 
 @respx.mock

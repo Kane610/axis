@@ -8,7 +8,8 @@ import urllib
 import pytest
 import respx
 
-from axis.vapix.interfaces.pwdgrp_cgi import SGRP_ADMIN, Users
+from axis.vapix.interfaces.pwdgrp_cgi import Users
+from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
 
 from .conftest import HOST
 
@@ -16,11 +17,15 @@ from .conftest import HOST
 @pytest.fixture
 def users(axis_device) -> Users:
     """Return the api_discovery mock object."""
-    return Users(axis_device.vapix, fixture)
+    return axis_device.vapix.users
 
 
-def test_users(users):
+@respx.mock
+async def test_users(users):
     """Verify that you can list users."""
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=fixture)
+    await users.update()
+
     assert users["userv"]
     assert users["userv"].name == "userv"
     assert users["userv"].viewer
@@ -43,19 +48,12 @@ def test_users(users):
     assert users["usera"].ptz
 
 
-def test_get_users_low_privileges(axis_device):
-    """Validate get users low privileges."""
-    users = Users(axis_device.vapix, "")
-    assert len(users) == 0
-
-
 @respx.mock
-@pytest.mark.asyncio
 async def test_create(users):
     """Verify that you can create users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
-    await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN)
+    await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -73,7 +71,7 @@ async def test_create(users):
         ).encode()
     )
 
-    await users.create("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
+    await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -94,7 +92,6 @@ async def test_create(users):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_modify(users):
     """Verify that you can modify users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
@@ -111,7 +108,7 @@ async def test_modify(users):
         ).encode()
     )
 
-    await users.modify("joe", sgrp=SGRP_ADMIN)
+    await users.modify("joe", sgrp=SecondaryGroup.ADMIN)
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -135,7 +132,7 @@ async def test_modify(users):
         ).encode()
     )
 
-    await users.modify("joe", pwd="abcd", sgrp=SGRP_ADMIN, comment="comment")
+    await users.modify("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -155,7 +152,6 @@ async def test_modify(users):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_delete(users):
     """Verify that you can delete users."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
@@ -171,9 +167,20 @@ async def test_delete(users):
     )
 
 
-def test_equals_in_value(axis_device):
+@respx.mock
+async def test_equals_in_value(users):
     """Verify that values containing `=` are parsed correctly."""
-    assert Users(axis_device.vapix, fixture + 'equals-in-value="xyz=="')
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
+        text=fixture + 'equals-in-value="xyz=="'
+    )
+    await users.update()
+
+
+@respx.mock
+async def test_no_equals_in_value(users):
+    """Verify that values containing `=` are parsed correctly."""
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text="")
+    await users.update()
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

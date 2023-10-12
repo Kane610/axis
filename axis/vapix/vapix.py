@@ -62,8 +62,9 @@ class Vapix:
         self._ports: Ports | None = None
         self.ptz: PtzControl | None = None
         self.user_groups: UserGroups | None = None
-        self.users: Users | None = None
         self.vmd4: Vmd4 | None = None
+
+        self.users = Users(self)
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
@@ -253,7 +254,6 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        self.users = Users(self)
         try:
             await self.users.update()
         except Unauthorized:
@@ -341,6 +341,7 @@ class Vapix:
             method=api_request.method,
             path=api_request.path,
             content=api_request.content,
+            data=api_request.data,
         )
 
     async def do_request(
@@ -348,18 +349,18 @@ class Vapix:
         method: str,
         path: str,
         content: bytes | None = None,
-        params: str | None = None,
+        data: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path
-        LOGGER.debug("%s, %s, %s, %s", method, url, content, params)
+        LOGGER.debug("%s, %s, %s, %s", method, url, content, data)
 
         try:
             response = await self.device.config.session.request(
                 method,
                 url,
                 content=content,
-                params=params,
+                data=data,
                 auth=self.auth,
                 timeout=TIME_OUT,
             )
