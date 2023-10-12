@@ -23,12 +23,6 @@ class SecondaryGroup(enum.Enum):
     VIEWER_PTZ = "viewer:ptz"
 
 
-ADMIN = "admin"
-OPERATOR = "operator"
-VIEWER = "viewer"
-PTZ = "ptz"
-
-
 REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
 REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
 REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
@@ -83,7 +77,6 @@ class GetUsersRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
     content_type = "text/plain"
-    # error_codes = error_codes
 
     @property
     def data(self) -> dict[str, str]:
@@ -95,9 +88,6 @@ class GetUsersRequest(ApiRequest):
 class GetUsersResponse(ApiResponse[dict[str, User]]):
     """Response object for listing ports."""
 
-    data: dict[str, User]
-    # error: ErrorDataT | None = None
-
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
@@ -105,7 +95,7 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
             return cls(data={})
 
         data: dict[str, str] = dict(
-            group.split("=", 1) for group in string_data.splitlines()  # type: ignore
+            group.split("=", 1) for group in string_data.splitlines()
         )
 
         user_list = ["root"] + REGEX_STRING.findall(data["users"])
@@ -131,7 +121,6 @@ class CreateUserRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
     content_type = "text/plain"
-    # error_codes = error_codes
 
     user: str
     pwd: str
@@ -162,7 +151,6 @@ class ModifyUserRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
     content_type = "text/plain"
-    # error_codes = error_codes
 
     user: str
     pwd: str | None = None
@@ -193,7 +181,6 @@ class DeleteUserRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
     content_type = "text/plain"
-    # error_codes = error_codes
 
     user: str
 
