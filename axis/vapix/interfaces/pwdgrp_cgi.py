@@ -47,11 +47,11 @@ REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
 class Users(ApiHandler):
     """Represents all users of a device."""
 
-    async def _api_request(self) -> dict[str, "DeviceInformation"]:
+    async def _api_request(self) -> dict[str, User]:
         """Get default data of basic device information."""
         return await self.list()
 
-    async def list(self) -> str:
+    async def list(self) -> dict[str, User]:
         """List current users."""
         data = await self.vapix.new_request(GetUsersRequest())
         return GetUsersResponse.decode(data).data

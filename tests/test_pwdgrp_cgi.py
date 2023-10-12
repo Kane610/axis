@@ -177,6 +177,13 @@ async def test_equals_in_value(users):
     await users.update()
 
 
+@respx.mock
+async def test_no_equals_in_value(users):
+    """Verify that values containing `=` are parsed correctly."""
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text="")
+    await users.update()
+
+
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"
 anonymous=""
 api-discovery=""

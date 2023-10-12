@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 import re
 
-from typing_extensions import NotRequired, Self, TypedDict
+from typing_extensions import Self, TypedDict
 
-from .api import APIItem, ApiItem, ApiRequest, ApiResponse
+from .api import ApiItem, ApiRequest, ApiResponse
 
 ADMIN = "admin"
 OPERATOR = "operator"
@@ -47,10 +47,10 @@ class User(ApiItem):
         return self.id
 
     @classmethod
-    def decode(cls, user: str, data: UserGroupsT) -> Self:
+    def decode(cls, data: UserGroupsT) -> Self:
         """Create object from dict."""
         return cls(
-            id=user,
+            id=data["user"],
             admin=data["admin"],
             operator=data["operator"],
             viewer=data["viewer"],
@@ -58,10 +58,10 @@ class User(ApiItem):
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, UserGroupsT]) -> dict[str, Self]:
+    def from_list(cls, data: list[UserGroupsT]) -> dict[str, Self]:
         """Create objects from list."""
-        # ports = [cls.from_dict(item) for item in data]
-        return {user: cls.decode(user, groups) for user, groups in data.items()}
+        users = [cls.decode(item) for item in data]
+        return {user.id: user for user in users}
 
 
 @dataclass
@@ -70,7 +70,6 @@ class GetUsersRequest(ApiRequest):
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
-    # params = "action=get"
     content_type = "text/plain"
     # error_codes = error_codes
 
@@ -99,16 +98,18 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
 
         user_list = ["root"] + REGEX_STRING.findall(data["users"])
 
-        users = {
-            user: {
-                group: user in REGEX_STRING.findall(data[group])
-                for group in [ADMIN, OPERATOR, VIEWER, PTZ]
+        users: list[UserGroupsT] = [
+            {
+                "user": user,
+                "admin": user in REGEX_STRING.findall(data["admin"]),
+                "operator": user in REGEX_STRING.findall(data["operator"]),
+                "viewer": user in REGEX_STRING.findall(data["viewer"]),
+                "ptz": user in REGEX_STRING.findall(data["ptz"]),
             }
             for user in user_list
-        }
+        ]
 
-        #
-        return cls(data=User.from_dict(users))
+        return cls(data=User.from_list(users))
 
 
 @dataclass
