@@ -25,7 +25,7 @@ from ..models.pwdgrp_cgi import (
 from .api_handler import ApiHandler
 
 
-class Users(ApiHandler):
+class Users(ApiHandler[User]):
     """Represents all users of a device."""
 
     async def _api_request(self) -> dict[str, User]:
