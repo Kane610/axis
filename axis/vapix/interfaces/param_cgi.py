@@ -6,9 +6,9 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
 import asyncio
-from typing import Dict
+from typing import Dict, cast
 
-from ..models.param_cgi import Param
+from ..models.param_cgi import BrandParam, BrandT, Param, PropertyParam
 from ..models.stream_profile import StreamProfile
 from .api import APIItems
 
@@ -113,6 +113,11 @@ class Params(APIItems):
     async def update_brand(self) -> None:
         """Update brand group of parameters."""
         await self.update(BRAND)
+
+    @property
+    def brand_params(self) -> BrandParam:
+        """Provide brand parameters."""
+        return BrandParam.decode(cast(BrandT, self[BRAND].raw))
 
     @property
     def brand(self) -> str:
@@ -270,6 +275,11 @@ class Params(APIItems):
     async def update_properties(self) -> None:
         """Update properties group of parameters."""
         await self.update(PROPERTIES)
+
+    @property
+    def property_params(self) -> PropertyParam:
+        """Provide property parameters."""
+        return PropertyParam.decode(self[PROPERTIES].raw)
 
     @property
     def api_http_version(self) -> str:

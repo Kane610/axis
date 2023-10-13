@@ -32,6 +32,14 @@ async def test_params(params):
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     # Brand
+    brand_params = params.brand_params
+    assert brand_params.brand == "AXIS"
+    assert brand_params.prodfullname == "AXIS M1065-LW Network Camera"
+    assert brand_params.prodnbr == "M1065-LW"
+    assert brand_params.prodshortname == "AXIS M1065-LW"
+    assert brand_params.prodtype == "Network Camera"
+    assert brand_params.prodvariant == ""
+    assert brand_params.weburl == "http://www.axis.com"
     assert params.brand == "AXIS"
     assert params.prodfullname == "AXIS M1065-LW Network Camera"
     assert params.prodnbr == "M1065-LW"
@@ -146,6 +154,26 @@ async def test_params(params):
     }
 
     # Properties
+    property_params = params.property_params
+    assert property_params.api_http_version == "3"
+    assert property_params.api_metadata == "yes"
+    assert property_params.api_metadata_version == "1.0"
+    assert property_params.api_ptz_presets_version == "2.00"
+    assert property_params.embedded_development == "2.16"
+    assert property_params.firmware_builddate == "Feb 15 2019 09:42"
+    assert property_params.firmware_buildnumber == "26"
+    assert property_params.firmware_version == "9.10.1"
+    assert property_params.image_format == "jpeg,mjpeg,h264"
+    assert property_params.image_nbrofviews == 2
+    assert (
+        property_params.image_resolution
+        == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
+    )
+    assert property_params.image_rotation == "0,180"
+    assert property_params.light_control is True
+    assert property_params.ptz is True
+    assert property_params.digital_ptz is True
+    assert property_params.system_serialnumber == "ACCC12345678"
     assert params.api_http_version == "3"
     assert params.api_metadata == "yes"
     assert params.api_metadata_version == "1.0"
