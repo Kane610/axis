@@ -4,10 +4,24 @@ https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 
 Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
-
+from dataclasses import dataclass
 from typing import Any
 
-from .api import APIItem
+from typing_extensions import NotRequired, Self, TypedDict
+
+from .api import APIItem, ApiItem
+
+
+class BrandT(TypedDict):
+    """Represent a brand object."""
+
+    Brand: str
+    ProdFullName: str
+    ProdNbr: str
+    ProdShortName: str
+    ProdType: str
+    ProdVariant: str
+    WebURL: str
 
 
 class Param(APIItem):
@@ -24,3 +38,30 @@ class Param(APIItem):
     def __getitem__(self, obj_id: str) -> Any:
         """Return Param[obj_id]."""
         return self.raw[obj_id]
+
+
+@dataclass
+class BrandParam(ApiItem):
+    """Brand parameters."""
+
+    brand: str
+    prodfullname: str
+    prodnbr: str
+    prodshortname: str
+    prodtype: str
+    prodvariant: str
+    weburl: str
+
+    @classmethod
+    def decode(cls, data: BrandT) -> Self:
+        """Decode dictionary to class object."""
+        return cls(
+            id="brand",
+            brand=data["Brand"],
+            prodfullname=data["ProdFullName"],
+            prodnbr=data["ProdNbr"],
+            prodshortname=data["ProdShortName"],
+            prodtype=data["ProdType"],
+            prodvariant=data["ProdVariant"],
+            weburl=data["WebURL"],
+        )
