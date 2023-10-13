@@ -34,7 +34,7 @@ from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UNKNOWN, UserGroups
 from .interfaces.view_areas import ViewAreaHandler
-from .models.api import ApiRequest
+from .models.api import APIItem, ApiRequest
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
@@ -61,10 +61,11 @@ class Vapix:
         self.params: Params | None = None
         self._ports: Ports | None = None
         self.ptz: PtzControl | None = None
-        self.user_groups: UserGroups | None = None
+        # self.user_groups: UserGroups | None = None
         self.vmd4: Vmd4 | None = None
 
         self.users = Users(self)
+        self.user_groups = UserGroups(self)
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
@@ -264,25 +265,23 @@ class Vapix:
 
         If information is available from pwdgrp.cgi use that.
         """
-        user_groups = ""
-        if self.users and self.device.config.username in self.users:
+        user_groups = {}
+        if len(self.users) > 0 and self.device.config.username in self.users:
             user = self.users[self.device.config.username]
-            user_groups = (
-                f"{user.name}\n"  # type: ignore[attr-defined]
-                + ("admin " if user.admin else "")  # type: ignore[attr-defined]
-                + ("operator " if user.operator else "")  # type: ignore[attr-defined]
-                + ("viewer " if user.viewer else "")  # type: ignore[attr-defined]
-                + ("ptz" if user.ptz else "")  # type: ignore[attr-defined]
-            )
+            user_groups = {
+                "admin": APIItem("admin", user.admin, self.request),
+                "operator": APIItem("operator", user.operator, self.request),
+                "viewer": APIItem("viewer", user.viewer, self.request),
+                "ptz": APIItem("ptz", user.ptz, self.request),
+            }
 
-        self.user_groups = UserGroups(self)
         if not user_groups:
             try:
                 await self.user_groups.update()
                 return
             except PathNotFound:
                 pass
-        self.user_groups.process_raw(user_groups)
+        self.user_groups._items = user_groups
 
     async def request(
         self,

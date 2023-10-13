@@ -456,7 +456,7 @@ async def test_load_user_groups_fails_when_not_supported(vapix: Vapix):
 
     await vapix.load_user_groups()
 
-    assert vapix.user_groups
+    assert len(vapix.user_groups) == 0
     assert vapix.access_rights == UNKNOWN
 
 

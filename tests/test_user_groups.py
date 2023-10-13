@@ -14,11 +14,10 @@ from .conftest import HOST
 @pytest.fixture
 def user_groups(axis_device) -> UserGroups:
     """Return the user_groups mock object."""
-    return UserGroups(axis_device.vapix, "")
+    return UserGroups(axis_device.vapix)
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_empty_response(user_groups):
     """Test get_supported_versions."""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -35,7 +34,6 @@ async def test_empty_response(user_groups):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_root_user(user_groups):
     """Test get_supported_versions."""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -53,7 +51,6 @@ async def test_root_user(user_groups):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_admin_user(user_groups):
     """Test get_supported_versions."""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -70,7 +67,6 @@ async def test_admin_user(user_groups):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_operator_user(user_groups):
     """Test get_supported_versions."""
     respx.get(f"http://{HOST}:80{URL}").respond(
@@ -87,7 +83,6 @@ async def test_operator_user(user_groups):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_viewer_user(user_groups):
     """Test get_supported_versions."""
     respx.get(f"http://{HOST}:80{URL}").respond(

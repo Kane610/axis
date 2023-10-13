@@ -3,7 +3,8 @@
 Figure out what access rights an account has.
 """
 
-from .api import APIItem, APIItems
+from .api import APIItem
+from .api_handler import ApiHandler
 
 URL = "/axis-cgi/usergroup.cgi"
 
@@ -15,22 +16,26 @@ PTZ = "ptz"
 UNKNOWN = "unknown"
 
 
-class UserGroups(APIItems):
+class UserGroups(ApiHandler):
     """User group access rights for Axis devices."""
 
     item_cls = APIItem
     path = URL
 
-    @staticmethod
-    def pre_process_raw(raw: str) -> dict:  # type: ignore[override]
-        """Process raw group list to generate a full list of what is and isnt supported."""
-        raw_list = raw.splitlines()
+    async def _api_request(self) -> dict[str, APIItem]:
+        """Get API data method defined by subsclass."""
+        raw = await self.vapix.do_request("get", "/axis-cgi/usergroup.cgi")
+        raw_list: list[str] = raw.decode().splitlines()
 
         group_list = []
         if len(raw_list) == 2:
             group_list = raw_list[1].split()
 
-        return {group: group in group_list for group in [ADMIN, OPERATOR, VIEWER, PTZ]}
+        return {
+            group: APIItem(group, group in group_list, self.vapix.request)
+            for group in [ADMIN, OPERATOR, VIEWER, PTZ]
+        }
+        # return {group: group in group_list for group in [ADMIN, OPERATOR, VIEWER, PTZ]}
 
     @property
     def privileges(self) -> str:
