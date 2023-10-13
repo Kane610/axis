@@ -27,11 +27,7 @@ async def test_empty_response(user_groups):
     )
     await user_groups.update()
 
-    assert user_groups.privileges == SecondaryGroup.UNKNOWN
-    assert not user_groups.admin
-    assert not user_groups.operator
-    assert not user_groups.viewer
-    assert not user_groups.ptz
+    assert user_groups.get("0") is None
 
 
 @respx.mock
@@ -43,12 +39,12 @@ async def test_root_user(user_groups):
     )
     await user_groups.update()
 
-    assert user_groups.privileges == SecondaryGroup.ADMIN_PTZ
-
-    assert user_groups.admin
-    assert user_groups.operator
-    assert user_groups.viewer
-    assert user_groups.ptz
+    assert (user := user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.ADMIN_PTZ
+    assert user.admin
+    assert user.operator
+    assert user.viewer
+    assert user.ptz
 
 
 @respx.mock
@@ -60,11 +56,12 @@ async def test_admin_user(user_groups):
     )
     await user_groups.update()
 
-    assert user_groups.privileges == SecondaryGroup.ADMIN
-    assert user_groups.admin
-    assert user_groups.operator
-    assert user_groups.viewer
-    assert not user_groups.ptz
+    assert (user := user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.ADMIN
+    assert user.admin
+    assert user.operator
+    assert user.viewer
+    assert not user.ptz
 
 
 @respx.mock
@@ -76,11 +73,12 @@ async def test_operator_user(user_groups):
     )
     await user_groups.update()
 
-    assert user_groups.privileges == SecondaryGroup.OPERATOR
-    assert not user_groups.admin
-    assert user_groups.operator
-    assert user_groups.viewer
-    assert not user_groups.ptz
+    assert (user := user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.OPERATOR
+    assert not user.admin
+    assert user.operator
+    assert user.viewer
+    assert not user.ptz
 
 
 @respx.mock
@@ -92,8 +90,9 @@ async def test_viewer_user(user_groups):
     )
     await user_groups.update()
 
-    assert user_groups.privileges == SecondaryGroup.VIEWER
-    assert not user_groups.admin
-    assert not user_groups.operator
-    assert user_groups.viewer
-    assert not user_groups.ptz
+    assert (user := user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.VIEWER
+    assert not user.admin
+    assert not user.operator
+    assert user.viewer
+    assert not user.ptz

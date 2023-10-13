@@ -34,8 +34,8 @@ from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
-from .models.api import APIItem, ApiRequest
-from .models.pwdgrp_cgi import SecondaryGroup, User
+from .models.api import ApiRequest
+from .models.pwdgrp_cgi import SecondaryGroup
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
@@ -62,7 +62,6 @@ class Vapix:
         self.params: Params | None = None
         self._ports: Ports | None = None
         self.ptz: PtzControl | None = None
-        # self.user_groups: UserGroups | None = None
         self.vmd4: Vmd4 | None = None
 
         self.users = Users(self)
@@ -108,8 +107,8 @@ class Vapix:
     @property
     def access_rights(self) -> SecondaryGroup:
         """Access rights with the account."""
-        if self.user_groups:
-            return self.user_groups.privileges
+        if user := self.user_groups.get("0"):
+            return user.privileges
         return SecondaryGroup.UNKNOWN
 
     @property
@@ -266,17 +265,9 @@ class Vapix:
 
         If information is available from pwdgrp.cgi use that.
         """
-        user: User | None = None
         user_groups = {}
         if len(self.users) > 0 and self.device.config.username in self.users:
-            user = self.users[self.device.config.username]
-            user_groups = {"0": user}
-            user_groups2 = {
-                "admin": APIItem("admin", user.admin, self.request),
-                "operator": APIItem("operator", user.operator, self.request),
-                "viewer": APIItem("viewer", user.viewer, self.request),
-                "ptz": APIItem("ptz", user.ptz, self.request),
-            }
+            user_groups = {"0": self.users[self.device.config.username]}
 
         if not user_groups:
             try:
@@ -285,7 +276,6 @@ class Vapix:
             except PathNotFound:
                 pass
         self.user_groups._items = user_groups
-        # self.user_groups._items = user_groups
 
     async def request(
         self,

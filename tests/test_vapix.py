@@ -408,12 +408,12 @@ async def test_load_user_groups(vapix: Vapix):
 
     await vapix.load_user_groups()
 
-    assert vapix.user_groups
-    assert vapix.user_groups.privileges == SecondaryGroup.ADMIN_PTZ
-    assert vapix.user_groups.admin
-    assert vapix.user_groups.operator
-    assert vapix.user_groups.viewer
-    assert vapix.user_groups.ptz
+    assert (user := vapix.user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.ADMIN_PTZ
+    assert user.admin
+    assert user.operator
+    assert user.viewer
+    assert user.ptz
     assert vapix.access_rights == SecondaryGroup.ADMIN_PTZ
 
 
@@ -440,12 +440,12 @@ ptz=
 
     assert not user_group_route.called
 
-    assert vapix.user_groups
-    assert vapix.user_groups.privileges == SecondaryGroup.ADMIN
-    assert vapix.user_groups.admin
-    assert vapix.user_groups.operator
-    assert vapix.user_groups.viewer
-    assert not vapix.user_groups.ptz
+    assert (user := vapix.user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.ADMIN
+    assert user.admin
+    assert user.operator
+    assert user.viewer
+    assert not user.ptz
     assert vapix.access_rights == SecondaryGroup.ADMIN
 
 
