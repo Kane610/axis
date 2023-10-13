@@ -76,16 +76,19 @@ error_codes = {
 class StreamProfile(ApiItem):
     """Stream profile item."""
 
-    name: str
     description: str
     parameters: str
+
+    @property
+    def name(self) -> str:
+        """Stream profile name."""
+        return self.id
 
     @classmethod
     def decode(cls, raw: StreamProfileT) -> Self:
         """Decode dict to class object."""
         return cls(
             id=raw["name"],
-            name=raw["name"],
             description=raw["description"],
             parameters=raw["parameters"],
         )

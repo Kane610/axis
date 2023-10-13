@@ -8,7 +8,13 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 import asyncio
 from typing import Dict, cast
 
-from ..models.param_cgi import BrandParam, BrandT, Param, PropertyParam
+from ..models.param_cgi import (
+    BrandParam,
+    BrandT,
+    Param,
+    PropertyParam,
+    StreamProfileParam,
+)
 from ..models.stream_profile import StreamProfile
 from .api import APIItems
 
@@ -528,6 +534,13 @@ class Params(APIItems):
         await self.update(STREAM_PROFILES)
 
     @property
+    def stream_profiles_params(self) -> StreamProfileParam:
+        """Provide stream profiles parameters."""
+        return StreamProfileParam.decode(
+            cast(dict[str, str], self[STREAM_PROFILES].raw)
+        )
+
+    @property
     def stream_profiles_max_groups(self) -> int:
         """Maximum number of supported stream profiles."""
         return int(self.get(STREAM_PROFILES, {}).get("MaxGroups", 0))
@@ -552,7 +565,6 @@ class Params(APIItems):
             profiles.append(
                 StreamProfile(
                     id=profile["name"],
-                    name=profile["name"],
                     description=profile["description"],
                     parameters=profile["parameters"],
                 )

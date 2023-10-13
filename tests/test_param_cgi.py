@@ -570,16 +570,24 @@ async def test_update_stream_profiles(params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    profiles = params.stream_profiles
+    profile_params = params.stream_profiles_params
 
+    assert profile_params.max_groups == 26
+    assert len(profile_params.stream_profiles) == 2
+    assert profile_params.stream_profiles[0].name == "profile_1"
+    assert profile_params.stream_profiles[0].description == "profile_1_description"
+    assert profile_params.stream_profiles[0].parameters == "videocodec=h264"
+    assert profile_params.stream_profiles[1].name == "profile_2"
+    assert profile_params.stream_profiles[1].description == "profile_2_description"
+    assert profile_params.stream_profiles[1].parameters == "videocodec=h265"
     assert params.stream_profiles_max_groups == 26
-    assert len(profiles) == 2
-    assert profiles[0].name == "profile_1"
-    assert profiles[0].description == "profile_1_description"
-    assert profiles[0].parameters == "videocodec=h264"
-    assert profiles[1].name == "profile_2"
-    assert profiles[1].description == "profile_2_description"
-    assert profiles[1].parameters == "videocodec=h265"
+    assert len(params.stream_profiles) == 2
+    assert params.stream_profiles[0].name == "profile_1"
+    assert params.stream_profiles[0].description == "profile_1_description"
+    assert params.stream_profiles[0].parameters == "videocodec=h264"
+    assert params.stream_profiles[1].name == "profile_2"
+    assert params.stream_profiles[1].description == "profile_2_description"
+    assert params.stream_profiles[1].parameters == "videocodec=h265"
 
 
 @respx.mock

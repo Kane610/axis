@@ -9,6 +9,7 @@ from typing import Any, cast
 
 from typing_extensions import NotRequired, Self, TypedDict
 
+from ..models.stream_profile import StreamProfile
 from .api import APIItem, ApiItem
 
 
@@ -43,6 +44,37 @@ class PropertyT(TypedDict):
     PTZ_PTZ: NotRequired[str]
     PTZ_DigitalPTZ: NotRequired[str]
     System_SerialNumber: str
+
+
+def process_dynamic_group(
+    raw_group: dict[str, str],
+    prefix: str,
+    attributes: tuple[str, ...],
+    group_range: range,
+) -> dict[str, dict[str, str]]:
+    """Convert raw dynamic groups to a proper dictionary.
+
+    raw_group: self[group]
+    prefix: "Support.S"
+    attributes: ("AbsoluteZoom", "DigitalZoom")
+    group_range: range(5)
+    """
+    dynamic_group = {}
+    for index in group_range:
+        item = {}
+
+        for attribute in attributes:
+            parameter = f"{prefix}{index}.{attribute}"  # Support.S0.AbsoluteZoom
+
+            if parameter not in raw_group:
+                continue
+
+            item[attribute] = raw_group[parameter]
+
+        if item:
+            dynamic_group[str(index)] = item
+
+    return dynamic_group
 
 
 class Param(APIItem):
@@ -182,4 +214,39 @@ class PropertyParam(ApiItem):
             ptz=data2.get("PTZ_PTZ") == "yes",
             digital_ptz=data2.get("PTZ_DigitalPTZ") == "yes",
             system_serialnumber=data2["System_SerialNumber"],
+        )
+
+
+@dataclass
+class StreamProfileParam(ApiItem):
+    """Stream profile parameters."""
+
+    max_groups: int
+    """Maximum number of supported stream profiles."""
+
+    stream_profiles: list[StreamProfile]
+    """List of stream profiles."""
+
+    @classmethod
+    def decode(cls, data: dict[str, str]) -> Self:
+        """Decode dictionary to class object."""
+        max_groups = int(data.get("MaxGroups", 0))
+
+        raw_profiles = process_dynamic_group(
+            data, "S", ("Name", "Description", "Parameters"), range(max_groups)
+        )
+
+        profiles = [
+            StreamProfile(
+                id=profile["Name"],
+                description=profile["Description"],
+                parameters=profile["Parameters"],
+            )
+            for profile in raw_profiles.values()
+        ]
+
+        return cls(
+            id="stream profiles",
+            max_groups=max_groups,
+            stream_profiles=profiles,
         )
