@@ -13,7 +13,7 @@ from axis.vapix.interfaces.applications import (
     APPLICATION_STATE_RUNNING,
     APPLICATION_STATE_STOPPED,
 )
-from axis.vapix.interfaces.user_groups import UNKNOWN
+from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
 from axis.vapix.models.stream_profile import StreamProfile as StreamProfile
 from axis.vapix.vapix import Vapix
 
@@ -408,13 +408,13 @@ async def test_load_user_groups(vapix: Vapix):
 
     await vapix.load_user_groups()
 
-    assert vapix.user_groups
-    assert vapix.user_groups.privileges == "admin"
-    assert vapix.user_groups.admin
-    assert vapix.user_groups.operator
-    assert vapix.user_groups.viewer
-    assert vapix.user_groups.ptz
-    assert vapix.access_rights == "admin"
+    assert (user := vapix.user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.ADMIN_PTZ
+    assert user.admin
+    assert user.operator
+    assert user.viewer
+    assert user.ptz
+    assert vapix.access_rights == SecondaryGroup.ADMIN_PTZ
 
 
 @respx.mock
@@ -440,13 +440,13 @@ ptz=
 
     assert not user_group_route.called
 
-    assert vapix.user_groups
-    assert vapix.user_groups.privileges == "admin"
-    assert vapix.user_groups.admin
-    assert vapix.user_groups.operator
-    assert vapix.user_groups.viewer
-    assert not vapix.user_groups.ptz
-    assert vapix.access_rights == "admin"
+    assert (user := vapix.user_groups.get("0"))
+    assert user.privileges == SecondaryGroup.ADMIN
+    assert user.admin
+    assert user.operator
+    assert user.viewer
+    assert not user.ptz
+    assert vapix.access_rights == SecondaryGroup.ADMIN
 
 
 @respx.mock
@@ -456,13 +456,13 @@ async def test_load_user_groups_fails_when_not_supported(vapix: Vapix):
 
     await vapix.load_user_groups()
 
-    assert vapix.user_groups
-    assert vapix.access_rights == UNKNOWN
+    assert len(vapix.user_groups) == 0
+    assert vapix.access_rights == SecondaryGroup.UNKNOWN
 
 
 async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix):
     """Verify that not loading user groups still returns a proper string of vapix.access_rights."""
-    assert vapix.access_rights == UNKNOWN
+    assert vapix.access_rights == SecondaryGroup.UNKNOWN
 
 
 @respx.mock
