@@ -3,67 +3,54 @@
 Figure out what access rights an account has.
 """
 
-from .api import APIItem
+from ..models.pwdgrp_cgi import SecondaryGroup, User
+from ..models.user_group import GetUserGroupRequest, GetUserGroupResponse
 from .api_handler import ApiHandler
 
-URL = "/axis-cgi/usergroup.cgi"
 
-ADMIN = "admin"
-OPERATOR = "operator"
-VIEWER = "viewer"
-PTZ = "ptz"
-
-UNKNOWN = "unknown"
-
-
-class UserGroups(ApiHandler):
+class UserGroups(ApiHandler[User]):
     """User group access rights for Axis devices."""
 
-    item_cls = APIItem
-    path = URL
-
-    async def _api_request(self) -> dict[str, APIItem]:
+    async def _api_request(self) -> dict[str, User]:
         """Get API data method defined by subsclass."""
-        raw = await self.vapix.do_request("get", "/axis-cgi/usergroup.cgi")
-        raw_list: list[str] = raw.decode().splitlines()
+        return await self.get_user_groups()
 
-        group_list = []
-        if len(raw_list) == 2:
-            group_list = raw_list[1].split()
-
-        return {
-            group: APIItem(group, group in group_list, self.vapix.request)
-            for group in [ADMIN, OPERATOR, VIEWER, PTZ]
-        }
-        # return {group: group in group_list for group in [ADMIN, OPERATOR, VIEWER, PTZ]}
+    async def get_user_groups(self) -> dict[str, User]:
+        """Retrieve privilege rights for current user."""
+        bytes_data = await self.vapix.new_request(GetUserGroupRequest())
+        return GetUserGroupResponse.decode(bytes_data).data
 
     @property
-    def privileges(self) -> str:
+    def privileges(self) -> SecondaryGroup:
         """Return highest privileged role supported."""
-        if self.admin:
-            return ADMIN
-        if self.operator:
-            return OPERATOR
-        if self.viewer:
-            return VIEWER
-        return UNKNOWN
+        if (user := self.get("0")) is None:
+            return SecondaryGroup.UNKNOWN
+        return user.privileges
 
     @property
     def admin(self) -> bool:
         """Is user admin."""
-        return self[ADMIN].raw  # type: ignore[return-value]
+        if (user := self.get("0")) is None:
+            return False
+        return user.admin
 
     @property
     def operator(self) -> bool:
         """Is user operator."""
-        return self[OPERATOR].raw  # type: ignore[return-value]
+        if (user := self.get("0")) is None:
+            return False
+        return user.operator
 
     @property
     def viewer(self) -> bool:
         """Is user viewer."""
-        return self[VIEWER].raw  # type: ignore[return-value]
+        if (user := self.get("0")) is None:
+            return False
+        return user.viewer
 
     @property
     def ptz(self) -> bool:
         """Is user ptz."""
-        return self[PTZ].raw  # type: ignore[return-value]
+        if (user := self.get("0")) is None:
+            return False
+        return user.ptz

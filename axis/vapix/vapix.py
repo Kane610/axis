@@ -32,9 +32,10 @@ from .interfaces.port_management import IoPortManagement
 from .interfaces.ptz import PtzControl
 from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
-from .interfaces.user_groups import UNKNOWN, UserGroups
+from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
 from .models.api import APIItem, ApiRequest
+from .models.pwdgrp_cgi import SecondaryGroup, User
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
@@ -105,11 +106,11 @@ class Vapix:
         return self.params.system_serialnumber  # type: ignore[union-attr]
 
     @property
-    def access_rights(self) -> str:
+    def access_rights(self) -> SecondaryGroup:
         """Access rights with the account."""
         if self.user_groups:
             return self.user_groups.privileges
-        return UNKNOWN
+        return SecondaryGroup.UNKNOWN
 
     @property
     def streaming_profiles(self) -> list:
@@ -265,10 +266,12 @@ class Vapix:
 
         If information is available from pwdgrp.cgi use that.
         """
+        user: User | None = None
         user_groups = {}
         if len(self.users) > 0 and self.device.config.username in self.users:
             user = self.users[self.device.config.username]
-            user_groups = {
+            user_groups = {"0": user}
+            user_groups2 = {
                 "admin": APIItem("admin", user.admin, self.request),
                 "operator": APIItem("operator", user.operator, self.request),
                 "viewer": APIItem("viewer", user.viewer, self.request),
@@ -282,6 +285,7 @@ class Vapix:
             except PathNotFound:
                 pass
         self.user_groups._items = user_groups
+        # self.user_groups._items = user_groups
 
     async def request(
         self,

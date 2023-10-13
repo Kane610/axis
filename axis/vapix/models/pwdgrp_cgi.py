@@ -22,6 +22,8 @@ class SecondaryGroup(enum.Enum):
     VIEWER = "viewer"
     VIEWER_PTZ = "viewer:ptz"
 
+    UNKNOWN = "unknown"
+
 
 REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
 REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
@@ -51,6 +53,23 @@ class User(ApiItem):
     def name(self) -> str:
         """User name."""
         return self.id
+
+    @property
+    def privileges(self) -> SecondaryGroup:
+        """Return highest privileged role supported."""
+        if self.admin and self.ptz:
+            return SecondaryGroup.ADMIN_PTZ
+        if self.admin:
+            return SecondaryGroup.ADMIN
+        if self.operator and self.ptz:
+            return SecondaryGroup.OPERATOR_PTZ
+        if self.operator:
+            return SecondaryGroup.OPERATOR
+        if self.viewer and self.ptz:
+            return SecondaryGroup.VIEWER_PTZ
+        if self.viewer:
+            return SecondaryGroup.VIEWER
+        return SecondaryGroup.UNKNOWN
 
     @classmethod
     def decode(cls, data: UserGroupsT) -> Self:
