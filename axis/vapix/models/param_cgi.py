@@ -25,6 +25,54 @@ class BrandT(TypedDict):
     WebURL: str
 
 
+class ImageParamT(TypedDict):
+    """Represent an image object."""
+
+    Enabled: str
+    Name: str
+    Source: str
+    Appearance_ColorEnabled: str
+    Appearance_Compression: str
+    Appearance_MirrorEnabled: str
+    Appearance_Resolution: str
+    Appearance_Rotation: str
+    MPEG_Complexity: str
+    MPEG_ConfigHeaderInterval: str
+    MPEG_FrameSkipMode: str
+    MPEG_ICount: str
+    MPEG_PCount: str
+    MPEG_UserDataEnabled: str
+    MPEG_UserDataInterval: str
+    MPEG_ZChromaQPMode: str
+    MPEG_ZFpsMode: str
+    MPEG_ZGopMode: str
+    MPEG_ZMaxGopLength: str
+    MPEG_ZMinFps: str
+    MPEG_ZStrength: str
+    MPEG_H264_Profile: str
+    MPEG_H264_PSEnabled: str
+    Overlay_Enabled: str
+    Overlay_XPos: str
+    Overlay_YPos: str
+    Overlay_MaskWindows_Color: str
+    RateControl_MaxBitrate: str
+    RateControl_Mode: str
+    RateControl_Priority: str
+    RateControl_TargetBitrate: str
+    SizeControl_MaxFrameSize: str
+    Stream_Duration: str
+    Stream_FPS: str
+    Stream_NbrOfFrames: str
+    Text_BGColor: str
+    Text_ClockEnabled: str
+    Text_Color: str
+    Text_DateEnabled: str
+    Text_Position: str
+    Text_String: str
+    Text_TextEnabled: str
+    Text_TextSize: str
+
+
 class PropertyT(TypedDict):
     """Represent a property object."""
 
@@ -51,7 +99,7 @@ def process_dynamic_group(
     prefix: str,
     attributes: tuple[str, ...],
     group_range: range,
-) -> dict[str, dict[str, str]]:
+) -> dict[int, dict[str, bool | int | str]]:
     """Convert raw dynamic groups to a proper dictionary.
 
     raw_group: self[group]
@@ -61,7 +109,7 @@ def process_dynamic_group(
     """
     dynamic_group = {}
     for index in group_range:
-        item = {}
+        item: dict[str, bool | int | str] = {}
 
         for attribute in attributes:
             parameter = f"{prefix}{index}.{attribute}"  # Support.S0.AbsoluteZoom
@@ -69,10 +117,21 @@ def process_dynamic_group(
             if parameter not in raw_group:
                 continue
 
-            item[attribute] = raw_group[parameter]
+            parameter_value = raw_group[parameter]
+
+            if parameter_value in ("true", "false", "yes", "no"):  # Boolean values
+                item[attribute] = parameter_value in ("true", "yes")
+
+            elif parameter_value.lstrip("-").isdigit():  # Positive/negative values
+                item[attribute] = int(parameter_value)
+
+            else:
+                item[attribute] = parameter_value
+
+            # item[attribute] = raw_group[parameter]
 
         if item:
-            dynamic_group[str(index)] = item
+            dynamic_group[index] = item
 
     return dynamic_group
 
@@ -130,6 +189,69 @@ class BrandParam(ApiItem):
             prodtype=data["ProdType"],
             prodvariant=data["ProdVariant"],
             weburl=data["WebURL"],
+        )
+
+
+@dataclass
+class ImageParam(ApiItem):
+    """Image parameters."""
+
+    data: dict[int, ImageParamT]
+
+    @classmethod
+    def decode(cls, data: dict[str, str]) -> Self:
+        """Decode dictionary to class object."""
+        attributes = (
+            "Enabled",
+            "Name",
+            "Source",
+            "Appearance.ColorEnabled",
+            "Appearance.Compression",
+            "Appearance.MirrorEnabled",
+            "Appearance.Resolution",
+            "Appearance.Rotation",
+            "MPEG.Complexity",
+            "MPEG.ConfigHeaderInterval",
+            "MPEG.FrameSkipMode",
+            "MPEG.ICount",
+            "MPEG.PCount",
+            "MPEG.UserDataEnabled",
+            "MPEG.UserDataInterval",
+            "MPEG.ZChromaQPMode",
+            "MPEG.ZFpsMode",
+            "MPEG.ZGopMode",
+            "MPEG.ZMaxGopLength",
+            "MPEG.ZMinFps",
+            "MPEG.ZStrength",
+            "MPEG.H264.Profile",
+            "MPEG.H264.PSEnabled",
+            "Overlay.Enabled",
+            "Overlay.XPos",
+            "Overlay.YPos",
+            "Overlay.MaskWindows.Color",
+            "RateControl.MaxBitrate",
+            "RateControl.Mode",
+            "RateControl.Priority",
+            "RateControl.TargetBitrate",
+            "SizeControl.MaxFrameSize",
+            "Stream.Duration",
+            "Stream.FPS",
+            "Stream.NbrOfFrames",
+            "Text.BGColor",
+            "Text.ClockEnabled",
+            "Text.Color",
+            "Text.DateEnabled",
+            "Text.Position",
+            "Text.String",
+            "Text.TextEnabled",
+            "Text.TextSize",
+        )
+        return cls(
+            id="image",
+            data=cast(
+                dict[int, ImageParamT],
+                process_dynamic_group(data, "I", attributes, range(20)),
+            ),
         )
 
 
@@ -238,9 +360,9 @@ class StreamProfileParam(ApiItem):
 
         profiles = [
             StreamProfile(
-                id=profile["Name"],
-                description=profile["Description"],
-                parameters=profile["Parameters"],
+                id=str(profile["Name"]),
+                description=str(profile["Description"]),
+                parameters=str(profile["Parameters"]),
             )
             for profile in raw_profiles.values()
         ]

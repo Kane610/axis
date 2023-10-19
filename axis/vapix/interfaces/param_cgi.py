@@ -11,6 +11,7 @@ from typing import Dict, cast
 from ..models.param_cgi import (
     BrandParam,
     BrandT,
+    ImageParam,
     Param,
     PropertyParam,
     StreamProfileParam,
@@ -165,6 +166,11 @@ class Params(APIItems):
     async def update_image(self) -> None:
         """Update image group of parameters."""
         await self.update(IMAGE)
+
+    @property
+    def image_params(self) -> ImageParam:
+        """Provide brand parameters."""
+        return ImageParam.decode(self[IMAGE].raw)
 
     @property
     def image_sources(self) -> dict:
