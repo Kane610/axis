@@ -13,6 +13,7 @@ from ..models.param_cgi import (
     BrandT,
     ImageParam,
     Param,
+    PortParam,
     PropertyParam,
     PTZParam,
     StreamProfileParam,
@@ -243,6 +244,12 @@ class Params(APIItems):
             self.update(IOPORT),
             self.update(OUTPUT),
         )
+
+    @property
+    def port_params(self) -> PortParam:
+        """Provide port parameters."""
+        data = self[INPUT].raw | self[OUTPUT].raw | self[IOPORT].raw
+        return PortParam.decode(data)
 
     @property
     def nbrofinput(self) -> int:
