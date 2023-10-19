@@ -18,8 +18,7 @@ def params(axis_device) -> Params:
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_params(params):
+async def test_params(params: Params):
     """Verify that you can list parameters."""
     route = respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
         text=response_param_cgi,
@@ -200,8 +199,7 @@ async def test_params(params):
     assert params.system_serialnumber == "ACCC12345678"
 
 
-@pytest.mark.asyncio
-async def test_params_empty_raw(params):
+async def test_params_empty_raw(params: Params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
 
@@ -209,8 +207,7 @@ async def test_params_empty_raw(params):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_brand(params):
+async def test_update_brand(params: Params):
     """Verify that update brand works."""
     route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Brand"
@@ -234,8 +231,7 @@ async def test_update_brand(params):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_image(params):
+async def test_update_image(params: Params):
     """Verify that update brand works."""
     route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Image"
@@ -348,8 +344,7 @@ async def test_update_image(params):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_ports(params):
+async def test_update_ports(params: Params):
     """Verify that update brand works."""
     input_route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Input"
@@ -401,8 +396,7 @@ root.IOPort.I0.Input.Trig=closed
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_properties(params):
+async def test_update_properties(params: Params):
     """Verify that update properties works."""
     route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Properties"
@@ -459,8 +453,7 @@ async def test_update_properties(params):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_ptz(params):
+async def test_update_ptz(params: Params):
     """Verify that update ptz works."""
     route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.PTZ"
@@ -475,96 +468,112 @@ async def test_update_ptz(params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
+    ptz_param = params.ptz_params
+
     assert params.ptz_camera_default == 1
     assert params.ptz_number_of_cameras == 1
     assert params.ptz_number_of_serial_ports == 1
-    assert params.ptz_limits == {
-        1: {
-            "MaxBrightness": 9999,
-            "MaxFieldAngle": 623,
-            "MaxFocus": 9999,
-            "MaxIris": 9999,
-            "MaxPan": 170,
-            "MaxTilt": 90,
-            "MaxZoom": 9999,
-            "MinBrightness": 1,
-            "MinFieldAngle": 22,
-            "MinFocus": 770,
-            "MinIris": 1,
-            "MinPan": -170,
-            "MinTilt": -20,
-            "MinZoom": 1,
+    assert ptz_param.camera_default == 1
+    assert ptz_param.number_of_cameras == 1
+    assert ptz_param.number_of_serial_ports == 1
+    assert (
+        ptz_param.limits
+        == params.ptz_limits
+        == {
+            1: {
+                "MaxBrightness": 9999,
+                "MaxFieldAngle": 623,
+                "MaxFocus": 9999,
+                "MaxIris": 9999,
+                "MaxPan": 170,
+                "MaxTilt": 90,
+                "MaxZoom": 9999,
+                "MinBrightness": 1,
+                "MinFieldAngle": 22,
+                "MinFocus": 770,
+                "MinIris": 1,
+                "MinPan": -170,
+                "MinTilt": -20,
+                "MinZoom": 1,
+            }
         }
-    }
-    assert params.ptz_support == {
-        1: {
-            "AbsoluteBrightness": True,
-            "AbsoluteFocus": True,
-            "AbsoluteIris": True,
-            "AbsolutePan": True,
-            "AbsoluteTilt": True,
-            "AbsoluteZoom": True,
-            "ActionNotification": True,
-            "AreaZoom": True,
-            "AutoFocus": True,
-            "AutoIrCutFilter": True,
-            "AutoIris": True,
-            "Auxiliary": True,
-            "BackLight": True,
-            "ContinuousBrightness": False,
-            "ContinuousFocus": True,
-            "ContinuousIris": False,
-            "ContinuousPan": True,
-            "ContinuousTilt": True,
-            "ContinuousZoom": True,
-            "DevicePreset": False,
-            "DigitalZoom": True,
-            "GenericHTTP": False,
-            "IrCutFilter": True,
-            "JoyStickEmulation": True,
-            "LensOffset": False,
-            "OSDMenu": False,
-            "ProportionalSpeed": True,
-            "RelativeBrightness": True,
-            "RelativeFocus": True,
-            "RelativeIris": True,
-            "RelativePan": True,
-            "RelativeTilt": True,
-            "RelativeZoom": True,
-            "ServerPreset": True,
-            "SpeedCtl": True,
+    )
+    assert (
+        ptz_param.support
+        == params.ptz_support
+        == {
+            1: {
+                "AbsoluteBrightness": True,
+                "AbsoluteFocus": True,
+                "AbsoluteIris": True,
+                "AbsolutePan": True,
+                "AbsoluteTilt": True,
+                "AbsoluteZoom": True,
+                "ActionNotification": True,
+                "AreaZoom": True,
+                "AutoFocus": True,
+                "AutoIrCutFilter": True,
+                "AutoIris": True,
+                "Auxiliary": True,
+                "BackLight": True,
+                "ContinuousBrightness": False,
+                "ContinuousFocus": True,
+                "ContinuousIris": False,
+                "ContinuousPan": True,
+                "ContinuousTilt": True,
+                "ContinuousZoom": True,
+                "DevicePreset": False,
+                "DigitalZoom": True,
+                "GenericHTTP": False,
+                "IrCutFilter": True,
+                "JoyStickEmulation": True,
+                "LensOffset": False,
+                "OSDMenu": False,
+                "ProportionalSpeed": True,
+                "RelativeBrightness": True,
+                "RelativeFocus": True,
+                "RelativeIris": True,
+                "RelativePan": True,
+                "RelativeTilt": True,
+                "RelativeZoom": True,
+                "ServerPreset": True,
+                "SpeedCtl": True,
+            }
         }
-    }
-    assert params.ptz_various == {
-        1: {
-            "AutoFocus": True,
-            "AutoIris": True,
-            "BackLight": False,
-            "BackLightEnabled": True,
-            "BrightnessEnabled": True,
-            "CtlQueueing": False,
-            "CtlQueueLimit": 20,
-            "CtlQueuePollTime": 20,
-            "FocusEnabled": True,
-            "HomePresetSet": True,
-            "IrCutFilter": "auto",
-            "IrCutFilterEnabled": True,
-            "IrisEnabled": True,
-            "MaxProportionalSpeed": 200,
-            "PanEnabled": True,
-            "ProportionalSpeedEnabled": True,
-            "PTZCounter": 8,
-            "ReturnToOverview": 0,
-            "SpeedCtlEnabled": True,
-            "TiltEnabled": True,
-            "ZoomEnabled": True,
+    )
+    assert (
+        ptz_param.various
+        == params.ptz_various
+        == {
+            1: {
+                "AutoFocus": True,
+                "AutoIris": True,
+                "BackLight": False,
+                "BackLightEnabled": True,
+                "BrightnessEnabled": True,
+                "CtlQueueing": False,
+                "CtlQueueLimit": 20,
+                "CtlQueuePollTime": 20,
+                "FocusEnabled": True,
+                "HomePresetSet": True,
+                "IrCutFilter": "auto",
+                "IrCutFilterEnabled": True,
+                "IrisEnabled": True,
+                "MaxProportionalSpeed": 200,
+                "PanEnabled": True,
+                "ProportionalSpeedEnabled": True,
+                "PTZCounter": 8,
+                "ReturnToOverview": 0,
+                "SpeedCtlEnabled": True,
+                "TiltEnabled": True,
+                "ZoomEnabled": True,
+            }
         }
-    }
+    )
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_stream_profiles(params):
+async def test_update_stream_profiles(params: Params):
     """Verify that update properties works."""
     route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
@@ -601,8 +610,7 @@ async def test_update_stream_profiles(params):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_stream_profiles_empty_response(params):
+async def test_stream_profiles_empty_response(params: Params):
     """Verify that update properties works."""
     respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"

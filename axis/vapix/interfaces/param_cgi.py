@@ -14,6 +14,7 @@ from ..models.param_cgi import (
     ImageParam,
     Param,
     PropertyParam,
+    PTZParam,
     StreamProfileParam,
 )
 from ..models.stream_profile import StreamProfile
@@ -385,6 +386,11 @@ class Params(APIItems):
     async def update_ptz(self) -> None:
         """Update PTZ group of parameters."""
         await self.update(PTZ)
+
+    @property
+    def ptz_params(self) -> PTZParam:
+        """Provide property parameters."""
+        return PTZParam.decode(self[PTZ].raw)
 
     @property
     def ptz_camera_default(self) -> int:
