@@ -256,40 +256,6 @@ class ImageParam(ApiItem):
 
 
 @dataclass
-class PortParam(ApiItem):
-    """Port parameters."""
-
-    nbr_of_input: int
-    nbr_of_output: int
-    ports: dict
-
-    @classmethod
-    def decode(cls, data: dict[str, str]) -> Self:
-        """Decode dictionary to class object."""
-        inputs = int(data["NbrOfInputs"])
-        outputs = int(data["NbrOfOutputs"])
-        attributes = (
-            "Usage",
-            "Configurable",
-            "Direction",
-            "Input.Name",
-            "Input.Trig",
-            "Output.Active",
-            "Output.Button",
-            "Output.DelayTime",
-            "Output.Mode",
-            "Output.Name",
-            "Output.PulseTime",
-        )
-        return cls(
-            id="port",
-            nbr_of_input=inputs,
-            nbr_of_output=outputs,
-            ports=process_dynamic_group(data, "I", attributes, range(inputs + outputs)),
-        )
-
-
-@dataclass
 class PropertyParam(ApiItem):
     """Property parameters."""
 

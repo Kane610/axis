@@ -7,7 +7,8 @@ import pytest
 import respx
 
 from axis.vapix.interfaces.param_cgi import Params
-from axis.vapix.interfaces.port_cgi import ACTION_LOW, Ports
+from axis.vapix.interfaces.port_cgi import Ports
+from axis.vapix.models.port_cgi import PortAction, PortDirection
 
 from .conftest import HOST
 
@@ -20,8 +21,7 @@ def ports(axis_device) -> Ports:
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_ports(ports):
+async def test_ports(ports: Ports) -> None:
     """Test that different types of ports work."""
     update_ports_route = respx.route(
         url__startswith=f"http://{HOST}/axis-cgi/param.cgi"
@@ -63,43 +63,43 @@ root.Output.NbrOfOutputs=1
 
     await ports.update()
 
-    assert update_ports_route.call_count == 3
+    assert update_ports_route.call_count == 1
+    # assert update_ports_route.call_count == 3
 
     assert ports["0"].id == "0"
     assert ports["0"].configurable is False
-    assert ports["0"].direction == "input"
+    assert ports["0"].direction == PortDirection.IN
     assert ports["0"].name == ""
 
-    await ports["0"].action(action=ACTION_LOW)
+    await ports.action("0", action=PortAction.LOW)
 
     assert not action_low_route.called
 
     assert ports["1"].id == "1"
     assert ports["1"].configurable is False
-    assert ports["1"].direction == "input"
+    assert ports["1"].direction == PortDirection.IN
     assert ports["1"].name == "PIR sensor"
     assert ports["1"].input_trig == "closed"
 
     assert ports["2"].id == "2"
     assert ports["2"].configurable is False
-    assert ports["2"].direction == "input"
+    assert ports["2"].direction == PortDirection.IN
     assert ports["2"].name == ""
     assert ports["2"].output_active == "closed"
 
     assert ports["3"].id == "3"
     assert ports["3"].configurable is False
-    assert ports["3"].direction == "output"
+    assert ports["3"].direction == PortDirection.OUT
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"
 
-    await ports["3"].close()
-
+    await ports.close("3")
     assert action_low_route.called
     assert action_low_route.calls.last.request.method == "GET"
     assert action_low_route.calls.last.request.url.path == "/axis-cgi/io/port.cgi"
     assert action_low_route.calls.last.request.url.query.decode() == "action=4%3A%2F"
 
-    await ports["3"].open()
+    await ports.open("3")
     assert action_high_route.called
     assert action_high_route.calls.last.request.method == "GET"
     assert action_high_route.calls.last.request.url.path == "/axis-cgi/io/port.cgi"
@@ -107,8 +107,7 @@ root.Output.NbrOfOutputs=1
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_no_ports(ports):
+async def test_no_ports(ports: Ports) -> None:
     """Test that no ports also work."""
     route = respx.route(url__startswith=f"http://{HOST}/axis-cgi/param.cgi").respond(
         text="",
@@ -117,5 +116,21 @@ async def test_no_ports(ports):
 
     await ports.update()
 
-    assert route.call_count == 3
+    assert route.call_count == 1
     assert len(ports.values()) == 0
+
+
+@pytest.mark.parametrize(
+    ("enum", "input", "output"),
+    [
+        (PortAction, "/", PortAction.HIGH),
+        (PortAction, "\\", PortAction.LOW),
+        (PortAction, ".", PortAction.UNKNOWN),
+        (PortDirection, "input", PortDirection.IN),
+        (PortDirection, "output", PortDirection.OUT),
+        (PortDirection, ".", PortDirection.UNKNOWN),
+    ],
+)
+def test_enums(enum, input, output) -> None:
+    """Validate enum values."""
+    assert enum(input) == output

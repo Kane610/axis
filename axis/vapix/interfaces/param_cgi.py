@@ -13,11 +13,11 @@ from ..models.param_cgi import (
     BrandT,
     ImageParam,
     Param,
-    PortParam,
     PropertyParam,
     PTZParam,
     StreamProfileParam,
 )
+from ..models.port_cgi import GetPortsRequest, ListInputRequest, ListOutputRequest
 from ..models.stream_profile import StreamProfile
 from .api import APIItems
 
@@ -239,17 +239,13 @@ class Params(APIItems):
 
     async def update_ports(self) -> None:
         """Update port groups of parameters."""
-        await asyncio.gather(
-            self.update(INPUT),
-            self.update(IOPORT),
-            self.update(OUTPUT),
+        bytes_list = await asyncio.gather(
+            self.vapix.new_request(ListInputRequest()),
+            self.vapix.new_request(GetPortsRequest()),
+            self.vapix.new_request(ListOutputRequest()),
         )
-
-    @property
-    def port_params(self) -> PortParam:
-        """Provide port parameters."""
-        data = self[INPUT].raw | self[OUTPUT].raw | self[IOPORT].raw
-        return PortParam.decode(data)
+        for bytes_data in bytes_list:
+            self.process_raw(bytes_data.decode())
 
     @property
     def nbrofinput(self) -> int:
@@ -262,33 +258,15 @@ class Params(APIItems):
         return int(self[OUTPUT]["NbrOfOutputs"])  # type: ignore
 
     @property
-    def ports(self) -> dict:
+    def ports(self) -> bytes:
         """Create a smaller dictionary containing all ports."""
         if IOPORT not in self:
-            return {}
+            return b""
 
-        attributes = (
-            "Usage",
-            "Configurable",
-            "Direction",
-            "Input.Name",
-            "Input.Trig",
-            "Output.Active",
-            "Output.Button",
-            "Output.DelayTime",
-            "Output.Mode",
-            "Output.Name",
-            "Output.PulseTime",
-        )
-
-        ports = self.process_dynamic_group(
-            self[IOPORT],  # type: ignore[arg-type]
-            "I",
-            attributes,
-            range(self.nbrofinput + self.nbrofoutput),
-        )
-
-        return ports
+        io_port = ""
+        for k, v in self[IOPORT].raw.items():
+            io_port += f"root.IOPort.{k}={v}\n"
+        return io_port.encode()
 
     # Properties
 

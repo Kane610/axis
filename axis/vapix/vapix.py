@@ -60,7 +60,6 @@ class Vapix:
         self.motion_guard: MotionGuard | None = None
         self.object_analytics: ObjectAnalytics | None = None
         self.params: Params | None = None
-        self._ports: Ports | None = None
         self.ptz: PtzControl | None = None
         self.vmd4: Vmd4 | None = None
 
@@ -75,6 +74,8 @@ class Vapix:
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
         self.stream_profiles = StreamProfilesHandler(self)
         self.view_areas = ViewAreaHandler(self)
+
+        self.port_cgi = Ports(self)
 
     @property
     def firmware_version(self) -> str:
@@ -121,8 +122,8 @@ class Vapix:
     @property
     def ports(self) -> IoPortManagement | Ports:
         """Temporary port property."""
-        if not self.io_port_management.supported() and self._ports is not None:
-            return self._ports
+        if not self.io_port_management.supported():
+            return self.port_cgi
         return self.io_port_management
 
     async def initialize(self) -> None:
@@ -204,8 +205,7 @@ class Vapix:
             if self.view_areas.supported():
                 tasks.append(self.params.update_image())
 
-        if tasks:
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
         if not self.light_control.supported() and self.params.light_control:
             try:
@@ -214,7 +214,7 @@ class Vapix:
                 pass
 
         if not self.io_port_management.supported():
-            self._ports = Ports(self)
+            self.port_cgi._items = self.port_cgi.process_ports()
 
         if not self.ptz and self.params.ptz:
             self.ptz = PtzControl(self)
@@ -335,6 +335,7 @@ class Vapix:
             path=api_request.path,
             content=api_request.content,
             data=api_request.data,
+            params=api_request.params,
         )
 
     async def do_request(
@@ -343,10 +344,11 @@ class Vapix:
         path: str,
         content: bytes | None = None,
         data: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path
-        LOGGER.debug("%s, %s, %s, %s", method, url, content, data)
+        LOGGER.debug("%s, %s, %s, %s %s", method, url, content, data, params)
 
         try:
             response = await self.device.config.session.request(
@@ -354,6 +356,7 @@ class Vapix:
                 url,
                 content=content,
                 data=data,
+                params=params,
                 auth=self.auth,
                 timeout=TIME_OUT,
             )

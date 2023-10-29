@@ -61,6 +61,11 @@ class ApiRequest(ABC):
         """Request data."""
         return None
 
+    @property
+    def params(self) -> dict[str, str] | None:
+        """Request query parameters."""
+        return None
+
 
 class APIItem:
     """Base class for all end points using APIItems class."""
