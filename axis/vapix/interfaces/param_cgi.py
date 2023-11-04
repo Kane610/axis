@@ -14,7 +14,6 @@ from ..models.param_cgi import (
     ImageParam,
     Param,
     PropertyParam,
-    PTZParam,
     StreamProfileParam,
 )
 from ..models.port_cgi import GetPortsRequest, ListInputRequest, ListOutputRequest
@@ -373,156 +372,15 @@ class Params(APIItems):
         await self.update(PTZ)
 
     @property
-    def ptz_params(self) -> PTZParam:
-        """Provide property parameters."""
-        return PTZParam.decode(self[PTZ].raw)
+    def ptz_data(self) -> bytes:
+        """Create a smaller dictionary containing all PTZ information."""
+        if PTZ not in self:
+            return b""
 
-    @property
-    def ptz_camera_default(self) -> int:
-        """PTZ default video channel.
-
-        When camera parameter is omitted in HTTP requests.
-        """
-        return int(self[PTZ]["CameraDefault"])  # type: ignore
-
-    @property
-    def ptz_number_of_cameras(self) -> int:
-        """Amount of video channels."""
-        return int(self[PTZ]["NbrOfCameras"])  # type: ignore
-
-    @property
-    def ptz_number_of_serial_ports(self) -> int:
-        """Amount of serial ports."""
-        return int(self[PTZ]["NbrOfSerPorts"])  # type: ignore
-
-    @property
-    def ptz_limits(self) -> dict:
-        """PTZ.Limit.L# are populated when a driver is installed on a video channel.
-
-        Index # is the video channel number, starting on 1.
-        When it is possible to obtain the current position from the driver,
-        for example the current pan position, it is possible to apply limit restrictions
-        to the requested operation. For instance, if an absolute pan to position 150
-        is requested, but the upper limit is set to 140, the new pan position will be 140.
-        This is the purpose of all but MinFieldAngle and MaxFieldAngle in this group.
-        The purpose of those two parameters is to calibrate image centering.
-        """
-        attributes = (
-            "MaxBrightness",
-            "MaxFieldAngle",
-            "MaxFocus",
-            "MaxIris",
-            "MaxPan",
-            "MaxTilt",
-            "MaxZoom",
-            "MinBrightness",
-            "MinFieldAngle",
-            "MinFocus",
-            "MinIris",
-            "MinPan",
-            "MinTilt",
-            "MinZoom",
-        )
-        return self.process_dynamic_group(
-            self[PTZ],  # type: ignore[arg-type]
-            "Limit.L",
-            attributes,
-            range(1, self.ptz_number_of_cameras + 1),
-        )
-
-    @property
-    def ptz_support(self) -> dict:
-        """PTZ.Support.S# are populated when a driver is installed on a video channel.
-
-        A parameter in the group has the value true if the corresponding capability
-        is supported by the driver. The index # is the video channel number which starts from 1.
-        An absolute operation means moving to a certain position,
-        a relative operation means moving relative to the current position.
-        Arguments referred to apply to PTZ control.
-        """
-        attributes = (
-            "AbsoluteBrightness",
-            "AbsoluteFocus",
-            "AbsoluteIris",
-            "AbsolutePan",
-            "AbsoluteTilt",
-            "AbsoluteZoom",
-            "ActionNotification",
-            "AreaZoom",
-            "AutoFocus",
-            "AutoIrCutFilter",
-            "AutoIris",
-            "Auxiliary",
-            "BackLight",
-            "ContinuousBrightness",
-            "ContinuousFocus",
-            "ContinuousIris",
-            "ContinuousPan",
-            "ContinuousTilt",
-            "ContinuousZoom",
-            "DevicePreset",
-            "DigitalZoom",
-            "GenericHTTP",
-            "IrCutFilter",
-            "JoyStickEmulation",
-            "LensOffset",
-            "OSDMenu",
-            "ProportionalSpeed",
-            "RelativeBrightness",
-            "RelativeFocus",
-            "RelativeIris",
-            "RelativePan",
-            "RelativeTilt",
-            "RelativeZoom",
-            "ServerPreset",
-            "SpeedCtl",
-        )
-        return self.process_dynamic_group(
-            self[PTZ],  # type: ignore[arg-type]
-            "Support.S",
-            attributes,
-            range(1, self.ptz_number_of_cameras + 1),
-        )
-
-    @property
-    def ptz_various(self) -> dict:
-        """PTZ.Various.V# are populated when a driver is installed on a video channel.
-
-        The index # is the video channel number which starts from 1.
-        The group consists of several different types of parameters for the video channel.
-        To distinguish the parameter types, the group is presented as
-        three different categories below. The Enabled parameters determine
-        if a specific feature can be controlled using ptz.cgi (see section PTZ control).
-        """
-        attributes = (
-            "AutoFocus",
-            "AutoIris",
-            "BackLight",
-            "BackLightEnabled",
-            "BrightnessEnabled",
-            "CtlQueueing",
-            "CtlQueueLimit",
-            "CtlQueuePollTime",
-            "FocusEnabled",
-            "HomePresetSet",
-            "IrCutFilter",
-            "IrCutFilterEnabled",
-            "IrisEnabled",
-            "MaxProportionalSpeed",
-            "PanEnabled",
-            "ProportionalSpeedEnabled",
-            "PTZCounter",
-            "ReturnToOverview",
-            "SpeedCtlEnabled",
-            "TiltEnabled",
-            "ZoomEnabled",
-        )
-        return self.process_dynamic_group(
-            self[PTZ],  # type: ignore[arg-type]
-            "Various.V",
-            attributes,
-            range(1, self.ptz_number_of_cameras + 1),
-        )
+        ptz = ""
+        for k, v in self[PTZ].raw.items():
+            ptz += f"root.PTZ.{k}={v}\n"
+        return ptz.encode()
 
     # Stream profiles
 

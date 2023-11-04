@@ -35,7 +35,6 @@ class Ports(ApiHandler[Port]):
 
     def process_ports(self) -> dict[str, Port]:
         """Process ports."""
-        assert self.vapix.params is not None
         return GetPortsResponse.decode(self.vapix.params.ports).data
 
     async def action(self, id: str, action: PortAction) -> None:

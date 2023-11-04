@@ -59,8 +59,6 @@ class Vapix:
         self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
         self.object_analytics: ObjectAnalytics | None = None
-        self.params: Params | None = None
-        self.ptz: PtzControl | None = None
         self.vmd4: Vmd4 | None = None
 
         self.users = Users(self)
@@ -75,7 +73,9 @@ class Vapix:
         self.stream_profiles = StreamProfilesHandler(self)
         self.view_areas = ViewAreaHandler(self)
 
+        self.params: Params = Params(self)
         self.port_cgi = Ports(self)
+        self.ptz = PtzControl(self)
 
     @property
     def firmware_version(self) -> str:
@@ -182,8 +182,6 @@ class Vapix:
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
-        self.params = Params(self)
-
         tasks = []
 
         if preload_data:
@@ -216,8 +214,8 @@ class Vapix:
         if not self.io_port_management.supported():
             self.port_cgi._items = self.port_cgi.process_ports()
 
-        if not self.ptz and self.params.ptz:
-            self.ptz = PtzControl(self)
+        if self.params.ptz:
+            self.ptz._items = self.ptz.process_ptz()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
