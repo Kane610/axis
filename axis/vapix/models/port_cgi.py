@@ -10,11 +10,12 @@ Virtual input API.
 
 from dataclasses import dataclass
 import enum
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from typing_extensions import NotRequired, Self
 
 from .api import ApiItem, ApiRequest, ApiResponse
+from .param_cgi import params_to_dict
 
 
 class InputPortT(TypedDict):
@@ -43,28 +44,6 @@ class PortItemT(TypedDict):
     Usage: str
     Input: NotRequired[InputPortT]
     Output: NotRequired[OutputPortT]
-
-
-def params_to_dict(
-    params: str, starts_with: str | tuple[str, ...] | None = None
-) -> dict[str, Any]:
-    """Convert params to dictionary."""
-    param_dict: dict[str, Any] = {}
-    for line in params.splitlines():
-        if starts_with is not None and not line.startswith(starts_with):
-            continue
-        travel(line, param_dict)
-    return param_dict
-
-
-def travel(data: str, store: dict[str, Any]) -> None:
-    """Travel through data and add new keys and value to store.
-
-    travel("root.IOPort.I1.Output.Active=closed", {}))
-    {'root': {'IOPort': {'I1': {'Output': {'Active': 'closed'}}}}}
-    """
-    k, _, v = data.partition(".")  # "root", ".", "IOPort.I1.Output.Active=closed"
-    travel(v, store.setdefault(k, {})) if v else store.update(dict([k.split("=")]))
 
 
 class PortAction(enum.Enum):

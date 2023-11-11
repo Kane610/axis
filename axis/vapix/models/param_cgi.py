@@ -235,7 +235,7 @@ class ImageParam(ApiItem):
     data: dict[int, ImageParamT]
 
     @classmethod
-    def decode(cls, data: dict[str, str]) -> Self:
+    def decode(cls, data: dict[str, Any]) -> Self:
         """Decode dictionary to class object."""
         image = ""
         for k, v in data.items():
