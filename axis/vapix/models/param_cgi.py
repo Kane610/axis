@@ -94,6 +94,13 @@ class PropertyT(TypedDict):
     System_SerialNumber: str
 
 
+class StreamProfileT(TypedDict):
+    """Represent a property object."""
+
+    MaxGroups: int
+    API_Metadata_Metadata: str
+
+
 def params_to_dict(params: str, starts_with: str | None = None) -> dict[str, Any]:
     """Convert params to dictionary."""
 
@@ -105,21 +112,21 @@ def params_to_dict(params: str, starts_with: str | None = None) -> dict[str, Any
             return int(value)
         return value
 
-    def travel(store: dict[str, Any], keys: str, v: bool | int | str) -> None:
-        """Travel through store and add new keys and finally value to store.
+    def populate(store: dict[str, Any], keys: str, v: bool | int | str) -> None:
+        """Populate store with new keys and value.
 
-        travel({}, "root.IOPort.I1.Output.Active", "closed")
+        populate({}, "root.IOPort.I1.Output.Active", "closed")
         {'root': {'IOPort': {'I1': {'Output': {'Active': 'closed'}}}}}
         """
         k, _, keys = keys.partition(".")  # "root", ".", "IOPort.I1.Output.Active"
-        travel(store.setdefault(k, {}), keys, v) if keys else store.update({k: v})
+        populate(store.setdefault(k, {}), keys, v) if keys else store.update({k: v})
 
     param_dict: dict[str, Any] = {}
     for line in params.splitlines():
         if starts_with is not None and not line.startswith(starts_with):
             continue
         keys, _, value = line.partition("=")
-        travel(param_dict, keys, convert(value))
+        populate(param_dict, keys, convert(value))
     return param_dict
 
 
@@ -230,58 +237,13 @@ class ImageParam(ApiItem):
     @classmethod
     def decode(cls, data: dict[str, str]) -> Self:
         """Decode dictionary to class object."""
-        attributes = (
-            "Enabled",
-            "Name",
-            "Source",
-            "Appearance.ColorEnabled",
-            "Appearance.Compression",
-            "Appearance.MirrorEnabled",
-            "Appearance.Resolution",
-            "Appearance.Rotation",
-            "MPEG.Complexity",
-            "MPEG.ConfigHeaderInterval",
-            "MPEG.FrameSkipMode",
-            "MPEG.ICount",
-            "MPEG.PCount",
-            "MPEG.UserDataEnabled",
-            "MPEG.UserDataInterval",
-            "MPEG.ZChromaQPMode",
-            "MPEG.ZFpsMode",
-            "MPEG.ZGopMode",
-            "MPEG.ZMaxGopLength",
-            "MPEG.ZMinFps",
-            "MPEG.ZStrength",
-            "MPEG.H264.Profile",
-            "MPEG.H264.PSEnabled",
-            "Overlay.Enabled",
-            "Overlay.XPos",
-            "Overlay.YPos",
-            "Overlay.MaskWindows.Color",
-            "RateControl.MaxBitrate",
-            "RateControl.Mode",
-            "RateControl.Priority",
-            "RateControl.TargetBitrate",
-            "SizeControl.MaxFrameSize",
-            "Stream.Duration",
-            "Stream.FPS",
-            "Stream.NbrOfFrames",
-            "Text.BGColor",
-            "Text.ClockEnabled",
-            "Text.Color",
-            "Text.DateEnabled",
-            "Text.Position",
-            "Text.String",
-            "Text.TextEnabled",
-            "Text.TextSize",
+        image = ""
+        for k, v in data.items():
+            image += f"root.Image.{k}={v}\n"
+        image_data = (
+            params_to_dict(image, "root.Image").get("root", {}).get("Image", {})
         )
-        return cls(
-            id="image",
-            data=cast(
-                dict[int, ImageParamT],
-                process_dynamic_group(data, "I", attributes, range(20)),
-            ),
-        )
+        return cls(id="image", data=image_data)
 
 
 @dataclass
@@ -383,9 +345,16 @@ class StreamProfileParam(ApiItem):
         """Decode dictionary to class object."""
         max_groups = int(data.get("MaxGroups", 0))
 
-        raw_profiles = process_dynamic_group(
-            data, "S", ("Name", "Description", "Parameters"), range(max_groups)
+        stream_profiles = ""
+        for k, v in data.items():
+            stream_profiles += f"root.StreamProfile.{k}={v}\n"
+        stream_profile_data = (
+            params_to_dict(stream_profiles, "root.StreamProfile")
+            .get("root", {})
+            .get("StreamProfile", {})
         )
+        raw_profiles = dict(stream_profile_data)
+        del raw_profiles["MaxGroups"]
 
         profiles = [
             StreamProfile(

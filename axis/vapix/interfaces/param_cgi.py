@@ -6,7 +6,7 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
 import asyncio
-from typing import Dict, cast
+from typing import Any, Dict, cast
 
 from ..models.param_cgi import (
     BrandParam,
@@ -77,46 +77,6 @@ class Params(APIItems):
 
         return params
 
-    @staticmethod
-    def process_dynamic_group(
-        raw_group: dict, prefix: str, attributes: tuple, group_range: range
-    ) -> dict:
-        """Convert raw dynamic groups to a proper dictionary.
-
-        raw_group: self[group]
-        prefix: "Support.S"
-        attributes: ("AbsoluteZoom", "DigitalZoom")
-        group_range: range(5)
-        """
-        dynamic_group = {}
-        for index in group_range:
-            item = {}
-
-            for attribute in attributes:
-                parameter = f"{prefix}{index}.{attribute}"  # Support.S0.AbsoluteZoom
-
-                if parameter not in raw_group:
-                    continue
-
-                parameter_value = raw_group[parameter]
-
-                if parameter_value in ("true", "false"):  # Boolean values
-                    item[attribute] = parameter_value == "true"
-
-                elif parameter_value in ("yes", "no"):  # Boolean values
-                    item[attribute] = parameter_value == "yes"
-
-                elif parameter_value.lstrip("-").isdigit():  # Positive/negative values
-                    item[attribute] = int(parameter_value)
-
-                else:
-                    item[attribute] = parameter_value
-
-            if item:
-                dynamic_group[index] = item
-
-        return dynamic_group
-
     # Brand
 
     async def update_brand(self) -> None:
@@ -146,65 +106,15 @@ class Params(APIItems):
         return ImageParam.decode(self[IMAGE].raw)
 
     @property
-    def image_sources(self) -> dict:
+    def image_sources(self) -> dict[str, Any]:
         """Image source information."""
         if IMAGE not in self:
             return {}
 
-        attributes = (
-            "Enabled",
-            "Name",
-            "Source",
-            "Appearance.ColorEnabled",
-            "Appearance.Compression",
-            "Appearance.MirrorEnabled",
-            "Appearance.Resolution",
-            "Appearance.Rotation",
-            "MPEG.Complexity",
-            "MPEG.ConfigHeaderInterval",
-            "MPEG.FrameSkipMode",
-            "MPEG.ICount",
-            "MPEG.PCount",
-            "MPEG.UserDataEnabled",
-            "MPEG.UserDataInterval",
-            "MPEG.ZChromaQPMode",
-            "MPEG.ZFpsMode",
-            "MPEG.ZGopMode",
-            "MPEG.ZMaxGopLength",
-            "MPEG.ZMinFps",
-            "MPEG.ZStrength",
-            "MPEG.H264.Profile",
-            "MPEG.H264.PSEnabled",
-            "Overlay.Enabled",
-            "Overlay.XPos",
-            "Overlay.YPos",
-            "Overlay.MaskWindows.Color",
-            "RateControl.MaxBitrate",
-            "RateControl.Mode",
-            "RateControl.Priority",
-            "RateControl.TargetBitrate",
-            "SizeControl.MaxFrameSize",
-            "Stream.Duration",
-            "Stream.FPS",
-            "Stream.NbrOfFrames",
-            "Text.BGColor",
-            "Text.ClockEnabled",
-            "Text.Color",
-            "Text.DateEnabled",
-            "Text.Position",
-            "Text.String",
-            "Text.TextEnabled",
-            "Text.TextSize",
-        )
-
-        sources = self.process_dynamic_group(
-            self[IMAGE],  # type: ignore[arg-type]
-            "I",
-            attributes,
-            range(self.image_nbrofviews),
-        )
-
-        return sources
+        image = ""
+        for k, v in self[IMAGE].raw.items():
+            image += f"root.Image.{k}={v}\n"
+        return params_to_dict(image, "root.Image").get("root", {}).get("Image", {})
 
     # Ports
 
@@ -373,28 +283,27 @@ class Params(APIItems):
         return int(self.get(STREAM_PROFILES, {}).get("MaxGroups", 0))
 
     @property
-    def stream_profiles(self) -> list:
+    def stream_profiles(self) -> list[StreamProfile]:
         """Return a list of stream profiles."""
         if STREAM_PROFILES not in self:
             return []
 
-        raw_profiles = self.process_dynamic_group(
-            self[STREAM_PROFILES],  # type: ignore[arg-type]
-            "S",
-            ("Name", "Description", "Parameters"),
-            range(self.stream_profiles_max_groups),
+        stream_profiles = ""
+        for k, v in self[STREAM_PROFILES].raw.items():
+            stream_profiles += f"root.StreamProfile.{k}={v}\n"
+        data = (
+            params_to_dict(stream_profiles, "root.StreamProfile")
+            .get("root", {})
+            .get("StreamProfile", {})
         )
+        profiles = dict(data)
+        del profiles["MaxGroups"]
 
-        profiles = []
-
-        for raw_profile in raw_profiles.values():  # Convert profile keys to lower case
-            profile = dict((k.lower(), v) for k, v in raw_profile.items())
-            profiles.append(
-                StreamProfile(
-                    id=profile["name"],
-                    description=profile["description"],
-                    parameters=profile["parameters"],
-                )
+        return [
+            StreamProfile(
+                id=str(profile["Name"]),
+                description=str(profile["Description"]),
+                parameters=str(profile["Parameters"]),
             )
-
-        return profiles
+            for profile in profiles.values()
+        ]
