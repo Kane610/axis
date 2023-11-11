@@ -106,7 +106,7 @@ async def test_initialize(vapix: Vapix):
     assert vapix.stream_profiles
     assert len(vapix.view_areas) == 0
 
-    assert vapix.params.brand == "AXIS"
+    assert vapix.params.brand.brand == "AXIS"
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -217,7 +217,7 @@ async def test_initialize_param_cgi(vapix: Vapix):
     )
     await vapix.initialize_param_cgi()
 
-    assert vapix.params.brand == "AXIS"
+    assert vapix.params.brand.brand == "AXIS"
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"

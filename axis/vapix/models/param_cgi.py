@@ -94,6 +94,35 @@ class PropertyT(TypedDict):
     System_SerialNumber: str
 
 
+def params_to_dict(params: str, starts_with: str | None = None) -> dict[str, Any]:
+    """Convert params to dictionary."""
+
+    def convert(value: str) -> bool | int | str:
+        """Convert value to Python type."""
+        if value in ("true", "false", "yes", "no"):  # Boolean values
+            return value in ("true", "yes")
+        if value.lstrip("-").isdigit():  # Positive/negative values
+            return int(value)
+        return value
+
+    def travel(store: dict[str, Any], keys: str, v: bool | int | str) -> None:
+        """Travel through store and add new keys and finally value to store.
+
+        travel({}, "root.IOPort.I1.Output.Active", "closed")
+        {'root': {'IOPort': {'I1': {'Output': {'Active': 'closed'}}}}}
+        """
+        k, _, keys = keys.partition(".")  # "root", ".", "IOPort.I1.Output.Active"
+        travel(store.setdefault(k, {}), keys, v) if keys else store.update({k: v})
+
+    param_dict: dict[str, Any] = {}
+    for line in params.splitlines():
+        if starts_with is not None and not line.startswith(starts_with):
+            continue
+        keys, _, value = line.partition("=")
+        travel(param_dict, keys, convert(value))
+    return param_dict
+
+
 def process_dynamic_group(
     raw_group: dict[str, str],
     prefix: str,

@@ -15,6 +15,7 @@ from ..models.param_cgi import (
     Param,
     PropertyParam,
     StreamProfileParam,
+    params_to_dict,
 )
 from ..models.port_cgi import GetPortsRequest, ListInputRequest, ListOutputRequest
 from ..models.stream_profile import StreamProfile
@@ -123,44 +124,15 @@ class Params(APIItems):
         await self.update(BRAND)
 
     @property
-    def brand_params(self) -> BrandParam:
+    def brand(self) -> BrandParam:
         """Provide brand parameters."""
-        return BrandParam.decode(cast(BrandT, self[BRAND].raw))
-
-    @property
-    def brand(self) -> str:
-        """Device branding."""
-        return self[BRAND]["Brand"]  # type: ignore
-
-    @property
-    def prodfullname(self) -> str:
-        """Device product full name."""
-        return self[BRAND]["ProdFullName"]  # type: ignore
-
-    @property
-    def prodnbr(self) -> str:
-        """Device product number."""
-        return self[BRAND]["ProdNbr"]  # type: ignore
-
-    @property
-    def prodshortname(self) -> str:
-        """Device product short name."""
-        return self[BRAND]["ProdShortName"]  # type: ignore
-
-    @property
-    def prodtype(self) -> str:
-        """Device product type."""
-        return self[BRAND]["ProdType"]  # type: ignore
-
-    @property
-    def prodvariant(self) -> str:
-        """Device product variant."""
-        return self[BRAND]["ProdVariant"]  # type: ignore
-
-    @property
-    def weburl(self) -> str:
-        """Device home page URL."""
-        return self[BRAND]["WebURL"]  # type: ignore
+        brand = ""
+        for k, v in self[BRAND].raw.items():
+            brand += f"root.Brand.{k}={v}\n"
+        brand_params: BrandT = (
+            params_to_dict(brand, "root.Brand").get("root", {}).get("Brand", {})
+        )
+        return BrandParam.decode(brand_params)
 
     # Image
 
@@ -170,7 +142,7 @@ class Params(APIItems):
 
     @property
     def image_params(self) -> ImageParam:
-        """Provide brand parameters."""
+        """Provide image parameters."""
         return ImageParam.decode(self[IMAGE].raw)
 
     @property

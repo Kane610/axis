@@ -31,21 +31,13 @@ async def test_params(params: Params):
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     # Brand
-    brand_params = params.brand_params
-    assert brand_params.brand == "AXIS"
-    assert brand_params.prodfullname == "AXIS M1065-LW Network Camera"
-    assert brand_params.prodnbr == "M1065-LW"
-    assert brand_params.prodshortname == "AXIS M1065-LW"
-    assert brand_params.prodtype == "Network Camera"
-    assert brand_params.prodvariant == ""
-    assert brand_params.weburl == "http://www.axis.com"
-    assert params.brand == "AXIS"
-    assert params.prodfullname == "AXIS M1065-LW Network Camera"
-    assert params.prodnbr == "M1065-LW"
-    assert params.prodshortname == "AXIS M1065-LW"
-    assert params.prodtype == "Network Camera"
-    assert params.prodvariant == ""
-    assert params.weburl == "http://www.axis.com"
+    assert params.brand.brand == "AXIS"
+    assert params.brand.prodfullname == "AXIS M1065-LW Network Camera"
+    assert params.brand.prodnbr == "M1065-LW"
+    assert params.brand.prodshortname == "AXIS M1065-LW"
+    assert params.brand.prodtype == "Network Camera"
+    assert params.brand.prodvariant == ""
+    assert params.brand.weburl == "http://www.axis.com"
 
     # Image
     params.image_params.id == "image"
@@ -217,18 +209,18 @@ async def test_update_brand(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.brand == "AXIS"
-    assert params.prodfullname == "AXIS M1065-LW Network Camera"
-    assert params.prodnbr == "M1065-LW"
-    assert params.prodshortname == "AXIS M1065-LW"
-    assert params.prodtype == "Network Camera"
-    assert params.prodvariant == ""
-    assert params.weburl == "http://www.axis.com"
+    assert params.brand.brand == "AXIS"
+    assert params.brand.prodfullname == "AXIS M1065-LW Network Camera"
+    assert params.brand.prodnbr == "M1065-LW"
+    assert params.brand.prodshortname == "AXIS M1065-LW"
+    assert params.brand.prodtype == "Network Camera"
+    assert params.brand.prodvariant == ""
+    assert params.brand.weburl == "http://www.axis.com"
 
 
 @respx.mock
 async def test_update_image(params: Params):
-    """Verify that update brand works."""
+    """Verify that update image works."""
     route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Image"
     ).respond(

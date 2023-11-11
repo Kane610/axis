@@ -65,6 +65,8 @@ class Vapix:
         self.user_groups = UserGroups(self)
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
+        self.params: Params = Params(self)
+
         self.basic_device_info = BasicDeviceInfoHandler(self)
         self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
@@ -73,7 +75,6 @@ class Vapix:
         self.stream_profiles = StreamProfilesHandler(self)
         self.view_areas = ViewAreaHandler(self)
 
-        self.params: Params = Params(self)
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
 
@@ -89,14 +90,14 @@ class Vapix:
         """Product number of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.prodnbr
-        return self.params.prodnbr  # type: ignore[union-attr]
+        return self.params.brand.prodnbr
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.prodtype
-        return self.params.prodtype  # type: ignore[union-attr]
+        return self.params.brand.prodtype
 
     @property
     def serial_number(self) -> str:
