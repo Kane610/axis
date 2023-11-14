@@ -10,7 +10,7 @@ Virtual input API.
 
 from dataclasses import dataclass
 import enum
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from typing_extensions import NotRequired, Self
 
@@ -142,10 +142,15 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Create response object from bytes."""
         data = bytes_data.decode()
         ports = params_to_dict(data, "root.IOPort").get("root", {}).get("IOPort", {})
         return cls(Port.from_dict({k[1:]: v for k, v in ports.items()}))
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Create response object from dict."""
+        return cls(Port.from_dict({k[1:]: v for k, v in data.items()}))
 
 
 @dataclass

@@ -5,12 +5,12 @@ https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from typing_extensions import NotRequired, Self, TypedDict
 
 from ..models.stream_profile import StreamProfile
-from .api import APIItem, ApiItem
+from .api import APIItem, ApiItem, ApiRequest
 
 
 class BrandT(TypedDict):
@@ -108,7 +108,7 @@ def params_to_dict(params: str, starts_with: str | None = None) -> dict[str, Any
         """Convert value to Python type."""
         if value in ("true", "false", "yes", "no"):  # Boolean values
             return value in ("true", "yes")
-        if value.lstrip("-").isdigit():  # Positive/negative values
+        if value.lstrip("-").isnumeric():  # Positive/negative values
             return int(value)
         return value
 
@@ -130,46 +130,21 @@ def params_to_dict(params: str, starts_with: str | None = None) -> dict[str, Any
     return param_dict
 
 
-def process_dynamic_group(
-    raw_group: dict[str, str],
-    prefix: str,
-    attributes: tuple[str, ...],
-    group_range: range,
-) -> dict[int, dict[str, bool | int | str]]:
-    """Convert raw dynamic groups to a proper dictionary.
+@dataclass
+class GetParamsRequest(ApiRequest):
+    """Request object for listing parameters."""
 
-    raw_group: self[group]
-    prefix: "Support.S"
-    attributes: ("AbsoluteZoom", "DigitalZoom")
-    group_range: range(5)
-    """
-    dynamic_group = {}
-    for index in group_range:
-        item: dict[str, bool | int | str] = {}
+    method = "get"
+    path = "/axis-cgi/param.cgi"
+    content_type = "text/plain"
 
-        for attribute in attributes:
-            parameter = f"{prefix}{index}.{attribute}"  # Support.S0.AbsoluteZoom
+    group: str
 
-            if parameter not in raw_group:
-                continue
-
-            parameter_value = raw_group[parameter]
-
-            if parameter_value in ("true", "false", "yes", "no"):  # Boolean values
-                item[attribute] = parameter_value in ("true", "yes")
-
-            elif parameter_value.lstrip("-").isdigit():  # Positive/negative values
-                item[attribute] = int(parameter_value)
-
-            else:
-                item[attribute] = parameter_value
-
-            # item[attribute] = raw_group[parameter]
-
-        if item:
-            dynamic_group[index] = item
-
-    return dynamic_group
+    @property
+    def params(self) -> dict[str, str]:
+        """Request query parameters."""
+        group = f"&group={self.group}" if self.group else ""
+        return {"action": f"list{group}"}
 
 
 class Param(APIItem):
@@ -237,13 +212,7 @@ class ImageParam(ApiItem):
     @classmethod
     def decode(cls, data: dict[str, Any]) -> Self:
         """Decode dictionary to class object."""
-        image = ""
-        for k, v in data.items():
-            image += f"root.Image.{k}={v}\n"
-        image_data = (
-            params_to_dict(image, "root.Image").get("root", {}).get("Image", {})
-        )
-        return cls(id="image", data=image_data)
+        return cls(id="image", data=data)
 
 
 @dataclass
@@ -306,27 +275,32 @@ class PropertyParam(ApiItem):
     """Device serial number."""
 
     @classmethod
-    def decode(cls, data: dict[str, str]) -> Self:
+    def decode(cls, data: dict[str, Any]) -> Self:
         """Decode dictionary to class object."""
-        data2 = cast(PropertyT, {k.replace(".", "_"): v for k, v in data.items()})
         return cls(
             id="properties",
-            api_http_version=data2["API_HTTP_Version"],
-            api_metadata=data2["API_Metadata_Metadata"],
-            api_metadata_version=data2["API_Metadata_Version"],
-            api_ptz_presets_version=data2.get("API_PTZ_Presets_Version", False),
-            embedded_development=data2.get("EmbeddedDevelopment_Version", "0.0"),
-            firmware_builddate=data2["Firmware_BuildDate"],
-            firmware_buildnumber=data2["Firmware_BuildNumber"],
-            firmware_version=data2["Firmware_Version"],
-            image_format=data2.get("Image_Format", ""),
-            image_nbrofviews=int(data2["Image_NbrOfViews"]),
-            image_resolution=data2["Image_Resolution"],
-            image_rotation=data2["Image_Rotation"],
-            light_control=data2.get("LightControl_LightControl2") == "yes",
-            ptz=data2.get("PTZ_PTZ") == "yes",
-            digital_ptz=data2.get("PTZ_DigitalPTZ") == "yes",
-            system_serialnumber=data2["System_SerialNumber"],
+            api_http_version=data["API"]["HTTP"]["Version"],
+            api_metadata=data["API"]["Metadata"]["Metadata"],
+            api_metadata_version=data["API"]["Metadata"]["Version"],
+            api_ptz_presets_version=data["API"]["PTZ"]["Presets"]["Version"],
+            # api_ptz_presets_version=data2.get("API"]["PTZ"]["Presets"]["Version", False),
+            embedded_development=data["EmbeddedDevelopment"]["Version"],
+            # embedded_development=data.get("EmbeddedDevelopment_Version", "0.0"),
+            firmware_builddate=data["Firmware"]["BuildDate"],
+            firmware_buildnumber=data["Firmware"]["BuildNumber"],
+            firmware_version=data["Firmware"]["Version"],
+            image_format=data["Image"]["Format"],
+            # image_format=data2.get("Image_Format", ""),
+            image_nbrofviews=int(data["Image"]["NbrOfViews"]),
+            image_resolution=data["Image"]["Resolution"],
+            image_rotation=data["Image"]["Rotation"],
+            light_control=data["LightControl"]["LightControl2"],
+            # light_control=data2.get("LightControl_LightControl2") == "yes",
+            ptz=data["PTZ"]["PTZ"],
+            # ptz=data2.get("PTZ_PTZ") == "yes",
+            digital_ptz=data["PTZ"]["DigitalPTZ"],
+            # digital_ptz=data2.get("PTZ_DigitalPTZ") == "yes",
+            system_serialnumber=data["System"]["SerialNumber"],
         )
 
 
@@ -341,19 +315,11 @@ class StreamProfileParam(ApiItem):
     """List of stream profiles."""
 
     @classmethod
-    def decode(cls, data: dict[str, str]) -> Self:
+    def decode(cls, data: dict[str, Any]) -> Self:
         """Decode dictionary to class object."""
         max_groups = int(data.get("MaxGroups", 0))
 
-        stream_profiles = ""
-        for k, v in data.items():
-            stream_profiles += f"root.StreamProfile.{k}={v}\n"
-        stream_profile_data = (
-            params_to_dict(stream_profiles, "root.StreamProfile")
-            .get("root", {})
-            .get("StreamProfile", {})
-        )
-        raw_profiles = dict(stream_profile_data)
+        raw_profiles = dict(data)
         del raw_profiles["MaxGroups"]
 
         profiles = [

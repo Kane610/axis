@@ -35,7 +35,7 @@ class PtzControl(ApiHandler[PtzItem]):
 
     def process_ptz(self) -> dict[str, PtzItem]:
         """Process ports."""
-        return GetPtzResponse.decode(self.vapix.params.ptz_data).data
+        return GetPtzResponse.from_dict(self.vapix.params.ptz_data).data
 
     async def control(
         self,

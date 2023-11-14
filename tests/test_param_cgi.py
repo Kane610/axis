@@ -176,51 +176,35 @@ async def test_params(params: Params):
     # Ports
     assert params.nbrofinput == 1
     assert params.nbrofoutput == 0
-    assert params.ports == (
-        b"root.IOPort.I0.Configurable=no\nroot.IOPort.I0.Direction=input\n"
-        + b"root.IOPort.I0.Input.Name=PIR sensor\nroot.IOPort.I0.Input.Trig=closed\n"
-    )
+    assert params.ports == {
+        "I0": {
+            "Configurable": False,
+            "Direction": "input",
+            "Input": {"Name": "PIR sensor", "Trig": "closed"},
+        }
+    }
 
     # Properties
-    property_params = params.property_params
-    assert property_params.api_http_version == "3"
-    assert property_params.api_metadata == "yes"
-    assert property_params.api_metadata_version == "1.0"
-    assert property_params.api_ptz_presets_version == "2.00"
-    assert property_params.embedded_development == "2.16"
-    assert property_params.firmware_builddate == "Feb 15 2019 09:42"
-    assert property_params.firmware_buildnumber == "26"
-    assert property_params.firmware_version == "9.10.1"
-    assert property_params.image_format == "jpeg,mjpeg,h264"
-    assert property_params.image_nbrofviews == 2
+    properties = params.properties
+    assert properties.api_http_version == 3
+    assert properties.api_metadata is True
+    assert properties.api_metadata_version == "1.0"
+    assert properties.api_ptz_presets_version == "2.00"
+    assert properties.embedded_development == "2.16"
+    assert properties.firmware_builddate == "Feb 15 2019 09:42"
+    assert properties.firmware_buildnumber == 26
+    assert properties.firmware_version == "9.10.1"
+    assert properties.image_format == "jpeg,mjpeg,h264"
+    assert properties.image_nbrofviews == 2
     assert (
-        property_params.image_resolution
+        properties.image_resolution
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
     )
-    assert property_params.image_rotation == "0,180"
-    assert property_params.light_control is True
-    assert property_params.ptz is True
-    assert property_params.digital_ptz is True
-    assert property_params.system_serialnumber == "ACCC12345678"
-    assert params.api_http_version == "3"
-    assert params.api_metadata == "yes"
-    assert params.api_metadata_version == "1.0"
-    assert params.api_ptz_presets_version == "2.00"
-    assert params.embedded_development == "2.16"
-    assert params.firmware_builddate == "Feb 15 2019 09:42"
-    assert params.firmware_buildnumber == "26"
-    assert params.firmware_version == "9.10.1"
-    assert params.image_format == "jpeg,mjpeg,h264"
-    assert params.image_nbrofviews == 2
-    assert (
-        params.image_resolution
-        == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
-    )
-    assert params.image_rotation == "0,180"
-    assert params.light_control is True
-    assert params.ptz is True
-    assert params.digital_ptz is True
-    assert params.system_serialnumber == "ACCC12345678"
+    assert properties.image_rotation == "0,180"
+    assert properties.light_control is True
+    assert properties.ptz is True
+    assert properties.digital_ptz is True
+    assert properties.system_serialnumber == "ACCC12345678"
 
 
 async def test_params_empty_raw(params: Params):
@@ -234,7 +218,7 @@ async def test_params_empty_raw(params: Params):
 async def test_update_brand(params: Params):
     """Verify that update brand works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Brand"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Brand"
     ).respond(
         text=response_param_cgi_brand,
         headers={"Content-Type": "text/plain"},
@@ -258,7 +242,7 @@ async def test_update_brand(params: Params):
 async def test_update_image(params: Params):
     """Verify that update image works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Image"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Image"
     ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
@@ -269,7 +253,7 @@ async def test_update_image(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.image_nbrofviews == 2
+    assert params.properties.image_nbrofviews == 2
     assert params.image_sources == {
         "DateFormat": "YYYY-MM-DD",
         "MaxViewers": 20,
@@ -575,14 +559,13 @@ root.IOPort.I0.Input.Trig=closed
     assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.nbrofinput == 1
-    assert (
-        params.ports
-        == b"""root.IOPort.I0.Configurable=no
-root.IOPort.I0.Direction=input
-root.IOPort.I0.Input.Name=PIR sensor
-root.IOPort.I0.Input.Trig=closed
-"""
-    )
+    assert params.ports == {
+        "I0": {
+            "Configurable": False,
+            "Direction": "input",
+            "Input": {"Name": "PIR sensor", "Trig": "closed"},
+        }
+    }
     assert params.nbrofoutput == 0
 
 
@@ -590,7 +573,7 @@ root.IOPort.I0.Input.Trig=closed
 async def test_update_properties(params: Params):
     """Verify that update properties works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Properties"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Properties"
     ).respond(
         text=response_param_cgi_properties,
         headers={"Content-Type": "text/plain"},
@@ -602,28 +585,28 @@ async def test_update_properties(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.api_http_version == "3"
-    assert params.api_metadata == "yes"
-    assert params.api_metadata_version == "1.0"
+    assert params.properties.api_http_version == 3
+    assert params.properties.api_metadata is True
+    assert params.properties.api_metadata_version == "1.0"
     # assert params[f"{PROPERTIES}.API.OnScreenControls.OnScreenControls"] == "yes"
-    assert params.api_ptz_presets_version == "2.00"
+    assert params.properties.api_ptz_presets_version == "2.00"
     # assert params[f"{PROPERTIES}.API.RTSP.RTSPAuth"] == "yes"
     # assert params[f"{PROPERTIES}.API.RTSP.Version"] == "2.01"
     # assert params[f"{PROPERTIES}.ApiDiscovery.ApiDiscovery"] == "yes"
     # assert params[f"{PROPERTIES}.EmbeddedDevelopment.EmbeddedDevelopment"] == "yes"
-    assert params.embedded_development == "2.16"
-    assert params.firmware_builddate == "Feb 15 2019 09:42"
-    assert params.firmware_buildnumber == "26"
-    assert params.firmware_version == "9.10.1"
-    assert params.image_format == "jpeg,mjpeg,h264"
-    assert params.image_nbrofviews == 2
+    assert params.properties.embedded_development == "2.16"
+    assert params.properties.firmware_builddate == "Feb 15 2019 09:42"
+    assert params.properties.firmware_buildnumber == 26
+    assert params.properties.firmware_version == "9.10.1"
+    assert params.properties.image_format == "jpeg,mjpeg,h264"
+    assert params.properties.image_nbrofviews == 2
     assert (
-        params.image_resolution
+        params.properties.image_resolution
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
     )
-    assert params.image_rotation == "0,180"
+    assert params.properties.image_rotation == "0,180"
     # assert params[f"{PROPERTIES}.LEDControl.LEDControl"] == "yes"
-    assert params.light_control is True
+    assert params.properties.light_control is True
     # assert params[f"{PROPERTIES}.LightControl.LightControlAvailable"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.AutoRepair"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.ContinuousRecording"] == "yes"
@@ -637,17 +620,17 @@ async def test_update_properties(params: Params):
     # assert params[f"{PROPERTIES}.LocalStorage.SDCard"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.StorageLimit"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.Version"] == "1.00"
-    assert params.digital_ptz is True
-    assert params.ptz is True
+    assert params.properties.digital_ptz is True
+    assert params.properties.ptz is True
     # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
-    assert params.system_serialnumber == "ACCC12345678"
+    assert params.properties.system_serialnumber == "ACCC12345678"
 
 
 @respx.mock
 async def test_update_stream_profiles(params: Params):
     """Verify that update properties works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.StreamProfile"
     ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
@@ -684,7 +667,8 @@ async def test_update_stream_profiles(params: Params):
 async def test_stream_profiles_empty_response(params: Params):
     """Verify that update properties works."""
     respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.StreamProfile"
+        # f"http://{HOST}:80/axis-cgi/param.cgi?action=list&list%26group%3Dot.StreamProfile"
     ).respond(
         text="",
         headers={"Content-Type": "text/plain"},

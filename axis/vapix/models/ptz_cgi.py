@@ -7,7 +7,7 @@ and actual parameter values, check the specification of the Axis PTZ driver used
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeVar
+from typing import Any, TypeVar, cast
 
 from typing_extensions import NotRequired, Self, TypedDict
 
@@ -483,9 +483,9 @@ class PtzItem(ApiItem):
         """Decode dictionary to class object."""
         return cls(
             id="ptz",
-            camera_default=int(data["CameraDefault"]),
-            number_of_cameras=int(data["NbrOfCameras"]),
-            number_of_serial_ports=int(data["NbrOfSerPorts"]),
+            camera_default=data["CameraDefault"],
+            number_of_cameras=data["NbrOfCameras"],
+            number_of_serial_ports=data["NbrOfSerPorts"],
             cam_ports=data["CamPorts"],
             image_source=PtzImageSource.from_dict(data["ImageSource"]),
             limits=PtzLimit.from_dict(data["Limit"]),
@@ -509,12 +509,17 @@ class GetPtzResponse(ApiResponse[dict[str, PtzItem]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Create response object from bytes."""
         data = bytes_data.decode()
         ptz_params: PtzItemT = (
             params_to_dict(data, "root.PTZ").get("root", {}).get("PTZ", {})
         )
         return cls({"0": PtzItem.decode(ptz_params)})
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Create response object from dict."""
+        return cls({"0": PtzItem.decode(cast(PtzItemT, data))})
 
 
 @dataclass

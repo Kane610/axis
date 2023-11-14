@@ -83,7 +83,7 @@ class Vapix:
         """Firmware version of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.version
-        return self.params.firmware_version  # type: ignore[union-attr]
+        return self.params.properties.firmware_version
 
     @property
     def product_number(self) -> str:
@@ -104,7 +104,7 @@ class Vapix:
         """Device serial number."""
         if self.basic_device_info.supported():
             return self.basic_device_info.serialnumber
-        return self.params.system_serialnumber  # type: ignore[union-attr]
+        return self.params.properties.system_serialnumber
 
     @property
     def access_rights(self) -> SecondaryGroup:
@@ -118,7 +118,7 @@ class Vapix:
         """List streaming profiles."""
         if self.stream_profiles.supported():
             return list(self.stream_profiles.values())
-        return self.params.stream_profiles  # type: ignore[union-attr]
+        return self.params.stream_profiles
 
     @property
     def ports(self) -> IoPortManagement | Ports:
@@ -206,7 +206,10 @@ class Vapix:
 
         await asyncio.gather(*tasks)
 
-        if not self.light_control.supported() and self.params.light_control:
+        if "Properties" not in self.params.get("root", {}):  # TO REMOVE
+            return
+
+        if not self.light_control.supported() and self.params.properties.light_control:
             try:
                 await self.light_control.update()
             except Unauthorized:  # Probably a viewer account
@@ -215,15 +218,17 @@ class Vapix:
         if not self.io_port_management.supported():
             self.port_cgi._items = self.port_cgi.process_ports()
 
-        if self.params.ptz:
+        if self.params.properties.ptz:
             self.ptz._items = self.ptz.process_ptz()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
+        if "Properties" not in self.params.get("root", {}):  # TO REMOVE
+            return
         self.applications = Applications(self)
-        if self.params and version.parse(
-            self.params.embedded_development
-        ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
+        if version.parse(self.params.properties.embedded_development) >= version.parse(
+            APPLICATIONS_MINIMUM_VERSION
+        ):
             try:
                 await self.applications.update()
             except Unauthorized:  # Probably a viewer account
