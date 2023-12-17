@@ -9,7 +9,6 @@ Virtual input API.
 """
 
 from ..models.port_cgi import (
-    GetPortsRequest,
     GetPortsResponse,
     Port,
     PortAction,
@@ -30,12 +29,13 @@ class Ports(ApiHandler[Port]):
 
     async def get_ports(self) -> dict[str, Port]:
         """Retrieve privilege rights for current user."""
-        bytes_data = await self.vapix.new_request(GetPortsRequest())
-        return GetPortsResponse.decode(bytes_data).data
+        await self.vapix.params.update("IOPort")
+        return self.process_ports()
 
     def process_ports(self) -> dict[str, Port]:
         """Process ports."""
-        return GetPortsResponse.from_dict(self.vapix.params.ports).data
+        data = self.vapix.params.get_param("IOPort")
+        return GetPortsResponse.from_dict(data).data
 
     async def action(self, id: str, action: PortAction) -> None:
         """Activate or deactivate an output."""

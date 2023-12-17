@@ -12,7 +12,7 @@ from typing import Any, TypeVar, cast
 from typing_extensions import NotRequired, Self, TypedDict
 
 from .api import ApiItem, ApiRequest, ApiResponse
-from .param_cgi import params_to_dict
+from .parameters.param_cgi import params_to_dict
 
 
 class ImageSourceT(TypedDict):

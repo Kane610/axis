@@ -15,7 +15,7 @@ from typing import Any, TypedDict
 from typing_extensions import NotRequired, Self
 
 from .api import ApiItem, ApiRequest, ApiResponse
-from .param_cgi import params_to_dict
+from .parameters.param_cgi import params_to_dict
 
 
 class InputPortT(TypedDict):
@@ -128,15 +128,6 @@ class Port(ApiItem):
 
 
 @dataclass
-class GetPortsRequest(ApiRequest):
-    """Request object for listing IO ports."""
-
-    method = "get"
-    path = "/axis-cgi/param.cgi?action=list&group=root.IOPort"
-    content_type = "text/plain"
-
-
-@dataclass
 class GetPortsResponse(ApiResponse[dict[str, Port]]):
     """Response object for listing ports."""
 
@@ -151,24 +142,6 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
     def from_dict(cls, data: dict[str, Any]) -> Self:
         """Create response object from dict."""
         return cls(Port.from_dict({k[1:]: v for k, v in data.items()}))
-
-
-@dataclass
-class ListOutputRequest(ApiRequest):
-    """Request object for listing number of outputs."""
-
-    method = "get"
-    path = "/axis-cgi/param.cgi?action=list&group=root.Output"
-    content_type = "text/plain"
-
-
-@dataclass
-class ListInputRequest(ApiRequest):
-    """Request object for listing number of inputs."""
-
-    method = "get"
-    path = "/axis-cgi/param.cgi?action=list&group=root.Input"
-    content_type = "text/plain"
 
 
 @dataclass

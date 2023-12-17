@@ -240,7 +240,7 @@ async def test_initialize_params_no_data(vapix: Vapix):
     ).respond(text="")
     await vapix.initialize_param_cgi(preload_data=False)
 
-    assert param_route.call_count == 7
+    assert param_route.call_count == 5
 
 
 @respx.mock
@@ -366,7 +366,7 @@ async def test_applications_dont_load_without_params(vapix: Vapix):
     await vapix.initialize_param_cgi(preload_data=False)
     await vapix.initialize_applications()
 
-    assert param_route.call_count == 7
+    assert param_route.call_count == 5
     assert not applications_route.called
 
 

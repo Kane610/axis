@@ -16,8 +16,7 @@ from .conftest import HOST
 @pytest.fixture
 def ports(axis_device) -> Ports:
     """Return the api_discovery mock object."""
-    axis_device.vapix.params = Params(axis_device.vapix)
-    return Ports(axis_device.vapix)
+    return axis_device.vapix.port_cgi
 
 
 @respx.mock

@@ -196,7 +196,7 @@ class Vapix:
                 tasks.append(self.params.update_brand())
 
             if not self.io_port_management.supported():
-                tasks.append(self.params.update_ports())
+                tasks.append(self.port_cgi.update())
 
             if not self.stream_profiles.supported():
                 tasks.append(self.params.update_stream_profiles())

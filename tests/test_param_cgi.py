@@ -3,6 +3,8 @@
 pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
+import asyncio
+
 import pytest
 import respx
 
@@ -14,7 +16,7 @@ from .conftest import HOST
 @pytest.fixture
 def params(axis_device) -> Params:
     """Return the param cgi mock object."""
-    return Params(axis_device.vapix)
+    return axis_device.vapix.params
 
 
 @respx.mock
@@ -174,9 +176,9 @@ async def test_params(params: Params):
     }
 
     # Ports
-    assert params.nbrofinput == 1
-    assert params.nbrofoutput == 0
-    assert params.ports == {
+    assert params.get_param("Input").get("NbrOfInputs", 0) == 1
+    assert params.get_param("Output").get("NbrOfOutputs", 0) == 0
+    assert params.get_param("IOPort") == {
         "I0": {
             "Configurable": False,
             "Direction": "input",
@@ -522,13 +524,13 @@ async def test_update_image(params: Params):
 async def test_update_ports(params: Params):
     """Verify that update brand works."""
     input_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Input"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Input"
     ).respond(
         text="root.Input.NbrOfInputs=1",
         headers={"Content-Type": "text/plain"},
     )
     io_port_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.IOPort"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.IOPort"
     ).respond(
         text="""root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input
@@ -538,13 +540,17 @@ root.IOPort.I0.Input.Trig=closed
         headers={"Content-Type": "text/plain"},
     )
     output_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Output"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Output"
     ).respond(
         text="root.Output.NbrOfOutputs=0",
         headers={"Content-Type": "text/plain"},
     )
 
-    await params.update_ports()
+    await asyncio.gather(
+        params.update("Input"),
+        params.update("IOPort"),
+        params.update("Output"),
+    )
 
     assert input_route.called
     assert input_route.calls.last.request.method == "GET"
@@ -558,15 +564,15 @@ root.IOPort.I0.Input.Trig=closed
     assert output_route.calls.last.request.method == "GET"
     assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.nbrofinput == 1
-    assert params.ports == {
+    assert params.get_param("Input").get("NbrOfInputs", 0) == 1
+    assert params.get_param("IOPort") == {
         "I0": {
             "Configurable": False,
             "Direction": "input",
             "Input": {"Name": "PIR sensor", "Trig": "closed"},
         }
     }
-    assert params.nbrofoutput == 0
+    assert params.get_param("Output").get("NbrOfOutputs", 0) == 0
 
 
 @respx.mock

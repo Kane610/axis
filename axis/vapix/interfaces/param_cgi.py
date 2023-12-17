@@ -5,19 +5,13 @@ https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
-import asyncio
 from typing import Any, cast
 
-from ..models.param_cgi import (
-    BrandParam,
-    BrandT,
-    GetParamsRequest,
-    ImageParam,
-    PropertyParam,
-    StreamProfileParam,
-    params_to_dict,
-)
-from ..models.port_cgi import GetPortsRequest, ListInputRequest, ListOutputRequest
+from ..models.parameters.brand import BrandParam, BrandT
+from ..models.parameters.image import ImageParam
+from ..models.parameters.param_cgi import ParamRequest, params_to_dict
+from ..models.parameters.properties import PropertyParam
+from ..models.parameters.stream_profile import StreamProfileParam
 from ..models.stream_profile import StreamProfile
 from .api_handler import ApiHandler
 
@@ -60,11 +54,12 @@ class Params(ApiHandler[Any]):
 
     async def update(self, group: str = "") -> None:
         """Refresh data."""
-        if group != "":
-            group = f"root.{group}"
-        bytes_data = await self.vapix.new_request(GetParamsRequest(group))
+        group = "" if group == "" or group.startswith("root.") else f"root.{group}"
+        bytes_data = await self.vapix.new_request(ParamRequest(group))
         data = params_to_dict(bytes_data.decode())
-        self._items.update(data)
+        root = self._items.setdefault("root", {})
+        if "root" in data:
+            root.update(data["root"])
 
     def get_param(self, group: str) -> dict[str, Any]:
         """Get parameter group."""
@@ -96,33 +91,6 @@ class Params(ApiHandler[Any]):
     def image_sources(self) -> dict[str, Any]:
         """Image source information."""
         return self.get_param("Image")
-
-    # Ports
-
-    async def update_ports(self) -> None:
-        """Update port groups of parameters."""
-        bytes_list = await asyncio.gather(
-            self.vapix.new_request(ListInputRequest()),
-            self.vapix.new_request(GetPortsRequest()),
-            self.vapix.new_request(ListOutputRequest()),
-        )
-        data = params_to_dict(b"\n".join(bytes_list).decode())
-        self._items.update(data)
-
-    @property
-    def nbrofinput(self) -> int:
-        """Match the number of configured inputs."""
-        return self.get_param("Input").get("NbrOfInputs", 0)
-
-    @property
-    def nbrofoutput(self) -> int:
-        """Match the number of configured outputs."""
-        return self.get_param("Output").get("NbrOfOutputs", 0)
-
-    @property
-    def ports(self) -> dict[str, Any]:
-        """Create a smaller dictionary containing all ports."""
-        return self.get_param("IOPort")
 
     # Properties
 
