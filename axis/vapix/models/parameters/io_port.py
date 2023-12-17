@@ -1,6 +1,5 @@
 """I/O port parameters from param.cgi."""
 
-
 from dataclasses import dataclass
 import enum
 from typing import Any, TypedDict

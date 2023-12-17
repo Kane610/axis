@@ -25,7 +25,7 @@ from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import LightHandler
 from .interfaces.mqtt import MqttClientHandler
-from .interfaces.param_cgi import Params
+from .interfaces.parameters.param_cgi import Params
 from .interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 from .interfaces.port_cgi import Ports
 from .interfaces.port_management import IoPortManagement

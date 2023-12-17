@@ -7,13 +7,13 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 
 from typing import Any, cast
 
-from ..models.parameters.brand import BrandParam, BrandT
-from ..models.parameters.image import ImageParam
-from ..models.parameters.param_cgi import ParamRequest, params_to_dict
-from ..models.parameters.properties import PropertyParam
-from ..models.parameters.stream_profile import StreamProfileParam
-from ..models.stream_profile import StreamProfile
-from .api_handler import ApiHandler
+from ...models.parameters.brand import BrandParam, BrandT
+from ...models.parameters.image import ImageParam
+from ...models.parameters.param_cgi import ParamRequest, params_to_dict
+from ...models.parameters.properties import PropertyParam
+from ...models.parameters.stream_profile import StreamProfileParam
+from ...models.stream_profile import StreamProfile
+from ..api_handler import ApiHandler
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 

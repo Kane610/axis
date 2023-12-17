@@ -8,7 +8,7 @@ import asyncio
 import pytest
 import respx
 
-from axis.vapix.interfaces.param_cgi import Params
+from axis.vapix.interfaces.parameters.param_cgi import Params
 
 from .conftest import HOST
 
