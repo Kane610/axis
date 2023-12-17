@@ -8,13 +8,13 @@ General purpose I/O service API. Extends I/O port API with support for
 Virtual input API.
 """
 
-from ..models.port_cgi import (
+from ..models.parameters.io_port import (
     GetPortsResponse,
     Port,
     PortAction,
-    PortActionRequest,
     PortDirection,
 )
+from ..models.port_cgi import PortActionRequest
 from .api_handler import ApiHandler
 
 PROPERTY = "Properties.API.HTTP.Version=3"
