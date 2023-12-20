@@ -206,7 +206,7 @@ class Vapix:
 
         await asyncio.gather(*tasks)
 
-        if "Properties" not in self.params.get("root", {}):  # TO REMOVE
+        if not self.params.property_handler.supported():
             return
 
         if not self.light_control.supported() and self.params.properties.light_control:
@@ -223,12 +223,10 @@ class Vapix:
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        if "Properties" not in self.params.get("root", {}):  # TO REMOVE
-            return
         self.applications = Applications(self)
-        if version.parse(self.params.properties.embedded_development) >= version.parse(
-            APPLICATIONS_MINIMUM_VERSION
-        ):
+        if self.params.property_handler.supported() and version.parse(
+            self.params.properties.embedded_development
+        ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
             try:
                 await self.applications.update()
             except Unauthorized:  # Probably a viewer account

@@ -27,6 +27,10 @@ class ParamHandler(ApiHandler[ApiItemT]):
         super().__init__(param_handler.vapix)
         param_handler.subscribe(self.update_params, self.parameter_group)
 
+    def supported(self) -> bool:
+        """Is parameter supported."""
+        return self.vapix.params.get_param(self.parameter_group) != {}
+
     @abstractmethod
     def get_params(self) -> dict[str, ApiItemT]:
         """Retrieve parameters from param_cgi class."""
