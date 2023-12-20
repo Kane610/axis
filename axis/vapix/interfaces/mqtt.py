@@ -60,7 +60,7 @@ class MqttClientHandler(ApiHandler[Any]):
     default_api_version = API_VERSION
 
     async def _api_request(self) -> dict[str, None]:
-        """Get API data method defined by subsclass."""
+        """Get API data method defined by subclass."""
         raise NotImplementedError
 
     async def configure_client(self, client_config: ClientConfig) -> None:

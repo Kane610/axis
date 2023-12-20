@@ -37,7 +37,8 @@ def test_limit():
 async def test_update_ptz(ptz_control: PtzControl):
     """Verify that update ptz works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.PTZ"
+        f"http://{HOST}/axis-cgi/param.cgi?action=list%26group%3Droot.PTZ"
+        # f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.PTZ"
     ).respond(
         text=response_param_cgi_ptz,
         headers={"Content-Type": "text/plain"},

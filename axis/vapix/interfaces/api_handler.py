@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Generic,
     ItemsView,
     Iterator,
@@ -17,8 +18,59 @@ if TYPE_CHECKING:
 
 from ..models.api import ApiItemT
 
+CallbackType = Callable[[str], None]
+SubscriptionType = CallbackType
+UnsubscribeType = Callable[[], None]
 
-class ApiHandler(ABC, Generic[ApiItemT]):
+ID_FILTER_ALL = "*"
+
+
+class SubscriptionHandler(ABC):
+    """Manage subscription and notification to subscribers."""
+
+    def __init__(self) -> None:
+        """Initialize subscription handler."""
+        self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
+
+    def signal_subscribers(self, obj_id: str) -> None:
+        """Signal subscribers."""
+        subscribers: list[SubscriptionType] = (
+            self._subscribers.get(obj_id, []) + self._subscribers[ID_FILTER_ALL]
+        )
+        for callback in subscribers:
+            callback(obj_id)
+
+    def subscribe(
+        self,
+        callback: CallbackType,
+        id_filter: tuple[str] | str | None = None,
+    ) -> UnsubscribeType:
+        """Subscribe to added events."""
+        subscription = callback
+
+        _id_filter: tuple[str]
+        if id_filter is None:
+            _id_filter = (ID_FILTER_ALL,)
+        elif isinstance(id_filter, str):
+            _id_filter = (id_filter,)
+
+        for obj_id in _id_filter:
+            if obj_id not in self._subscribers:
+                self._subscribers[obj_id] = []
+            self._subscribers[obj_id].append(subscription)
+
+        def unsubscribe() -> None:
+            for obj_id in _id_filter:
+                if obj_id not in self._subscribers:
+                    continue
+                if subscription not in self._subscribers[obj_id]:
+                    continue
+                self._subscribers[obj_id].remove(subscription)
+
+        return unsubscribe
+
+
+class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     """Base class for a map of API Items."""
 
     api_id: "ApiId"
@@ -26,6 +78,7 @@ class ApiHandler(ABC, Generic[ApiItemT]):
 
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
+        super().__init__()
         self.vapix = vapix
         self._items: dict[str, ApiItemT] = {}
         self.initialized = False
@@ -45,7 +98,7 @@ class ApiHandler(ABC, Generic[ApiItemT]):
 
     @abstractmethod
     async def _api_request(self) -> dict[str, ApiItemT]:
-        """Get API data method defined by subsclass."""
+        """Get API data method defined by subclass."""
 
     async def update(self) -> None:
         """Refresh data."""

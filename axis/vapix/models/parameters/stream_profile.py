@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from typing_extensions import NotRequired, Self, TypedDict
+from typing_extensions import Self, TypedDict
 
 from ..api import ApiItem
 from ..stream_profile import StreamProfile
@@ -32,7 +32,7 @@ class StreamProfileParam(ApiItem):
         max_groups = int(data.get("MaxGroups", 0))
 
         raw_profiles = dict(data)
-        del raw_profiles["MaxGroups"]
+        raw_profiles.pop("MaxGroups", None)
 
         profiles = [
             StreamProfile(

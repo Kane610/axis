@@ -5,15 +5,24 @@ https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
 Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 """
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any
 
-from ...models.parameters.brand import BrandParam, BrandT
+from ...models.parameters.brand import BrandParam
 from ...models.parameters.image import ImageParam
 from ...models.parameters.param_cgi import ParamRequest, params_to_dict
 from ...models.parameters.properties import PropertyParam
 from ...models.parameters.stream_profile import StreamProfileParam
 from ...models.stream_profile import StreamProfile
 from ..api_handler import ApiHandler
+from .brand import BrandParameterHandler
+from .image import ImageParameterHandler
+from .io_port import IOPortParameterHandler
+from .properties import PropertyParameterHandler
+from .ptz import PtzParameterHandler
+from .stream_profile import StreamProfileParameterHandler
+
+if TYPE_CHECKING:
+    from ...vapix import Vapix
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
@@ -44,6 +53,17 @@ SUPPORTED_GROUPS = [
 class Params(ApiHandler[Any]):
     """Represents all parameters of param.cgi."""
 
+    def __init__(self, vapix: "Vapix") -> None:
+        """Initialize API items."""
+        super().__init__(vapix)
+
+        self.brand_handler = BrandParameterHandler(self)
+        self.image_handler = ImageParameterHandler(self)
+        self.io_port_handler = IOPortParameterHandler(self)
+        self.property_handler = PropertyParameterHandler(self)
+        self.ptz_handler = PtzParameterHandler(self)
+        self.stream_profile_handler = StreamProfileParameterHandler(self)
+
     async def _api_request(self) -> dict[str, Any]:
         """Refresh data."""
         await self.update()
@@ -58,8 +78,10 @@ class Params(ApiHandler[Any]):
         bytes_data = await self.vapix.new_request(ParamRequest(group))
         data = params_to_dict(bytes_data.decode())
         root = self._items.setdefault("root", {})
-        if "root" in data:
-            root.update(data["root"])
+        if objects := data.get("root"):
+            root.update(objects)
+            for obj_id in objects.keys():
+                self.signal_subscribers(obj_id)
 
     def get_param(self, group: str) -> dict[str, Any]:
         """Get parameter group."""
@@ -69,39 +91,49 @@ class Params(ApiHandler[Any]):
 
     async def update_brand(self) -> None:
         """Update brand group of parameters."""
-        await self.update("Brand")
+        await self.brand_handler.update()
 
     @property
-    def brand(self) -> BrandParam:
+    def brand(self) -> BrandParam | None:
         """Provide brand parameters."""
-        return BrandParam.decode(cast(BrandT, self.get_param("Brand")))
+        return self.brand_handler.get_params().get("0")
 
     # Image
 
     async def update_image(self) -> None:
         """Update image group of parameters."""
-        await self.update("Image")
+        await self.image_handler.update()
 
     @property
     def image_params(self) -> ImageParam:
         """Provide image parameters."""
+        return self.image_handler.get_params().get("0")
         return ImageParam.decode(self.get_param("Image"))
 
     @property
     def image_sources(self) -> dict[str, Any]:
         """Image source information."""
-        return self.get_param("Image")
+        data = {}
+        if params := self.image_handler.get_params().get("0"):
+            data = params.data
+        return data
 
     # Properties
 
     async def update_properties(self) -> None:
         """Update properties group of parameters."""
-        await self.update("Properties")
+        await self.property_handler.update()
+        # await self.update("Properties")
 
     @property
     def properties(self) -> PropertyParam:
         """Provide property parameters."""
-        return PropertyParam.decode(self.get_param("Properties"))
+        return self.property_handler.get_params().get("0")
+        # data = {}
+        # if params := self.property_handler.get_params().get("0"):
+        #     data = params
+        # return data
+        # return PropertyParam.decode(self.get_param("Properties"))
 
     # PTZ
 
@@ -118,32 +150,19 @@ class Params(ApiHandler[Any]):
 
     async def update_stream_profiles(self) -> None:
         """Update stream profiles group of parameters."""
-        await self.update("StreamProfile")
+        await self.stream_profile_handler.update()
 
     @property
     def stream_profiles_params(self) -> StreamProfileParam:
         """Provide stream profiles parameters."""
-        return StreamProfileParam.decode(self.get_param("StreamProfile"))
+        return self.stream_profile_handler.get_params().get("0")
 
     @property
     def stream_profiles_max_groups(self) -> int:
         """Maximum number of supported stream profiles."""
-        return self.get_param("StreamProfile").get("MaxGroups", 0)
+        return self.stream_profile_handler.get_params().get("0").max_groups
 
     @property
     def stream_profiles(self) -> list[StreamProfile]:
         """Return a list of stream profiles."""
-        if not (data := self.get_param("StreamProfile")):
-            return []
-
-        profiles = dict(data)
-        del profiles["MaxGroups"]
-
-        return [
-            StreamProfile(
-                id=str(profile["Name"]),
-                description=str(profile["Description"]),
-                parameters=str(profile["Parameters"]),
-            )
-            for profile in profiles.values()
-        ]
+        return self.stream_profile_handler.get_params().get("0").stream_profiles
