@@ -83,28 +83,36 @@ class Vapix:
         """Firmware version of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.version
-        return self.params.properties.firmware_version
+        if self.params.property_handler.supported():
+            return self.params.property_handler.get_params()["0"].firmware_version
+        return ""
 
     @property
     def product_number(self) -> str:
         """Product number of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.prodnbr
-        return self.params.brand.prodnbr
+        if self.params.brand_handler.supported():
+            return self.params.brand_handler.get_params()["0"].prodnbr
+        return ""
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.prodtype
-        return self.params.brand.prodtype
+        if self.params.brand_handler.supported():
+            return self.params.brand_handler.get_params()["0"].prodtype
+        return ""
 
     @property
     def serial_number(self) -> str:
         """Device serial number."""
         if self.basic_device_info.supported():
             return self.basic_device_info.serialnumber
-        return self.params.properties.system_serialnumber
+        if self.params.property_handler.supported():
+            return self.params.property_handler.get_params()["0"].system_serialnumber
+        return ""
 
     @property
     def access_rights(self) -> SecondaryGroup:
@@ -118,7 +126,9 @@ class Vapix:
         """List streaming profiles."""
         if self.stream_profiles.supported():
             return list(self.stream_profiles.values())
-        return self.params.stream_profiles
+        if self.params.stream_profile_handler.supported():
+            return self.params.stream_profile_handler.get_params()["0"].stream_profiles
+        return []
 
     @property
     def ports(self) -> IoPortManagement | Ports:
@@ -189,27 +199,30 @@ class Vapix:
             tasks.append(self.params.update())
 
         else:
-            tasks.append(self.params.update_properties())
-            tasks.append(self.params.update_ptz())
+            tasks.append(self.params.property_handler.update())
+            tasks.append(self.params.ptz_handler.update())
 
             if not self.basic_device_info.supported():
-                tasks.append(self.params.update_brand())
+                tasks.append(self.params.brand_handler.update())
 
             if not self.io_port_management.supported():
                 tasks.append(self.port_cgi.update())
 
             if not self.stream_profiles.supported():
-                tasks.append(self.params.update_stream_profiles())
+                tasks.append(self.params.stream_profile_handler.update())
 
             if self.view_areas.supported():
-                tasks.append(self.params.update_image())
+                tasks.append(self.params.image_handler.update())
 
         await asyncio.gather(*tasks)
 
         if not self.params.property_handler.supported():
             return
 
-        if not self.light_control.supported() and self.params.properties.light_control:
+        if (
+            not self.light_control.supported()
+            and self.params.property_handler.get_params()["0"].light_control
+        ):
             try:
                 await self.light_control.update()
             except Unauthorized:  # Probably a viewer account
@@ -218,14 +231,11 @@ class Vapix:
         if not self.io_port_management.supported():
             self.port_cgi._items = self.port_cgi.process_ports()
 
-        if self.params.properties.ptz:
-            self.ptz._items = self.ptz.process_ptz()
-
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
         self.applications = Applications(self)
         if self.params.property_handler.supported() and version.parse(
-            self.params.properties.embedded_development
+            self.params.property_handler.get_params()["0"].embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
             try:
                 await self.applications.update()

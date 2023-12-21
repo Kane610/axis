@@ -7,12 +7,7 @@ Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
 
 from typing import TYPE_CHECKING, Any
 
-from ...models.parameters.brand import BrandParam
-from ...models.parameters.image import ImageParam
 from ...models.parameters.param_cgi import ParamRequest, params_to_dict
-from ...models.parameters.properties import PropertyParam
-from ...models.parameters.stream_profile import StreamProfileParam
-from ...models.stream_profile import StreamProfile
 from ..api_handler import ApiHandler
 from .brand import BrandParameterHandler
 from .image import ImageParameterHandler
@@ -86,83 +81,3 @@ class Params(ApiHandler[Any]):
     def get_param(self, group: str) -> dict[str, Any]:
         """Get parameter group."""
         return self._items.get("root", {}).get(group, {})
-
-    # Brand
-
-    async def update_brand(self) -> None:
-        """Update brand group of parameters."""
-        await self.brand_handler.update()
-
-    @property
-    def brand(self) -> BrandParam | None:
-        """Provide brand parameters."""
-        return self.brand_handler.get_params().get("0")
-
-    # Image
-
-    async def update_image(self) -> None:
-        """Update image group of parameters."""
-        await self.image_handler.update()
-
-    @property
-    def image_params(self) -> ImageParam:
-        """Provide image parameters."""
-        return self.image_handler.get_params().get("0")
-        return ImageParam.decode(self.get_param("Image"))
-
-    @property
-    def image_sources(self) -> dict[str, Any]:
-        """Image source information."""
-        data = {}
-        if params := self.image_handler.get_params().get("0"):
-            data = params.data
-        return data
-
-    # Properties
-
-    async def update_properties(self) -> None:
-        """Update properties group of parameters."""
-        await self.property_handler.update()
-        # await self.update("Properties")
-
-    @property
-    def properties(self) -> PropertyParam:
-        """Provide property parameters."""
-        return self.property_handler.get_params().get("0")
-        # data = {}
-        # if params := self.property_handler.get_params().get("0"):
-        #     data = params
-        # return data
-        # return PropertyParam.decode(self.get_param("Properties"))
-
-    # PTZ
-
-    async def update_ptz(self) -> None:
-        """Update PTZ group of parameters."""
-        await self.update("PTZ")
-
-    @property
-    def ptz_data(self) -> dict[str, Any]:
-        """Create a smaller dictionary containing all PTZ information."""
-        return self.get_param("PTZ")
-
-    # Stream profiles
-
-    async def update_stream_profiles(self) -> None:
-        """Update stream profiles group of parameters."""
-        await self.stream_profile_handler.update()
-
-    @property
-    def stream_profiles_params(self) -> StreamProfileParam:
-        """Provide stream profiles parameters."""
-        return self.stream_profile_handler.get_params().get("0")
-
-    @property
-    def stream_profiles_max_groups(self) -> int:
-        """Maximum number of supported stream profiles."""
-        return self.stream_profile_handler.get_params().get("0").max_groups
-
-    @property
-    def stream_profiles(self) -> list[StreamProfile]:
-        """Return a list of stream profiles."""
-        return self.stream_profile_handler.get_params().get("0").stream_profiles

@@ -33,17 +33,19 @@ async def test_params(params: Params):
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     # Brand
-    assert params.brand.brand == "AXIS"
-    assert params.brand.prodfullname == "AXIS M1065-LW Network Camera"
-    assert params.brand.prodnbr == "M1065-LW"
-    assert params.brand.prodshortname == "AXIS M1065-LW"
-    assert params.brand.prodtype == "Network Camera"
-    assert params.brand.prodvariant == ""
-    assert params.brand.weburl == "http://www.axis.com"
+    assert params.brand_handler.supported()
+    brand = params.brand_handler.get_params()["0"]
+    assert brand.brand == "AXIS"
+    assert brand.prodfullname == "AXIS M1065-LW Network Camera"
+    assert brand.prodnbr == "M1065-LW"
+    assert brand.prodshortname == "AXIS M1065-LW"
+    assert brand.prodtype == "Network Camera"
+    assert brand.prodvariant == ""
+    assert brand.weburl == "http://www.axis.com"
 
     # Image
-    params.image_params.id == "image"
-    assert params.image_params.data == {
+    params.image_handler.get_params()["0"].id == "image"
+    assert params.image_handler.get_params()["0"].data == {
         "DateFormat": "YYYY-MM-DD",
         "MaxViewers": 20,
         "MotionDetection": False,
@@ -187,7 +189,8 @@ async def test_params(params: Params):
     }
 
     # Properties
-    properties = params.properties
+    assert params.property_handler.supported()
+    properties = params.property_handler.get_params()["0"]
     assert properties.api_http_version == 3
     assert properties.api_metadata is True
     assert properties.api_metadata_version == "1.0"
@@ -213,7 +216,7 @@ async def test_params_empty_raw(params: Params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
 
-    assert params.image_sources == {}
+    assert not params.image_handler.supported()
 
 
 @respx.mock
@@ -225,19 +228,22 @@ async def test_update_brand(params: Params):
         text=response_param_cgi_brand,
         headers={"Content-Type": "text/plain"},
     )
-    await params.update_brand()
+    await params.brand_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.brand.brand == "AXIS"
-    assert params.brand.prodfullname == "AXIS M1065-LW Network Camera"
-    assert params.brand.prodnbr == "M1065-LW"
-    assert params.brand.prodshortname == "AXIS M1065-LW"
-    assert params.brand.prodtype == "Network Camera"
-    assert params.brand.prodvariant == ""
-    assert params.brand.weburl == "http://www.axis.com"
+    assert params.brand_handler.supported()
+    brand = params.brand_handler.get_params()["0"]
+
+    assert brand.brand == "AXIS"
+    assert brand.prodfullname == "AXIS M1065-LW Network Camera"
+    assert brand.prodnbr == "M1065-LW"
+    assert brand.prodshortname == "AXIS M1065-LW"
+    assert brand.prodtype == "Network Camera"
+    assert brand.prodvariant == ""
+    assert brand.weburl == "http://www.axis.com"
 
 
 @respx.mock
@@ -249,14 +255,14 @@ async def test_update_image(params: Params):
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
-    await params.update_image()
+    await params.image_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.properties.image_nbrofviews == 2
-    assert params.image_sources == {
+    assert params.property_handler.get_params()["0"].image_nbrofviews == 2
+    assert params.image_handler.get_params()["0"].data == {
         "DateFormat": "YYYY-MM-DD",
         "MaxViewers": 20,
         "MotionDetection": False,
@@ -387,7 +393,7 @@ async def test_update_image(params: Params):
             },
         },
     }
-    assert params.image_params.data == {
+    assert params.image_handler.get_params()["0"].data == {
         "DateFormat": "YYYY-MM-DD",
         "MaxViewers": 20,
         "MotionDetection": False,
@@ -585,34 +591,36 @@ async def test_update_properties(params: Params):
         headers={"Content-Type": "text/plain"},
     )
 
-    await params.update_properties()
+    await params.property_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.properties.api_http_version == 3
-    assert params.properties.api_metadata is True
-    assert params.properties.api_metadata_version == "1.0"
+    assert params.property_handler.supported()
+    properties = params.property_handler.get_params()["0"]
+    assert properties.api_http_version == 3
+    assert properties.api_metadata is True
+    assert properties.api_metadata_version == "1.0"
     # assert params[f"{PROPERTIES}.API.OnScreenControls.OnScreenControls"] == "yes"
-    assert params.properties.api_ptz_presets_version == "2.00"
+    assert properties.api_ptz_presets_version == "2.00"
     # assert params[f"{PROPERTIES}.API.RTSP.RTSPAuth"] == "yes"
     # assert params[f"{PROPERTIES}.API.RTSP.Version"] == "2.01"
     # assert params[f"{PROPERTIES}.ApiDiscovery.ApiDiscovery"] == "yes"
     # assert params[f"{PROPERTIES}.EmbeddedDevelopment.EmbeddedDevelopment"] == "yes"
-    assert params.properties.embedded_development == "2.16"
-    assert params.properties.firmware_builddate == "Feb 15 2019 09:42"
-    assert params.properties.firmware_buildnumber == 26
-    assert params.properties.firmware_version == "9.10.1"
-    assert params.properties.image_format == "jpeg,mjpeg,h264"
-    assert params.properties.image_nbrofviews == 2
+    assert properties.embedded_development == "2.16"
+    assert properties.firmware_builddate == "Feb 15 2019 09:42"
+    assert properties.firmware_buildnumber == 26
+    assert properties.firmware_version == "9.10.1"
+    assert properties.image_format == "jpeg,mjpeg,h264"
+    assert properties.image_nbrofviews == 2
     assert (
-        params.properties.image_resolution
+        properties.image_resolution
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
     )
-    assert params.properties.image_rotation == "0,180"
+    assert properties.image_rotation == "0,180"
     # assert params[f"{PROPERTIES}.LEDControl.LEDControl"] == "yes"
-    assert params.properties.light_control is True
+    assert properties.light_control is True
     # assert params[f"{PROPERTIES}.LightControl.LightControlAvailable"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.AutoRepair"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.ContinuousRecording"] == "yes"
@@ -626,10 +634,10 @@ async def test_update_properties(params: Params):
     # assert params[f"{PROPERTIES}.LocalStorage.SDCard"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.StorageLimit"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.Version"] == "1.00"
-    assert params.properties.digital_ptz is True
-    assert params.properties.ptz is True
+    assert properties.digital_ptz is True
+    assert properties.ptz is True
     # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
-    assert params.properties.system_serialnumber == "ACCC12345678"
+    assert properties.system_serialnumber == "ACCC12345678"
 
 
 @respx.mock
@@ -642,13 +650,13 @@ async def test_update_stream_profiles(params: Params):
         headers={"Content-Type": "text/plain"},
     )
 
-    await params.update_stream_profiles()
+    await params.stream_profile_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    profile_params = params.stream_profiles_params
+    profile_params = params.stream_profile_handler.get_params()["0"]
 
     assert profile_params.max_groups == 26
     assert len(profile_params.stream_profiles) == 2
@@ -658,15 +666,6 @@ async def test_update_stream_profiles(params: Params):
     assert profile_params.stream_profiles[1].name == "profile_2"
     assert profile_params.stream_profiles[1].description == "profile_2_description"
     assert profile_params.stream_profiles[1].parameters == "videocodec=h265"
-
-    assert params.stream_profiles_max_groups == 26
-    assert len(params.stream_profiles) == 2
-    assert params.stream_profiles[0].name == "profile_1"
-    assert params.stream_profiles[0].description == "profile_1_description"
-    assert params.stream_profiles[0].parameters == "videocodec=h264"
-    assert params.stream_profiles[1].name == "profile_2"
-    assert params.stream_profiles[1].description == "profile_2_description"
-    assert params.stream_profiles[1].parameters == "videocodec=h265"
 
 
 @respx.mock
@@ -680,11 +679,11 @@ async def test_stream_profiles_empty_response(params: Params):
         headers={"Content-Type": "text/plain"},
     )
 
-    await params.update_stream_profiles()
+    await params.stream_profile_handler.update()
 
-    profiles = params.stream_profiles
+    profiles = params.stream_profile_handler.get_params()["0"].stream_profiles
 
-    assert params.stream_profiles_max_groups == 0
+    assert params.stream_profile_handler.get_params()["0"].max_groups == 0
     assert len(profiles) == 0
 
 
