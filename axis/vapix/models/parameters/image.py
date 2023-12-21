@@ -1,11 +1,97 @@
 """Image parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any
 
 from typing_extensions import Self, TypedDict
 
 from ..api import ApiItem
+
+
+class ImageAppearanceParamT(TypedDict):
+    """Represent an appearance object."""
+
+    ColorEnabled: str
+    Compression: str
+    MirrorEnabled: str
+    Resolution: str
+    Rotation: str
+
+
+class ImageMpegH264ParamT(TypedDict):
+    """Represent an MPEG H264 object."""
+
+    Profile: str
+    PSEnabled: str
+
+
+class ImageMpegParamT(TypedDict):
+    """Represent an MPEG object."""
+
+    Complexity: str
+    ConfigHeaderInterval: str
+    FrameSkipMode: str
+    ICount: str
+    PCount: str
+    UserDataEnabled: str
+    UserDataInterval: str
+    ZChromaQPMode: str
+    ZFpsMode: str
+    ZGopMode: str
+    ZMaxGopLength: str
+    ZMinFps: str
+    ZStrength: str
+    H264: ImageMpegH264ParamT
+
+
+class ImageOverlayMaskWindowsParamT(TypedDict):
+    """Represent an mask windows object."""
+
+    Color: str
+
+
+class ImageOverlayParamT(TypedDict):
+    """Represent an overlay object."""
+
+    Enabled: str
+    XPos: str
+    YPos: str
+    MaskWindows: ImageOverlayMaskWindowsParamT
+
+
+class ImageRateControlParamT(TypedDict):
+    """Represent an rate control object."""
+
+    MaxBitrate: str
+    Mode: str
+    Priority: str
+    TargetBitrate: str
+
+
+class ImageSizeControlParamT(TypedDict):
+    """Represent an size control object."""
+
+    MaxFrameSize: str
+
+
+class ImageStreamParamT(TypedDict):
+    """Represent a stream object."""
+
+    Duration: str
+    FPS: str
+    NbrOfFrames: str
+
+
+class ImageTextParamT(TypedDict):
+    """Represent a text object."""
+
+    BGColor: str
+    ClockEnabled: str
+    Color: str
+    DateEnabled: str
+    Position: str
+    String: str
+    TextEnabled: str
+    TextSize: str
 
 
 class ImageParamT(TypedDict):
@@ -14,55 +100,22 @@ class ImageParamT(TypedDict):
     Enabled: str
     Name: str
     Source: str
-    Appearance_ColorEnabled: str
-    Appearance_Compression: str
-    Appearance_MirrorEnabled: str
-    Appearance_Resolution: str
-    Appearance_Rotation: str
-    MPEG_Complexity: str
-    MPEG_ConfigHeaderInterval: str
-    MPEG_FrameSkipMode: str
-    MPEG_ICount: str
-    MPEG_PCount: str
-    MPEG_UserDataEnabled: str
-    MPEG_UserDataInterval: str
-    MPEG_ZChromaQPMode: str
-    MPEG_ZFpsMode: str
-    MPEG_ZGopMode: str
-    MPEG_ZMaxGopLength: str
-    MPEG_ZMinFps: str
-    MPEG_ZStrength: str
-    MPEG_H264_Profile: str
-    MPEG_H264_PSEnabled: str
-    Overlay_Enabled: str
-    Overlay_XPos: str
-    Overlay_YPos: str
-    Overlay_MaskWindows_Color: str
-    RateControl_MaxBitrate: str
-    RateControl_Mode: str
-    RateControl_Priority: str
-    RateControl_TargetBitrate: str
-    SizeControl_MaxFrameSize: str
-    Stream_Duration: str
-    Stream_FPS: str
-    Stream_NbrOfFrames: str
-    Text_BGColor: str
-    Text_ClockEnabled: str
-    Text_Color: str
-    Text_DateEnabled: str
-    Text_Position: str
-    Text_String: str
-    Text_TextEnabled: str
-    Text_TextSize: str
+    Appearance: ImageAppearanceParamT
+    MPEG: ImageMpegParamT
+    Overlay: ImageOverlayParamT
+    RateControl: ImageRateControlParamT
+    SizeControl: ImageSizeControlParamT
+    Stream: ImageStreamParamT
+    Text: ImageTextParamT
 
 
 @dataclass
 class ImageParam(ApiItem):
     """Image parameters."""
 
-    data: dict[int, ImageParamT]
+    data: dict[str, ImageParamT]
 
     @classmethod
-    def decode(cls, data: dict[str, Any]) -> Self:
+    def decode(cls, data: dict[str, ImageParamT]) -> Self:
         """Decode dictionary to class object."""
         return cls(id="image", data=data)
