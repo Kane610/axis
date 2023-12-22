@@ -11,7 +11,6 @@ class PropertyParameterHandler(ParamHandler[PropertyParam]):
 
     def get_params(self) -> dict[str, PropertyParam]:
         """Retrieve brand properties."""
-        params = {}
         if data := self.vapix.params.get_param(self.parameter_group):
-            params["0"] = PropertyParam.decode(data)
-        return params
+            return PropertyParam.from_dict(data)
+        return {}

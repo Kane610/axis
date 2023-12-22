@@ -6,8 +6,7 @@ from typing import Any, TypedDict
 
 from typing_extensions import NotRequired, Self
 
-from ..api import ApiItem, ApiResponse
-from .param_cgi import params_to_dict
+from ..api import ApiItem
 
 
 class InputPortT(TypedDict):
@@ -113,24 +112,7 @@ class Port(ApiItem):
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, PortItemT]) -> dict[str, Self]:
+    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
         """Create objects from dict."""
-        ports = [cls.decode(k, v) for k, v in data.items()]
+        ports = [cls.decode(k[1:], v) for k, v in data.items()]
         return {port.id: port for port in ports}
-
-
-@dataclass
-class GetPortsResponse(ApiResponse[dict[str, Port]]):
-    """Response object for listing ports."""
-
-    @classmethod
-    def decode(cls, bytes_data: bytes) -> Self:
-        """Create response object from bytes."""
-        data = bytes_data.decode()
-        ports = params_to_dict(data, "root.IOPort").get("root", {}).get("IOPort", {})
-        return cls(Port.from_dict({k[1:]: v for k, v in ports.items()}))
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Self:
-        """Create response object from dict."""
-        return cls(Port.from_dict({k[1:]: v for k, v in data.items()}))

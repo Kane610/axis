@@ -5,8 +5,7 @@ from typing import Any, cast
 
 from typing_extensions import NotRequired, Self, TypedDict
 
-from ..api import ApiItem, ApiResponse
-from .param_cgi import params_to_dict
+from ..api import ApiItem
 
 
 class ImageSourceT(TypedDict):
@@ -399,21 +398,7 @@ class PtzItem(ApiItem):
             various=PtzVarious.from_dict(data["Various"]),
         )
 
-
-@dataclass
-class GetPtzResponse(ApiResponse[dict[str, PtzItem]]):
-    """Response object for listing ports."""
-
     @classmethod
-    def decode(cls, bytes_data: bytes) -> Self:
-        """Create response object from bytes."""
-        data = bytes_data.decode()
-        ptz_params: PtzItemT = (
-            params_to_dict(data, "root.PTZ").get("root", {}).get("PTZ", {})
-        )
-        return cls({"0": PtzItem.decode(ptz_params)})
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Self:
+    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
         """Create response object from dict."""
-        return cls({"0": PtzItem.decode(cast(PtzItemT, data))})
+        return {"0": cls.decode(cast(PtzItemT, data))}

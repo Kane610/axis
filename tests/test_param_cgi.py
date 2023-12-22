@@ -680,11 +680,7 @@ async def test_stream_profiles_empty_response(params: Params):
     )
 
     await params.stream_profile_handler.update()
-
-    profiles = params.stream_profile_handler.get_params()["0"].stream_profiles
-
-    assert params.stream_profile_handler.get_params()["0"].max_groups == 0
-    assert len(profiles) == 0
+    assert params.stream_profile_handler.get_params() == {}
 
 
 response_param_cgi = """root.Audio.DSCP=0

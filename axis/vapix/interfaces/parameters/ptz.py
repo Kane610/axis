@@ -1,6 +1,6 @@
 """PTZ parameters."""
 
-from ...models.parameters.ptz import GetPtzResponse, PtzItem
+from ...models.parameters.ptz import PtzItem
 from .param_handler import ParamHandler
 
 
@@ -11,7 +11,6 @@ class PtzParameterHandler(ParamHandler[PtzItem]):
 
     def get_params(self) -> dict[str, PtzItem]:
         """Retrieve brand properties."""
-        params = {}
         if data := self.vapix.params.get_param(self.parameter_group):
-            params.update(GetPtzResponse.from_dict(data).data)
-        return params
+            return PtzItem.from_dict(data)
+        return {}

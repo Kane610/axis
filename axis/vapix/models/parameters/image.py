@@ -1,6 +1,7 @@
 """Image parameters from param.cgi."""
 
 from dataclasses import dataclass
+from typing import Any
 
 from typing_extensions import Self, TypedDict
 
@@ -119,3 +120,8 @@ class ImageParam(ApiItem):
     def decode(cls, data: dict[str, ImageParamT]) -> Self:
         """Decode dictionary to class object."""
         return cls(id="image", data=data)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
+        """Create objects from dict."""
+        return {"0": cls.decode(data)}

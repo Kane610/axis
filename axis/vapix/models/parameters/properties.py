@@ -116,3 +116,8 @@ class PropertyParam(ApiItem):
             # digital_ptz=data.get("PTZ_DigitalPTZ") == "yes",
             system_serialnumber=data["System"]["SerialNumber"],
         )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
+        """Create objects from dict."""
+        return {"0": cls.decode(data)}
