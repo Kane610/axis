@@ -19,6 +19,7 @@ from ..api_handler import ApiHandler
 class ParamHandler(ApiHandler[ApiItemT]):
     """Base class for a map of API Items."""
 
+    # api_item_type: ApiItemT
     parameter_group: str
     api_id = ApiId.PARAM_CGI
 
@@ -34,6 +35,12 @@ class ParamHandler(ApiHandler[ApiItemT]):
     @abstractmethod
     def get_params(self) -> dict[str, ApiItemT]:
         """Retrieve parameters from param_cgi class."""
+
+    # def get_params(self) -> dict[str, ApiItemT]:
+    #     """Retrieve parameters from param_cgi class."""
+    #     if data := self.vapix.params.get_param(self.parameter_group):
+    #         return self.api_item_type.from_dict(data)
+    #     return {}
 
     def update_params(self, obj_id: str) -> None:
         """Update parameter data.

@@ -1,9 +1,4 @@
-"""Axis Vapix parameter management.
-
-https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10036014
-
-Lists Brand, Image, Ports, Properties, PTZ, Stream profiles.
-"""
+"""Axis Vapix parameter management."""
 
 from typing import TYPE_CHECKING, Any
 
@@ -18,31 +13,6 @@ from .stream_profile import StreamProfileParameterHandler
 
 if TYPE_CHECKING:
     from ...vapix import Vapix
-
-PROPERTY = "Properties.API.HTTP.Version=3"
-
-URL = "/axis-cgi/param.cgi"
-URL_GET = URL + "?action=list"
-
-BRAND = "root.Brand"
-IMAGE = "root.Image"
-INPUT = "root.Input"
-IOPORT = "root.IOPort"
-OUTPUT = "root.Output"
-PROPERTIES = "root.Properties"
-PTZ = "root.PTZ"
-STREAM_PROFILES = "root.StreamProfile"
-
-SUPPORTED_GROUPS = [
-    BRAND,
-    IMAGE,
-    INPUT,
-    IOPORT,
-    OUTPUT,
-    PROPERTIES,
-    PTZ,
-    STREAM_PROFILES,
-]
 
 
 class Params(ApiHandler[Any]):
@@ -61,11 +31,9 @@ class Params(ApiHandler[Any]):
 
     async def _api_request(self) -> dict[str, Any]:
         """Refresh data."""
-        await self.update()
-        return self._items
-        # data = await self.update_group()
-        # params = params_to_dict(data)
-        # self._items.update(data)
+        return {}
+        # await self.update()
+        # return self._items
 
     async def update(self, group: str = "") -> None:
         """Refresh data."""

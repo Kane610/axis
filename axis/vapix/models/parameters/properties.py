@@ -1,39 +1,127 @@
 """Property parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from typing_extensions import NotRequired, Self, TypedDict
 
 from ..api import ApiItem
 
 
-class PropertyT(TypedDict):
+class PropertyApiHttpParamT(TypedDict):
+    """Represent an API HTTP object."""
+
+    AdminPath: str
+    Version: int
+
+
+class PropertyApiMetadataParamT(TypedDict):
+    """Represent an API Metadata object."""
+
+    Metadata: str
+    Version: str
+
+
+class PropertyApiPtzPresetsParamT(TypedDict):
+    """Represent a PTZ preset object."""
+
+    Version: NotRequired[str]
+
+
+class PropertyApiPtzParamT(TypedDict):
+    """Represent an API PTZ object."""
+
+    Presets: PropertyApiPtzPresetsParamT
+
+
+class PropertyApiParamT(TypedDict):
+    """Represent an API object."""
+
+    HTTP: PropertyApiHttpParamT
+    Metadata: PropertyApiMetadataParamT
+    PTZ: PropertyApiPtzParamT
+
+
+class PropertyEmbeddedDevelopmentRuleEngineParamT(TypedDict):
+    """Represent an embedded development rule engine object."""
+
+    MultiConfiguration: bool
+
+
+class PropertyEmbeddedDevelopmentParamT(TypedDict):
+    """Represent an embedded development object."""
+
+    CacheSize: int
+    DefaultCacheSize: int
+    EmbeddedDevelopment: bool
+    Version: str
+    RuleEngine: PropertyEmbeddedDevelopmentRuleEngineParamT
+
+
+class PropertyFirmwareParamT(TypedDict):
+    """Represent a firmware object."""
+
+    BuildDate: str
+    BuildNumber: str
+    Version: str
+
+
+class PropertyImageParamT(TypedDict):
+    """Represent an image object."""
+
+    Format: NotRequired[str]
+    NbrOfViews: int
+    Resolution: str
+    Rotation: str
+    ShowSuboptimalResolutions: bool
+
+
+class PropertyLightControlParamT(TypedDict):
+    """Represent a light control object."""
+
+    LightControl2: bool
+    LightControlAvailable: bool
+
+
+class PropertyPtzParamT(TypedDict):
+    """Represent a PTZ object."""
+
+    DigitalPTZ: bool
+    DriverManagement: bool
+    DriverModeList: str
+    PTZ: bool
+    PTZOnQuadView: bool
+    SelectableDriverMode: bool
+
+
+class PropertySystemParamT(TypedDict):
+    """Represent a system object."""
+
+    Architecture: str
+    HardwareID: str
+    Language: str
+    LanguageType: str
+    SerialNumber: str
+    Soc: str
+
+
+class PropertyParamT(TypedDict):
     """Represent a property object."""
 
-    API_HTTP_Version: str
-    API_Metadata_Metadata: str
-    API_Metadata_Version: str
-    API_PTZ_Presets_Version: NotRequired[str]
-    EmbeddedDevelopment_Version: NotRequired[str]
-    Firmware_BuildDate: str
-    Firmware_BuildNumber: str
-    Firmware_Version: str
-    Image_Format: NotRequired[str]
-    Image_NbrOfViews: str
-    Image_Resolution: str
-    Image_Rotation: str
-    LightControl_LightControl2: NotRequired[str]
-    PTZ_PTZ: NotRequired[str]
-    PTZ_DigitalPTZ: NotRequired[str]
-    System_SerialNumber: str
+    API: PropertyApiParamT
+    EmbeddedDevelopment: NotRequired[PropertyEmbeddedDevelopmentParamT]
+    Firmware: PropertyFirmwareParamT
+    Image: PropertyImageParamT
+    LightControl: NotRequired[PropertyLightControlParamT]
+    PTZ: NotRequired[PropertyPtzParamT]
+    System: PropertySystemParamT
 
 
 @dataclass
 class PropertyParam(ApiItem):
     """Property parameters."""
 
-    api_http_version: str
+    api_http_version: int
     """HTTP API version."""
 
     api_metadata: str
@@ -89,7 +177,7 @@ class PropertyParam(ApiItem):
     """Device serial number."""
 
     @classmethod
-    def decode(cls, data: dict[str, Any]) -> Self:
+    def decode(cls, data: PropertyParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
             id="properties",
@@ -120,4 +208,4 @@ class PropertyParam(ApiItem):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
         """Create objects from dict."""
-        return {"0": cls.decode(data)}
+        return {"0": cls.decode(cast(PropertyParamT, data))}
