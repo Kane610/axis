@@ -30,10 +30,11 @@ class Params(ApiHandler[Any]):
         self.stream_profile_handler = StreamProfileParameterHandler(self)
 
     async def _api_request(self) -> dict[str, Any]:
-        """Refresh data."""
+        """Refresh data.
+
+        Not used.
+        """
         return {}
-        # await self.update()
-        # return self._items
 
     async def update(self, group: str = "") -> None:
         """Refresh data."""

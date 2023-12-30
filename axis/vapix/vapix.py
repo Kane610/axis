@@ -360,7 +360,7 @@ class Vapix:
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path
-        LOGGER.debug("%s, %s, %s, %s %s", method, url, content, data, params)
+        LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
 
         try:
             response = await self.device.config.session.request(

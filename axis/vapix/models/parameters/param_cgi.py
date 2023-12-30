@@ -6,7 +6,7 @@ from typing import Any
 from ..api import ApiRequest
 
 
-def params_to_dict(params: str, starts_with: str | None = None) -> dict[str, Any]:
+def params_to_dict(params: str) -> dict[str, Any]:
     """Convert parameters from string to dictionary.
 
     From "root.IOPort.I1.Output.Active=closed"
@@ -32,8 +32,6 @@ def params_to_dict(params: str, starts_with: str | None = None) -> dict[str, Any
 
     param_dict: dict[str, Any] = {}
     for line in params.splitlines():
-        if starts_with is not None and not line.startswith(starts_with):
-            continue
         keys, _, value = line.partition("=")
         populate(param_dict, keys, convert(value))
     return param_dict
