@@ -30,7 +30,7 @@ class ParamHandler(ApiHandler[ApiItemT]):
 
     def supported(self) -> bool:
         """Is parameter supported."""
-        return self.vapix.params.get_param(self.parameter_group) != {}
+        return self.get_params() != {}
 
     @abstractmethod
     def get_params(self) -> dict[str, ApiItemT]:

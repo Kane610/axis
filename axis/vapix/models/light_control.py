@@ -1,6 +1,6 @@
 """Light Control API data model."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import orjson
 from typing_extensions import NotRequired, Self, TypedDict
@@ -238,28 +238,6 @@ class Range:
     def from_list(cls, data: list[RangeT]) -> list["Range"]:
         """Create range object from dict."""
         return [Range.from_dict(range) for range in data]
-
-
-@dataclass
-class ApiVersion:
-    """Handle API version."""
-
-    _default_api_version: str = field(init=False)
-    api_version: str | None = None
-
-    @property
-    def _api_version(self) -> str:
-        """API version or default API version."""
-        if self.api_version is not None:
-            return self.api_version
-        return self._default_api_version
-
-
-@dataclass
-class _ApiVersion(ApiVersion):
-    """Light control API version."""
-
-    _default_api_version = API_VERSION
 
 
 @dataclass

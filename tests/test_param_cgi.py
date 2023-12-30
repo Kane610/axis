@@ -8,15 +8,21 @@ import asyncio
 import pytest
 import respx
 
+from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.param_cgi import Params
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def params(axis_device) -> Params:
+def params(axis_device: AxisDevice) -> Params:
     """Return the param cgi mock object."""
     return axis_device.vapix.params
+
+
+async def test_param_api_request(params: Params):
+    """Verify that you can list parameters."""
+    assert await params._api_request() == {}
 
 
 @respx.mock
