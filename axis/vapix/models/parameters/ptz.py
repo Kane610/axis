@@ -8,13 +8,13 @@ from typing_extensions import NotRequired, Self, TypedDict
 from ..api import ApiItem
 
 
-class ImageSourceT(TypedDict):
+class PtzImageSourceParamT(TypedDict):
     """PTZ image source description."""
 
     PTZEnabled: bool
 
 
-class LimitT(TypedDict):
+class PtzLimitParamT(TypedDict):
     """PTZ limit data description."""
 
     MaxBrightness: NotRequired[int]
@@ -40,7 +40,7 @@ class PresetPositionT(TypedDict):
     name: str | None
 
 
-class PresetT(TypedDict):
+class PtzPresetParamT(TypedDict):
     """PTZ preset data description."""
 
     HomePosition: int
@@ -49,7 +49,7 @@ class PresetT(TypedDict):
     Position: dict[str, PresetPositionT]
 
 
-class SupportT(TypedDict):
+class PtzSupportParamT(TypedDict):
     """PTZ support data description."""
 
     AbsoluteBrightness: bool
@@ -89,13 +89,13 @@ class SupportT(TypedDict):
     SpeedCtl: bool
 
 
-class UserAdvT(TypedDict):
+class PtzUserAdvParamT(TypedDict):
     """PTZ user adv data description."""
 
     MoveSpeed: int
 
 
-class UserCtlQueueT(TypedDict):
+class PtzUserCtlQueueParamT(TypedDict):
     """PTZ user control queue data description."""
 
     Priority: int
@@ -105,7 +105,7 @@ class UserCtlQueueT(TypedDict):
     UserGroup: str
 
 
-class VariousT(TypedDict):
+class PtzVariousParamT(TypedDict):
     """PTZ various configurations data description."""
 
     CtlQueueing: bool
@@ -122,7 +122,7 @@ class VariousT(TypedDict):
     ZoomEnabled: bool
 
 
-class PtzItemT(TypedDict):
+class PtzParamT(TypedDict):
     """PTZ representation."""
 
     BoaProtPTZOperator: str
@@ -130,14 +130,14 @@ class PtzItemT(TypedDict):
     NbrOfCameras: int
     NbrOfSerPorts: int
     CamPorts: dict[str, int]
-    ImageSource: dict[str, ImageSourceT]
-    Limit: dict[str, LimitT]
-    Preset: dict[str, PresetT]
+    ImageSource: dict[str, PtzImageSourceParamT]
+    Limit: dict[str, PtzLimitParamT]
+    Preset: dict[str, PtzPresetParamT]
     PTZDriverStatuses: dict[str, int]
-    Support: dict[str, SupportT]
-    UserAdv: dict[str, UserAdvT]
-    UserCtlQueue: dict[str, UserCtlQueueT]
-    Various: dict[str, VariousT]
+    Support: dict[str, PtzSupportParamT]
+    UserAdv: dict[str, PtzUserAdvParamT]
+    UserCtlQueue: dict[str, PtzUserCtlQueueParamT]
+    Various: dict[str, PtzVariousParamT]
 
 
 @dataclass
@@ -147,12 +147,12 @@ class PtzImageSource:
     ptz_enabled: bool
 
     @classmethod
-    def decode(cls, data: ImageSourceT) -> Self:
+    def decode(cls, data: PtzImageSourceParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(ptz_enabled=data["PTZEnabled"])
 
     @classmethod
-    def from_dict(cls, data: dict[str, ImageSourceT]) -> dict[str, Self]:
+    def from_dict(cls, data: dict[str, PtzImageSourceParamT]) -> dict[str, Self]:
         """Create objects from dict."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
@@ -186,7 +186,7 @@ class PtzLimit:
     min_iris: int | None
 
     @classmethod
-    def decode(cls, data: LimitT) -> Self:
+    def decode(cls, data: PtzLimitParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
             max_field_angle=data["MaxFieldAngle"],
@@ -206,7 +206,7 @@ class PtzLimit:
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, LimitT]) -> dict[str, Self]:
+    def from_dict(cls, data: dict[str, PtzLimitParamT]) -> dict[str, Self]:
         """Create objects from dict."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
@@ -260,7 +260,7 @@ class PtzSupport:
     speed_control: bool
 
     @classmethod
-    def decode(cls, data: SupportT) -> Self:
+    def decode(cls, data: PtzSupportParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
             absolute_brightness=data["AbsoluteBrightness"],
@@ -301,7 +301,7 @@ class PtzSupport:
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, SupportT]) -> dict[str, Self]:
+    def from_dict(cls, data: dict[str, PtzSupportParamT]) -> dict[str, Self]:
         """Create objects from dict."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
@@ -331,7 +331,7 @@ class PtzVarious:
     zoom_enabled: bool
 
     @classmethod
-    def decode(cls, data: VariousT) -> Self:
+    def decode(cls, data: PtzVariousParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
             control_queueing=data["CtlQueueing"],
@@ -349,7 +349,7 @@ class PtzVarious:
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, VariousT]) -> dict[str, Self]:
+    def from_dict(cls, data: dict[str, PtzVariousParamT]) -> dict[str, Self]:
         """Create objects from dict."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
@@ -384,7 +384,7 @@ class PtzItem(ApiItem):
     """PTZ.Various.V# are populated when a driver is installed on a video channel."""
 
     @classmethod
-    def decode(cls, data: PtzItemT) -> Self:
+    def decode(cls, data: PtzParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
             id="ptz",
@@ -401,4 +401,4 @@ class PtzItem(ApiItem):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
         """Create response object from dict."""
-        return {"0": cls.decode(cast(PtzItemT, data))}
+        return {"0": cls.decode(cast(PtzParamT, data))}

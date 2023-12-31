@@ -679,7 +679,6 @@ async def test_stream_profiles_empty_response(params: Params):
     """Verify that update properties works."""
     respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.StreamProfile"
-        # f"http://{HOST}:80/axis-cgi/param.cgi?action=list&list%26group%3Dot.StreamProfile"
     ).respond(
         text="",
         headers={"Content-Type": "text/plain"},

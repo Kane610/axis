@@ -9,14 +9,14 @@ from typing_extensions import NotRequired, Self
 from ..api import ApiItem
 
 
-class InputPortT(TypedDict):
+class PortInputParamT(TypedDict):
     """Input port representation."""
 
     Name: str
     Trig: str
 
 
-class OutputPortT(TypedDict):
+class PortOutputParamT(TypedDict):
     """Output port representation."""
 
     Active: str
@@ -27,14 +27,14 @@ class OutputPortT(TypedDict):
     PulseTime: str
 
 
-class PortItemT(TypedDict):
+class PortParamT(TypedDict):
     """Port representation."""
 
     Configurable: NotRequired[bool]
     Direction: str
     Usage: str
-    Input: NotRequired[InputPortT]
-    Output: NotRequired[OutputPortT]
+    Input: NotRequired[PortInputParamT]
+    Output: NotRequired[PortOutputParamT]
 
 
 class PortAction(enum.Enum):
@@ -94,7 +94,7 @@ class Port(ApiItem):
     """
 
     @classmethod
-    def decode(cls, id: str, data: PortItemT) -> Self:
+    def decode(cls, id: str, data: PortParamT) -> Self:
         """Decode dict to class object."""
         direction = PortDirection(data.get("Direction", "input"))
         name = (

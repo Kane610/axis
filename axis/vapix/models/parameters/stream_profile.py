@@ -1,19 +1,30 @@
 """Stream profile parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from typing_extensions import Self, TypedDict
+from typing_extensions import NotRequired, Self, TypedDict
 
 from ..api import ApiItem
 from ..stream_profile import StreamProfile
 
 
-class StreamProfileT(TypedDict):
+class ProfileParamT(TypedDict):
+    """Profile descriptions."""
+
+    Description: str
+    Name: str
+    Parameters: str
+
+
+class StreamProfileParamT(TypedDict):
     """Represent a property object."""
 
     MaxGroups: int
-    API_Metadata_Metadata: str
+    S0: NotRequired[ProfileParamT]
+    S1: NotRequired[ProfileParamT]
+    S2: NotRequired[ProfileParamT]
+    S3: NotRequired[ProfileParamT]
 
 
 @dataclass
@@ -36,11 +47,11 @@ class StreamProfileParam(ApiItem):
 
         profiles = [
             StreamProfile(
-                id=str(profile["Name"]),
-                description=str(profile["Description"]),
-                parameters=str(profile["Parameters"]),
+                id=profile["Name"],
+                description=profile["Description"],
+                parameters=profile["Parameters"],
             )
-            for profile in raw_profiles.values()
+            for profile in cast(dict[str, ProfileParamT], raw_profiles).values()
         ]
 
         return cls(
