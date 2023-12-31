@@ -1,5 +1,6 @@
 """Stream profile parameters."""
 
+from ...models.parameters.param_cgi import ParameterGroup
 from ...models.parameters.stream_profile import StreamProfileParam
 from .param_handler import ParamHandler
 
@@ -7,7 +8,7 @@ from .param_handler import ParamHandler
 class StreamProfileParameterHandler(ParamHandler[StreamProfileParam]):
     """Handler for stream profile parameters."""
 
-    parameter_group = "StreamProfile"
+    parameter_group = ParameterGroup.STREAMPROFILE
 
     def get_params(self) -> dict[str, StreamProfileParam]:
         """Retrieve brand properties."""

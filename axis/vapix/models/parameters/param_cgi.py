@@ -1,9 +1,54 @@
 """Axis Vapix parameter management."""
 
 from dataclasses import dataclass
+import enum
+import logging
 from typing import Any
 
 from ..api import ApiRequest
+
+LOGGER = logging.getLogger(__name__)
+
+
+class ParameterGroup(enum.Enum):
+    """Parameter groups."""
+
+    AUDIO = "Audio"
+    AUDIOSOURCE = "AudioSource"
+    BANDWIDTH = "Bandwidth"
+    BASICDEVICEINFO = "BasicDeviceInfo"
+    BRAND = "Brand"
+    HTTPS = "HTTPS"
+    IMAGE = "Image"
+    IMAGESOURCE = "ImageSource"
+    INPUT = "Input"
+    IOPORT = "IOPort"
+    LAYOUT = "Layout"
+    MEDIACLIP = "MediaClip"
+    NETWORK = "Network"
+    OUTPUT = "Output"
+    PROPERTIES = "Properties"
+    PTZ = "PTZ"
+    RECORDING = "Recording"
+    REMOTESERVICE = "RemoteService"
+    SNMP = "SNMP"
+    SOCKS = "SOCKS"
+    STORAGE = "Storage"
+    STREAMCACHE = "StreamCache"
+    STREAMPROFILE = "StreamProfile"
+    SYSTEM = "System"
+    TAMPERING = "Tampering"
+    TEMPERATURECONTROL = "TemperatureControl"
+    TIME = "Time"
+    WEBSERVICE = "WebService"
+
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "ParameterGroup":
+        """Set default enum member if an unknown value is provided."""
+        LOGGER.warning("Unsupported parameter group %s", value)
+        return ParameterGroup.UNKNOWN
 
 
 def params_to_dict(params: str) -> dict[str, Any]:
@@ -45,10 +90,10 @@ class ParamRequest(ApiRequest):
     path = "/axis-cgi/param.cgi"
     content_type = "text/plain"
 
-    group: str = ""
+    group: ParameterGroup | None = None
 
     @property
     def params(self) -> dict[str, str]:
         """Request query parameters."""
-        group = f"&group={self.group}" if self.group else ""
+        group = f"&group=root.{self.group.value}" if self.group else ""
         return {"action": f"list{group}"}

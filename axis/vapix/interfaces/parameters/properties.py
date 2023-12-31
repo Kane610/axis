@@ -1,5 +1,6 @@
 """Property parameters."""
 
+from ...models.parameters.param_cgi import ParameterGroup
 from ...models.parameters.properties import PropertyParam
 from .param_handler import ParamHandler
 
@@ -7,7 +8,7 @@ from .param_handler import ParamHandler
 class PropertyParameterHandler(ParamHandler[PropertyParam]):
     """Handler for property parameters."""
 
-    parameter_group = "Properties"
+    parameter_group = ParameterGroup.PROPERTIES
 
     def get_params(self) -> dict[str, PropertyParam]:
         """Retrieve brand properties."""

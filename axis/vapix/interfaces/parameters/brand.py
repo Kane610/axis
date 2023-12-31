@@ -1,13 +1,14 @@
 """Brand parameters."""
 
 from ...models.parameters.brand import BrandParam
+from ...models.parameters.param_cgi import ParameterGroup
 from .param_handler import ParamHandler
 
 
 class BrandParameterHandler(ParamHandler[BrandParam]):
     """Handler for brand parameters."""
 
-    parameter_group = "Brand"
+    parameter_group = ParameterGroup.BRAND
 
     def get_params(self) -> dict[str, BrandParam]:
         """Retrieve brand properties."""

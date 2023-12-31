@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any
 
-from ...models.parameters.param_cgi import ParamRequest, params_to_dict
+from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
 from ..api_handler import ApiHandler
 from .brand import BrandParameterHandler
 from .image import ImageParameterHandler
@@ -36,9 +36,8 @@ class Params(ApiHandler[Any]):
         """
         return {}
 
-    async def update(self, group: str = "") -> None:
+    async def update(self, group: ParameterGroup | None = None) -> None:
         """Refresh data."""
-        group = "" if group == "" or group.startswith("root.") else f"root.{group}"
         bytes_data = await self.vapix.new_request(ParamRequest(group))
         data = params_to_dict(bytes_data.decode())
         root = self._items.setdefault("root", {})
@@ -47,6 +46,6 @@ class Params(ApiHandler[Any]):
             for obj_id in objects.keys():
                 self.signal_subscribers(obj_id)
 
-    def get_param(self, group: str) -> dict[str, Any]:
+    def get_param(self, group: ParameterGroup) -> dict[str, Any]:
         """Get parameter group."""
-        return self._items.get("root", {}).get(group, {})
+        return self._items.get("root", {}).get(group.value, {})

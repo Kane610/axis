@@ -10,6 +10,7 @@ import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.param_cgi import Params
+from axis.vapix.models.parameters.param_cgi import ParameterGroup
 
 from .conftest import HOST
 
@@ -184,9 +185,9 @@ async def test_params(params: Params):
     }
 
     # Ports
-    assert params.get_param("Input").get("NbrOfInputs", 0) == 1
-    assert params.get_param("Output").get("NbrOfOutputs", 0) == 0
-    assert params.get_param("IOPort") == {
+    assert params.get_param(ParameterGroup.INPUT).get("NbrOfInputs", 0) == 1
+    assert params.get_param(ParameterGroup.OUTPUT).get("NbrOfOutputs", 0) == 0
+    assert params.get_param(ParameterGroup.IOPORT) == {
         "I0": {
             "Configurable": False,
             "Direction": "input",
@@ -559,9 +560,9 @@ root.IOPort.I0.Input.Trig=closed
     )
 
     await asyncio.gather(
-        params.update("Input"),
-        params.update("IOPort"),
-        params.update("Output"),
+        params.update(ParameterGroup.INPUT),
+        params.update(ParameterGroup.IOPORT),
+        params.update(ParameterGroup.OUTPUT),
     )
 
     assert input_route.called
@@ -576,15 +577,15 @@ root.IOPort.I0.Input.Trig=closed
     assert output_route.calls.last.request.method == "GET"
     assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.get_param("Input").get("NbrOfInputs", 0) == 1
-    assert params.get_param("IOPort") == {
+    assert params.get_param(ParameterGroup.INPUT).get("NbrOfInputs", 0) == 1
+    assert params.get_param(ParameterGroup.IOPORT) == {
         "I0": {
             "Configurable": False,
             "Direction": "input",
             "Input": {"Name": "PIR sensor", "Trig": "closed"},
         }
     }
-    assert params.get_param("Output").get("NbrOfOutputs", 0) == 0
+    assert params.get_param(ParameterGroup.OUTPUT).get("NbrOfOutputs", 0) == 0
 
 
 @respx.mock
