@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from typing_extensions import NotRequired, Self, TypedDict
 
-from ..api import ApiItem
+from .param_cgi import ParamItem
 
 
 class PropertyApiHttpParamT(TypedDict):
@@ -118,7 +118,7 @@ class PropertyParamT(TypedDict):
 
 
 @dataclass
-class PropertyParam(ApiItem):
+class PropertyParam(ParamItem):
     """Property parameters."""
 
     api_http_version: int

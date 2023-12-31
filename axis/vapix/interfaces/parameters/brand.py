@@ -9,9 +9,4 @@ class BrandParameterHandler(ParamHandler[BrandParam]):
     """Handler for brand parameters."""
 
     parameter_group = ParameterGroup.BRAND
-
-    def get_params(self) -> dict[str, BrandParam]:
-        """Retrieve brand properties."""
-        if data := self.vapix.params.get_param(self.parameter_group):
-            return BrandParam.from_dict(data)
-        return {}
+    parameter_item = BrandParam

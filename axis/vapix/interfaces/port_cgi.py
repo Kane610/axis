@@ -8,26 +8,26 @@ General purpose I/O service API. Extends I/O port API with support for
 Virtual input API.
 """
 
-from ..models.parameters.io_port import Port, PortAction, PortDirection
+from ..models.parameters.io_port import IOPortParam, PortAction, PortDirection
 from ..models.port_cgi import PortActionRequest
 from .api_handler import ApiHandler
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
 
-class Ports(ApiHandler[Port]):
+class Ports(ApiHandler[IOPortParam]):
     """Represents all ports of io/port.cgi."""
 
-    async def _api_request(self) -> dict[str, Port]:
+    async def _api_request(self) -> dict[str, IOPortParam]:
         """Get API data method defined by subclass."""
         return await self.get_ports()
 
-    async def get_ports(self) -> dict[str, Port]:
+    async def get_ports(self) -> dict[str, IOPortParam]:
         """Retrieve privilege rights for current user."""
         await self.vapix.params.io_port_handler.update()
         return self.process_ports()
 
-    def process_ports(self) -> dict[str, Port]:
+    def process_ports(self) -> dict[str, IOPortParam]:
         """Process ports."""
         return dict(self.vapix.params.io_port_handler.items())
 

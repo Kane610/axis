@@ -5,7 +5,7 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
-from ..models.parameters.ptz import PtzItem
+from ..models.parameters.ptz import PtzParam
 from ..models.ptz_cgi import (
     DeviceDriverRequest,
     PtzCommandRequest,
@@ -19,19 +19,19 @@ from ..models.ptz_cgi import (
 from .api_handler import ApiHandler
 
 
-class PtzControl(ApiHandler[PtzItem]):
+class PtzControl(ApiHandler[PtzParam]):
     """Configure and control the PTZ functionality."""
 
-    async def _api_request(self) -> dict[str, PtzItem]:
+    async def _api_request(self) -> dict[str, PtzParam]:
         """Get API data method defined by subclass."""
         return await self.get_ptz()
 
-    async def get_ptz(self) -> dict[str, PtzItem]:
+    async def get_ptz(self) -> dict[str, PtzParam]:
         """Retrieve privilege rights for current user."""
         await self.vapix.params.ptz_handler.update()
         return self.process_ptz()
 
-    def process_ptz(self) -> dict[str, PtzItem]:
+    def process_ptz(self) -> dict[str, PtzParam]:
         """Process ports."""
         return dict(self.vapix.params.ptz_handler.items())
 

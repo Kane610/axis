@@ -5,23 +5,21 @@ Generalises parameter specific handling like
 - Defining parameter group
 """
 
-from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .param_cgi import Params
 
-from ...models.api import ApiItemT
 from ...models.api_discovery import ApiId
-from ...models.parameters.param_cgi import ParameterGroup
+from ...models.parameters.param_cgi import ParameterGroup, ParamItemT
 from ..api_handler import ApiHandler
 
 
-class ParamHandler(ApiHandler[ApiItemT]):
+class ParamHandler(ApiHandler[ParamItemT]):
     """Base class for a map of API Items."""
 
-    # api_item_type: ApiItemT
     parameter_group: ParameterGroup
+    parameter_item: type[ParamItemT]
     api_id = ApiId.PARAM_CGI
 
     def __init__(self, param_handler: "Params") -> None:
@@ -33,15 +31,11 @@ class ParamHandler(ApiHandler[ApiItemT]):
         """Is parameter supported."""
         return self.get_params() != {}
 
-    @abstractmethod
-    def get_params(self) -> dict[str, ApiItemT]:
+    def get_params(self) -> dict[str, ParamItemT]:
         """Retrieve parameters from param_cgi class."""
-
-    # def get_params(self) -> dict[str, ApiItemT]:
-    #     """Retrieve parameters from param_cgi class."""
-    #     if data := self.vapix.params.get_param(self.parameter_group):
-    #         return self.api_item_type.from_dict(data)
-    #     return {}
+        if data := self.vapix.params.get_param(self.parameter_group):
+            return self.parameter_item.from_dict(data)
+        return {}
 
     def update_params(self, obj_id: str) -> None:
         """Update parameter data.
@@ -50,7 +44,7 @@ class ParamHandler(ApiHandler[ApiItemT]):
         """
         self._items = self.get_params()
 
-    async def _api_request(self) -> dict[str, ApiItemT]:
+    async def _api_request(self) -> dict[str, ParamItemT]:
         """Get API data method defined by subclass."""
         await self.vapix.params.update(self.parameter_group)
         return self.get_params()

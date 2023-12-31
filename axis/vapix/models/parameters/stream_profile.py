@@ -5,8 +5,8 @@ from typing import Any, cast
 
 from typing_extensions import NotRequired, Self, TypedDict
 
-from ..api import ApiItem
 from ..stream_profile import StreamProfile
+from .param_cgi import ParamItem
 
 
 class ProfileParamT(TypedDict):
@@ -28,7 +28,7 @@ class StreamProfileParamT(TypedDict):
 
 
 @dataclass
-class StreamProfileParam(ApiItem):
+class StreamProfileParam(ParamItem):
     """Stream profile parameters."""
 
     max_groups: int

@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from typing_extensions import Self, TypedDict
 
-from ..api import ApiItem
+from .param_cgi import ParamItem
 
 
 class BrandT(TypedDict):
@@ -21,7 +21,7 @@ class BrandT(TypedDict):
 
 
 @dataclass
-class BrandParam(ApiItem):
+class BrandParam(ParamItem):
     """Brand parameters."""
 
     brand: str

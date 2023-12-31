@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from typing_extensions import NotRequired, Self, TypedDict
 
-from ..api import ApiItem
+from .param_cgi import ParamItem
 
 
 class PtzImageSourceParamT(TypedDict):
@@ -355,7 +355,7 @@ class PtzVarious:
 
 
 @dataclass
-class PtzItem(ApiItem):
+class PtzParam(ParamItem):
     """PTZ parameters."""
 
     camera_default: int

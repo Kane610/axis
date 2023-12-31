@@ -9,9 +9,4 @@ class ImageParameterHandler(ParamHandler[ImageParam]):
     """Handler for image parameters."""
 
     parameter_group = ParameterGroup.IMAGE
-
-    def get_params(self) -> dict[str, ImageParam]:
-        """Retrieve brand properties."""
-        if data := self.vapix.params.get_param(self.parameter_group):
-            return ImageParam.from_dict(data)
-        return {}
+    parameter_item = ImageParam

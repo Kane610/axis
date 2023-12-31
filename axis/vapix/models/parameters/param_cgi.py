@@ -1,11 +1,14 @@
 """Axis Vapix parameter management."""
 
+from abc import abstractmethod
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any
+from typing import Any, TypeVar
 
-from ..api import ApiRequest
+from typing_extensions import Self
+
+from ..api import ApiItem, ApiRequest
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +83,19 @@ def params_to_dict(params: str) -> dict[str, Any]:
         keys, _, value = line.partition("=")
         populate(param_dict, keys, convert(value))
     return param_dict
+
+
+@dataclass
+class ParamItem(ApiItem):
+    """Parameter item."""
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
+        """Create objects from dict."""
+
+
+ParamItemT = TypeVar("ParamItemT", bound=ParamItem)
 
 
 @dataclass

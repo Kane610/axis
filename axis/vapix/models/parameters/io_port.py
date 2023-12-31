@@ -6,7 +6,7 @@ from typing import Any, TypedDict
 
 from typing_extensions import NotRequired, Self
 
-from ..api import ApiItem
+from .param_cgi import ParamItem
 
 
 class PortInputParamT(TypedDict):
@@ -64,7 +64,7 @@ class PortDirection(enum.Enum):
 
 
 @dataclass
-class Port(ApiItem):
+class IOPortParam(ParamItem):
     """Represents a IO port."""
 
     configurable: bool

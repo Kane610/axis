@@ -5,7 +5,7 @@ from typing import Any
 
 from typing_extensions import Self, TypedDict
 
-from ..api import ApiItem
+from .param_cgi import ParamItem
 
 
 class ImageAppearanceParamT(TypedDict):
@@ -111,7 +111,7 @@ class ImageParamT(TypedDict):
 
 
 @dataclass
-class ImageParam(ApiItem):
+class ImageParam(ParamItem):
     """Image parameters."""
 
     data: dict[str, ImageParamT]
