@@ -57,7 +57,7 @@ async def test_get_api_list(
 
     items = await pir_sensor_configuration.list_sensors()
     assert len(items) == 1
-    item = items[0]
+    item = items["0"]
     assert item.configurable
     assert item.sensitivity == 0.94117647409439087
 
@@ -104,7 +104,7 @@ async def test_set_sensitivity(
             "method": "setSensitivity",
         },
     )
-    assert await pir_sensor_configuration.set_sensitivity(id=0, sensitivity=1) is None
+    await pir_sensor_configuration.set_sensitivity(id=0, sensitivity=1)
 
     assert route.called
     assert route.calls.last.request.method == "POST"

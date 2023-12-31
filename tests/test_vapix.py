@@ -278,6 +278,7 @@ async def test_initialize_applications(vapix: Vapix):
     assert vapix.motion_guard
     assert vapix.vmd4
 
+    assert vapix.applications
     assert len(vapix.applications.values()) == 7
 
     assert len(vapix.fence_guard.values()) == 1
@@ -350,6 +351,7 @@ async def test_initialize_event_instances(vapix: Vapix):
 
     await vapix.initialize_event_instances()
 
+    assert vapix.event_instances
     assert len(vapix.event_instances) == 44
 
 

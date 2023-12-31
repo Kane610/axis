@@ -86,20 +86,25 @@ async def test_list_view_areas(view_areas: ViewAreaHandler):
     assert view_area.camera == 1
     assert view_area.configurable
 
+    assert view_area.canvas_size
     assert view_area.canvas_size.horizontal == 2592
     assert view_area.canvas_size.vertical == 1944
 
+    assert view_area.rectangular_geometry
     assert view_area.rectangular_geometry.horizontal_offset == 500
     assert view_area.rectangular_geometry.horizontal_size == 1000
     assert view_area.rectangular_geometry.vertical_offset == 600
     assert view_area.rectangular_geometry.vertical_size == 1200
 
+    assert view_area.min_size
     assert view_area.min_size.horizontal == 64
     assert view_area.min_size.vertical == 64
 
+    assert view_area.max_size
     assert view_area.max_size.horizontal == 2592
     assert view_area.max_size.vertical == 1944
 
+    assert view_area.grid
     assert view_area.grid.horizontal_offset == 0
     assert view_area.grid.horizontal_size == 1
     assert view_area.grid.vertical_offset == 0
@@ -197,20 +202,25 @@ async def test_set_geometry_of_view_area(view_areas: ViewAreaHandler):
     assert view_area.camera == 1
     assert view_area.configurable
 
+    assert view_area.canvas_size
     assert view_area.canvas_size.horizontal == 2592
     assert view_area.canvas_size.vertical == 1944
 
+    assert view_area.rectangular_geometry
     assert view_area.rectangular_geometry.horizontal_offset == 1
     assert view_area.rectangular_geometry.horizontal_size == 2000
     assert view_area.rectangular_geometry.vertical_offset == 2
     assert view_area.rectangular_geometry.vertical_size == 1000
 
+    assert view_area.min_size
     assert view_area.min_size.horizontal == 64
     assert view_area.min_size.vertical == 64
 
+    assert view_area.max_size
     assert view_area.max_size.horizontal == 2592
     assert view_area.max_size.vertical == 1944
 
+    assert view_area.grid
     assert view_area.grid.horizontal_offset == 0
     assert view_area.grid.horizontal_size == 1
     assert view_area.grid.vertical_offset == 0
@@ -266,20 +276,25 @@ async def test_reset_geometry_of_view_area(view_areas: ViewAreaHandler):
     assert view_area.camera == 1
     assert view_area.configurable
 
+    assert view_area.canvas_size
     assert view_area.canvas_size.horizontal == 2592
     assert view_area.canvas_size.vertical == 1944
 
+    assert view_area.rectangular_geometry
     assert view_area.rectangular_geometry.horizontal_offset == 0
     assert view_area.rectangular_geometry.horizontal_size == 2592
     assert view_area.rectangular_geometry.vertical_offset == 0
     assert view_area.rectangular_geometry.vertical_size == 1944
 
+    assert view_area.min_size
     assert view_area.min_size.horizontal == 64
     assert view_area.min_size.vertical == 64
 
+    assert view_area.max_size
     assert view_area.max_size.horizontal == 2592
     assert view_area.max_size.vertical == 1944
 
+    assert view_area.grid
     assert view_area.grid.horizontal_offset == 0
     assert view_area.grid.horizontal_size == 1
     assert view_area.grid.vertical_offset == 0

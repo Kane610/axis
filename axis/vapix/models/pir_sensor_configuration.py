@@ -23,7 +23,7 @@ class ErrorDataT(TypedDict):
 class PirSensorConfigurationT(TypedDict):
     """Pir sensor configuration representation."""
 
-    id: str
+    id: int
     sensitivityConfigurable: bool
     sensitivity: NotRequired[float]
 
@@ -111,7 +111,7 @@ class PirSensorConfiguration(ApiItem):
     def decode(cls, raw: PirSensorConfigurationT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=raw["id"],
+            id=str(raw["id"]),
             configurable=raw["sensitivityConfigurable"],
             sensitivity=raw.get("sensitivity"),
         )
