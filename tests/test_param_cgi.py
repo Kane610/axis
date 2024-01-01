@@ -111,7 +111,7 @@ async def test_update_image(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.property_handler["0"].image_nbrofviews == 2
+    assert params.image_handler.supported()
     assert params.image_handler["0"].data == {
         "DateFormat": "YYYY-MM-DD",
         "MaxViewers": 20,
@@ -264,13 +264,7 @@ root.IOPort.I0.Input.Trig=closed
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.get_param(ParameterGroup.IOPORT) == {
-        "I0": {
-            "Configurable": False,
-            "Direction": "input",
-            "Input": {"Name": "PIR sensor", "Trig": "closed"},
-        }
-    }
+    assert params.io_port_handler.supported()
     port = params.io_port_handler["0"]
     assert not port.configurable
     assert port.direction.value == "input"
