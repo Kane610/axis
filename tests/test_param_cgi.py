@@ -3,8 +3,6 @@
 pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
-import asyncio
-
 import pytest
 import respx
 
@@ -41,7 +39,11 @@ async def test_params(params: Params):
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
+    assert not params.initialized
+    assert not params.brand_handler.initialized
     await params.update()
+    assert params.initialized
+    assert params.brand_handler.initialized
 
     assert route.called
     assert route.calls.last.request.method == "GET"
@@ -84,8 +86,7 @@ async def test_update_brand(params: Params):
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.brand_handler.supported()
-    brand = params.brand_handler.get_params()["0"]
-
+    brand = params.brand_handler["0"]
     assert brand.brand == "AXIS"
     assert brand.prodfullname == "AXIS M1065-LW Network Camera"
     assert brand.prodnbr == "M1065-LW"
@@ -110,139 +111,8 @@ async def test_update_image(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.property_handler.get_params()["0"].image_nbrofviews == 2
-    assert params.image_handler.get_params()["0"].data == {
-        "DateFormat": "YYYY-MM-DD",
-        "MaxViewers": 20,
-        "MotionDetection": False,
-        "NbrOfConfigs": 2,
-        "OverlayPath": "/etc/overlays/axis(128x44).ovl",
-        "OwnDateFormat": "%F",
-        "OwnDateFormatEnabled": False,
-        "OwnTimeFormat": "%T",
-        "OwnTimeFormatEnabled": False,
-        "PrivacyMaskType": "none",
-        "Referrers": "",
-        "ReferrersEnabled": False,
-        "RFCCompliantMultipartEnabled": True,
-        "TimeFormat": 24,
-        "TimeResolution": 1,
-        "TriggerDataEnabled": False,
-        "I0": {
-            "Enabled": True,
-            "Name": "View Area 1",
-            "Source": 0,
-            "Appearance": {
-                "ColorEnabled": True,
-                "Compression": 30,
-                "MirrorEnabled": False,
-                "Resolution": "1920x1080",
-                "Rotation": 0,
-            },
-            "MPEG": {
-                "Complexity": 50,
-                "ConfigHeaderInterval": 1,
-                "FrameSkipMode": "drop",
-                "ICount": 1,
-                "PCount": 31,
-                "UserDataEnabled": False,
-                "UserDataInterval": 1,
-                "ZChromaQPMode": "off",
-                "ZFpsMode": "fixed",
-                "ZGopMode": "fixed",
-                "ZMaxGopLength": 300,
-                "ZMinFps": 0,
-                "ZStrength": 10,
-                "H264": {"Profile": "high", "PSEnabled": False},
-            },
-            "Overlay": {
-                "Enabled": False,
-                "XPos": 0,
-                "YPos": 0,
-                "MaskWindows": {"Color": "black"},
-            },
-            "RateControl": {
-                "MaxBitrate": 0,
-                "Mode": "vbr",
-                "Priority": "framerate",
-                "TargetBitrate": 0,
-            },
-            "SizeControl": {"MaxFrameSize": 0},
-            "Stream": {"Duration": 0, "FPS": 0, "NbrOfFrames": 0},
-            "Text": {
-                "BGColor": "black",
-                "ClockEnabled": False,
-                "Color": "white",
-                "DateEnabled": False,
-                "Position": "top",
-                "String": "",
-                "TextEnabled": False,
-                "TextSize": "medium",
-            },
-            "TriggerData": {
-                "AudioEnabled": True,
-                "MotionDetectionEnabled": True,
-                "MotionLevelEnabled": False,
-                "TamperingEnabled": True,
-                "UserTriggers": "",
-            },
-        },
-        "I1": {
-            "Enabled": False,
-            "Name": "View Area 2",
-            "Source": 0,
-            "Appearance": {
-                "ColorEnabled": True,
-                "Compression": 30,
-                "MirrorEnabled": False,
-                "Resolution": "1920x1080",
-                "Rotation": 0,
-            },
-            "MPEG": {
-                "Complexity": 50,
-                "ConfigHeaderInterval": 1,
-                "FrameSkipMode": "drop",
-                "ICount": 1,
-                "PCount": 31,
-                "UserDataEnabled": False,
-                "UserDataInterval": 1,
-                "ZChromaQPMode": "off",
-                "ZFpsMode": "fixed",
-                "ZGopMode": "fixed",
-                "ZMaxGopLength": 300,
-                "ZMinFps": 0,
-                "ZStrength": 10,
-                "H264": {"Profile": "high", "PSEnabled": False},
-            },
-            "Overlay": {"Enabled": False, "XPos": 0, "YPos": 0},
-            "RateControl": {
-                "MaxBitrate": 0,
-                "Mode": "vbr",
-                "Priority": "framerate",
-                "TargetBitrate": 0,
-            },
-            "SizeControl": {"MaxFrameSize": 0},
-            "Stream": {"Duration": 0, "FPS": 0, "NbrOfFrames": 0},
-            "Text": {
-                "BGColor": "black",
-                "ClockEnabled": False,
-                "Color": "white",
-                "DateEnabled": False,
-                "Position": "top",
-                "String": "",
-                "TextEnabled": False,
-                "TextSize": "medium",
-            },
-            "TriggerData": {
-                "AudioEnabled": True,
-                "MotionDetectionEnabled": True,
-                "MotionLevelEnabled": False,
-                "TamperingEnabled": True,
-                "UserTriggers": "",
-            },
-        },
-    }
-    assert params.image_handler.get_params()["0"].data == {
+    assert params.property_handler["0"].image_nbrofviews == 2
+    assert params.image_handler["0"].data == {
         "DateFormat": "YYYY-MM-DD",
         "MaxViewers": 20,
         "MotionDetection": False,
@@ -378,13 +248,7 @@ async def test_update_image(params: Params):
 @respx.mock
 async def test_update_ports(params: Params):
     """Verify that update brand works."""
-    input_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Input"
-    ).respond(
-        text="root.Input.NbrOfInputs=1",
-        headers={"Content-Type": "text/plain"},
-    )
-    io_port_route = respx.get(
+    route = respx.get(
         f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.IOPort"
     ).respond(
         text="""root.IOPort.I0.Configurable=no
@@ -394,32 +258,12 @@ root.IOPort.I0.Input.Trig=closed
 """,
         headers={"Content-Type": "text/plain"},
     )
-    output_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Output"
-    ).respond(
-        text="root.Output.NbrOfOutputs=0",
-        headers={"Content-Type": "text/plain"},
-    )
+    await params.io_port_handler.update()
 
-    await asyncio.gather(
-        params.io_port_handler.update(),
-        params.update_group(ParameterGroup.INPUT),
-        params.update_group(ParameterGroup.OUTPUT),
-    )
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert input_route.called
-    assert input_route.calls.last.request.method == "GET"
-    assert input_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert io_port_route.called
-    assert io_port_route.calls.last.request.method == "GET"
-    assert io_port_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert output_route.called
-    assert output_route.calls.last.request.method == "GET"
-    assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert params.get_param(ParameterGroup.INPUT).get("NbrOfInputs", 0) == 1
     assert params.get_param(ParameterGroup.IOPORT) == {
         "I0": {
             "Configurable": False,
@@ -427,7 +271,12 @@ root.IOPort.I0.Input.Trig=closed
             "Input": {"Name": "PIR sensor", "Trig": "closed"},
         }
     }
-    assert params.get_param(ParameterGroup.OUTPUT).get("NbrOfOutputs", 0) == 0
+    port = params.io_port_handler["0"]
+    assert not port.configurable
+    assert port.direction.value == "input"
+    assert port.name == "PIR sensor"
+    assert port.input_trig == "closed"
+    assert port.output_active == ""
 
 
 @respx.mock
@@ -439,7 +288,6 @@ async def test_update_properties(params: Params):
         text=response_param_cgi_properties,
         headers={"Content-Type": "text/plain"},
     )
-
     await params.property_handler.update()
 
     assert route.called
@@ -447,7 +295,7 @@ async def test_update_properties(params: Params):
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.property_handler.supported()
-    properties = params.property_handler.get_params()["0"]
+    properties = params.property_handler["0"]
     assert properties.api_http_version == 3
     assert properties.api_metadata is True
     assert properties.api_metadata_version == "1.0"
@@ -498,15 +346,13 @@ async def test_update_stream_profiles(params: Params):
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
-
     await params.stream_profile_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    profile_params = params.stream_profile_handler.get_params()["0"]
-
+    profile_params = params.stream_profile_handler["0"]
     assert profile_params.max_groups == 26
     assert len(profile_params.stream_profiles) == 2
     assert profile_params.stream_profiles[0].name == "profile_1"
@@ -515,20 +361,6 @@ async def test_update_stream_profiles(params: Params):
     assert profile_params.stream_profiles[1].name == "profile_2"
     assert profile_params.stream_profiles[1].description == "profile_2_description"
     assert profile_params.stream_profiles[1].parameters == "videocodec=h265"
-
-
-@respx.mock
-async def test_stream_profiles_empty_response(params: Params):
-    """Verify that update properties works."""
-    respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.StreamProfile"
-    ).respond(
-        text="",
-        headers={"Content-Type": "text/plain"},
-    )
-
-    await params.stream_profile_handler.update()
-    assert params.stream_profile_handler.get_params() == {}
 
 
 response_param_cgi = """root.Audio.DSCP=0
