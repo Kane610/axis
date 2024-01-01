@@ -43,8 +43,12 @@ class ParamHandler(ApiHandler[ParamItemT]):
         Callback from parameter handler subscription.
         """
         self._items = self.get_params()
+        self.initialized = True
+
+    async def update(self) -> None:
+        """Refresh data."""
+        await self.vapix.params.update_group(self.parameter_group)
 
     async def _api_request(self) -> dict[str, ParamItemT]:
-        """Get API data method defined by subclass."""
-        await self.vapix.params.update(self.parameter_group)
-        return self.get_params()
+        """Unusedd in this subclass."""
+        raise NotImplementedError
