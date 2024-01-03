@@ -8,36 +8,43 @@ General purpose I/O service API. Extends I/O port API with support for
 Virtual input API.
 """
 
-from ..models.port_cgi import ACTION_HIGH  # noqa: F401
-from ..models.port_cgi import ACTION_LOW  # noqa: F401
-from ..models.port_cgi import DIRECTION_IN  # noqa: F401
-from ..models.port_cgi import DIRECTION_OUT  # noqa: F401
-from ..models.port_cgi import Port
-from ..models.port_cgi import URL  # noqa: F401
-from .api import APIItems
+from ..models.parameters.io_port import IOPortParam, PortAction, PortDirection
+from ..models.port_cgi import PortActionRequest
+from .api_handler import ApiHandler
 
 PROPERTY = "Properties.API.HTTP.Version=3"
 
 
-class Ports(APIItems):
+class Ports(ApiHandler[IOPortParam]):
     """Represents all ports of io/port.cgi."""
 
-    item_cls = Port
-    path = ""
+    async def _api_request(self) -> dict[str, IOPortParam]:
+        """Get API data method defined by subclass."""
+        return await self.get_ports()
 
-    def __init__(self, vapix) -> None:
-        """Initialize port cgi manager."""
-        super().__init__(vapix, vapix.params.ports)
+    async def get_ports(self) -> dict[str, IOPortParam]:
+        """Retrieve privilege rights for current user."""
+        await self.vapix.params.io_port_handler.update()
+        return self.process_ports()
 
-    async def update(self) -> None:
-        """Refresh data."""
-        await self.vapix.params.update_ports()
-        self.process_raw(self.vapix.params.ports)
+    def load_ports(self) -> None:
+        """Load ports into class."""
+        self._items = self.process_ports()
 
-    @staticmethod
-    def pre_process_raw(ports: dict) -> dict:
-        """Pre process ports for process raw.
+    def process_ports(self) -> dict[str, IOPortParam]:
+        """Process ports."""
+        return dict(self.vapix.params.io_port_handler.items())
 
-        Index needs to be a string.
-        """
-        return {str(k): v for k, v in ports.items()}
+    async def action(self, id: str, action: PortAction) -> None:
+        """Activate or deactivate an output."""
+        if (port := self[id]) and port.direction != PortDirection.OUT:
+            return
+        await self.vapix.new_request(PortActionRequest(id, action.value))
+
+    async def open(self, id: str) -> None:
+        """Open port."""
+        await self.action(id, PortAction.LOW)
+
+    async def close(self, id: str) -> None:
+        """Close port."""
+        await self.action(id, PortAction.HIGH)

@@ -20,7 +20,7 @@ from ..models.port_management import (
 from .api_handler import ApiHandler
 
 
-class IoPortManagement(ApiHandler):
+class IoPortManagement(ApiHandler[Port]):
     """I/O port management for Axis devices."""
 
     api_id = ApiId.IO_PORT_MANAGEMENT

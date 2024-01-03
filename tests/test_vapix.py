@@ -106,7 +106,7 @@ async def test_initialize(vapix: Vapix):
     assert vapix.stream_profiles
     assert len(vapix.view_areas) == 0
 
-    assert vapix.params.brand == "AXIS"
+    assert vapix.params.brand_handler.get_params()["0"].brand == "AXIS"
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -217,7 +217,7 @@ async def test_initialize_param_cgi(vapix: Vapix):
     )
     await vapix.initialize_param_cgi()
 
-    assert vapix.params.brand == "AXIS"
+    assert vapix.params.brand_handler.get_params()["0"].brand == "AXIS"
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -228,7 +228,7 @@ async def test_initialize_param_cgi(vapix: Vapix):
     assert len(vapix.light_control.values()) == 1
     assert len(vapix.mqtt) == 0
     assert len(vapix.stream_profiles) == 0
-    assert vapix.streaming_profiles is not None
+    assert len(vapix.params.stream_profile_handler) == 1
 
 
 @respx.mock
@@ -240,7 +240,7 @@ async def test_initialize_params_no_data(vapix: Vapix):
     ).respond(text="")
     await vapix.initialize_param_cgi(preload_data=False)
 
-    assert param_route.call_count == 7
+    assert param_route.call_count == 5
 
 
 @respx.mock
@@ -278,6 +278,7 @@ async def test_initialize_applications(vapix: Vapix):
     assert vapix.motion_guard
     assert vapix.vmd4
 
+    assert vapix.applications
     assert len(vapix.applications.values()) == 7
 
     assert len(vapix.fence_guard.values()) == 1
@@ -350,6 +351,7 @@ async def test_initialize_event_instances(vapix: Vapix):
 
     await vapix.initialize_event_instances()
 
+    assert vapix.event_instances
     assert len(vapix.event_instances) == 44
 
 
@@ -366,7 +368,7 @@ async def test_applications_dont_load_without_params(vapix: Vapix):
     await vapix.initialize_param_cgi(preload_data=False)
     await vapix.initialize_applications()
 
-    assert param_route.call_count == 7
+    assert param_route.call_count == 5
     assert not applications_route.called
 
 

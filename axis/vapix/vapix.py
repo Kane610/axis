@@ -25,7 +25,7 @@ from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import LightHandler
 from .interfaces.mqtt import MqttClientHandler
-from .interfaces.param_cgi import Params
+from .interfaces.parameters.param_cgi import Params
 from .interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 from .interfaces.port_cgi import Ports
 from .interfaces.port_management import IoPortManagement
@@ -59,15 +59,14 @@ class Vapix:
         self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
         self.object_analytics: ObjectAnalytics | None = None
-        self.params: Params | None = None
-        self._ports: Ports | None = None
-        self.ptz: PtzControl | None = None
         self.vmd4: Vmd4 | None = None
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
 
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
+        self.params: Params = Params(self)
+
         self.basic_device_info = BasicDeviceInfoHandler(self)
         self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
@@ -76,33 +75,44 @@ class Vapix:
         self.stream_profiles = StreamProfilesHandler(self)
         self.view_areas = ViewAreaHandler(self)
 
+        self.port_cgi = Ports(self)
+        self.ptz = PtzControl(self)
+
     @property
     def firmware_version(self) -> str:
         """Firmware version of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.version
-        return self.params.firmware_version  # type: ignore[union-attr]
+        if self.params.property_handler.supported():
+            return self.params.property_handler.get_params()["0"].firmware_version
+        return ""
 
     @property
     def product_number(self) -> str:
         """Product number of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.prodnbr
-        return self.params.prodnbr  # type: ignore[union-attr]
+        if self.params.brand_handler.supported():
+            return self.params.brand_handler.get_params()["0"].prodnbr
+        return ""
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
         if self.basic_device_info.supported():
             return self.basic_device_info.prodtype
-        return self.params.prodtype  # type: ignore[union-attr]
+        if self.params.brand_handler.supported():
+            return self.params.brand_handler.get_params()["0"].prodtype
+        return ""
 
     @property
     def serial_number(self) -> str:
         """Device serial number."""
         if self.basic_device_info.supported():
             return self.basic_device_info.serialnumber
-        return self.params.system_serialnumber  # type: ignore[union-attr]
+        if self.params.property_handler.supported():
+            return self.params.property_handler.get_params()["0"].system_serialnumber
+        return ""
 
     @property
     def access_rights(self) -> SecondaryGroup:
@@ -116,13 +126,15 @@ class Vapix:
         """List streaming profiles."""
         if self.stream_profiles.supported():
             return list(self.stream_profiles.values())
-        return self.params.stream_profiles  # type: ignore[union-attr]
+        if self.params.stream_profile_handler.supported():
+            return self.params.stream_profile_handler.get_params()["0"].stream_profiles
+        return []
 
     @property
     def ports(self) -> IoPortManagement | Ports:
         """Temporary port property."""
-        if not self.io_port_management.supported() and self._ports is not None:
-            return self._ports
+        if not self.io_port_management.supported():
+            return self.port_cgi
         return self.io_port_management
 
     async def initialize(self) -> None:
@@ -181,49 +193,49 @@ class Vapix:
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
-        self.params = Params(self)
-
         tasks = []
 
         if preload_data:
             tasks.append(self.params.update())
 
         else:
-            tasks.append(self.params.update_properties())
-            tasks.append(self.params.update_ptz())
+            tasks.append(self.params.property_handler.update())
+            tasks.append(self.params.ptz_handler.update())
 
             if not self.basic_device_info.supported():
-                tasks.append(self.params.update_brand())
+                tasks.append(self.params.brand_handler.update())
 
             if not self.io_port_management.supported():
-                tasks.append(self.params.update_ports())
+                tasks.append(self.params.io_port_handler.update())
 
             if not self.stream_profiles.supported():
-                tasks.append(self.params.update_stream_profiles())
+                tasks.append(self.params.stream_profile_handler.update())
 
             if self.view_areas.supported():
-                tasks.append(self.params.update_image())
+                tasks.append(self.params.image_handler.update())
 
-        if tasks:
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
-        if not self.light_control.supported() and self.params.light_control:
+        if not self.params.property_handler.supported():
+            return
+
+        if (
+            not self.light_control.supported()
+            and self.params.property_handler["0"].light_control
+        ):
             try:
                 await self.light_control.update()
             except Unauthorized:  # Probably a viewer account
                 pass
 
         if not self.io_port_management.supported():
-            self._ports = Ports(self)
-
-        if not self.ptz and self.params.ptz:
-            self.ptz = PtzControl(self)
+            self.port_cgi.load_ports()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
         self.applications = Applications(self)
-        if self.params and version.parse(
-            self.params.embedded_development
+        if self.params.property_handler.supported() and version.parse(
+            self.params.property_handler["0"].embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
             try:
                 await self.applications.update()
@@ -335,6 +347,7 @@ class Vapix:
             path=api_request.path,
             content=api_request.content,
             data=api_request.data,
+            params=api_request.params,
         )
 
     async def do_request(
@@ -343,10 +356,11 @@ class Vapix:
         path: str,
         content: bytes | None = None,
         data: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path
-        LOGGER.debug("%s, %s, %s, %s", method, url, content, data)
+        LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
 
         try:
             response = await self.device.config.session.request(
@@ -354,6 +368,7 @@ class Vapix:
                 url,
                 content=content,
                 data=data,
+                params=params,
                 auth=self.auth,
                 timeout=TIME_OUT,
             )

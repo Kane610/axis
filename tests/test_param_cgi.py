@@ -6,322 +6,251 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 import pytest
 import respx
 
-from axis.vapix.interfaces.param_cgi import Params
+from axis.device import AxisDevice
+from axis.vapix.interfaces.parameters.param_cgi import Params
+from axis.vapix.models.parameters.param_cgi import ParameterGroup
 
 from .conftest import HOST
 
 
 @pytest.fixture
-def params(axis_device) -> Params:
+def params(axis_device: AxisDevice) -> Params:
     """Return the param cgi mock object."""
-    return Params(axis_device.vapix)
+    return axis_device.vapix.params
+
+
+async def test_parameter_group_enum():
+    """Verify management of unsupported parameter groups."""
+    assert ParameterGroup("unsupported") is ParameterGroup.UNKNOWN
+
+
+async def test_param_unused_api_request(params: Params):
+    """Verify that you can list parameters."""
+    with pytest.raises(NotImplementedError):
+        await params._api_request()
+    with pytest.raises(NotImplementedError):
+        await params.brand_handler._api_request()
+    assert params.brand_handler.get_params() == {}
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_params(params):
+async def test_params(params: Params):
     """Verify that you can list parameters."""
     route = respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
+    assert not params.initialized
+    assert not params.brand_handler.initialized
     await params.update()
+    assert params.initialized
+    assert params.brand_handler.initialized
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    # Brand
-    assert params.brand == "AXIS"
-    assert params.prodfullname == "AXIS M1065-LW Network Camera"
-    assert params.prodnbr == "M1065-LW"
-    assert params.prodshortname == "AXIS M1065-LW"
-    assert params.prodtype == "Network Camera"
-    assert params.prodvariant == ""
-    assert params.weburl == "http://www.axis.com"
-
-    # Image
-    assert params.image_sources == {
-        0: {
-            "Enabled": True,
-            "Name": "View Area 1",
-            "Source": 0,
-            "Appearance.ColorEnabled": True,
-            "Appearance.Compression": 30,
-            "Appearance.MirrorEnabled": False,
-            "Appearance.Resolution": "1920x1080",
-            "Appearance.Rotation": 0,
-            "MPEG.Complexity": 50,
-            "MPEG.ConfigHeaderInterval": 1,
-            "MPEG.FrameSkipMode": "drop",
-            "MPEG.ICount": 1,
-            "MPEG.PCount": 31,
-            "MPEG.UserDataEnabled": False,
-            "MPEG.UserDataInterval": 1,
-            "MPEG.ZChromaQPMode": "off",
-            "MPEG.ZFpsMode": "fixed",
-            "MPEG.ZGopMode": "fixed",
-            "MPEG.ZMaxGopLength": 300,
-            "MPEG.ZMinFps": 0,
-            "MPEG.ZStrength": 10,
-            "MPEG.H264.Profile": "high",
-            "MPEG.H264.PSEnabled": False,
-            "Overlay.Enabled": False,
-            "Overlay.XPos": 0,
-            "Overlay.YPos": 0,
-            "Overlay.MaskWindows.Color": "black",
-            "RateControl.MaxBitrate": 0,
-            "RateControl.Mode": "vbr",
-            "RateControl.Priority": "framerate",
-            "RateControl.TargetBitrate": 0,
-            "SizeControl.MaxFrameSize": 0,
-            "Stream.Duration": 0,
-            "Stream.FPS": 0,
-            "Stream.NbrOfFrames": 0,
-            "Text.BGColor": "black",
-            "Text.ClockEnabled": False,
-            "Text.Color": "white",
-            "Text.DateEnabled": False,
-            "Text.Position": "top",
-            "Text.String": "",
-            "Text.TextEnabled": False,
-            "Text.TextSize": "medium",
-        },
-        1: {
-            "Enabled": False,
-            "Name": "View Area 2",
-            "Source": 0,
-            "Appearance.ColorEnabled": True,
-            "Appearance.Compression": 30,
-            "Appearance.MirrorEnabled": False,
-            "Appearance.Resolution": "1920x1080",
-            "Appearance.Rotation": 0,
-            "MPEG.Complexity": 50,
-            "MPEG.ConfigHeaderInterval": 1,
-            "MPEG.FrameSkipMode": "drop",
-            "MPEG.ICount": 1,
-            "MPEG.PCount": 31,
-            "MPEG.UserDataEnabled": False,
-            "MPEG.UserDataInterval": 1,
-            "MPEG.ZChromaQPMode": "off",
-            "MPEG.ZFpsMode": "fixed",
-            "MPEG.ZGopMode": "fixed",
-            "MPEG.ZMaxGopLength": 300,
-            "MPEG.ZMinFps": 0,
-            "MPEG.ZStrength": 10,
-            "MPEG.H264.Profile": "high",
-            "MPEG.H264.PSEnabled": False,
-            "Overlay.Enabled": False,
-            "Overlay.XPos": 0,
-            "Overlay.YPos": 0,
-            "RateControl.MaxBitrate": 0,
-            "RateControl.Mode": "vbr",
-            "RateControl.Priority": "framerate",
-            "RateControl.TargetBitrate": 0,
-            "SizeControl.MaxFrameSize": 0,
-            "Stream.Duration": 0,
-            "Stream.FPS": 0,
-            "Stream.NbrOfFrames": 0,
-            "Text.BGColor": "black",
-            "Text.ClockEnabled": False,
-            "Text.Color": "white",
-            "Text.DateEnabled": False,
-            "Text.Position": "top",
-            "Text.String": "",
-            "Text.TextEnabled": False,
-            "Text.TextSize": "medium",
-        },
-    }
-
-    # Ports
-    assert params.nbrofinput == 1
-    assert params.nbrofoutput == 0
-    assert params.ports == {
-        0: {
-            "Configurable": False,
-            "Direction": "input",
-            "Input.Name": "PIR sensor",
-            "Input.Trig": "closed",
-        }
-    }
-
-    # Properties
-    assert params.api_http_version == "3"
-    assert params.api_metadata == "yes"
-    assert params.api_metadata_version == "1.0"
-    assert params.api_ptz_presets_version == "2.00"
-    assert params.embedded_development == "2.16"
-    assert params.firmware_builddate == "Feb 15 2019 09:42"
-    assert params.firmware_buildnumber == "26"
-    assert params.firmware_version == "9.10.1"
-    assert params.image_format == "jpeg,mjpeg,h264"
-    assert params.image_nbrofviews == 2
-    assert (
-        params.image_resolution
-        == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
-    )
-    assert params.image_rotation == "0,180"
-    assert params.light_control is True
-    assert params.ptz is True
-    assert params.digital_ptz is True
-    assert params.system_serialnumber == "ACCC12345678"
+    assert params.get_param(ParameterGroup.BRAND)
+    assert params.get_param(ParameterGroup.IMAGE)
+    assert params.get_param(ParameterGroup.INPUT)
+    assert params.get_param(ParameterGroup.OUTPUT)
+    assert params.get_param(ParameterGroup.IOPORT)
+    assert params.get_param(ParameterGroup.PROPERTIES)
+    assert params.get_param(ParameterGroup.PTZ)
+    assert params.get_param(ParameterGroup.STREAMPROFILE)
 
 
-@pytest.mark.asyncio
-async def test_params_empty_raw(params):
+async def test_params_empty_raw(params: Params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
-
-    assert params.image_sources == {}
+    assert not params.brand_handler.supported()
+    assert not params.image_handler.supported()
+    assert not params.io_port_handler.supported()
+    assert not params.property_handler.supported()
+    assert not params.ptz_handler.supported()
+    assert not params.stream_profile_handler.supported()
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_brand(params):
+async def test_update_brand(params: Params):
     """Verify that update brand works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Brand"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Brand"
     ).respond(
         text=response_param_cgi_brand,
         headers={"Content-Type": "text/plain"},
     )
-    await params.update_brand()
+    await params.brand_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.brand == "AXIS"
-    assert params.prodfullname == "AXIS M1065-LW Network Camera"
-    assert params.prodnbr == "M1065-LW"
-    assert params.prodshortname == "AXIS M1065-LW"
-    assert params.prodtype == "Network Camera"
-    assert params.prodvariant == ""
-    assert params.weburl == "http://www.axis.com"
+    assert params.brand_handler.supported()
+    brand = params.brand_handler["0"]
+    assert brand.brand == "AXIS"
+    assert brand.prodfullname == "AXIS M1065-LW Network Camera"
+    assert brand.prodnbr == "M1065-LW"
+    assert brand.prodshortname == "AXIS M1065-LW"
+    assert brand.prodtype == "Network Camera"
+    assert brand.prodvariant == ""
+    assert brand.weburl == "http://www.axis.com"
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_image(params):
-    """Verify that update brand works."""
+async def test_update_image(params: Params):
+    """Verify that update image works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Image"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Image"
     ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
-    await params.update_image()
+    await params.image_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.image_nbrofviews == 2
-    assert params.image_sources == {
-        0: {
+    assert params.image_handler.supported()
+    assert params.image_handler["0"].data == {
+        "DateFormat": "YYYY-MM-DD",
+        "MaxViewers": 20,
+        "MotionDetection": False,
+        "NbrOfConfigs": 2,
+        "OverlayPath": "/etc/overlays/axis(128x44).ovl",
+        "OwnDateFormat": "%F",
+        "OwnDateFormatEnabled": False,
+        "OwnTimeFormat": "%T",
+        "OwnTimeFormatEnabled": False,
+        "PrivacyMaskType": "none",
+        "Referrers": "",
+        "ReferrersEnabled": False,
+        "RFCCompliantMultipartEnabled": True,
+        "TimeFormat": 24,
+        "TimeResolution": 1,
+        "TriggerDataEnabled": False,
+        "I0": {
             "Enabled": True,
             "Name": "View Area 1",
             "Source": 0,
-            "Appearance.ColorEnabled": True,
-            "Appearance.Compression": 30,
-            "Appearance.MirrorEnabled": False,
-            "Appearance.Resolution": "1920x1080",
-            "Appearance.Rotation": 0,
-            "MPEG.Complexity": 50,
-            "MPEG.ConfigHeaderInterval": 1,
-            "MPEG.FrameSkipMode": "drop",
-            "MPEG.ICount": 1,
-            "MPEG.PCount": 31,
-            "MPEG.UserDataEnabled": False,
-            "MPEG.UserDataInterval": 1,
-            "MPEG.ZChromaQPMode": "off",
-            "MPEG.ZFpsMode": "fixed",
-            "MPEG.ZGopMode": "fixed",
-            "MPEG.ZMaxGopLength": 300,
-            "MPEG.ZMinFps": 0,
-            "MPEG.ZStrength": 10,
-            "MPEG.H264.Profile": "high",
-            "MPEG.H264.PSEnabled": False,
-            "Overlay.Enabled": False,
-            "Overlay.XPos": 0,
-            "Overlay.YPos": 0,
-            "Overlay.MaskWindows.Color": "black",
-            "RateControl.MaxBitrate": 0,
-            "RateControl.Mode": "vbr",
-            "RateControl.Priority": "framerate",
-            "RateControl.TargetBitrate": 0,
-            "SizeControl.MaxFrameSize": 0,
-            "Stream.Duration": 0,
-            "Stream.FPS": 0,
-            "Stream.NbrOfFrames": 0,
-            "Text.BGColor": "black",
-            "Text.ClockEnabled": False,
-            "Text.Color": "white",
-            "Text.DateEnabled": False,
-            "Text.Position": "top",
-            "Text.String": "",
-            "Text.TextEnabled": False,
-            "Text.TextSize": "medium",
+            "Appearance": {
+                "ColorEnabled": True,
+                "Compression": 30,
+                "MirrorEnabled": False,
+                "Resolution": "1920x1080",
+                "Rotation": 0,
+            },
+            "MPEG": {
+                "Complexity": 50,
+                "ConfigHeaderInterval": 1,
+                "FrameSkipMode": "drop",
+                "ICount": 1,
+                "PCount": 31,
+                "UserDataEnabled": False,
+                "UserDataInterval": 1,
+                "ZChromaQPMode": "off",
+                "ZFpsMode": "fixed",
+                "ZGopMode": "fixed",
+                "ZMaxGopLength": 300,
+                "ZMinFps": 0,
+                "ZStrength": 10,
+                "H264": {"Profile": "high", "PSEnabled": False},
+            },
+            "Overlay": {
+                "Enabled": False,
+                "XPos": 0,
+                "YPos": 0,
+                "MaskWindows": {"Color": "black"},
+            },
+            "RateControl": {
+                "MaxBitrate": 0,
+                "Mode": "vbr",
+                "Priority": "framerate",
+                "TargetBitrate": 0,
+            },
+            "SizeControl": {"MaxFrameSize": 0},
+            "Stream": {"Duration": 0, "FPS": 0, "NbrOfFrames": 0},
+            "Text": {
+                "BGColor": "black",
+                "ClockEnabled": False,
+                "Color": "white",
+                "DateEnabled": False,
+                "Position": "top",
+                "String": "",
+                "TextEnabled": False,
+                "TextSize": "medium",
+            },
+            "TriggerData": {
+                "AudioEnabled": True,
+                "MotionDetectionEnabled": True,
+                "MotionLevelEnabled": False,
+                "TamperingEnabled": True,
+                "UserTriggers": "",
+            },
         },
-        1: {
+        "I1": {
             "Enabled": False,
             "Name": "View Area 2",
             "Source": 0,
-            "Appearance.ColorEnabled": True,
-            "Appearance.Compression": 30,
-            "Appearance.MirrorEnabled": False,
-            "Appearance.Resolution": "1920x1080",
-            "Appearance.Rotation": 0,
-            "MPEG.Complexity": 50,
-            "MPEG.ConfigHeaderInterval": 1,
-            "MPEG.FrameSkipMode": "drop",
-            "MPEG.ICount": 1,
-            "MPEG.PCount": 31,
-            "MPEG.UserDataEnabled": False,
-            "MPEG.UserDataInterval": 1,
-            "MPEG.ZChromaQPMode": "off",
-            "MPEG.ZFpsMode": "fixed",
-            "MPEG.ZGopMode": "fixed",
-            "MPEG.ZMaxGopLength": 300,
-            "MPEG.ZMinFps": 0,
-            "MPEG.ZStrength": 10,
-            "MPEG.H264.Profile": "high",
-            "MPEG.H264.PSEnabled": False,
-            "Overlay.Enabled": False,
-            "Overlay.XPos": 0,
-            "Overlay.YPos": 0,
-            "RateControl.MaxBitrate": 0,
-            "RateControl.Mode": "vbr",
-            "RateControl.Priority": "framerate",
-            "RateControl.TargetBitrate": 0,
-            "SizeControl.MaxFrameSize": 0,
-            "Stream.Duration": 0,
-            "Stream.FPS": 0,
-            "Stream.NbrOfFrames": 0,
-            "Text.BGColor": "black",
-            "Text.ClockEnabled": False,
-            "Text.Color": "white",
-            "Text.DateEnabled": False,
-            "Text.Position": "top",
-            "Text.String": "",
-            "Text.TextEnabled": False,
-            "Text.TextSize": "medium",
+            "Appearance": {
+                "ColorEnabled": True,
+                "Compression": 30,
+                "MirrorEnabled": False,
+                "Resolution": "1920x1080",
+                "Rotation": 0,
+            },
+            "MPEG": {
+                "Complexity": 50,
+                "ConfigHeaderInterval": 1,
+                "FrameSkipMode": "drop",
+                "ICount": 1,
+                "PCount": 31,
+                "UserDataEnabled": False,
+                "UserDataInterval": 1,
+                "ZChromaQPMode": "off",
+                "ZFpsMode": "fixed",
+                "ZGopMode": "fixed",
+                "ZMaxGopLength": 300,
+                "ZMinFps": 0,
+                "ZStrength": 10,
+                "H264": {"Profile": "high", "PSEnabled": False},
+            },
+            "Overlay": {"Enabled": False, "XPos": 0, "YPos": 0},
+            "RateControl": {
+                "MaxBitrate": 0,
+                "Mode": "vbr",
+                "Priority": "framerate",
+                "TargetBitrate": 0,
+            },
+            "SizeControl": {"MaxFrameSize": 0},
+            "Stream": {"Duration": 0, "FPS": 0, "NbrOfFrames": 0},
+            "Text": {
+                "BGColor": "black",
+                "ClockEnabled": False,
+                "Color": "white",
+                "DateEnabled": False,
+                "Position": "top",
+                "String": "",
+                "TextEnabled": False,
+                "TextSize": "medium",
+            },
+            "TriggerData": {
+                "AudioEnabled": True,
+                "MotionDetectionEnabled": True,
+                "MotionLevelEnabled": False,
+                "TamperingEnabled": True,
+                "UserTriggers": "",
+            },
         },
     }
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_ports(params):
+async def test_update_ports(params: Params):
     """Verify that update brand works."""
-    input_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Input"
-    ).respond(
-        text="root.Input.NbrOfInputs=1",
-        headers={"Content-Type": "text/plain"},
-    )
-    io_port_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.IOPort"
+    route = respx.get(
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.IOPort"
     ).respond(
         text="""root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input
@@ -330,78 +259,60 @@ root.IOPort.I0.Input.Trig=closed
 """,
         headers={"Content-Type": "text/plain"},
     )
-    output_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Output"
-    ).respond(
-        text="root.Output.NbrOfOutputs=0",
-        headers={"Content-Type": "text/plain"},
-    )
-
-    await params.update_ports()
-
-    assert input_route.called
-    assert input_route.calls.last.request.method == "GET"
-    assert input_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert io_port_route.called
-    assert io_port_route.calls.last.request.method == "GET"
-    assert io_port_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert output_route.called
-    assert output_route.calls.last.request.method == "GET"
-    assert output_route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert params.nbrofinput == 1
-    assert params.ports == {
-        0: {
-            "Configurable": False,
-            "Direction": "input",
-            "Input.Name": "PIR sensor",
-            "Input.Trig": "closed",
-        }
-    }
-    assert params.nbrofoutput == 0
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_update_properties(params):
-    """Verify that update properties works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.Properties"
-    ).respond(
-        text=response_param_cgi_properties,
-        headers={"Content-Type": "text/plain"},
-    )
-
-    await params.update_properties()
+    await params.io_port_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.api_http_version == "3"
-    assert params.api_metadata == "yes"
-    assert params.api_metadata_version == "1.0"
+    assert params.io_port_handler.supported()
+    port = params.io_port_handler["0"]
+    assert not port.configurable
+    assert port.direction.value == "input"
+    assert port.name == "PIR sensor"
+    assert port.input_trig == "closed"
+    assert port.output_active == ""
+
+
+@respx.mock
+async def test_update_properties(params: Params):
+    """Verify that update properties works."""
+    route = respx.get(
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Properties"
+    ).respond(
+        text=response_param_cgi_properties,
+        headers={"Content-Type": "text/plain"},
+    )
+    await params.property_handler.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
+
+    assert params.property_handler.supported()
+    properties = params.property_handler["0"]
+    assert properties.api_http_version == 3
+    assert properties.api_metadata is True
+    assert properties.api_metadata_version == "1.0"
     # assert params[f"{PROPERTIES}.API.OnScreenControls.OnScreenControls"] == "yes"
-    assert params.api_ptz_presets_version == "2.00"
+    assert properties.api_ptz_presets_version == "2.00"
     # assert params[f"{PROPERTIES}.API.RTSP.RTSPAuth"] == "yes"
     # assert params[f"{PROPERTIES}.API.RTSP.Version"] == "2.01"
     # assert params[f"{PROPERTIES}.ApiDiscovery.ApiDiscovery"] == "yes"
     # assert params[f"{PROPERTIES}.EmbeddedDevelopment.EmbeddedDevelopment"] == "yes"
-    assert params.embedded_development == "2.16"
-    assert params.firmware_builddate == "Feb 15 2019 09:42"
-    assert params.firmware_buildnumber == "26"
-    assert params.firmware_version == "9.10.1"
-    assert params.image_format == "jpeg,mjpeg,h264"
-    assert params.image_nbrofviews == 2
+    assert properties.embedded_development == "2.16"
+    assert properties.firmware_builddate == "Feb 15 2019 09:42"
+    assert properties.firmware_buildnumber == 26
+    assert properties.firmware_version == "9.10.1"
+    assert properties.image_format == "jpeg,mjpeg,h264"
+    assert properties.image_nbrofviews == 2
     assert (
-        params.image_resolution
+        properties.image_resolution
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
     )
-    assert params.image_rotation == "0,180"
+    assert properties.image_rotation == "0,180"
     # assert params[f"{PROPERTIES}.LEDControl.LEDControl"] == "yes"
-    assert params.light_control is True
+    assert properties.light_control is True
     # assert params[f"{PROPERTIES}.LightControl.LightControlAvailable"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.AutoRepair"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.ContinuousRecording"] == "yes"
@@ -415,162 +326,36 @@ async def test_update_properties(params):
     # assert params[f"{PROPERTIES}.LocalStorage.SDCard"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.StorageLimit"] == "yes"
     # assert params[f"{PROPERTIES}.LocalStorage.Version"] == "1.00"
-    assert params.digital_ptz is True
-    assert params.ptz is True
+    assert properties.digital_ptz is True
+    assert properties.ptz is True
     # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
-    assert params.system_serialnumber == "ACCC12345678"
+    assert properties.system_serialnumber == "ACCC12345678"
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_ptz(params):
-    """Verify that update ptz works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.PTZ"
-    ).respond(
-        text=response_param_cgi_ptz,
-        headers={"Content-Type": "text/plain"},
-    )
-
-    await params.update_ptz()
-
-    assert route.called
-    assert route.calls.last.request.method == "GET"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert params.ptz_camera_default == 1
-    assert params.ptz_number_of_cameras == 1
-    assert params.ptz_number_of_serial_ports == 1
-    assert params.ptz_limits == {
-        1: {
-            "MaxBrightness": 9999,
-            "MaxFieldAngle": 623,
-            "MaxFocus": 9999,
-            "MaxIris": 9999,
-            "MaxPan": 170,
-            "MaxTilt": 90,
-            "MaxZoom": 9999,
-            "MinBrightness": 1,
-            "MinFieldAngle": 22,
-            "MinFocus": 770,
-            "MinIris": 1,
-            "MinPan": -170,
-            "MinTilt": -20,
-            "MinZoom": 1,
-        }
-    }
-    assert params.ptz_support == {
-        1: {
-            "AbsoluteBrightness": True,
-            "AbsoluteFocus": True,
-            "AbsoluteIris": True,
-            "AbsolutePan": True,
-            "AbsoluteTilt": True,
-            "AbsoluteZoom": True,
-            "ActionNotification": True,
-            "AreaZoom": True,
-            "AutoFocus": True,
-            "AutoIrCutFilter": True,
-            "AutoIris": True,
-            "Auxiliary": True,
-            "BackLight": True,
-            "ContinuousBrightness": False,
-            "ContinuousFocus": True,
-            "ContinuousIris": False,
-            "ContinuousPan": True,
-            "ContinuousTilt": True,
-            "ContinuousZoom": True,
-            "DevicePreset": False,
-            "DigitalZoom": True,
-            "GenericHTTP": False,
-            "IrCutFilter": True,
-            "JoyStickEmulation": True,
-            "LensOffset": False,
-            "OSDMenu": False,
-            "ProportionalSpeed": True,
-            "RelativeBrightness": True,
-            "RelativeFocus": True,
-            "RelativeIris": True,
-            "RelativePan": True,
-            "RelativeTilt": True,
-            "RelativeZoom": True,
-            "ServerPreset": True,
-            "SpeedCtl": True,
-        }
-    }
-    assert params.ptz_various == {
-        1: {
-            "AutoFocus": True,
-            "AutoIris": True,
-            "BackLight": False,
-            "BackLightEnabled": True,
-            "BrightnessEnabled": True,
-            "CtlQueueing": False,
-            "CtlQueueLimit": 20,
-            "CtlQueuePollTime": 20,
-            "FocusEnabled": True,
-            "HomePresetSet": True,
-            "IrCutFilter": "auto",
-            "IrCutFilterEnabled": True,
-            "IrisEnabled": True,
-            "MaxProportionalSpeed": 200,
-            "PanEnabled": True,
-            "ProportionalSpeedEnabled": True,
-            "PTZCounter": 8,
-            "ReturnToOverview": 0,
-            "SpeedCtlEnabled": True,
-            "TiltEnabled": True,
-            "ZoomEnabled": True,
-        }
-    }
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_update_stream_profiles(params):
+async def test_update_stream_profiles(params: Params):
     """Verify that update properties works."""
     route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
+        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.StreamProfile"
     ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
-
-    await params.update_stream_profiles()
+    await params.stream_profile_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    profiles = params.stream_profiles
-
-    assert params.stream_profiles_max_groups == 26
-    assert len(profiles) == 2
-    assert profiles[0].name == "profile_1"
-    assert profiles[0].description == "profile_1_description"
-    assert profiles[0].parameters == "videocodec=h264"
-    assert profiles[1].name == "profile_2"
-    assert profiles[1].description == "profile_2_description"
-    assert profiles[1].parameters == "videocodec=h265"
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_stream_profiles_empty_response(params):
-    """Verify that update properties works."""
-    respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list&group=root.StreamProfile"
-    ).respond(
-        text="",
-        headers={"Content-Type": "text/plain"},
-    )
-
-    await params.update_stream_profiles()
-
-    profiles = params.stream_profiles
-
-    assert params.stream_profiles_max_groups == 0
-    assert len(profiles) == 0
+    profile_params = params.stream_profile_handler["0"]
+    assert profile_params.max_groups == 26
+    assert len(profile_params.stream_profiles) == 2
+    assert profile_params.stream_profiles[0].name == "profile_1"
+    assert profile_params.stream_profiles[0].description == "profile_1_description"
+    assert profile_params.stream_profiles[0].parameters == "videocodec=h264"
+    assert profile_params.stream_profiles[1].name == "profile_2"
+    assert profile_params.stream_profiles[1].description == "profile_2_description"
+    assert profile_params.stream_profiles[1].parameters == "videocodec=h265"
 
 
 response_param_cgi = """root.Audio.DSCP=0
@@ -1373,7 +1158,6 @@ root.Time.NTP.Server=0.0.0.0
 root.Time.NTP.VolatileServer=0.0.0.0
 root.WebService.UsernameToken.ReplayAttackProtection=yes"""
 
-
 response_param_cgi_brand = """root.Brand.Brand=AXIS
 root.Brand.ProdFullName=AXIS M1065-LW Network Camera
 root.Brand.ProdNbr=M1065-LW
@@ -1382,7 +1166,6 @@ root.Brand.ProdType=Network Camera
 root.Brand.ProdVariant=
 root.Brand.WebURL=http://www.axis.com"""
 
-
 response_param_cgi_ports = """root.Input.NbrOfInputs=1
 root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input
@@ -1390,7 +1173,6 @@ root.IOPort.I0.Input.Name=PIR sensor
 root.IOPort.I0.Input.Trig=closed
 root.Output.NbrOfOutputs=0
 """
-
 
 response_param_cgi_properties = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
 root.Properties.API.Browser.Language=yes

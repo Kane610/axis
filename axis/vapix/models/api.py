@@ -58,7 +58,27 @@ class ApiRequest(ABC):
 
     @property
     def data(self) -> dict[str, str] | None:
-        """Request data."""
+        """Request data.
+
+        In:
+          path: /axis-cgi/com/ptz.cgi
+          data: {"camera": "2", "move": "home"}
+        Out:
+          url: /axis-cgi/com/ptz.cgi
+          payload: {"camera": 2, "move": "home"}
+        """
+        return None
+
+    @property
+    def params(self) -> dict[str, str] | None:
+        """Request query parameters.
+
+        In:
+          path: /axis-cgi/io/port.cgi
+          params: {"action": "1:/"}
+        Out:
+          url: /axis-cgi/io/port.cgi?action=4%3A%5C"
+        """
         return None
 
 

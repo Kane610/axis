@@ -32,15 +32,15 @@ class TcpServerProtocol(asyncio.Protocol):
 
     def __init__(self) -> None:
         """Initialize TCP protocol server."""
-        self._response_queue = deque()
-        self.requests = []
+        self._response_queue: deque[str] = deque()
+        self.requests: list[str] = []
         self.next_request_received = asyncio.Event()
 
     def register_response(self, response: str) -> None:
         """Take a single response as an argument and queue it."""
         self._response_queue.append(response)
 
-    def register_responses(self, responses: list) -> None:
+    def register_responses(self, responses: list[str]) -> None:
         """Take a list of responses as an argument and queue them."""
         self._response_queue.extend(responses)
 
@@ -50,7 +50,7 @@ class TcpServerProtocol(asyncio.Protocol):
         print(f"Server connection from {peername}")
         self.transport = transport
 
-    def data_received(self, data) -> None:
+    def data_received(self, data: bytes) -> None:
         """Received a request from a client.
 
         If test is waiting on next request to be received it can now continue.

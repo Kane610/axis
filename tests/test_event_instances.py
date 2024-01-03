@@ -129,7 +129,7 @@ async def test_full_list_of_event_instances(event_instances):
 @respx.mock
 @pytest.mark.asyncio
 async def test_single_event_instance(
-    event_instances: EventInstances, response: bytes, expected: dict
+    event_instances: EventInstances, response: str, expected: dict
 ):
     """Verify expected outcome from different event instances."""
     respx.post(f"http://{HOST}:80{URL}").respond(

@@ -12,7 +12,7 @@ class UserGroups(ApiHandler[User]):
     """User group access rights for Axis devices."""
 
     async def _api_request(self) -> dict[str, User]:
-        """Get API data method defined by subsclass."""
+        """Get API data method defined by subclass."""
         return await self.get_user_groups()
 
     async def get_user_groups(self) -> dict[str, User]:
