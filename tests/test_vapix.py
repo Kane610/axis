@@ -14,7 +14,7 @@ from axis.vapix.interfaces.applications import (
     APPLICATION_STATE_STOPPED,
 )
 from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
-from axis.vapix.models.stream_profile import StreamProfile as StreamProfile
+from axis.vapix.models.stream_profile import StreamProfile
 from axis.vapix.vapix import Vapix
 
 from .applications.test_applications import (
