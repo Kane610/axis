@@ -1,3 +1,11 @@
+
+
+[tool.coverage.report]
+fail_under = 95
+exclude_also = [
+    "if TYPE_CHECKING:"
+]
+
 [tool.isort]
 # https://github.com/PyCQA/isort/wiki/isort-Settings
 profile = "black"
@@ -8,6 +16,7 @@ forced_separate = ["tests"]
 combine_as_imports = true
 
 [tool.pytest.ini_options]
+addopts = "--cov=axis --cov-report term-missing"
 asyncio_mode = "auto"
 log_cli = false
 log_cli_level = "DEBUG"
@@ -18,3 +27,14 @@ target-version = "py310"
 select = [
     "RUF006", # Store a reference to the return value of asyncio.create_task
 ]
+
+[tool.ruff.flake8-pytest-style]
+fixture-parentheses = false
+
+[tool.ruff.isort]
+force-sort-within-sections = true
+known-first-party = ["aiounifi"]
+combine-as-imports = true
+
+[tool.ruff.mccabe]
+max-complexity = 12

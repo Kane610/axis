@@ -1,10 +1,11 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.287
+    rev: v0.1.8
     hooks:
       - id: ruff
         args:
           - --fix
+      - id: ruff-format
   - repo: https://github.com/psf/black
     rev: 23.9.1
     hooks:
@@ -18,7 +19,7 @@ repos:
   #     - id: mypy
   #       args: [--ignore-missing-imports]
   #       exclude: ^tests/
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
+  # - repo: https://github.com/PyCQA/isort
+  #   rev: 5.12.0
+  #   hooks:
+  #     - id: isort
