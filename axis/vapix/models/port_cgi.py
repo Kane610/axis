@@ -24,9 +24,11 @@ class PortActionRequest(ApiRequest):
     <wait> = Delay before the next action. Unit: milliseconds
     Note: The :, / and \ characters must be percent-encoded in the URI.
         See Percent encoding.
+
     Example:
-        To set output 1 to active, use 1:/.
-        In the URI, the action argument becomes action=1%3A%2F
+    -------
+      To set output 1 to active, use 1:/.
+      In the URI, the action argument becomes action=1%3A%2F
     """
 
     method = "get"

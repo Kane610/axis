@@ -101,7 +101,13 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(message)s", level=loglevel)
 
     LOGGER.info(
-        f"{args.host}, {args.username}, {args.password}, {args.port}, {args.events}, {args.params}"
+        "%s, %s, %s, %s, %s, %s",
+        args.host,
+        args.username,
+        args.password,
+        args.port,
+        args.events,
+        args.params,
     )
 
     try:
@@ -117,4 +123,4 @@ if __name__ == "__main__":
         )
 
     except KeyboardInterrupt:
-        pass
+        LOGGER.info("Keyboard interrupt")
