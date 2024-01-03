@@ -37,7 +37,7 @@ async def test_full_list_of_event_instances(event_instances):
 
 
 @pytest.mark.parametrize(
-    "response,expected",
+    ("response", "expected"),
     [
         (
             EVENT_INSTANCE_PIR_SENSOR,
@@ -153,7 +153,7 @@ async def test_single_event_instance(
 
 
 @pytest.mark.parametrize(
-    "input,output",
+    ("input", "output"),
     [
         (
             {

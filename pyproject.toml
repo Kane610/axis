@@ -33,7 +33,7 @@ fixture-parentheses = false
 
 [tool.ruff.isort]
 force-sort-within-sections = true
-known-first-party = ["aiounifi"]
+known-first-party = ["axis"]
 combine-as-imports = true
 
 [tool.ruff.mccabe]

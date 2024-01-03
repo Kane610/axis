@@ -35,7 +35,7 @@ from .event_fixtures import (
 
 
 @pytest.mark.parametrize(
-    "input,expected",
+    ("input", "expected"),
     [
         (
             FIRST_MESSAGE,
@@ -257,7 +257,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
 
 
 @pytest.mark.parametrize(
-    "input,expected",
+    ("input", "expected"),
     [
         (
             FIRST_MESSAGE,

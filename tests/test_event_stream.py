@@ -58,7 +58,7 @@ def subscriber(event_manager: EventManager) -> Mock:
 
 
 @pytest.mark.parametrize(
-    "input,expected",
+    ("input", "expected"),
     [
         (
             AUDIO_INIT,
