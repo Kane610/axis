@@ -1,8 +1,9 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
+from collections.abc import Callable
 import logging
-from typing import TYPE_CHECKING, Callable, List
+from typing import TYPE_CHECKING
 
 from .rtsp import RTSPClient, Signal, State
 
@@ -29,7 +30,7 @@ class StreamManager:
         self.event = False
         self.stream: RTSPClient | None = None
 
-        self.connection_status_callback: List[Callable] = []
+        self.connection_status_callback: list[Callable] = []
         self.background_tasks: set[asyncio.Task] = set()
         self.retry_timer: asyncio.TimerHandle | None = None
 

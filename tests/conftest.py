@@ -57,7 +57,7 @@ class TcpServerProtocol(asyncio.Protocol):
         """
         message = data.decode()
         self.requests.append(message)
-        print("Server received: {!r}".format(message))
+        print(f"Server received: {message!r}")
         self.next_request_received.set()
 
     def send_response(self, response: str) -> None:
@@ -65,7 +65,7 @@ class TcpServerProtocol(asyncio.Protocol):
 
         Clear event so test can wait on next request to be received.
         """
-        print("Server response: {!r}".format(response))
+        print(f"Server response: {response!r}")
         self.transport.write(response.encode())
         self.next_request_received.clear()
 

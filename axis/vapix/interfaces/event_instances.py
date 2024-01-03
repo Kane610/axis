@@ -1,7 +1,5 @@
 """Event service and action service APIs available in Axis network device."""
 
-from typing import List
-
 from ...models.event import traverse
 from ..models.event_instance import EventInstance
 from .api import APIItems
@@ -45,7 +43,7 @@ EVENT_INSTANCE = (
 )
 
 
-def get_events(data: dict) -> List[dict]:
+def get_events(data: dict) -> list[dict]:
     """Get all events.
 
     Ignore keys with "@" while traversing structure. Indicates an attribute in value.

@@ -6,10 +6,11 @@
 
 import asyncio
 from collections import deque
+from collections.abc import Callable
 import enum
 import logging
 import socket
-from typing import Any, Callable, Deque, Dict, List
+from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,7 +182,7 @@ class RTPClient:
         def __init__(self, callback: Callable | None) -> None:
             """Signal events to subscriber using callback."""
             self.callback = callback
-            self.data: Deque[bytes] = deque()
+            self.data: deque[bytes] = deque()
             self.transport: asyncio.BaseTransport | None = None
 
         def connection_made(self, transport: asyncio.BaseTransport) -> None:
@@ -237,7 +238,7 @@ class RTSPSession:
         self.status_text: str | None = None
         self.sequence_ack: int | None = None
         self.date: str | None = None
-        self.methods_ack: List[str] | None = None
+        self.methods_ack: list[str] | None = None
         self.basic = False
         self.digest = False
         self.realm: str | None = None
@@ -251,7 +252,7 @@ class RTSPSession:
         self.transport_ack: str | None = None
         self.range: str | None = None
         self.rtp_info: str | None = None
-        self.sdp: List[str] | None = None
+        self.sdp: list[str] | None = None
         self.control_url: str | None = None
 
     @property
@@ -390,7 +391,7 @@ class RTSPMethods:
     def __init__(self, session: RTSPSession) -> None:
         """Define message methods."""
         self.session = session
-        self.message_methods: Dict[str, Callable] = {
+        self.message_methods: dict[str, Callable] = {
             "OPTIONS": self.OPTIONS,
             "DESCRIBE": self.DESCRIBE,
             "SETUP": self.SETUP,

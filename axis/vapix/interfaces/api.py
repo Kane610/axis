@@ -1,8 +1,9 @@
 """API management class and base class for the different end points."""
 
+from collections.abc import ItemsView, Iterator, KeysView, ValuesView
 import logging
 from pprint import pformat
-from typing import Any, ItemsView, Iterator, KeysView, ValuesView
+from typing import Any
 
 import attr
 
