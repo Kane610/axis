@@ -120,7 +120,7 @@ def traverse(data: dict, keys: tuple | list) -> dict:
 
 
 def extract_name_value(
-    data: dict[str, list[dict[str, str]] | dict[str, str]]
+    data: dict[str, list[dict[str, str]] | dict[str, str]],
 ) -> tuple[str, str]:
     """Extract name and value from a simple item, take first dictionary if it is a list."""
     item = data.get("SimpleItem", {})

@@ -45,6 +45,6 @@ class ObjectAnalytics(ApplicationAPIItems):
             "post",
             self.path,
             json=attr.asdict(
-                Body("getConfiguration", self.api_version),
+                Body("getConfiguration", self.api_version),  # type: ignore[call-arg]
             ),
         )

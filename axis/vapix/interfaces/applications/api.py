@@ -35,7 +35,7 @@ class ApplicationAPIItems(APIItems):
             "post",
             self.path,
             json=attr.asdict(
-                Body("getConfiguration", self.api_version),
+                Body("getConfiguration", self.api_version),  # type: ignore[call-arg]
                 filter=attr.filters.exclude(attr.fields(Body).params),
             ),
         )

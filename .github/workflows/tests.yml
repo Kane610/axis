@@ -29,12 +29,9 @@ jobs:
       - name: Lint with Flake8
         run: |
           flake8 axis
-      - name: Check formatting with Black
+      - name: Check format with Ruff
         run: |
-          black axis --check
-      - name: Check import order with isort
-        run: |
-          isort axis --check-only
+          ruff format --check axis tests
       - name: Check typing with mypy
         run: |
           mypy axis
