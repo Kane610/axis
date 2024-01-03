@@ -27,6 +27,10 @@ class Ports(ApiHandler[IOPortParam]):
         await self.vapix.params.io_port_handler.update()
         return self.process_ports()
 
+    def load_ports(self) -> None:
+        """Load ports into class."""
+        self._items = self.process_ports()
+
     def process_ports(self) -> dict[str, IOPortParam]:
         """Process ports."""
         return dict(self.vapix.params.io_port_handler.items())

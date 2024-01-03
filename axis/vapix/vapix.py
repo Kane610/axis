@@ -206,7 +206,7 @@ class Vapix:
                 tasks.append(self.params.brand_handler.update())
 
             if not self.io_port_management.supported():
-                tasks.append(self.port_cgi.update())
+                tasks.append(self.params.io_port_handler.update())
 
             if not self.stream_profiles.supported():
                 tasks.append(self.params.stream_profile_handler.update())
@@ -221,7 +221,7 @@ class Vapix:
 
         if (
             not self.light_control.supported()
-            and self.params.property_handler.get_params()["0"].light_control
+            and self.params.property_handler["0"].light_control
         ):
             try:
                 await self.light_control.update()
@@ -229,13 +229,13 @@ class Vapix:
                 pass
 
         if not self.io_port_management.supported():
-            self.port_cgi._items = self.port_cgi.process_ports()
+            self.port_cgi.load_ports()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
         self.applications = Applications(self)
         if self.params.property_handler.supported() and version.parse(
-            self.params.property_handler.get_params()["0"].embedded_development
+            self.params.property_handler["0"].embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
             try:
                 await self.applications.update()

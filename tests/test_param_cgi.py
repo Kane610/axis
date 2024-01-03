@@ -30,6 +30,7 @@ async def test_param_unused_api_request(params: Params):
         await params._api_request()
     with pytest.raises(NotImplementedError):
         await params.brand_handler._api_request()
+    assert params.brand_handler.get_params() == {}
 
 
 @respx.mock

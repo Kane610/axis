@@ -28,8 +28,8 @@ class ParamHandler(ApiHandler[ParamItemT]):
         param_handler.subscribe(self.update_params, self.parameter_group.value)
 
     def supported(self) -> bool:
-        """Is parameter supported."""
-        return self.get_params() != {}
+        """Is parameter group supported."""
+        return self.vapix.params.get_param(self.parameter_group) != {}
 
     def get_params(self) -> dict[str, ParamItemT]:
         """Retrieve parameters from param_cgi class."""
