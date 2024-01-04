@@ -4,9 +4,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any, TypeVar
-
-from typing_extensions import Self
+from typing import Any, Self, TypeVar
 
 from ..api import ApiItem, ApiRequest
 

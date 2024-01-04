@@ -5,10 +5,9 @@ information about the ports and apply product dependent configurations
 """
 
 from dataclasses import dataclass
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, Self, TypedDict
 
 import orjson
-from typing_extensions import NotRequired, Self
 
 from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 

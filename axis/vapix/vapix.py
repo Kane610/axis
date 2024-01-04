@@ -1,8 +1,9 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
+from collections.abc import Callable
 import logging
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import httpx
 from packaging import version
@@ -302,7 +303,11 @@ class Vapix:
         LOGGER.debug("%s %s", url, kwargs)
         try:
             response = await self.device.config.session.request(
-                method, url, auth=self.auth, timeout=TIME_OUT, **kwargs  # type: ignore [arg-type]
+                method,
+                url,
+                auth=self.auth,
+                timeout=TIME_OUT,
+                **kwargs,  # type: ignore [arg-type]
             )
             response.raise_for_status()
 
@@ -332,11 +337,11 @@ class Vapix:
 
         except httpx.TransportError as errc:
             LOGGER.debug("%s", errc)
-            raise RequestError("Connection error: {}".format(errc))
+            raise RequestError(f"Connection error: {errc}")
 
         except httpx.RequestError as err:
             LOGGER.debug("%s", err)
-            raise RequestError("Unknown error: {}".format(err))
+            raise RequestError(f"Unknown error: {err}")
 
         return {}
 
@@ -378,11 +383,11 @@ class Vapix:
 
         except httpx.TransportError as errc:
             LOGGER.debug("%s", errc)
-            raise RequestError("Connection error: {}".format(errc))
+            raise RequestError(f"Connection error: {errc}")
 
         except httpx.RequestError as err:
             LOGGER.debug("%s", err)
-            raise RequestError("Unknown error: {}".format(err))
+            raise RequestError(f"Unknown error: {err}")
 
         try:
             response.raise_for_status()

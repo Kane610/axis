@@ -3,8 +3,9 @@
 from dataclasses import dataclass
 import enum
 import re
+from typing import Self
 
-from typing_extensions import Self, TypedDict
+from typing_extensions import TypedDict
 
 from .api import ApiItem, ApiRequest, ApiResponse
 

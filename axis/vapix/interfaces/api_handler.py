@@ -1,15 +1,11 @@
 """API handler class and base class for an API endpoint."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable, ItemsView, Iterator, KeysView, ValuesView
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
-    ItemsView,
-    Iterator,
-    KeysView,
-    ValuesView,
 )
 
 if TYPE_CHECKING:

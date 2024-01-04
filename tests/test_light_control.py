@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import json
-from unittest.mock import MagicMock
 
 import pytest
 import respx

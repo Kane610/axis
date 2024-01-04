@@ -1,10 +1,9 @@
 """API management class and base class for the different end points."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Generic, List, TypeVar
-
-from typing_extensions import Self
+from typing import Generic, Self, TypeVar
 
 CONTEXT = "Axis library"
 
@@ -91,7 +90,7 @@ class APIItem:
         self._raw = raw
         self._request = request
 
-        self.observers: List[Callable] = []
+        self.observers: list[Callable] = []
 
     @property
     def id(self) -> str:

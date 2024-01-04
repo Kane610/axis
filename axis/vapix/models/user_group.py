@@ -4,8 +4,7 @@ Figure out what access rights an account has.
 """
 
 from dataclasses import dataclass
-
-from typing_extensions import Self
+from typing import Self
 
 from .api import ApiRequest, ApiResponse
 from .pwdgrp_cgi import User, UserGroupsT

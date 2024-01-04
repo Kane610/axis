@@ -14,7 +14,7 @@ from axis.vapix.interfaces.applications import (
     APPLICATION_STATE_STOPPED,
 )
 from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
-from axis.vapix.models.stream_profile import StreamProfile as StreamProfile
+from axis.vapix.models.stream_profile import StreamProfile
 from axis.vapix.vapix import Vapix
 
 from .applications.test_applications import (
@@ -463,7 +463,7 @@ async def test_load_user_groups_fails_when_not_supported(vapix: Vapix):
 
 
 async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix):
-    """Verify that not loading user groups still returns a proper string of vapix.access_rights."""
+    """Verify that not loading user groups still returns a proper string."""
     assert vapix.access_rights == SecondaryGroup.UNKNOWN
 
 

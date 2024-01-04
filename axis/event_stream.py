@@ -1,7 +1,8 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+from collections.abc import Callable
 import logging
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from .models.event import Event, EventOperation, EventTopic
 

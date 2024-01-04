@@ -15,26 +15,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.10
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4.5.0
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install -r requirements-test.txt
-      - name: Lint with Ruff
+          pip install .[requirements] .[requirements_test]
+      - name: Check lint with Ruff
         run: |
-          ruff check axis
-      - name: Lint with Flake8
+          ruff check axis tests
+      - name: Check format with Ruff
         run: |
-          flake8 axis
-      - name: Check formatting with Black
-        run: |
-          black axis --check
-      - name: Check import order with isort
-        run: |
-          isort axis --check-only
+          ruff format --check axis tests
       - name: Check typing with mypy
         run: |
           mypy axis

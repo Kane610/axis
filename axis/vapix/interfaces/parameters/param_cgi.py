@@ -43,7 +43,7 @@ class Params(ApiHandler[Any]):
             root.update(objects)
             self.initialized = True
 
-            for obj_id in objects.keys():
+            for obj_id in objects:
                 self.signal_subscribers(obj_id)
 
     async def update(self) -> None:
