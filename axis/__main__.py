@@ -2,11 +2,9 @@
 
 import argparse
 import asyncio
-
-# from asyncio.timeouts import timeout
+from asyncio.timeouts import timeout  # type: ignore [import]
 import logging
 
-import async_timeout
 from httpx import AsyncClient
 
 import axis
@@ -31,8 +29,7 @@ async def axis_device(
     )
 
     try:
-        # async with timeout(5):
-        async with async_timeout.timeout(5):
+        async with timeout(5):
             await device.vapix.initialize_users()
             await device.vapix.load_user_groups()
         await device.vapix.initialize_event_instances()
