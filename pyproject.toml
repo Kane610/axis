@@ -50,7 +50,7 @@ select = [
     "SIM300", # Yoda conditions. Use 'age == 42' instead of '42 == age'.
     "SIM401", # Use get from dict with default instead of an if block
     "T100", # Trace found: {name} used
-    # "T20",  # flake8-print
+    "T20",  # flake8-print
     "UP",  # pyupgrade
     "W",   # pycodestyle
 ]

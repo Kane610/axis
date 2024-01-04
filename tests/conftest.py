@@ -2,12 +2,15 @@
 
 import asyncio
 from collections import deque
+import logging
 
 from httpx import AsyncClient
 import pytest
 
 from axis.configuration import Configuration
 from axis.device import AxisDevice
+
+LOGGER = logging.getLogger(__name__)
 
 HOST = "127.0.0.1"
 USER = "root"
@@ -47,7 +50,7 @@ class TcpServerProtocol(asyncio.Protocol):
     def connection_made(self, transport) -> None:
         """Successful connection."""
         peername = transport.get_extra_info("peername")
-        print(f"Server connection from {peername}")
+        LOGGER.info("Server connection from %s", peername)
         self.transport = transport
 
     def data_received(self, data: bytes) -> None:
@@ -57,7 +60,7 @@ class TcpServerProtocol(asyncio.Protocol):
         """
         message = data.decode()
         self.requests.append(message)
-        print(f"Server received: {message!r}")
+        LOGGER.info("Server received: %s", repr(message))
         self.next_request_received.set()
 
     def send_response(self, response: str) -> None:
@@ -65,7 +68,7 @@ class TcpServerProtocol(asyncio.Protocol):
 
         Clear event so test can wait on next request to be received.
         """
-        print(f"Server response: {response!r}")
+        LOGGER.info("Server response: %s", repr(response))
         self.transport.write(response.encode())
         self.next_request_received.clear()
 

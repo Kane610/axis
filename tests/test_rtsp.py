@@ -13,7 +13,7 @@ from axis.rtsp import RTSPClient, Signal, State
 
 from .conftest import HOST, RTSP_PORT
 
-# pytestmark = pytest.mark.asyncio
+LOGGER = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -404,10 +404,10 @@ async def test_successful_connect(rtsp_server, rtsp_client):
             self.transport = transport
 
         def connection_lost(self, exc):
-            print("Connection lost.")
+            LOGGER.info("Connection lost.")
 
         def send_message(self, message: str) -> None:
-            print("Send:", message)
+            LOGGER.info("Send: %s", message)
             self.transport.sendto(message.encode())
 
     loop = asyncio.get_running_loop()
