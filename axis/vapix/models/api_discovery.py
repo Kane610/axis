@@ -3,9 +3,10 @@
 from dataclasses import dataclass
 import enum
 import logging
+from typing import NotRequired, Self
 
 import orjson
-from typing_extensions import NotRequired, Self, TypedDict
+from typing_extensions import TypedDict
 
 from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 

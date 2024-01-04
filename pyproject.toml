@@ -72,8 +72,8 @@ exclude_also = [
 # [tool.setuptools.package-data]
 # "axis" = ["py.typed"]
 
-# [tool.mypy]
-# python_version = "3.11"
+[tool.mypy]
+python_version = "3.11"
 # check_untyped_defs = true
 # disallow_any_generics = true
 # disallow_incomplete_defs = true

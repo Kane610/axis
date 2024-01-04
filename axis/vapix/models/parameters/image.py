@@ -1,9 +1,9 @@
 """Image parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
-from typing_extensions import Self, TypedDict
+from typing_extensions import TypedDict
 
 from .param_cgi import ParamItem
 

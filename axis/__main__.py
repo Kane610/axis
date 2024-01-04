@@ -2,7 +2,7 @@
 
 import argparse
 import asyncio
-from asyncio.timeouts import timeout  # type: ignore [import]
+from asyncio.timeouts import timeout
 import logging
 
 from httpx import AsyncClient

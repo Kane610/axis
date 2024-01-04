@@ -3,9 +3,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
-
-from typing_extensions import Self
+from typing import Generic, Self, TypeVar
 
 CONTEXT = "Axis library"
 

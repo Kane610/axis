@@ -2,9 +2,7 @@
 
 from dataclasses import dataclass
 import enum
-from typing import Any, TypedDict
-
-from typing_extensions import NotRequired, Self
+from typing import Any, NotRequired, Self, TypedDict
 
 from .param_cgi import ParamItem
 

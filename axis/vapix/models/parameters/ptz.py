@@ -1,9 +1,9 @@
 """PTZ parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, NotRequired, Self, cast
 
-from typing_extensions import NotRequired, Self, TypedDict
+from typing_extensions import TypedDict
 
 from .param_cgi import ParamItem
 
