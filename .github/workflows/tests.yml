@@ -26,9 +26,6 @@ jobs:
       - name: Check lint with Ruff
         run: |
           ruff check axis tests
-      - name: Lint with Flake8
-        run: |
-          flake8 axis
       - name: Check format with Ruff
         run: |
           ruff format --check axis tests
