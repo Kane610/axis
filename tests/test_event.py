@@ -333,7 +333,6 @@ def test_create_event(input: bytes, expected: tuple) -> None:
 )
 def test_parse_event_xml(input: bytes, expected: dict):
     """Verify parse_event_xml output."""
-
     with patch.object(Event, "from_dict") as mock_from_dict:
         assert Event.from_bytes(input)
         assert mock_from_dict.call_args[0][0] == expected
