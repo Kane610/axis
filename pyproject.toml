@@ -1,10 +1,76 @@
+# [build-system]
+# requires = ["setuptools==68.0.0", "wheel==0.40.0"]
+# build-backend = "setuptools.build_meta"
 
+# [project]
+# name        = "axis"
+# version     = "48"
+# license     = {text = "MIT"}
+# description = "A Python library for communicating with devices from Axis Communications"
+# readme      = "README.md"
+# authors     = [{name = "Robert Svensson", email = "Kane610@users.noreply.github.com"}]
+# keywords    = ["axis", "vapix", "homeassistant"]
+# classifiers = [
+#     "Development Status :: 5 - Production/Stable",
+#     "Intended Audience :: Developers",
+#     "License :: OSI Approved :: MIT License",
+#     "Operating System :: OS Independent",
+#     "Programming Language :: Python :: 3.10",
+#     "Topic :: Home Automation",
+# ]
+# requires-python = ">=3.10.0"
+# dependencies    = [
+#     "async_timeout>4.0",
+#     "attrs>23.2",
+#     "httpx>0.26",
+#     "orjson>3.9",
+#     "packaging>23",
+#     "xmltodict>0.13",
+# ]
+
+# [project.optional-dependencies]
+# requirements = [
+#     "async_timeout==4.0.3",
+#     "attrs==23.2.0",
+#     "httpx==0.26.0",
+#     "orjson~=3.9.5",
+#     "packaging==23.2",
+#     "xmltodict==0.13.0",
+# ]
+# requirements_test = [
+#     "mypy==1.8.0",
+#     "pytest==7.4.3",
+#     "pytest-aiohttp==1.0.5",
+#     "pytest-asyncio==0.23.2",
+#     "pytest-cov==4.1.0",
+#     "respx==0.20.2",
+#     "ruff==0.1.9",
+#     "types-orjson==3.6.2",
+#     "types-xmltodict==v0.13.0.3",
+# ]
+# requirements_dev = [
+#     "pre-commit==3.6.0"
+# ]
+
+# [project.urls]
+# "Source Code" = "https://github.com/Kane610/axis"
+# "Bug Reports" = "https://github.com/Kane610/axis/issues"
+# "Forum" = "https://community.home-assistant.io/t/axis-camera-component/"
+
+# [project.scripts]
+# aiounifi = "axis.__main__:main"
 
 [tool.coverage.report]
 fail_under = 95
 exclude_also = [
     "if TYPE_CHECKING:"
 ]
+
+# [tool.setuptools.packages.find]
+# include = ["axis*"]
+
+# [tool.setuptools.package-data]
+# "axis" = ["py.typed"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=axis --cov-report term-missing"
@@ -21,7 +87,7 @@ select = [
     "B014", # Exception handler with duplicate exception
     "B023", # Function definition does not bind loop variable {name}
     "B026", # Star-arg unpacking after a keyword argument is strongly discouraged
-    # "C",      # complexity
+    "C",      # complexity
     "COM818", # Trailing comma on bare tuple prohibited
     "D",  # docstrings
     "E",  # pycodestyle
@@ -75,4 +141,4 @@ known-first-party = ["axis"]
 combine-as-imports = true
 
 [tool.ruff.mccabe]
-max-complexity = 12
+max-complexity = 25
