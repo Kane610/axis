@@ -1,7 +1,4 @@
-"""Test Axis stream profiles API.
-
-pytest --cov-report term-missing --cov=axis.stream_profiles tests/test_stream_profiles.py
-"""
+"""Test Axis stream profiles API."""
 
 import json
 from unittest.mock import MagicMock

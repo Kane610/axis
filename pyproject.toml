@@ -24,7 +24,7 @@ select = [
     # "C",      # complexity
     "COM818", # Trailing comma on bare tuple prohibited
     "D",  # docstrings
-    #"E",  # pycodestyle
+    "E",  # pycodestyle
     "F",  # pyflakes/autoflake
     "G",  # flake8-logging-format
     "I", # isort
@@ -58,6 +58,7 @@ select = [
 ignore = [
     "D203",  # 1 blank line required before class docstring
     "D213",  # Multi-line docstring summary should start at the second line
+    "E501",  # Checks for lines that exceed the specified maximum character length
     "PLR0911",  # Too many return statements
     "PLR0912",  # Maximum number of branches allowed for a function or method body
     "PLR0913",  # Too many arguments to function call ({c_args} > {max_args})

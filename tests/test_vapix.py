@@ -463,7 +463,7 @@ async def test_load_user_groups_fails_when_not_supported(vapix: Vapix):
 
 
 async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix):
-    """Verify that not loading user groups still returns a proper string of vapix.access_rights."""
+    """Verify that not loading user groups still returns a proper string."""
     assert vapix.access_rights == SecondaryGroup.UNKNOWN
 
 
