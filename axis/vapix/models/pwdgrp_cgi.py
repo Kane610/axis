@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 import enum
-import re
 from typing import Self
 
 from typing_extensions import TypedDict
@@ -24,11 +23,6 @@ class SecondaryGroup(enum.Enum):
     VIEWER_PTZ = "viewer:ptz"
 
     UNKNOWN = "unknown"
-
-
-REGEX_USER = re.compile(r"^[A-Z0-9]{1,14}$", re.IGNORECASE)
-REGEX_PASS = re.compile(r"^[x20-x7e]{1,64}$")
-REGEX_STRING = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
 
 
 class UserGroupsT(TypedDict):
@@ -115,18 +109,22 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
             return cls(data={})
 
         data: dict[str, str] = dict(
-            group.split("=", 1) for group in string_data.splitlines()
+            group.split("=", 1) for group in string_data.replace('"', "").splitlines()
         )
 
-        user_list = ["root"] + REGEX_STRING.findall(data["users"])
+        user_list = {
+            user
+            for group in ("admin", "operator", "viewer", "ptz")
+            for user in data[group].split(",")
+        }
 
         users: list[UserGroupsT] = [
             {
                 "user": user,
-                "admin": user in REGEX_STRING.findall(data["admin"]),
-                "operator": user in REGEX_STRING.findall(data["operator"]),
-                "viewer": user in REGEX_STRING.findall(data["viewer"]),
-                "ptz": user in REGEX_STRING.findall(data["ptz"]),
+                "admin": user in data["admin"].split(","),
+                "operator": user in data["operator"].split(","),
+                "viewer": user in data["viewer"].split(","),
+                "ptz": user in data["ptz"].split(","),
             }
             for user in user_list
         ]
