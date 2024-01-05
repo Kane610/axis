@@ -3,8 +3,15 @@
 Use VAPIX® Application API to upload, control and manage applications and their license keys.
 """
 
-from ...models.applications.application import Application
+from ...models.api_discovery import ApiId
+from ...models.applications.application import (
+    App,
+    Application,
+    ListApplicationsRequest,
+    ListApplicationsResponse,
+)
 from ..api import APIItems
+from ..api_handler import ApiHandler
 
 URL = "/axis-cgi/applications"
 URL_CONTROL = f"{URL}/control.cgi"
@@ -55,3 +62,19 @@ class Applications(APIItems):
     async def list(self) -> dict:
         """Retrieve information about installed applications."""
         return await self.vapix.request("post", URL_LIST)
+
+
+class ApplicationHandler(ApiHandler[App]):
+    """API Discovery for Axis devices."""
+
+    api_id = ApiId.UNKNOWN
+
+    async def _api_request(self) -> dict[str, App]:
+        """Get default data of API discovery."""
+        return await self.get_api_list()
+
+    async def get_api_list(self) -> dict[str, App]:
+        """List all APIs registered on API Discovery service."""
+        bytes_data = await self.vapix.new_request(ListApplicationsRequest())
+        response = ListApplicationsResponse.decode(bytes_data)
+        return response.data

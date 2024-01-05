@@ -15,6 +15,7 @@ from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
     APPLICATION_STATE_RUNNING,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
+    ApplicationHandler,
     Applications,
 )
 from .interfaces.applications.fence_guard import FenceGuard
@@ -78,6 +79,8 @@ class Vapix:
 
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
+
+        self.applications_handler = ApplicationHandler(self)
 
     @property
     def firmware_version(self) -> str:
