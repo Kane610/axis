@@ -92,7 +92,7 @@ class Application(APIItem):
 class ListApplicationReplyDataT(TypedDict):
     """List of API description data."""
 
-    application: dict[str, Any]
+    application: list[dict[str, Any]]
 
 
 class ListApplicationDataT(TypedDict):
@@ -177,7 +177,8 @@ class App(ApiItem):
     @classmethod
     def decode_from_list(cls, data: ListApplicationReplyDataT) -> dict[str, Self]:
         """Decode list[dict] to list of class objects."""
-        return {k: cls.decode(v) for k, v in data.items()}
+        applications = [cls.decode(v) for v in data]
+        return {app.id: app for app in applications}
 
 
 @dataclass
@@ -197,8 +198,7 @@ class ListApplicationsResponse(ApiResponse[dict[str, App]]):
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
-        # xmltodict.parse(response.text, **(kwargs_xmltodict or {}))
         data = xmltodict.parse(bytes_data)
         return cls(
-            data=App.decode_from_list(data["reply"]),
+            data=App.decode_from_list(data["reply"]["application"]),
         )
