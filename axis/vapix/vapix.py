@@ -13,9 +13,8 @@ from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
 from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
-    APPLICATION_STATE_RUNNING,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
-    Applications,
+    ApplicationsHandler,
 )
 from .interfaces.applications.fence_guard import FenceGuard
 from .interfaces.applications.loitering_guard import LoiteringGuard
@@ -36,6 +35,7 @@ from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
 from .models.api import ApiRequest
+from .models.applications.application import ApplicationStatus
 from .models.pwdgrp_cgi import SecondaryGroup
 
 if TYPE_CHECKING:
@@ -54,7 +54,6 @@ class Vapix:
         self.device = device
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
-        self.applications: Applications | None = None
         self.event_instances: EventInstances | None = None
         self.fence_guard: FenceGuard | None = None
         self.loitering_guard: LoiteringGuard | None = None
@@ -78,6 +77,8 @@ class Vapix:
 
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
+
+        self.applications = ApplicationsHandler(self)
 
     @property
     def firmware_version(self) -> str:
@@ -234,7 +235,6 @@ class Vapix:
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        self.applications = Applications(self)
         if self.params.property_handler.supported() and version.parse(
             self.params.property_handler["0"].embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
@@ -253,9 +253,9 @@ class Vapix:
             (Vmd4, "vmd4"),
         ):
             if (
-                app_class.name in self.applications  # type: ignore[attr-defined]
-                and self.applications[app_class.name].status  # type: ignore[attr-defined]
-                == APPLICATION_STATE_RUNNING
+                app_class.name in self.applications
+                and self.applications[app_class.name].status
+                == ApplicationStatus.RUNNING
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
