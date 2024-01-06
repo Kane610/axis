@@ -9,10 +9,7 @@ import respx
 
 from axis.device import AxisDevice
 from axis.errors import MethodNotAllowed, PathNotFound, RequestError, Unauthorized
-from axis.vapix.interfaces.applications import (
-    APPLICATION_STATE_RUNNING,
-    APPLICATION_STATE_STOPPED,
-)
+from axis.vapix.models.applications.application import ApplicationStatus
 from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
 from axis.vapix.models.stream_profile import StreamProfile
 from axis.vapix.vapix import Vapix
@@ -328,7 +325,7 @@ async def test_initialize_applications_not_running(vapix: Vapix):
     )
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response.replace(
-            APPLICATION_STATE_RUNNING, APPLICATION_STATE_STOPPED
+            ApplicationStatus.RUNNING.value, ApplicationStatus.STOPPED.value
         ),
         headers={"Content-Type": "text/xml"},
     )

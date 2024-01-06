@@ -5,6 +5,7 @@ and their license keys.
 """
 
 from dataclasses import dataclass
+import enum
 from typing import Any, Literal, NotRequired, Self, TypedDict
 
 import xmltodict
@@ -18,11 +19,11 @@ class ApplicationObjectT(TypedDict):
     ApplicationID: str
     ConfigurationPage: str
     LicenseName: NotRequired[str]
-    License: str
+    License: Literal["Valid", "Invalid", "Missing", "Custom", "None"]
     LicenseExpirationDate: NotRequired[str]
     Name: str
     NiceName: str
-    Status: str
+    Status: Literal["Running", "Stopped", "Idle"]
     ValidationResult: NotRequired[str]
     Vendor: str
     VendorHomePage: str
@@ -42,6 +43,24 @@ class ListApplicationDataT(TypedDict):
     reply: NotRequired[ListApplicationReplyDataT]
 
 
+class ApplicationLicense(enum.StrEnum):
+    """Application license."""
+
+    VALID = "Valid"
+    INVALID = "Invalid"
+    MISSING = "Missing"
+    CUSTOM = "Custom"
+    NONE = "None"
+
+
+class ApplicationStatus(enum.StrEnum):
+    """Application license."""
+
+    RUNNING = "Running"
+    STOPPED = "Stopped"
+    IDLE = "Idle"
+
+
 @dataclass
 class Application(ApiItem):
     """Representation of an Application instance."""
@@ -55,7 +74,7 @@ class Application(ApiItem):
     license_name: str
     """License name."""
 
-    license_status: str
+    license_status: ApplicationLicense
     """License status of application.
 
     License status:
@@ -75,7 +94,7 @@ class Application(ApiItem):
     nice_name: str
     """Name of application."""
 
-    status: str
+    status: ApplicationStatus
     """Status of application.
 
     Application status:
@@ -104,11 +123,11 @@ class Application(ApiItem):
             application_id=data["ApplicationID"],
             configuration_page=data["ConfigurationPage"],
             license_name=data.get("LicenseName", ""),
-            license_status=data["License"],
+            license_status=ApplicationLicense(data["License"]),
             license_expiration_date=data.get("LicenseExpirationDate", ""),
             name=data["Name"],
             nice_name=data["NiceName"],
-            status=data["Status"],
+            status=ApplicationStatus(data["Status"]),
             validation_result_page=data.get("ValidationResult", ""),
             vendor=data["Vendor"],
             vendor_page=data["VendorHomePage"],

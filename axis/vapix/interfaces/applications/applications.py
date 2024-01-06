@@ -1,6 +1,7 @@
 """Application API.
 
-Use VAPIX® Application API to upload, control and manage applications and their license keys.
+Use VAPIX® Application API to upload, control and manage applications
+and their license keys.
 """
 
 from ...models.api_discovery import ApiId
@@ -11,17 +12,8 @@ from ...models.applications.application import (
 )
 from ..api_handler import ApiHandler
 
-URL = "/axis-cgi/applications"
-URL_CONTROL = f"{URL}/control.cgi"
-URL_LICENSE = f"{URL}/license.cgi"
-URL_LIST = f"{URL}/list.cgi"
-URL_UPLOAD = f"{URL}/upload.cgi"
-
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 PARAM_CGI_VALUE = "1.20"
-
-APPLICATION_STATE_RUNNING = "Running"
-APPLICATION_STATE_STOPPED = "Stopped"
 
 
 class ApplicationsHandler(ApiHandler[Application]):

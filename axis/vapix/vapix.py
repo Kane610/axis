@@ -13,7 +13,6 @@ from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
 from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
-    APPLICATION_STATE_RUNNING,
     PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
     ApplicationsHandler,
 )
@@ -36,6 +35,7 @@ from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
 from .models.api import ApiRequest
+from .models.applications.application import ApplicationStatus
 from .models.pwdgrp_cgi import SecondaryGroup
 
 if TYPE_CHECKING:
@@ -255,7 +255,7 @@ class Vapix:
             if (
                 app_class.name in self.applications
                 and self.applications[app_class.name].status
-                == APPLICATION_STATE_RUNNING
+                == ApplicationStatus.RUNNING
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
