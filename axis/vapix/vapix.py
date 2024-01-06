@@ -20,7 +20,7 @@ from .interfaces.applications.fence_guard import FenceGuard
 from .interfaces.applications.loitering_guard import LoiteringGuard
 from .interfaces.applications.motion_guard import MotionGuard
 from .interfaces.applications.object_analytics import ObjectAnalytics
-from .interfaces.applications.vmd4 import Vmd4
+from .interfaces.applications.vmd4 import Vmd4, Vmd4Handler
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import LightHandler
@@ -79,6 +79,7 @@ class Vapix:
         self.ptz = PtzControl(self)
 
         self.applications = ApplicationsHandler(self)
+        self.vmd4_handler = Vmd4Handler(self)
 
     @property
     def firmware_version(self) -> str:

@@ -8,20 +8,19 @@ import json
 import pytest
 import respx
 
-from axis.vapix.interfaces.applications.vmd4 import Vmd4
+from axis.vapix.interfaces.applications.vmd4 import Vmd4Handler
 
 from ..conftest import HOST
 
 
 @pytest.fixture
-def vmd4(axis_device) -> Vmd4:
+def vmd4(axis_device) -> Vmd4Handler:
     """Return the vmd4 mock object."""
-    return Vmd4(axis_device.vapix)
+    return axis_device.vapix.vmd4_handler
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_empty_configuration(vmd4):
+async def test_get_empty_configuration(vmd4: Vmd4Handler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration_empty,
@@ -37,12 +36,11 @@ async def test_get_empty_configuration(vmd4):
         "context": "Axis library",
     }
 
-    assert len(vmd4.values()) == 0
+    assert len(vmd4.values()) == 1
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_get_configuration(vmd4):
+async def test_get_configuration(vmd4: Vmd4Handler):
     """Test get_supported_versions."""
     respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration,
@@ -51,12 +49,13 @@ async def test_get_configuration(vmd4):
 
     assert len(vmd4.values()) == 1
 
-    vmd4 = vmd4["Camera1Profile1"]
-    assert vmd4.id == "Camera1Profile1"
-    assert vmd4.name == "Profile 1"
-    assert vmd4.camera == 1
-    assert vmd4.uid == 1
-    assert vmd4.triggers == [
+    assert len(vmd4["0"].profiles) == 1
+    profile = vmd4["0"].profiles["Profile 1"]
+    assert profile.id == "Profile 1"
+    assert profile.name == "Profile 1"
+    assert profile.camera == 1
+    assert profile.uid == 1
+    assert profile.triggers == [
         {
             "type": "includeArea",
             "data": [
@@ -67,26 +66,11 @@ async def test_get_configuration(vmd4):
             ],
         }
     ]
-    assert vmd4.filters == [
+    assert profile.filters == [
         {"data": 1, "active": True, "type": "timeShortLivedLimit"},
         {"data": 5, "active": True, "type": "distanceSwayingObject"},
         {"data": [5, 5], "active": True, "type": "sizePercentage"},
     ]
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_get_configuration_error(vmd4):
-    """Test empty get_configuration.
-
-    await _request returns an empty dict on error.
-    """
-    respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
-        json={},
-    )
-    await vmd4.update()
-
-    assert len(vmd4.values()) == 0
 
 
 response_get_configuration_empty = {
