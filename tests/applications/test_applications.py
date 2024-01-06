@@ -6,20 +6,19 @@ pytest --cov-report term-missing --cov=axis.applications.applications tests/appl
 import pytest
 import respx
 
-from axis.vapix.interfaces.applications import Applications
+from axis.vapix.interfaces.applications import ApplicationsHandler
 
 from ..conftest import HOST
 
 
 @pytest.fixture
-def applications(axis_device) -> Applications:
+def applications(axis_device) -> ApplicationsHandler:
     """Return the applications mock object."""
-    return Applications(axis_device.vapix)
+    return axis_device.vapix.applications
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_no_application(applications):
+async def test_update_no_application(applications: ApplicationsHandler):
     """Test update applicatios call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=list_application_empty_response,
@@ -33,8 +32,7 @@ async def test_update_no_application(applications):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_single_application(applications):
+async def test_update_single_application(applications: ApplicationsHandler):
     """Test update applications call."""
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=list_application_response,
@@ -60,8 +58,7 @@ async def test_update_single_application(applications):
 
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_update_multiple_applications(applications):
+async def test_update_multiple_applications(applications: ApplicationsHandler):
     """Test update applicatios call."""
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=list_applications_response,
@@ -170,51 +167,6 @@ async def test_update_multiple_applications(applications):
     assert app.vendor == "Axis Communications"
     assert app.vendor_page == "http://www.axis.com"
     assert app.version == "2.2-6"
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_list_single_application(applications):
-    """Test list applications call.
-
-    Single application is sent as a dict, multiple applications are sent in a list.
-    """
-    list_route = respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
-        text=list_application_response,
-        headers={"Content-Type": "text/xml"},
-    )
-    raw = await applications.list()
-
-    assert list_route.calls.last.request.method == "POST"
-    assert list_route.calls.last.request.url.path == "/axis-cgi/applications/list.cgi"
-
-    assert "reply" in raw
-    assert "application" in raw["reply"]
-    assert raw["reply"]["application"]["@NiceName"] == "AXIS Video Motion Detection"
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_list_multiple_applications(applications):
-    """Test list applications call.
-
-    Single application is sent as a dict, multiple applications are sent in a list.
-    """
-    respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
-        text=list_applications_response,
-        headers={"Content-Type": "text/xml"},
-    )
-    raw = await applications.list()
-
-    assert "reply" in raw
-    assert "application" in raw["reply"]
-    assert raw["reply"]["application"][0]["@NiceName"] == "AXIS Remote Access solution"
-    assert raw["reply"]["application"][1]["@NiceName"] == "AXIS Video Motion Detection"
-    assert raw["reply"]["application"][2]["@NiceName"] == "AXIS Door Station Notifier"
-    assert raw["reply"]["application"][3]["@NiceName"] == "AXIS Video Motion Detection"
-    assert raw["reply"]["application"][4]["@NiceName"] == "AXIS Fence Guard"
-    assert raw["reply"]["application"][5]["@NiceName"] == "AXIS Loitering Guard"
-    assert raw["reply"]["application"][6]["@NiceName"] == "AXIS Motion Guard"
 
 
 list_application_empty_response = """<reply result="ok">

@@ -313,7 +313,7 @@ async def test_initialize_applications_unauthorized(vapix: Vapix):
     await vapix.initialize_param_cgi()
     await vapix.initialize_applications()
 
-    assert vapix.applications
+    assert len(vapix.applications) == 0
 
 
 @respx.mock
