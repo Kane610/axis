@@ -236,12 +236,22 @@ class Vapix:
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
+
+        async def do_api_request(api: ApiHandler) -> bool:
+            """Try update of API."""
+            try:
+                await api.update()
+                return True
+            except Unauthorized:  # Probably a viewer account
+                pass
+            return False
+            # except NotImplementedError:
+            #     pass
+
         if self.params.property_handler.supported() and version.parse(
             self.params.property_handler["0"].embedded_development
         ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
-            try:
-                await self.applications.update()
-            except Unauthorized:  # Probably a viewer account
+            if not await do_api_request(self.applications):
                 return
 
         tasks = []
@@ -251,7 +261,6 @@ class Vapix:
             (LoiteringGuard, "loitering_guard"),
             (MotionGuard, "motion_guard"),
             (ObjectAnalytics, "object_analytics"),
-            (Vmd4, "vmd4"),
         ):
             if (
                 app_class.name in self.applications
@@ -259,6 +268,14 @@ class Vapix:
                 == ApplicationStatus.RUNNING
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
+
+        for app, app_id in ((self.vmd4_handler, "vmd"),):
+            if (
+                application := self.applications.get(app_id)
+            ) and application.status == ApplicationStatus.RUNNING:
+                # if not api.supported():
+                #     continue
+                tasks.append(do_api_request(app))  # type: ignore [arg-type]
 
         if tasks:
             await asyncio.gather(*tasks)
