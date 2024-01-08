@@ -2,9 +2,7 @@
 
 import attr
 
-from ...models.api_discovery import ApiId
 from ..api import APIItems, Body
-from ..api_handler import ApiHandler
 
 
 class ApplicationAPIItems(APIItems):
@@ -40,9 +38,3 @@ class ApplicationAPIItems(APIItems):
                 filter=attr.filters.exclude(attr.fields(Body).params),
             ),
         )
-
-
-class ApplicationHandler(ApiHandler):
-    """Generic application handler."""
-
-    api_id = ApiId.UNKNOWN

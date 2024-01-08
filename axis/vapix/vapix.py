@@ -78,7 +78,7 @@ class Vapix:
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
 
-        self.applications = ApplicationsHandler(self)
+        self.applications: ApplicationsHandler = ApplicationsHandler(self)
         self.vmd4_handler = Vmd4Handler(self)
 
     @property
@@ -269,12 +269,8 @@ class Vapix:
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
-        for app, app_id in ((self.vmd4_handler, "vmd"),):
-            if (
-                application := self.applications.get(app_id)
-            ) and application.status == ApplicationStatus.RUNNING:
-                # if not api.supported():
-                #     continue
+        for app in (self.vmd4_handler,):
+            if app.supported():
                 tasks.append(do_api_request(app))  # type: ignore [arg-type]
 
         if tasks:

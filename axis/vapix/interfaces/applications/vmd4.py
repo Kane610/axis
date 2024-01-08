@@ -7,8 +7,8 @@ from ...models.applications.vmd4 import (
     GetConfigurationRequest,
     GetConfigurationResponse,
 )
-from ..api_handler import ApiHandler
 from .api import ApplicationAPIItems
+from .application_handler import ApplicationHandler
 
 URL = "/local/vmd/control.cgi"
 
@@ -30,10 +30,11 @@ class Vmd4(ApplicationAPIItems):
     path = URL
 
 
-class Vmd4Handler(ApiHandler[Configuration]):
+class Vmd4Handler(ApplicationHandler[Configuration]):
     """VMD4 handler for Axis devices."""
 
     api_id = ApiId.UNKNOWN
+    app_name = "vmd"
 
     async def _api_request(self) -> dict[str, Configuration]:
         """Get default configuration."""
