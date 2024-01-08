@@ -6,21 +6,19 @@ import logging
 from typing import TYPE_CHECKING
 
 import httpx
-from packaging import version
 import xmltodict
 
 from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
 from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
-    PARAM_CGI_VALUE as APPLICATIONS_MINIMUM_VERSION,
     ApplicationsHandler,
 )
 from .interfaces.applications.fence_guard import FenceGuard
 from .interfaces.applications.loitering_guard import LoiteringGuard
 from .interfaces.applications.motion_guard import MotionGuard
 from .interfaces.applications.object_analytics import ObjectAnalytics
-from .interfaces.applications.vmd4 import Vmd4, Vmd4Handler
+from .interfaces.applications.vmd4 import Vmd4Handler
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
 from .interfaces.light_control import LightHandler
@@ -59,7 +57,6 @@ class Vapix:
         self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
         self.object_analytics: ObjectAnalytics | None = None
-        self.vmd4: Vmd4 | None = None
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
@@ -79,7 +76,7 @@ class Vapix:
         self.ptz = PtzControl(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
-        self.vmd4_handler = Vmd4Handler(self)
+        self.vmd4 = Vmd4Handler(self)
 
     @property
     def firmware_version(self) -> str:
@@ -241,18 +238,14 @@ class Vapix:
             """Try update of API."""
             try:
                 await api.update()
-                return True
             except Unauthorized:  # Probably a viewer account
                 pass
-            return False
-            # except NotImplementedError:
-            #     pass
+            return api.initialized
 
-        if self.params.property_handler.supported() and version.parse(
-            self.params.property_handler["0"].embedded_development
-        ) >= version.parse(APPLICATIONS_MINIMUM_VERSION):
-            if not await do_api_request(self.applications):
-                return
+        if self.applications.supported() and not await do_api_request(
+            self.applications
+        ):
+            return
 
         tasks = []
 
@@ -269,7 +262,7 @@ class Vapix:
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
-        for app in (self.vmd4_handler,):
+        for app in (self.vmd4,):
             if app.supported():
                 tasks.append(do_api_request(app))  # type: ignore [arg-type]
 

@@ -107,7 +107,7 @@ class Configuration(ApiItem):
     def decode(cls, data: ConfigurationDataT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id="VMD4",
+            id="vmd4",
             cameras=data["cameras"],
             profiles=ProfileConfiguration.decode_from_list(data["profiles"]),
             configuration_status=data["configurationStatus"],

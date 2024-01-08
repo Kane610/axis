@@ -1,39 +1,16 @@
 """VMD4 API."""
 
-from ...models.api_discovery import ApiId
-from ...models.applications.api import ApplicationAPIItem
 from ...models.applications.vmd4 import (
     Configuration,
     GetConfigurationRequest,
     GetConfigurationResponse,
 )
-from .api import ApplicationAPIItems
 from .application_handler import ApplicationHandler
-
-URL = "/local/vmd/control.cgi"
-
-API_VERSION = "1.2"
-
-APPLICATION_NAME = "vmd"
-
-PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
-PARAM_CGI_VALUE = "2.12"
-
-
-class Vmd4(ApplicationAPIItems):
-    """VMD4 on Axis devices."""
-
-    api_version = API_VERSION
-    name = APPLICATION_NAME
-
-    item_cls = ApplicationAPIItem
-    path = URL
 
 
 class Vmd4Handler(ApplicationHandler[Configuration]):
     """VMD4 handler for Axis devices."""
 
-    api_id = ApiId.UNKNOWN
     app_name = "vmd"
 
     async def _api_request(self) -> dict[str, Configuration]:
