@@ -236,15 +236,15 @@ class Vapix:
 
         async def do_api_request(api: ApiHandler) -> bool:
             """Try update of API."""
+            if not api.supported():
+                return False
             try:
                 await api.update()
             except Unauthorized:  # Probably a viewer account
                 pass
             return api.initialized
 
-        if self.applications.supported() and not await do_api_request(
-            self.applications
-        ):
+        if not await do_api_request(self.applications):
             return
 
         tasks = []
@@ -263,8 +263,7 @@ class Vapix:
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
         for app in (self.vmd4,):
-            if app.supported():
-                tasks.append(do_api_request(app))  # type: ignore [arg-type]
+            tasks.append(do_api_request(app))  # type: ignore [arg-type]
 
         if tasks:
             await asyncio.gather(*tasks)
