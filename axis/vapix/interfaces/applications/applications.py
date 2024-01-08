@@ -15,7 +15,7 @@ from ...models.applications.application import (
 from ..api_handler import ApiHandler
 
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
-MINIMUM_VERSION = PARAM_CGI_VALUE = "1.20"
+MINIMUM_VERSION = "1.20"
 
 
 class ApplicationsHandler(ApiHandler[Application]):
