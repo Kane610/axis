@@ -1,5 +1,6 @@
 """Base class for applications."""
 
+
 from ..api import APIItem
 
 

@@ -4,6 +4,8 @@ Use VAPIX® Application API to upload, control and manage applications
 and their license keys.
 """
 
+from packaging import version
+
 from ...models.api_discovery import ApiId
 from ...models.applications.application import (
     Application,
@@ -13,13 +15,23 @@ from ...models.applications.application import (
 from ..api_handler import ApiHandler
 
 PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
-PARAM_CGI_VALUE = "1.20"
+MINIMUM_VERSION = "1.20"
 
 
 class ApplicationsHandler(ApiHandler[Application]):
     """API Discovery for Axis devices."""
 
     api_id = ApiId.UNKNOWN
+
+    def supported(self) -> bool:
+        """Is application supported and in a usable state."""
+        if self.vapix.params.property_handler.supported() and (
+            prop := self.vapix.params.property_handler["0"]
+        ):
+            return version.parse(prop.embedded_development) >= version.parse(
+                MINIMUM_VERSION
+            )
+        return False
 
     async def _api_request(self) -> dict[str, Application]:
         """Get default data of API discovery."""

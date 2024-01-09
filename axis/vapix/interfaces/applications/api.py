@@ -1,6 +1,5 @@
 """Base classes for applications."""
 
-
 import attr
 
 from ..api import APIItems, Body

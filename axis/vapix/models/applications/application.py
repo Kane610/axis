@@ -6,7 +6,7 @@ and their license keys.
 
 from dataclasses import dataclass
 import enum
-from typing import Any, Literal, NotRequired, Self, TypedDict
+from typing import Literal, NotRequired, Self, TypedDict
 
 import xmltodict
 
@@ -116,7 +116,7 @@ class Application(ApiItem):
     """Version of application."""
 
     @classmethod
-    def decode(cls, data: Any) -> Self:
+    def decode(cls, data: ApplicationObjectT) -> Self:
         """Decode dict to class object."""
         return cls(
             id=data["Name"],

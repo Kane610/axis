@@ -112,7 +112,7 @@ async def test_initialize(vapix: Vapix):
     assert vapix.fence_guard
     assert vapix.loitering_guard
     assert vapix.motion_guard
-    assert vapix.vmd4
+    assert len(vapix.vmd4) == 1
 
 
 @respx.mock
@@ -273,7 +273,7 @@ async def test_initialize_applications(vapix: Vapix):
     assert vapix.fence_guard
     assert vapix.loitering_guard
     assert vapix.motion_guard
-    assert vapix.vmd4
+    assert len(vapix.vmd4.values()) == 1
 
     assert vapix.applications
     assert len(vapix.applications.values()) == 7
@@ -288,9 +288,6 @@ async def test_initialize_applications(vapix: Vapix):
     assert "Camera1Profile1" in vapix.motion_guard
 
     assert vapix.object_analytics is None
-
-    assert len(vapix.vmd4.values()) == 1
-    assert "Camera1Profile1" in vapix.vmd4
 
 
 @respx.mock
@@ -335,7 +332,7 @@ async def test_initialize_applications_not_running(vapix: Vapix):
 
     assert vapix.fence_guard is None
     assert vapix.motion_guard is None
-    assert vapix.vmd4 is None
+    assert not vapix.vmd4.initialized
 
 
 @respx.mock
