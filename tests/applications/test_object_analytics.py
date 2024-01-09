@@ -8,19 +8,26 @@ import json
 import pytest
 import respx
 
-from axis.vapix.interfaces.applications.object_analytics import ObjectAnalytics
+from axis.vapix.interfaces.applications.object_analytics import (
+    ObjectAnalyticsHandler,
+)
 
 from ..conftest import HOST
 
 
 @pytest.fixture
-def object_analytics(axis_device) -> ObjectAnalytics:
+def object_analytics(axis_device) -> ObjectAnalyticsHandler:
     """Return the object analytics mock object."""
-    return ObjectAnalytics(axis_device.vapix)
+    return axis_device.vapix.object_analytics_handler
+
+
+# @pytest.fixture
+# def object_analytics(axis_device) -> ObjectAnalytics:
+#     """Return the object analytics mock object."""
+#     return ObjectAnalytics(axis_device.vapix)
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_no_configuration(object_analytics):
     """Test no response from get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
@@ -42,7 +49,6 @@ async def test_get_no_configuration(object_analytics):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_empty_configuration(object_analytics):
     """Test empty get_configuration."""
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
@@ -54,7 +60,6 @@ async def test_get_empty_configuration(object_analytics):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_configuration(object_analytics):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(

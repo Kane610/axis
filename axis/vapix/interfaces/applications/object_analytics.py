@@ -5,8 +5,14 @@ AXIS Object Analytics.
 
 import attr
 
-from ...models.applications.object_analytics import ObjectAnalyticsScenario
+from ...models.applications.object_analytics import (
+    Configuration,
+    GetConfigurationRequest,
+    GetConfigurationResponse,
+    ObjectAnalyticsScenario,
+)
 from .api import ApplicationAPIItems, Body
+from .application_handler import ApplicationHandler
 
 URL = "/local/objectanalytics/control.cgi"
 
@@ -48,3 +54,19 @@ class ObjectAnalytics(ApplicationAPIItems):
                 Body("getConfiguration", self.api_version),  # type: ignore[call-arg]
             ),
         )
+
+
+class ObjectAnalyticsHandler(ApplicationHandler[Configuration]):
+    """Object analytics handler for Axis devices."""
+
+    app_name = "objectanalytics"
+
+    async def _api_request(self) -> dict[str, Configuration]:
+        """Get default configuration."""
+        return {"0": await self.get_configuration()}
+
+    async def get_configuration(self) -> Configuration:
+        """Get configuration of object analytics application."""
+        bytes_data = await self.vapix.new_request(GetConfigurationRequest())
+        response = GetConfigurationResponse.decode(bytes_data)
+        return response.data
