@@ -62,8 +62,13 @@ class ProfileConfiguration(ApiItem):
     name: str
     """Nice name of profile."""
 
-    perspective: list[dict[str, Any]] | None
-    """Perspective for improve triggers based on heights."""
+    presets: list[int]
+    """For mechanical PTZ cameras, each profile can be connected to one preset.
+
+    If a preset is added, the profile will only be active when the camera is at
+    the given preset. If this parameter is omitted or the profile is not connected
+    to any preset it will always be active.
+    """
 
     triggers: list[dict[str, Any]]
     """Array of triggers."""
@@ -79,7 +84,7 @@ class ProfileConfiguration(ApiItem):
             camera=data["camera"],
             filters=data["filters"],
             name=data["name"],
-            perspective=data.get("perspective"),
+            presets=data.get("presets", []),
             triggers=data["triggers"],
             uid=data["uid"],
         )
