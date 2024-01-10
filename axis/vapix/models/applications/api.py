@@ -3,6 +3,8 @@
 
 from ..api import APIItem
 
+API_VERSION = "1.3"
+
 
 class ApplicationAPIItem(APIItem):
     """Base class for application profiles."""

@@ -6,8 +6,15 @@ when it detects a moving object, such as a person or vehicle, crossing a user-de
 virtual line.
 """
 
+
 from ...models.applications.api import ApplicationAPIItem
+from ...models.applications.fence_guard import (
+    Configuration,
+    GetConfigurationRequest,
+    GetConfigurationResponse,
+)
 from .api import ApplicationAPIItems
+from .application_handler import ApplicationHandler
 
 URL = "/local/fenceguard/control.cgi"
 
@@ -27,3 +34,19 @@ class FenceGuard(ApplicationAPIItems):
 
     item_cls = ApplicationAPIItem
     path = URL
+
+
+class FenceGuardHandler(ApplicationHandler[Configuration]):
+    """Fence guard handler for Axis devices."""
+
+    app_name = "fenceguard"
+
+    async def _api_request(self) -> dict[str, Configuration]:
+        """Get default configuration."""
+        return {"0": await self.get_configuration()}
+
+    async def get_configuration(self) -> Configuration:
+        """Get configuration of VMD4 application."""
+        bytes_data = await self.vapix.new_request(GetConfigurationRequest())
+        response = GetConfigurationResponse.decode(bytes_data)
+        return response.data

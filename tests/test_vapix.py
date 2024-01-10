@@ -109,7 +109,7 @@ async def test_initialize(vapix: Vapix):
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
 
-    assert vapix.fence_guard
+    assert len(vapix.fence_guard) == 1
     assert vapix.loitering_guard
     assert vapix.motion_guard
     assert len(vapix.vmd4) == 1
@@ -270,7 +270,7 @@ async def test_initialize_applications(vapix: Vapix):
     await vapix.initialize_param_cgi()
     await vapix.initialize_applications()
 
-    assert vapix.fence_guard
+    # assert vapix.fence_guard
     assert vapix.loitering_guard
     assert vapix.motion_guard
     assert len(vapix.vmd4.values()) == 1
@@ -278,15 +278,13 @@ async def test_initialize_applications(vapix: Vapix):
     assert vapix.applications
     assert len(vapix.applications.values()) == 7
 
-    assert len(vapix.fence_guard.values()) == 1
-    assert "Camera1Profile1" in vapix.fence_guard
-
     assert len(vapix.loitering_guard.values()) == 1
     assert "Camera1Profile1" in vapix.loitering_guard
 
     assert len(vapix.motion_guard.values()) == 1
     assert "Camera1Profile1" in vapix.motion_guard
 
+    assert len(vapix.fence_guard) == 1
     assert len(vapix.object_analytics) == 0
 
 
@@ -330,7 +328,7 @@ async def test_initialize_applications_not_running(vapix: Vapix):
     await vapix.initialize_param_cgi()
     await vapix.initialize_applications()
 
-    assert vapix.fence_guard is None
+    assert not vapix.fence_guard.initialized
     assert vapix.motion_guard is None
     assert not vapix.vmd4.initialized
 

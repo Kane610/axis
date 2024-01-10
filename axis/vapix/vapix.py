@@ -14,7 +14,7 @@ from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
     ApplicationsHandler,
 )
-from .interfaces.applications.fence_guard import FenceGuard
+from .interfaces.applications.fence_guard import FenceGuardHandler
 from .interfaces.applications.loitering_guard import LoiteringGuard
 from .interfaces.applications.motion_guard import MotionGuard
 from .interfaces.applications.object_analytics import (
@@ -55,7 +55,6 @@ class Vapix:
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.event_instances: EventInstances | None = None
-        self.fence_guard: FenceGuard | None = None
         self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
 
@@ -77,6 +76,7 @@ class Vapix:
         self.ptz = PtzControl(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
+        self.fence_guard = FenceGuardHandler(self)
         self.object_analytics = ObjectAnalyticsHandler(self)
         self.vmd4 = Vmd4Handler(self)
 
@@ -252,7 +252,6 @@ class Vapix:
         tasks = []
 
         for app_class, app_attr in (
-            (FenceGuard, "fence_guard"),
             (LoiteringGuard, "loitering_guard"),
             (MotionGuard, "motion_guard"),
         ):
@@ -263,7 +262,7 @@ class Vapix:
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
-        for app in (self.object_analytics, self.vmd4):
+        for app in (self.fence_guard, self.object_analytics, self.vmd4):
             tasks.append(do_api_request(app))  # type: ignore [arg-type]
 
         if tasks:
