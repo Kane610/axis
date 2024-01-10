@@ -1,7 +1,7 @@
 """Object Analytics API data model."""
 
 from dataclasses import dataclass
-from typing import Any, NotRequired, Self, TypedDict
+from typing import Any, Literal, NotRequired, Self, TypedDict
 
 import orjson
 
@@ -49,7 +49,7 @@ class ConfigurationDeviceDataT(TypedDict):
     """Device configuration data from response."""
 
     id: int
-    type: str
+    type: Literal["camera"]
     rotation: int
     isActive: bool
 
@@ -74,7 +74,7 @@ class ConfigurationScenarioDataT(TypedDict):
 
     id: int
     name: str
-    type: str
+    type: Literal["crosslinecounting", "fence", "motion", "occupancyInArea"]
     metadataOverlay: int
     alarmRate: str
     devices: list
