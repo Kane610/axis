@@ -6,7 +6,7 @@ and triggers an alarm if they have been in a predefined area for too long.
 
 
 from ...models.applications.api import ApplicationAPIItem
-from ...models.applications.vmd4 import (
+from ...models.applications.loitering_guard import (
     Configuration,
     GetConfigurationRequest,
     GetConfigurationResponse,

@@ -8,15 +8,15 @@ import json
 import pytest
 import respx
 
-from axis.vapix.interfaces.applications.loitering_guard import LoiteringGuard
+from axis.vapix.interfaces.applications.loitering_guard import LoiteringGuardHandler
 
 from ..conftest import HOST
 
 
 @pytest.fixture
-def loitering_guard(axis_device) -> LoiteringGuard:
+def loitering_guard(axis_device) -> LoiteringGuardHandler:
     """Return the loitering guard mock object."""
-    return LoiteringGuard(axis_device.vapix)
+    return axis_device.vapix.loitering_guard
 
 
 @respx.mock
@@ -37,7 +37,7 @@ async def test_get_empty_configuration(loitering_guard):
         "context": "Axis library",
     }
 
-    assert len(loitering_guard.values()) == 0
+    assert len(loitering_guard.values()) == 1
 
 
 @respx.mock
@@ -51,17 +51,18 @@ async def test_get_configuration(loitering_guard):
 
     assert len(loitering_guard.values()) == 1
 
-    profile1 = loitering_guard["Camera1Profile1"]
-    assert profile1.id == "Camera1Profile1"
-    assert profile1.name == "Profile 1"
-    assert profile1.camera == 1
-    assert profile1.uid == 1
-    assert profile1.filters == [
+    assert len(loitering_guard["0"].profiles) == 1
+    profile = loitering_guard["0"].profiles["Profile 1"]
+    assert profile.id == "Profile 1"
+    assert profile.name == "Profile 1"
+    assert profile.camera == 1
+    assert profile.uid == 1
+    assert profile.filters == [
         {"active": True, "data": [5, 5], "type": "sizePercentage"},
         {"active": True, "data": 5, "type": "distanceSwayingObject"},
     ]
-    assert profile1.perspective is None
-    assert profile1.triggers == [
+    assert profile.perspective == []
+    assert profile.triggers == [
         {
             "type": "loiteringArea",
             "data": [

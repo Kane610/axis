@@ -15,7 +15,9 @@ from .interfaces.applications import (
     ApplicationsHandler,
 )
 from .interfaces.applications.fence_guard import FenceGuardHandler
-from .interfaces.applications.loitering_guard import LoiteringGuard
+from .interfaces.applications.loitering_guard import (
+    LoiteringGuardHandler,
+)
 from .interfaces.applications.motion_guard import MotionGuard
 from .interfaces.applications.object_analytics import (
     ObjectAnalyticsHandler,
@@ -55,7 +57,6 @@ class Vapix:
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.event_instances: EventInstances | None = None
-        self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
 
         self.users = Users(self)
@@ -77,6 +78,7 @@ class Vapix:
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
         self.fence_guard = FenceGuardHandler(self)
+        self.loitering_guard = LoiteringGuardHandler(self)
         self.object_analytics = ObjectAnalyticsHandler(self)
         self.vmd4 = Vmd4Handler(self)
 
@@ -251,10 +253,7 @@ class Vapix:
 
         tasks = []
 
-        for app_class, app_attr in (
-            (LoiteringGuard, "loitering_guard"),
-            (MotionGuard, "motion_guard"),
-        ):
+        for app_class, app_attr in ((MotionGuard, "motion_guard"),):
             if (
                 app_class.name in self.applications
                 and self.applications[app_class.name].status
@@ -262,7 +261,12 @@ class Vapix:
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
-        for app in (self.fence_guard, self.object_analytics, self.vmd4):
+        for app in (
+            self.fence_guard,
+            self.loitering_guard,
+            self.object_analytics,
+            self.vmd4,
+        ):
             tasks.append(do_api_request(app))  # type: ignore [arg-type]
 
         if tasks:
