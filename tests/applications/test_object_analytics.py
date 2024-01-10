@@ -33,7 +33,8 @@ async def test_get_no_configuration(object_analytics):
     route = respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json={},
     )
-    await object_analytics.update()
+    with pytest.raises(KeyError):
+        await object_analytics.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -42,7 +43,6 @@ async def test_get_no_configuration(object_analytics):
         "method": "getConfiguration",
         "apiVersion": "1.0",
         "context": "Axis library",
-        "params": {},
     }
 
     assert len(object_analytics.values()) == 0
@@ -56,7 +56,7 @@ async def test_get_empty_configuration(object_analytics):
     )
     await object_analytics.update()
 
-    assert len(object_analytics.values()) == 0
+    assert len(object_analytics.values()) == 1
 
 
 @respx.mock
@@ -67,54 +67,60 @@ async def test_get_configuration(object_analytics):
     )
     await object_analytics.update()
 
-    assert len(object_analytics.values()) == 2
+    assert len(object_analytics.values()) == 1
+    configuration = object_analytics["0"]
 
-    scenario1 = object_analytics["Device1Scenario1"]
-    assert scenario1.id == "Device1Scenario1"
-    assert scenario1.name == "Scenario 1"
-    assert scenario1.camera == [{"id": 1}]
-    assert scenario1.uid == 1
-    assert scenario1.filters == [
-        {"distance": 5, "type": "distanceSwayingObject"},
-        {"time": 1, "type": "timeShortLivedLimit"},
-        {"height": 3, "type": "sizePercentage", "width": 3},
-    ]
-    assert scenario1.object_classifications == []
-    assert scenario1.perspectives == []
-    assert scenario1.presets == []
-    assert scenario1.triggers == [
+    assert configuration.id == "object analytics"
+    assert configuration.devices == [{"id": 1, "rotation": 180, "type": "camera"}]
+    assert configuration.metadata_overlay == []
+    assert configuration.perspectives == []
+    assert configuration.scenarios == [
         {
-            "type": "includeArea",
-            "vertices": [
-                [-0.97, -0.97],
-                [-0.97, 0.97],
-                [0.97, 0.97],
-                [0.97, -0.97],
+            "devices": [{"id": 1}],
+            "filters": [
+                {"distance": 5, "type": "distanceSwayingObject"},
+                {"time": 1, "type": "timeShortLivedLimit"},
+                {"height": 3, "type": "sizePercentage", "width": 3},
             ],
-        }
-    ]
-    assert scenario1.trigger_type == "motion"
-
-    scenario2 = object_analytics["Device1Scenario2"]
-    assert scenario2.id == "Device1Scenario2"
-    assert scenario2.name == "Scenario 2"
-    assert scenario2.camera == [{"id": 1}]
-    assert scenario2.uid == 2
-    assert scenario2.filters == [
-        {"time": 1, "type": "timeShortLivedLimit"},
-        {"height": 3, "type": "sizePercentage", "width": 3},
-    ]
-    assert scenario2.object_classifications == [{"type": "human"}]
-    assert scenario2.perspectives == []
-    assert scenario2.presets == []
-    assert scenario2.triggers == [
+            "id": 1,
+            "name": "Scenario 1",
+            "objectClassifications": [],
+            "perspectives": [],
+            "presets": [],
+            "triggers": [
+                {
+                    "type": "includeArea",
+                    "vertices": [
+                        [-0.97, -0.97],
+                        [-0.97, 0.97],
+                        [0.97, 0.97],
+                        [0.97, -0.97],
+                    ],
+                }
+            ],
+            "type": "motion",
+        },
         {
-            "alarmDirection": "leftToRight",
+            "devices": [{"id": 1}],
+            "filters": [
+                {"time": 1, "type": "timeShortLivedLimit"},
+                {"height": 3, "type": "sizePercentage", "width": 3},
+            ],
+            "id": 2,
+            "name": "Scenario 2",
+            "objectClassifications": [{"type": "human"}],
+            "perspectives": [],
+            "presets": [],
+            "triggers": [
+                {
+                    "alarmDirection": "leftToRight",
+                    "type": "fence",
+                    "vertices": [[0, -0.7], [0, 0.7]],
+                }
+            ],
             "type": "fence",
-            "vertices": [[0, -0.7], [0, 0.7]],
-        }
+        },
     ]
-    assert scenario2.trigger_type == "fence"
 
 
 response_get_configuration_empty = {

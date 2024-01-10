@@ -69,9 +69,9 @@ class ConfigurationDataT(TypedDict):
     """Configuration data from response."""
 
     devices: list
-    metadataOverlay: dict
+    metadataOverlay: list
     perspective: NotRequired[list]
-    scenarios: dict
+    scenarios: list
 
 
 class GetConfigurationResponseT(TypedDict):
@@ -138,13 +138,13 @@ class Configuration(ApiItem):
     devices: list
     """Container for the supported video devices."""
 
-    metadata_overlay: dict
+    metadata_overlay: list
     """Container for the metadata overlay options."""
 
-    perspective: list
+    perspectives: list
     """Container for the perspective data."""
 
-    scenarios: dict
+    scenarios: list
     """Container for the scenario data."""
 
     @classmethod
@@ -154,7 +154,7 @@ class Configuration(ApiItem):
             id="object analytics",
             devices=data["devices"],
             metadata_overlay=data["metadataOverlay"],
-            perspective=data.get("perspective", []),
+            perspectives=data.get("perspective", []),
             scenarios=data["scenarios"],
         )
 
