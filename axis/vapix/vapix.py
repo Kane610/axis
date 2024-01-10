@@ -17,7 +17,9 @@ from .interfaces.applications import (
 from .interfaces.applications.fence_guard import FenceGuard
 from .interfaces.applications.loitering_guard import LoiteringGuard
 from .interfaces.applications.motion_guard import MotionGuard
-from .interfaces.applications.object_analytics import ObjectAnalytics
+from .interfaces.applications.object_analytics import (
+    ObjectAnalyticsHandler,
+)
 from .interfaces.applications.vmd4 import Vmd4Handler
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
 from .interfaces.event_instances import EventInstances
@@ -56,7 +58,6 @@ class Vapix:
         self.fence_guard: FenceGuard | None = None
         self.loitering_guard: LoiteringGuard | None = None
         self.motion_guard: MotionGuard | None = None
-        self.object_analytics: ObjectAnalytics | None = None
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
@@ -76,6 +77,7 @@ class Vapix:
         self.ptz = PtzControl(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
+        self.object_analytics = ObjectAnalyticsHandler(self)
         self.vmd4 = Vmd4Handler(self)
 
     @property
@@ -253,7 +255,6 @@ class Vapix:
             (FenceGuard, "fence_guard"),
             (LoiteringGuard, "loitering_guard"),
             (MotionGuard, "motion_guard"),
-            (ObjectAnalytics, "object_analytics"),
         ):
             if (
                 app_class.name in self.applications
@@ -262,7 +263,7 @@ class Vapix:
             ):
                 tasks.append(self._initialize_api_attribute(app_class, app_attr))
 
-        for app in (self.vmd4,):
+        for app in (self.object_analytics, self.vmd4):
             tasks.append(do_api_request(app))  # type: ignore [arg-type]
 
         if tasks:

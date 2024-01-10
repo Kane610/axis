@@ -287,7 +287,7 @@ async def test_initialize_applications(vapix: Vapix):
     assert len(vapix.motion_guard.values()) == 1
     assert "Camera1Profile1" in vapix.motion_guard
 
-    assert vapix.object_analytics is None
+    assert len(vapix.object_analytics) == 0
 
 
 @respx.mock
