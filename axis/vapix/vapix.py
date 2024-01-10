@@ -18,7 +18,7 @@ from .interfaces.applications.fence_guard import FenceGuardHandler
 from .interfaces.applications.loitering_guard import (
     LoiteringGuardHandler,
 )
-from .interfaces.applications.motion_guard import MotionGuard
+from .interfaces.applications.motion_guard import MotionGuardHandler
 from .interfaces.applications.object_analytics import (
     ObjectAnalyticsHandler,
 )
@@ -37,7 +37,6 @@ from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
 from .models.api import ApiRequest
-from .models.applications.application import ApplicationStatus
 from .models.pwdgrp_cgi import SecondaryGroup
 
 if TYPE_CHECKING:
@@ -57,7 +56,6 @@ class Vapix:
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.event_instances: EventInstances | None = None
-        self.motion_guard: MotionGuard | None = None
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
@@ -79,6 +77,7 @@ class Vapix:
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
         self.fence_guard = FenceGuardHandler(self)
         self.loitering_guard = LoiteringGuardHandler(self)
+        self.motion_guard = MotionGuardHandler(self)
         self.object_analytics = ObjectAnalyticsHandler(self)
         self.vmd4 = Vmd4Handler(self)
 
@@ -251,23 +250,16 @@ class Vapix:
         if not await do_api_request(self.applications):
             return
 
-        tasks = []
-
-        for app_class, app_attr in ((MotionGuard, "motion_guard"),):
-            if (
-                app_class.name in self.applications
-                and self.applications[app_class.name].status
-                == ApplicationStatus.RUNNING
-            ):
-                tasks.append(self._initialize_api_attribute(app_class, app_attr))
-
-        for app in (
-            self.fence_guard,
-            self.loitering_guard,
-            self.object_analytics,
-            self.vmd4,
-        ):
-            tasks.append(do_api_request(app))  # type: ignore [arg-type]
+        tasks = [
+            do_api_request(app)  # type: ignore [arg-type]
+            for app in (
+                self.fence_guard,
+                self.loitering_guard,
+                self.motion_guard,
+                self.object_analytics,
+                self.vmd4,
+            )
+        ]
 
         if tasks:
             await asyncio.gather(*tasks)

@@ -7,7 +7,7 @@ moves within predefined areas in a camera’s field of view.
 
 
 from ...models.applications.api import ApplicationAPIItem
-from ...models.applications.vmd4 import (
+from ...models.applications.motion_guard import (
     Configuration,
     GetConfigurationRequest,
     GetConfigurationResponse,
