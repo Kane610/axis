@@ -250,19 +250,14 @@ class Vapix:
         if not await do_api_request(self.applications):
             return
 
-        tasks = [
-            do_api_request(app)  # type: ignore [arg-type]
-            for app in (
-                self.fence_guard,
-                self.loitering_guard,
-                self.motion_guard,
-                self.object_analytics,
-                self.vmd4,
-            )
-        ]
-
-        if tasks:
-            await asyncio.gather(*tasks)
+        apps: tuple[ApiHandler, ...] = (
+            self.fence_guard,
+            self.loitering_guard,
+            self.motion_guard,
+            self.object_analytics,
+            self.vmd4,
+        )
+        await asyncio.gather(*[do_api_request(app) for app in apps])
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
