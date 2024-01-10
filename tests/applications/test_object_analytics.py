@@ -18,13 +18,7 @@ from ..conftest import HOST
 @pytest.fixture
 def object_analytics(axis_device) -> ObjectAnalyticsHandler:
     """Return the object analytics mock object."""
-    return axis_device.vapix.object_analytics_handler
-
-
-# @pytest.fixture
-# def object_analytics(axis_device) -> ObjectAnalytics:
-#     """Return the object analytics mock object."""
-#     return ObjectAnalytics(axis_device.vapix)
+    return axis_device.vapix.object_analytics
 
 
 @respx.mock
