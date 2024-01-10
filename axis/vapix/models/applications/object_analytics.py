@@ -45,33 +45,53 @@ class ObjectAnalyticsScenario(ApplicationAPIItem):
         return self.raw["id"]
 
 
-class CameraConfigurationDataT(TypedDict):
-    """Camera configuration data from response."""
+class ConfigurationDeviceDataT(TypedDict):
+    """Device configuration data from response."""
 
-    active: bool
     id: int
+    type: str
     rotation: int
+    isActive: bool
 
 
-class ProfileConfigurationDataT(TypedDict):
-    """Profile configuration data from response."""
+class ConfigurationMetadataOverlayDataT(TypedDict):
+    """Metadata overlay configuration data from response."""
 
-    camera: int
-    filters: list[dict[str, Any]]
+    id: int
+    drawOnAllResolutions: bool
+    resolutions: list[str]
+
+
+class ConfigurationPerspectiveDataT(TypedDict):
+    """Perspective configuration data from response."""
+
+    id: int
+    bars: list
+
+
+class ConfigurationScenarioDataT(TypedDict):
+    """Scenario configuration data from response."""
+
+    id: int
     name: str
-    perspective: list[dict[str, Any]] | None
-    presets: NotRequired[list[int]]
-    triggers: list[dict[str, Any]]
-    uid: int
+    type: str
+    metadataOverlay: int
+    alarmRate: str
+    devices: list
+    filters: list
+    objectClassifications: list
+    perspectives: list
+    presets: list
+    triggers: list
 
 
 class ConfigurationDataT(TypedDict):
     """Configuration data from response."""
 
-    devices: list
-    metadataOverlay: list
-    perspective: NotRequired[list]
-    scenarios: list
+    devices: list[ConfigurationDeviceDataT]
+    metadataOverlay: list[ConfigurationMetadataOverlayDataT]
+    perspective: NotRequired[list[ConfigurationPerspectiveDataT]]
+    scenarios: list[ConfigurationScenarioDataT]
 
 
 class GetConfigurationResponseT(TypedDict):
@@ -125,7 +145,7 @@ class ProfileConfiguration(ApiItem):
         )
 
     @classmethod
-    def decode_from_list(cls, data: list[ProfileConfigurationDataT]) -> dict[str, Self]:
+    def decode_from_list(cls, data: list[ConfigurationDeviceDataT]) -> dict[str, Self]:
         """Decode list[dict] to list of class objects."""
         applications = [cls.decode(v) for v in data]
         return {app.id: app for app in applications}
@@ -135,16 +155,16 @@ class ProfileConfiguration(ApiItem):
 class Configuration(ApiItem):
     """Object analytics configuration."""
 
-    devices: list
+    devices: list[ConfigurationDeviceDataT]
     """Container for the supported video devices."""
 
-    metadata_overlay: list
+    metadata_overlay: list[ConfigurationMetadataOverlayDataT]
     """Container for the metadata overlay options."""
 
-    perspectives: list
+    perspectives: list[ConfigurationPerspectiveDataT]
     """Container for the perspective data."""
 
-    scenarios: list
+    scenarios: list[ConfigurationScenarioDataT]
     """Container for the scenario data."""
 
     @classmethod
