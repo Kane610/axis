@@ -1,7 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
-from collections.abc import Callable
 import logging
 from typing import TYPE_CHECKING
 
@@ -146,33 +145,25 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
-    async def _initialize_api_attribute(
-        self, api_class: Callable, api_attr: str
-    ) -> None:
-        """Initialize API and load data."""
-        api_instance = api_class(self)
+    async def do_api_request(self, api: ApiHandler, skip_support_check=False) -> bool:
+        """Try update of API."""
+        if not skip_support_check and not api.supported():
+            return False
         try:
-            await api_instance.update()
+            await api.update()
         except Unauthorized:  # Probably a viewer account
-            pass
-        else:
-            setattr(self, api_attr, api_instance)
+            return False
+        except NotImplementedError:
+            return False
+        except PathNotFound:  # Device doesn't support the endpoint
+            # Only API discovery should do this
+            return False
+        return api.initialized
 
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        try:
-            await self.api_discovery.update()
-        except PathNotFound:  # Device doesn't support API discovery
+        if not await self.do_api_request(self.api_discovery, skip_support_check=True):
             return
-
-        async def do_api_request(api: ApiHandler) -> None:
-            """Try update of API."""
-            try:
-                await api.update()
-            except Unauthorized:  # Probably a viewer account
-                pass
-            except NotImplementedError:
-                pass
 
         apis: tuple[ApiHandler, ...] = (
             self.basic_device_info,
@@ -183,16 +174,7 @@ class Vapix:
             self.stream_profiles,
             self.view_areas,
         )
-
-        tasks = []
-
-        for api in apis:
-            if not api.supported():
-                continue
-            tasks.append(do_api_request(api))
-
-        if tasks:
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*[self.do_api_request(api) for api in apis])
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
@@ -236,18 +218,7 @@ class Vapix:
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-
-        async def do_api_request(api: ApiHandler) -> bool:
-            """Try update of API."""
-            if not api.supported():
-                return False
-            try:
-                await api.update()
-            except Unauthorized:  # Probably a viewer account
-                pass
-            return api.initialized
-
-        if not await do_api_request(self.applications):
+        if not await self.do_api_request(self.applications):
             return
 
         apps: tuple[ApiHandler, ...] = (
@@ -257,11 +228,17 @@ class Vapix:
             self.object_analytics,
             self.vmd4,
         )
-        await asyncio.gather(*[do_api_request(app) for app in apps])
+        await asyncio.gather(*[self.do_api_request(app) for app in apps])
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self._initialize_api_attribute(EventInstances, "event_instances")
+        event_instances = EventInstances(self)
+        try:
+            await event_instances.update()
+        except Unauthorized:  # Probably a viewer account
+            pass
+        else:
+            self.event_instances = event_instances
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
