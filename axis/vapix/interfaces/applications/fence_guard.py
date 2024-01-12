@@ -6,7 +6,7 @@ when it detects a moving object, such as a person or vehicle, crossing a user-de
 virtual line.
 """
 
-
+from ...models.applications.application import ApplicationName
 from ...models.applications.fence_guard import (
     Configuration,
     GetConfigurationRequest,
@@ -18,7 +18,7 @@ from .application_handler import ApplicationHandler
 class FenceGuardHandler(ApplicationHandler[Configuration]):
     """Fence guard handler for Axis devices."""
 
-    app_name = "fenceguard"
+    app_name = ApplicationName.FENCE_GUARD
 
     async def _api_request(self) -> dict[str, Configuration]:
         """Get default configuration."""
