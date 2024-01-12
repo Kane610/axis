@@ -145,24 +145,9 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
-    async def do_api_request(self, api: ApiHandler, skip_support_check=False) -> bool:
-        """Try update of API."""
-        if not skip_support_check and not api.supported():
-            return False
-        try:
-            await api.update()
-        except Unauthorized:  # Probably a viewer account
-            return False
-        except NotImplementedError:
-            return False
-        except PathNotFound:  # Device doesn't support the endpoint
-            # Only API discovery should do this
-            return False
-        return api.initialized
-
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        if not await self.do_api_request(self.api_discovery, skip_support_check=True):
+        if not await self.api_discovery.do_update(skip_support_check=True):
             return
 
         apis: tuple[ApiHandler, ...] = (
@@ -174,7 +159,7 @@ class Vapix:
             self.stream_profiles,
             self.view_areas,
         )
-        await asyncio.gather(*[self.do_api_request(api) for api in apis])
+        await asyncio.gather(*[api.do_update() for api in apis])
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
@@ -208,17 +193,14 @@ class Vapix:
             not self.light_control.supported()
             and self.params.property_handler["0"].light_control
         ):
-            try:
-                await self.light_control.update()
-            except Unauthorized:  # Probably a viewer account
-                pass
+            await self.light_control.do_update(skip_support_check=True)
 
         if not self.io_port_management.supported():
             self.port_cgi.load_ports()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        if not await self.do_api_request(self.applications):
+        if not await self.applications.do_update():
             return
 
         apps: tuple[ApiHandler, ...] = (
@@ -228,7 +210,7 @@ class Vapix:
             self.object_analytics,
             self.vmd4,
         )
-        await asyncio.gather(*[self.do_api_request(app) for app in apps])
+        await asyncio.gather(*[app.do_update() for app in apps])
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""

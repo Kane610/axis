@@ -8,6 +8,8 @@ from typing import (
     Generic,
 )
 
+from ...errors import Unauthorized
+
 if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
     from ..vapix import Vapix
@@ -78,6 +80,16 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         self.vapix = vapix
         self._items: dict[str, ApiItemT] = {}
         self.initialized = False
+
+    async def do_update(self, skip_support_check=False) -> bool:
+        """Try update of API."""
+        if not skip_support_check and not self.supported():
+            return False
+        try:
+            await self.update()
+        except Unauthorized:  # Probably a viewer account
+            return False
+        return self.initialized
 
     def supported(self) -> bool:
         """Is API supported by the device."""
