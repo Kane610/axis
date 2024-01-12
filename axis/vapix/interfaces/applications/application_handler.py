@@ -1,5 +1,7 @@
 """API handler for applications."""
 
+from abc import abstractmethod
+
 from ...models.api import ApiItemT
 from ...models.api_discovery import ApiId
 from ...models.applications.application import ApplicationName, ApplicationStatus
@@ -17,3 +19,11 @@ class ApplicationHandler(ApiHandler[ApiItemT]):
         if app := self.vapix.applications.get(self.app_name):
             return app.status == ApplicationStatus.RUNNING
         return False
+
+    async def _api_request(self) -> dict[str, ApiItemT]:
+        """Get default configuration."""
+        return {"0": await self.get_configuration()}
+
+    @abstractmethod
+    async def get_configuration(self) -> ApiItemT:
+        """Get default configuration."""

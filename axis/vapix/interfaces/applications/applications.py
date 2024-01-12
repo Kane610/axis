@@ -14,7 +14,6 @@ from ...models.applications.application import (
 )
 from ..api_handler import ApiHandler
 
-PARAM_CGI_KEY = "Properties.EmbeddedDevelopment.Version"
 MINIMUM_VERSION = "1.20"
 
 
@@ -26,9 +25,9 @@ class ApplicationsHandler(ApiHandler[Application]):
     def supported(self) -> bool:
         """Is application supported and in a usable state."""
         if self.vapix.params.property_handler.supported() and (
-            prop := self.vapix.params.property_handler["0"]
+            properties := self.vapix.params.property_handler["0"]
         ):
-            return version.parse(prop.embedded_development) >= version.parse(
+            return version.parse(properties.embedded_development) >= version.parse(
                 MINIMUM_VERSION
             )
         return False
