@@ -43,6 +43,16 @@ class ListApplicationDataT(TypedDict):
     reply: NotRequired[ListApplicationReplyDataT]
 
 
+class ApplicationName(enum.StrEnum):
+    """Application name."""
+
+    FENCE_GUARD = "fenceguard"
+    LOITERING_GUARD = "loiteringguard"
+    MOTION_GUARD = "motionguard"
+    OBJECT_ANALYTICS = "objectanalytics"
+    VMD4 = "vmd"
+
+
 class ApplicationLicense(enum.StrEnum):
     """Application license."""
 

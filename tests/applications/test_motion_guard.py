@@ -8,20 +8,20 @@ import json
 import pytest
 import respx
 
-from axis.vapix.interfaces.applications.motion_guard import MotionGuard
+from axis.vapix.interfaces.applications.motion_guard import MotionGuardHandler
 
 from ..conftest import HOST
 
 
 @pytest.fixture
-def motion_guard(axis_device) -> MotionGuard:
+def motion_guard(axis_device) -> MotionGuardHandler:
     """Return the motion guard mock object."""
-    return MotionGuard(axis_device.vapix)
+    return axis_device.vapix.motion_guard
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_empty_configuration(motion_guard):
+async def test_get_empty_configuration(motion_guard: MotionGuardHandler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration_empty,
@@ -37,12 +37,12 @@ async def test_get_empty_configuration(motion_guard):
         "context": "Axis library",
     }
 
-    assert len(motion_guard.values()) == 0
+    assert len(motion_guard.values()) == 1
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_configuration(motion_guard):
+async def test_get_configuration(motion_guard: MotionGuardHandler):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration,
@@ -51,12 +51,13 @@ async def test_get_configuration(motion_guard):
 
     assert len(motion_guard.values()) == 1
 
-    profile1 = motion_guard["Camera1Profile1"]
-    assert profile1.id == "Camera1Profile1"
-    assert profile1.name == "Profile 1"
-    assert profile1.camera == 1
-    assert profile1.uid == 1
-    assert profile1.filters == [
+    assert len(motion_guard["0"].profiles) == 1
+    profile = motion_guard["0"].profiles["Profile 1"]
+    assert profile.id == "Profile 1"
+    assert profile.name == "Profile 1"
+    assert profile.camera == 1
+    assert profile.uid == 1
+    assert profile.filters == [
         {"active": True, "data": 1, "type": "timeShortLivedLimit"},
         {"active": True, "data": 5, "type": "distanceSwayingObject"},
         {"active": True, "data": [5, 5], "type": "sizePercentage"},
@@ -67,11 +68,11 @@ async def test_get_configuration(motion_guard):
             "areHumansSelected": True,
         },
     ]
-    assert profile1.perspective == [
+    assert profile.perspective == [
         {"data": [[-0.7715, -0.1182], [-0.7715, 0.0824]], "height": 65, "type": "bar"},
         {"data": [[0.2833, -0.8853], [0.2833, 0.5287]], "height": 193, "type": "bar"},
     ]
-    assert profile1.triggers == [
+    assert profile.triggers == [
         {
             "data": [
                 [-0.5544, -0.7951],

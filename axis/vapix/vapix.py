@@ -1,7 +1,6 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
-from collections.abc import Callable
 import logging
 from typing import TYPE_CHECKING
 
@@ -14,9 +13,11 @@ from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
     ApplicationsHandler,
 )
-from .interfaces.applications.fence_guard import FenceGuard
-from .interfaces.applications.loitering_guard import LoiteringGuard
-from .interfaces.applications.motion_guard import MotionGuard
+from .interfaces.applications.fence_guard import FenceGuardHandler
+from .interfaces.applications.loitering_guard import (
+    LoiteringGuardHandler,
+)
+from .interfaces.applications.motion_guard import MotionGuardHandler
 from .interfaces.applications.object_analytics import (
     ObjectAnalyticsHandler,
 )
@@ -35,7 +36,6 @@ from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
 from .models.api import ApiRequest
-from .models.applications.application import ApplicationStatus
 from .models.pwdgrp_cgi import SecondaryGroup
 
 if TYPE_CHECKING:
@@ -55,9 +55,6 @@ class Vapix:
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.event_instances: EventInstances | None = None
-        self.fence_guard: FenceGuard | None = None
-        self.loitering_guard: LoiteringGuard | None = None
-        self.motion_guard: MotionGuard | None = None
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
@@ -77,6 +74,9 @@ class Vapix:
         self.ptz = PtzControl(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
+        self.fence_guard = FenceGuardHandler(self)
+        self.loitering_guard = LoiteringGuardHandler(self)
+        self.motion_guard = MotionGuardHandler(self)
         self.object_analytics = ObjectAnalyticsHandler(self)
         self.vmd4 = Vmd4Handler(self)
 
@@ -145,33 +145,10 @@ class Vapix:
         await self.initialize_param_cgi(preload_data=False)
         await self.initialize_applications()
 
-    async def _initialize_api_attribute(
-        self, api_class: Callable, api_attr: str
-    ) -> None:
-        """Initialize API and load data."""
-        api_instance = api_class(self)
-        try:
-            await api_instance.update()
-        except Unauthorized:  # Probably a viewer account
-            pass
-        else:
-            setattr(self, api_attr, api_instance)
-
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        try:
-            await self.api_discovery.update()
-        except PathNotFound:  # Device doesn't support API discovery
+        if not await self.api_discovery.do_update(skip_support_check=True):
             return
-
-        async def do_api_request(api: ApiHandler) -> None:
-            """Try update of API."""
-            try:
-                await api.update()
-            except Unauthorized:  # Probably a viewer account
-                pass
-            except NotImplementedError:
-                pass
 
         apis: tuple[ApiHandler, ...] = (
             self.basic_device_info,
@@ -182,16 +159,7 @@ class Vapix:
             self.stream_profiles,
             self.view_areas,
         )
-
-        tasks = []
-
-        for api in apis:
-            if not api.supported():
-                continue
-            tasks.append(do_api_request(api))
-
-        if tasks:
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*[api.do_update() for api in apis])
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
@@ -225,53 +193,34 @@ class Vapix:
             not self.light_control.supported()
             and self.params.property_handler["0"].light_control
         ):
-            try:
-                await self.light_control.update()
-            except Unauthorized:  # Probably a viewer account
-                pass
+            await self.light_control.do_update(skip_support_check=True)
 
         if not self.io_port_management.supported():
             self.port_cgi.load_ports()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-
-        async def do_api_request(api: ApiHandler) -> bool:
-            """Try update of API."""
-            if not api.supported():
-                return False
-            try:
-                await api.update()
-            except Unauthorized:  # Probably a viewer account
-                pass
-            return api.initialized
-
-        if not await do_api_request(self.applications):
+        if not await self.applications.do_update():
             return
 
-        tasks = []
-
-        for app_class, app_attr in (
-            (FenceGuard, "fence_guard"),
-            (LoiteringGuard, "loitering_guard"),
-            (MotionGuard, "motion_guard"),
-        ):
-            if (
-                app_class.name in self.applications
-                and self.applications[app_class.name].status
-                == ApplicationStatus.RUNNING
-            ):
-                tasks.append(self._initialize_api_attribute(app_class, app_attr))
-
-        for app in (self.object_analytics, self.vmd4):
-            tasks.append(do_api_request(app))  # type: ignore [arg-type]
-
-        if tasks:
-            await asyncio.gather(*tasks)
+        apps: tuple[ApiHandler, ...] = (
+            self.fence_guard,
+            self.loitering_guard,
+            self.motion_guard,
+            self.object_analytics,
+            self.vmd4,
+        )
+        await asyncio.gather(*[app.do_update() for app in apps])
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self._initialize_api_attribute(EventInstances, "event_instances")
+        event_instances = EventInstances(self)
+        try:
+            await event_instances.update()
+        except Unauthorized:  # Probably a viewer account
+            pass
+        else:
+            self.event_instances = event_instances
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

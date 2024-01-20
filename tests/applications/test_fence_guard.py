@@ -8,20 +8,20 @@ import json
 import pytest
 import respx
 
-from axis.vapix.interfaces.applications.fence_guard import FenceGuard
+from axis.vapix.interfaces.applications.fence_guard import FenceGuardHandler
 
 from ..conftest import HOST
 
 
 @pytest.fixture
-def fence_guard(axis_device) -> FenceGuard:
+def fence_guard(axis_device) -> FenceGuardHandler:
     """Return the fence guard mock object."""
-    return FenceGuard(axis_device.vapix)
+    return axis_device.vapix.fence_guard
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_empty_configuration(fence_guard):
+async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration_empty,
@@ -37,12 +37,12 @@ async def test_get_empty_configuration(fence_guard):
         "context": "Axis library",
     }
 
-    assert len(fence_guard.values()) == 0
+    assert len(fence_guard.values()) == 1
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_get_configuration(fence_guard):
+async def test_get_configuration(fence_guard: FenceGuardHandler):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration,
@@ -51,17 +51,18 @@ async def test_get_configuration(fence_guard):
 
     assert len(fence_guard.values()) == 1
 
-    profile1 = fence_guard["Camera1Profile1"]
-    assert profile1.id == "Camera1Profile1"
-    assert profile1.name == "Profile 1"
-    assert profile1.camera == 1
-    assert profile1.uid == 1
-    assert profile1.filters == [
+    assert len(fence_guard["0"].profiles) == 1
+    profile = fence_guard["0"].profiles["Profile 1"]
+    assert profile.id == "Profile 1"
+    assert profile.name == "Profile 1"
+    assert profile.camera == 1
+    assert profile.uid == 1
+    assert profile.filters == [
         {"active": True, "data": [5, 5], "type": "sizePercentage"},
         {"active": True, "data": 1, "type": "timeShortLivedLimit"},
     ]
-    assert profile1.perspective is None
-    assert profile1.triggers == [
+    assert profile.perspective == []
+    assert profile.triggers == [
         {
             "type": "fence",
             "data": [[0.0, -0.7], [0.0, 0.7]],
