@@ -159,12 +159,12 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
         """Prepare API description dictionary."""
-        kwargs_xmltodict = {
-            "dict_constructor": dict,  # Use dict rather than ordered_dict
-            "namespaces": NAMESPACES,  # Replace or remove defined namespaces
-            "process_namespaces": True,
-        }
-        data = xmltodict.parse(bytes_data, **(kwargs_xmltodict or {}))
+        data = xmltodict.parse(
+            bytes_data,
+            dict_constructor=dict,  # Use dict rather than ordered_dict
+            namespaces=NAMESPACES,  # Replace or remove defined namespaces
+            process_namespaces=True,
+        )
         raw_events = traverse(data, EVENT_INSTANCE)  # Move past the irrelevant keys
         event_list = get_events(raw_events)  # Create topic/data dictionary of events
         return cls(data={event["topic"]: event for event in event_list})
