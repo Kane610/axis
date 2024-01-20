@@ -23,7 +23,7 @@ from .interfaces.applications.object_analytics import (
 )
 from .interfaces.applications.vmd4 import Vmd4Handler
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
-from .interfaces.event_instances import EventInstances
+from .interfaces.event_instances import EventInstanceHandler
 from .interfaces.light_control import LightHandler
 from .interfaces.mqtt import MqttClientHandler
 from .interfaces.parameters.param_cgi import Params
@@ -54,7 +54,8 @@ class Vapix:
         self.device = device
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
-        self.event_instances: EventInstances | None = None
+        # self.event_instances: EventInstances | None = None
+        self.event_instances = EventInstanceHandler(self)
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
@@ -214,13 +215,17 @@ class Vapix:
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        event_instances = EventInstances(self)
-        try:
-            await event_instances.update()
-        except Unauthorized:  # Probably a viewer account
-            pass
-        else:
-            self.event_instances = event_instances
+        await self.event_instances.do_update(skip_support_check=True)
+
+    # async def initialize_event_instances(self) -> None:
+    #     """Initialize event instances of what events are supported by the device."""
+    #     event_instances = EventInstances(self)
+    #     try:
+    #         await event_instances.update()
+    #     except Unauthorized:  # Probably a viewer account
+    #         pass
+    #     else:
+    #         self.event_instances = event_instances
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
@@ -317,6 +322,7 @@ class Vapix:
         path: str,
         content: bytes | None = None,
         data: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
@@ -329,6 +335,7 @@ class Vapix:
                 url,
                 content=content,
                 data=data,
+                headers=headers,
                 params=params,
                 auth=self.auth,
                 timeout=TIME_OUT,

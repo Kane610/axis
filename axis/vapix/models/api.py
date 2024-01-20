@@ -69,6 +69,11 @@ class ApiRequest(ABC):
         return None
 
     @property
+    def headers(self) -> dict[str, str] | None:
+        """Request headers."""
+        return None
+
+    @property
     def params(self) -> dict[str, str] | None:
         """Request query parameters.
 
