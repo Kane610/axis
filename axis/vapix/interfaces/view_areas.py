@@ -37,7 +37,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
     async def list_view_areas(self) -> ListViewAreasT:
         """List all view areas of device."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        bytes_data = await self.vapix.new_request(
+        bytes_data = await self.vapix.api_request(
             ListViewAreasRequest(discovery_item.version)
         )
         response = ListViewAreasResponse.decode(bytes_data)
@@ -50,7 +50,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Method: POST
         """
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        bytes_data = await self.vapix.new_request(
+        bytes_data = await self.vapix.api_request(
             SetGeometryRequest(
                 id=id,
                 geometry=geometry,
@@ -67,7 +67,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Method: POST
         """
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        bytes_data = await self.vapix.new_request(
+        bytes_data = await self.vapix.api_request(
             ResetGeometryRequest(id=id, api_version=discovery_item.version)
         )
         response = ListViewAreasResponse.decode(bytes_data)
@@ -75,12 +75,12 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        bytes_data = await self.vapix.new_request(GetSupportedVersionsRequest())
+        bytes_data = await self.vapix.api_request(GetSupportedVersionsRequest())
         response = GetSupportedVersionsResponse.decode(bytes_data)
         return response.data
 
     async def get_supported_config_versions(self) -> list[str]:
         """List supported configure API versions."""
-        bytes_data = await self.vapix.new_request(GetSupportedConfigVersionsRequest())
+        bytes_data = await self.vapix.api_request(GetSupportedConfigVersionsRequest())
         response = GetSupportedVersionsResponse.decode(bytes_data)
         return response.data

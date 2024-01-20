@@ -74,24 +74,24 @@ class MqttClientHandler(ApiHandler[Any]):
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        await self.vapix.new_request(
+        await self.vapix.api_request(
             ConfigureClientRequest(discovery_item.version, client_config=client_config)
         )
 
     async def activate(self) -> None:
         """Activate MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        await self.vapix.new_request(ActivateClientRequest(discovery_item.version))
+        await self.vapix.api_request(ActivateClientRequest(discovery_item.version))
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        await self.vapix.new_request(DeactivateClientRequest(discovery_item.version))
+        await self.vapix.api_request(DeactivateClientRequest(discovery_item.version))
 
     async def get_client_status(self) -> ClientConfigStatus:
         """Get MQTT Client status."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        bytes_data = await self.vapix.new_request(
+        bytes_data = await self.vapix.api_request(
             GetClientStatusRequest(discovery_item.version)
         )
         response = GetClientStatusResponse.decode(bytes_data)
@@ -100,7 +100,7 @@ class MqttClientHandler(ApiHandler[Any]):
     async def get_event_publication_config(self) -> EventPublicationConfig:
         """Get MQTT Client event publication config."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        bytes_data = await self.vapix.new_request(
+        bytes_data = await self.vapix.api_request(
             GetEventPublicationConfigRequest(discovery_item.version)
         )
         response = GetEventPublicationConfigResponse.decode(bytes_data)
@@ -115,6 +115,6 @@ class MqttClientHandler(ApiHandler[Any]):
             [{"topicFilter": topic} for topic in topics]
         )
         config = EventPublicationConfig(event_filter_list=event_filters)
-        await self.vapix.new_request(
+        await self.vapix.api_request(
             ConfigureEventPublicationRequest(discovery_item.version, config=config)
         )
