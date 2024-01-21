@@ -246,6 +246,7 @@ class Vapix:
             path=api_request.path,
             content=api_request.content,
             data=api_request.data,
+            headers=api_request.headers,
             params=api_request.params,
         )
 
