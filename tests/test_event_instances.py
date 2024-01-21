@@ -25,7 +25,6 @@ def event_instances(axis_device) -> EventInstanceHandler:
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_full_list_of_event_instances(event_instances):
     """Test loading of event instances work."""
     respx.post(f"http://{HOST}:80/vapix/services").respond(
@@ -128,7 +127,6 @@ async def test_full_list_of_event_instances(event_instances):
     ],
 )
 @respx.mock
-@pytest.mark.asyncio
 async def test_single_event_instance(
     event_instances: EventInstanceHandler, response: str, expected: dict
 ):

@@ -20,7 +20,6 @@ def fence_guard(axis_device) -> FenceGuardHandler:
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
@@ -41,7 +40,6 @@ async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_configuration(fence_guard: FenceGuardHandler):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
