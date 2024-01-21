@@ -14,9 +14,12 @@ EVENT_INSTANCE = (
     "GetEventInstancesResponse",
     "TopicSet",
 )
+
 # Namespace filter for xmltodict
 NAMESPACES = {
     "http://docs.oasis-open.org/wsn/t-1": None,
+    # "http://www.onvif.org/ver10/topics": "onvif",
+    # "http://www.axis.com/2009/event/topics": "axis",
     "http://www.onvif.org/ver10/topics": "tns1",
     "http://www.axis.com/2009/event/topics": "tnsaxis",
     "http://www.axis.com/vapix/ws/event1": None,
