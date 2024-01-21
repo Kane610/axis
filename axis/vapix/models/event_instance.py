@@ -6,7 +6,7 @@ from typing import Any, Self
 import xmltodict
 
 from ...models.event import traverse
-from .api import APIItem, ApiRequest, ApiResponse
+from .api import ApiItem, ApiRequest, ApiResponse
 
 EVENT_INSTANCE = (
     "http://www.w3.org/2003/05/soap-envelope:Envelope",
@@ -23,7 +23,7 @@ NAMESPACES = {
 }
 
 
-def get_events(data: dict) -> list[dict]:
+def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
     """Get all events.
 
     Ignore keys with "@" while traversing structure. Indicates an attribute in value.
@@ -47,7 +47,8 @@ def get_events(data: dict) -> list[dict]:
     return events
 
 
-class EventInstance(APIItem):
+@dataclass
+class EventInstance(ApiItem):
     """Events are emitted when the Axis product detects an occurrence of some kind.
 
     For example motion in camera field of view or a change of status from an I/O port.
@@ -55,71 +56,76 @@ class EventInstance(APIItem):
     and can also be stored together with video and audio data for later access.
     """
 
-    @property
-    def topic(self) -> str:
-        """Event topic.
+    topic: str
+    """Event topic.
 
-        Event declaration namespae.
-        """
-        return self.raw["topic"]
+    Event declaration namespace.
+    """
 
-    @property
-    def topic_filter(self) -> str:
-        """Event topic.
+    topic_filter: str
+    """Event topic.
 
-        Event topic filter namespae.
-        """
-        return self.raw["topic"].replace("tns1", "onvif").replace("tnsaxis", "axis")
+    Event topic filter namespace.
+    """
 
-    @property
-    def is_available(self) -> bool:
-        """Means the event is available."""
-        return self.raw["data"]["@topic"] == "true"
+    is_available: bool
+    """Means the event is available."""
 
-    @property
-    def is_application_data(self) -> bool:
-        """Indicate event and/or data is produced for specific system or application.
+    is_application_data: bool
+    """Indicate event and/or data is produced for specific system or application.
 
-        Events with isApplicationData=true are usually intended
-        to be used only by the specific system or application, that is,
-        they are not intended to be used as triggers in an action rule in the Axis product.
-        """
-        return self.raw["data"].get("@isApplicationData") == "true"
+    Events with isApplicationData=true are usually intended
+    to be used only by the specific system or application, that is,
+    they are not intended to be used as triggers in an action rule in the Axis product.
+    """
 
-    @property
-    def name(self) -> str:
-        """User-friendly and human-readable name describing the event."""
-        return self.raw["data"].get("@NiceName", "")
+    name: str
+    """User-friendly and human-readable name describing the event."""
 
-    @property
-    def stateful(self) -> bool:
-        """Stateful event is a property (a state variable) with a number of states.
+    stateful: bool
+    """Stateful event is a property (a state variable) with a number of states.
 
-        The event is always in one of its states.
-        Example: The Motion detection event is in state true when motion is detected
-        and in state false when motion is not detected.
-        """
-        return self.raw["data"]["MessageInstance"].get("@isProperty") == "true"
+    The event is always in one of its states.
+    Example: The Motion detection event is in state true when motion is detected
+    and in state false when motion is not detected.
+    """
 
-    @property
-    def stateless(self) -> bool:
-        """Stateless event is a momentary occurrence (a pulse).
+    stateless: bool
+    """Stateless event is a momentary occurrence (a pulse).
 
-        Example: Storage device removed.
-        """
-        return self.raw["data"]["MessageInstance"].get("@isProperty") != "true"
+    Example: Storage device removed.
+    """
 
-    @property
-    def source(self) -> dict | list:
-        """Event source information."""
-        message = self.raw["data"]["MessageInstance"]
-        return message.get("SourceInstance", {}).get("SimpleItemInstance", {})
+    source: dict | list
+    """Event source information."""
 
-    @property
-    def data(self) -> dict | list:
-        """Event data description."""
-        message = self.raw["data"]["MessageInstance"]
-        return message.get("DataInstance", {}).get("SimpleItemInstance", {})
+    data: dict | list
+    """Event data description."""
+
+    @classmethod
+    def decode(cls, data: dict[str, Any]) -> Self:
+        """Decode dict to class object."""
+        message = data["data"]["MessageInstance"]
+        return cls(
+            id=data["topic"],
+            topic=data["topic"],
+            topic_filter=data["topic"]
+            .replace("tns1", "onvif")
+            .replace("tnsaxis", "axis"),
+            is_available=data["data"]["@topic"] == "true",
+            is_application_data=data["data"].get("@isApplicationData") == "true",
+            name=data["data"].get("@NiceName", ""),
+            stateful=data["data"]["MessageInstance"].get("@isProperty") == "true",
+            stateless=data["data"]["MessageInstance"].get("@isProperty") != "true",
+            source=message.get("SourceInstance", {}).get("SimpleItemInstance", {}),
+            data=message.get("DataInstance", {}).get("SimpleItemInstance", {}),
+        )
+
+    @classmethod
+    def decode_from_list(cls, data: list[dict[str, Any]]) -> dict[str, Self]:
+        """Decode list[dict] to list of class objects."""
+        events = [cls.decode(v) for v in data]
+        return {event.id: event for event in events}
 
 
 @dataclass
@@ -161,13 +167,11 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
         """Prepare API description dictionary."""
         data = xmltodict.parse(
             bytes_data,
+            # attr_prefix="",
             dict_constructor=dict,  # Use dict rather than ordered_dict
             namespaces=NAMESPACES,  # Replace or remove defined namespaces
             process_namespaces=True,
         )
         raw_events = traverse(data, EVENT_INSTANCE)  # Move past the irrelevant keys
-        event_list = get_events(raw_events)  # Create topic/data dictionary of events
-        return cls(data={event["topic"]: event for event in event_list})
-        # data = xmltodict.parse(bytes_data, attr_prefix="", force_list={"application"})
-        # apps: list[Any] = data.get("reply", {}).get("application", [])
-        # return cls(data=Application.decode_from_list(apps))
+        events = get_events(raw_events)  # Create topic/data dictionary of events
+        return cls(data=EventInstance.decode_from_list(events))

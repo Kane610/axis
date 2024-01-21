@@ -1,7 +1,6 @@
 """API management class and base class for the different end points."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Generic, Self, TypeVar
 
@@ -84,41 +83,3 @@ class ApiRequest(ABC):
           url: /axis-cgi/io/port.cgi?action=4%3A%5C"
         """
         return None
-
-
-class APIItem:
-    """Base class for all end points using APIItems class."""
-
-    def __init__(self, id: str, raw: dict, request: Callable) -> None:
-        """Initialize API item."""
-        self._id = id
-        self._raw = raw
-        self._request = request
-
-        self.observers: list[Callable] = []
-
-    @property
-    def id(self) -> str:
-        """Read only ID."""
-        return self._id
-
-    @property
-    def raw(self) -> dict:
-        """Read only raw data."""
-        return self._raw
-
-    def update(self, raw: dict) -> None:
-        """Update raw data and signal new data is available."""
-        self._raw = raw
-
-        for observer in self.observers:
-            observer()
-
-    def register_callback(self, callback: Callable) -> None:
-        """Register callback for state updates."""
-        self.observers.append(callback)
-
-    def remove_callback(self, observer: Callable) -> None:
-        """Remove observer."""
-        if observer in self.observers:
-            self.observers.remove(observer)

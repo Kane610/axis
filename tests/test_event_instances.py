@@ -141,17 +141,16 @@ async def test_single_event_instance(
     assert len(event_instances) == 1
 
     event = event_instances[expected["topic"]]
-
-    assert event["topic"] == expected["topic"]
-    # assert event.topic == expected["topic"]
-    # assert event.topic_filter == expected["topic_filter"]
-    # assert event.is_available == expected["is_available"]
-    # assert event.is_application_data == expected["is_application_data"]
-    # assert event.name == expected["name"]
-    # assert event.stateful == expected["message"]["stateful"]
-    # assert event.stateless == expected["message"]["stateless"]
-    # assert event.source == expected["message"]["source"]
-    # assert event.data == expected["message"]["data"]
+    assert event.id == expected["topic"]
+    assert event.topic == expected["topic"]
+    assert event.topic_filter == expected["topic_filter"]
+    assert event.is_available == expected["is_available"]
+    assert event.is_application_data == expected["is_application_data"]
+    assert event.name == expected["name"]
+    assert event.stateful == expected["message"]["stateful"]
+    assert event.stateless == expected["message"]["stateless"]
+    assert event.source == expected["message"]["source"]
+    assert event.data == expected["message"]["data"]
 
 
 @pytest.mark.parametrize(
