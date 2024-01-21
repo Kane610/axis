@@ -34,7 +34,7 @@ class Users(ApiHandler[User]):
 
     async def list(self) -> dict[str, User]:
         """List current users."""
-        data = await self.vapix.new_request(GetUsersRequest())
+        data = await self.vapix.api_request(GetUsersRequest())
         return GetUsersResponse.decode(data).data
 
     async def create(
@@ -46,7 +46,7 @@ class Users(ApiHandler[User]):
         comment: str | None = None,
     ) -> None:
         """Create new user."""
-        await self.vapix.new_request(CreateUserRequest(user, pwd, sgrp, comment))
+        await self.vapix.api_request(CreateUserRequest(user, pwd, sgrp, comment))
 
     async def modify(
         self,
@@ -57,8 +57,8 @@ class Users(ApiHandler[User]):
         comment: str | None = None,
     ) -> None:
         """Update user."""
-        await self.vapix.new_request(ModifyUserRequest(user, pwd, sgrp, comment))
+        await self.vapix.api_request(ModifyUserRequest(user, pwd, sgrp, comment))
 
     async def delete(self, user: str) -> None:
         """Remove user."""
-        await self.vapix.new_request(DeleteUserRequest(user))
+        await self.vapix.api_request(DeleteUserRequest(user))

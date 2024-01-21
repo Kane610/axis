@@ -22,7 +22,6 @@ def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
@@ -55,7 +54,6 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_get_supported_versions(api_discovery: ApiDiscoveryHandler):
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(

@@ -5,7 +5,6 @@ import logging
 from typing import TYPE_CHECKING
 
 import httpx
-import xmltodict
 
 from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
@@ -23,7 +22,7 @@ from .interfaces.applications.object_analytics import (
 )
 from .interfaces.applications.vmd4 import Vmd4Handler
 from .interfaces.basic_device_info import BasicDeviceInfoHandler
-from .interfaces.event_instances import EventInstances
+from .interfaces.event_instances import EventInstanceHandler
 from .interfaces.light_control import LightHandler
 from .interfaces.mqtt import MqttClientHandler
 from .interfaces.parameters.param_cgi import Params
@@ -54,8 +53,6 @@ class Vapix:
         self.device = device
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
-        self.event_instances: EventInstances | None = None
-
         self.users = Users(self)
         self.user_groups = UserGroups(self)
 
@@ -79,6 +76,8 @@ class Vapix:
         self.motion_guard = MotionGuardHandler(self)
         self.object_analytics = ObjectAnalyticsHandler(self)
         self.vmd4 = Vmd4Handler(self)
+
+        self.event_instances = EventInstanceHandler(self)
 
     @property
     def firmware_version(self) -> str:
@@ -214,13 +213,7 @@ class Vapix:
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        event_instances = EventInstances(self)
-        try:
-            await event_instances.update()
-        except Unauthorized:  # Probably a viewer account
-            pass
-        else:
-            self.event_instances = event_instances
+        await self.event_instances.do_update(skip_support_check=True)
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
@@ -246,64 +239,9 @@ class Vapix:
                 pass
         self.user_groups._items = user_groups
 
-    async def request(
-        self,
-        method: str,
-        path: str,
-        kwargs_xmltodict: dict | None = None,
-        **kwargs: dict,
-    ) -> dict | str:
-        """Make a request to the API."""
-        url = self.device.config.url + path
-
-        LOGGER.debug("%s %s", url, kwargs)
-        try:
-            response = await self.device.config.session.request(
-                method,
-                url,
-                auth=self.auth,
-                timeout=TIME_OUT,
-                **kwargs,  # type: ignore [arg-type]
-            )
-            response.raise_for_status()
-
-            LOGGER.debug("Response: %s from %s", response.text, self.device.config.host)
-
-            content_type = response.headers.get("Content-Type", "").split(";")[0]
-
-            if content_type == "application/json":
-                result = response.json()
-                if "error" in result:
-                    return {}
-                return result
-
-            if content_type in ["text/xml", "application/soap+xml"]:
-                return xmltodict.parse(response.text, **(kwargs_xmltodict or {}))
-
-            if response.text.startswith("# Error:"):
-                return ""
-            return response.text
-
-        except httpx.HTTPStatusError as errh:
-            LOGGER.debug("%s, %s", response, errh)
-            raise_error(response.status_code)
-
-        except httpx.TimeoutException:
-            raise RequestError("Timeout")
-
-        except httpx.TransportError as errc:
-            LOGGER.debug("%s", errc)
-            raise RequestError(f"Connection error: {errc}")
-
-        except httpx.RequestError as err:
-            LOGGER.debug("%s", err)
-            raise RequestError(f"Unknown error: {err}")
-
-        return {}
-
-    async def new_request(self, api_request: ApiRequest) -> bytes:
+    async def api_request(self, api_request: ApiRequest) -> bytes:
         """Make a request to the device."""
-        return await self.do_request(
+        return await self.request(
             method=api_request.method,
             path=api_request.path,
             content=api_request.content,
@@ -311,12 +249,13 @@ class Vapix:
             params=api_request.params,
         )
 
-    async def do_request(
+    async def request(
         self,
         method: str,
         path: str,
         content: bytes | None = None,
         data: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
@@ -329,6 +268,7 @@ class Vapix:
                 url,
                 content=content,
                 data=data,
+                headers=headers,
                 params=params,
                 auth=self.auth,
                 timeout=TIME_OUT,

@@ -38,6 +38,6 @@ class ApplicationsHandler(ApiHandler[Application]):
 
     async def get_api_list(self) -> dict[str, Application]:
         """List all APIs registered on API Discovery service."""
-        bytes_data = await self.vapix.new_request(ListApplicationsRequest())
+        bytes_data = await self.vapix.api_request(ListApplicationsRequest())
         response = ListApplicationsResponse.decode(bytes_data)
         return response.data

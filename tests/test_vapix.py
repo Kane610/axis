@@ -460,7 +460,7 @@ async def test_request_json_error(vapix: Vapix):
         json={"error": ""}, headers={"Content-Type": "application/json"}
     )
 
-    assert await vapix.request("get", "") == {}
+    assert await vapix.request("get", "") == b'{"error": ""}'
 
 
 @respx.mock
@@ -470,7 +470,7 @@ async def test_request_plain_text_error(vapix: Vapix):
         text="# Error:", headers={"Content-Type": "text/plain"}
     )
 
-    assert await vapix.request("get", "") == ""
+    assert await vapix.request("get", "") == b"# Error:"
 
 
 @respx.mock

@@ -35,7 +35,7 @@ class Params(ApiHandler[Any]):
 
     async def update_group(self, group: ParameterGroup | None = None) -> None:
         """Refresh data."""
-        bytes_data = await self.vapix.new_request(ParamRequest(group))
+        bytes_data = await self.vapix.api_request(ParamRequest(group))
         data = params_to_dict(bytes_data.decode())
 
         root = self._items.setdefault("root", {})

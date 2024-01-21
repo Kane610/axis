@@ -6,7 +6,8 @@ pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_ins
 import pytest
 import respx
 
-from axis.vapix.interfaces.event_instances import URL, EventInstances, get_events
+from axis.vapix.interfaces.event_instances import EventInstanceHandler
+from axis.vapix.models.event_instance import get_events
 
 from .conftest import HOST
 from .event_fixtures import (
@@ -18,16 +19,15 @@ from .event_fixtures import (
 
 
 @pytest.fixture
-def event_instances(axis_device) -> EventInstances:
+def event_instances(axis_device) -> EventInstanceHandler:
     """Return the event_instances mock object."""
-    return EventInstances(axis_device.vapix)
+    return axis_device.vapix.event_instances
 
 
 @respx.mock
-@pytest.mark.asyncio
 async def test_full_list_of_event_instances(event_instances):
     """Test loading of event instances work."""
-    respx.post(f"http://{HOST}:80{URL}").respond(
+    respx.post(f"http://{HOST}:80/vapix/services").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
     )
@@ -127,12 +127,11 @@ async def test_full_list_of_event_instances(event_instances):
     ],
 )
 @respx.mock
-@pytest.mark.asyncio
 async def test_single_event_instance(
-    event_instances: EventInstances, response: str, expected: dict
+    event_instances: EventInstanceHandler, response: str, expected: dict
 ):
     """Verify expected outcome from different event instances."""
-    respx.post(f"http://{HOST}:80{URL}").respond(
+    respx.post(f"http://{HOST}:80/vapix/services").respond(
         text=response, headers={"Content-Type": "application/soap+xml; charset=utf-8"}
     )
     await event_instances.update()
@@ -140,7 +139,7 @@ async def test_single_event_instance(
     assert len(event_instances) == 1
 
     event = event_instances[expected["topic"]]
-
+    assert event.id == expected["topic"]
     assert event.topic == expected["topic"]
     assert event.topic_filter == expected["topic_filter"]
     assert event.is_available == expected["is_available"]
