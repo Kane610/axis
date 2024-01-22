@@ -11,7 +11,6 @@ from ..models.basic_device_info import (
     DeviceInformation,
     GetAllPropertiesRequest,
     GetAllPropertiesResponse,
-    GetAllPropertiesT,
     GetSupportedVersionsRequest,
     GetSupportedVersionsResponse,
 )
@@ -28,7 +27,7 @@ class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
         """Get default data of basic device information."""
         return await self.get_all_properties()
 
-    async def get_all_properties(self) -> GetAllPropertiesT:
+    async def get_all_properties(self) -> dict[str, DeviceInformation]:
         """List all properties of basic device info."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         bytes_data = await self.vapix.api_request(

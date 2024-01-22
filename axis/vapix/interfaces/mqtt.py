@@ -21,11 +21,6 @@ from ..models.mqtt import (
 )
 from .api_handler import ApiHandler
 
-URL = "/axis-cgi/mqtt"
-URL_CLIENT = f"{URL}/client.cgi"
-URL_EVENT = f"{URL}/event.cgi"
-
-API_DISCOVERY_ID = "mqtt-client"
 API_VERSION = "1.0"
 
 DEFAULT_TOPICS = ["//."]
@@ -75,24 +70,30 @@ class MqttClientHandler(ApiHandler[Any]):
         """Configure MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         await self.vapix.api_request(
-            ConfigureClientRequest(discovery_item.version, client_config=client_config)
+            ConfigureClientRequest(
+                api_version=discovery_item.version, client_config=client_config
+            )
         )
 
     async def activate(self) -> None:
         """Activate MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        await self.vapix.api_request(ActivateClientRequest(discovery_item.version))
+        await self.vapix.api_request(
+            ActivateClientRequest(api_version=discovery_item.version)
+        )
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
-        await self.vapix.api_request(DeactivateClientRequest(discovery_item.version))
+        await self.vapix.api_request(
+            DeactivateClientRequest(api_version=discovery_item.version)
+        )
 
     async def get_client_status(self) -> ClientConfigStatus:
         """Get MQTT Client status."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         bytes_data = await self.vapix.api_request(
-            GetClientStatusRequest(discovery_item.version)
+            GetClientStatusRequest(api_version=discovery_item.version)
         )
         response = GetClientStatusResponse.decode(bytes_data)
         return response.data
@@ -101,7 +102,7 @@ class MqttClientHandler(ApiHandler[Any]):
         """Get MQTT Client event publication config."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         bytes_data = await self.vapix.api_request(
-            GetEventPublicationConfigRequest(discovery_item.version)
+            GetEventPublicationConfigRequest(api_version=discovery_item.version)
         )
         response = GetEventPublicationConfigResponse.decode(bytes_data)
         return response.data
@@ -116,5 +117,7 @@ class MqttClientHandler(ApiHandler[Any]):
         )
         config = EventPublicationConfig(event_filter_list=event_filters)
         await self.vapix.api_request(
-            ConfigureEventPublicationRequest(discovery_item.version, config=config)
+            ConfigureEventPublicationRequest(
+                api_version=discovery_item.version, config=config
+            )
         )

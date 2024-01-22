@@ -147,7 +147,7 @@ class Port(ApiItem):
     name: str
     """Name of port."""
 
-    normalState: str
+    normal_state: str
     """Port normal state.
 
     <open|closed>.
@@ -170,7 +170,7 @@ class Port(ApiItem):
             configurable=data["configurable"],
             direction=data["direction"],
             name=data["name"],
-            normalState=data["normalState"],
+            normal_state=data["normalState"],
             state=data["state"],
             usage=data["usage"],
         )

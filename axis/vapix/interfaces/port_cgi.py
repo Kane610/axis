@@ -32,7 +32,7 @@ class Ports(ApiHandler[IOPortParam]):
         self._items = self.process_ports()
 
     def process_ports(self) -> dict[str, IOPortParam]:
-        """Process ports."""
+        """Process ports from I/O port handler."""
         return dict(self.vapix.params.io_port_handler.items())
 
     async def action(self, id: str, action: PortAction) -> None:

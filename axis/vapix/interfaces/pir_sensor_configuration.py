@@ -13,7 +13,6 @@ from ..models.pir_sensor_configuration import (
     GetSupportedVersionsResponse,
     ListSensorsRequest,
     ListSensorsResponse,
-    ListSensorsT,
     PirSensorConfiguration,
     SetSensitivityRequest,
 )
@@ -26,11 +25,11 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     api_id = ApiId.PIR_SENSOR_CONFIGURATION
     default_api_version = API_VERSION
 
-    async def _api_request(self) -> ListSensorsT:
+    async def _api_request(self) -> dict[str, PirSensorConfiguration]:
         """Get default data of PIR sensor configuration."""
         return await self.list_sensors()
 
-    async def list_sensors(self) -> ListSensorsT:
+    async def list_sensors(self) -> dict[str, PirSensorConfiguration]:
         """List all PIR sensors of device."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         bytes_data = await self.vapix.api_request(

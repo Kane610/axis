@@ -190,9 +190,6 @@ class Api(ApiItem):
         return [cls.decode(item) for item in raw]
 
 
-ListApisT = dict[str, Api]
-
-
 @dataclass
 class GetAllApisResponse(ApiResponse[list[Api]]):
     """Response object for basic device info."""

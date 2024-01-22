@@ -121,7 +121,7 @@ class PtzControlRequest(ApiRequest):
 
     x,y are pixel coordinates in the client video stream.
     """
-    areazoom: tuple[int, int, int] | None = None
+    area_zoom: tuple[int, int, int] | None = None
     """Centers on positions x,y and zooms by a factor of z/100.
 
     If z is more than 100 the image is zoomed in
@@ -129,13 +129,13 @@ class PtzControlRequest(ApiRequest):
     If z is less than 100 the image is zoomed out
     (for example; z=50 zooms out to twice the current field of view).
     """
-    imagewidth: int | None = None
+    image_width: int | None = None
     """Required in conjunction with center or areazoom.
 
     If the image width displayed is different from the default size of the image,
     which is product-specific.
     """
-    imageheight: int | None = None
+    image_height: int | None = None
     """Required in conjunction with center or areazoom.
 
     If the image height is different from the default size of the image,
@@ -173,35 +173,35 @@ class PtzControlRequest(ApiRequest):
 
     A high value means brighter image, a low value means darker image.
     """
-    rpan: float | None = None
+    relative_pan: float | None = None
     """-360.0 ... 360.0 Pans the device n degrees relative to the current position."""
-    rtilt: float | None = None
+    relative_tilt: float | None = None
     """-360.0 ... 360.0 Tilts the device n degrees relative to the current position."""
-    rzoom: int | None = None
+    relative_zoom: int | None = None
     """-9999 ... 9999 Zooms the device n steps relative to the current position.
 
     Positive values mean zoom in, negative values mean zoom out.
     """
-    rfocus: int | None = None
+    relative_focus: int | None = None
     """-9999 ... 9999 Moves focus n steps relative to the current position.
 
     Positive values mean focus far, negative values mean focus near.
     """
-    riris: int | None = None
+    relative_iris: int | None = None
     """-9999 ... 9999 Moves iris n steps relative to the current position.
 
     Positive values mean open iris, negative values mean close iris.
     """
-    rbrightness: int | None = None
+    relative_brightness: int | None = None
     """-9999 ... 9999 Moves brightness n steps relative to the current position.
 
     Positive values mean brighter image, negative values mean darker image.
     """
-    autofocus: bool | None = None
+    auto_focus: bool | None = None
     """Enable/disable auto focus."""
-    autoiris: bool | None = None
+    auto_iris: bool | None = None
     """Enable/disable auto iris."""
-    continuouspantiltmove: tuple[int, int] | None = None
+    continuous_pantilt_move: tuple[int, int] | None = None
     """-100 ... 100,-100 ... 100 Continuous pan/tilt motion.
 
     Positive values mean right (pan) and up (tilt),
@@ -209,25 +209,25 @@ class PtzControlRequest(ApiRequest):
     0,0 means stop.
     Values as <pan speed>,<tilt speed>.
     """
-    continuouszoommove: int | None = None
+    continuous_zoom_move: int | None = None
     """-100 ... 100 Continuous zoom motion.
 
     Positive values mean zoom in and negative values mean zoom out.
     0 means stop.
     """
-    continuousfocusmove: int | None = None
+    continuous_focus_move: int | None = None
     """-100 ... 100 Continuous focus motion.
 
     Positive values mean focus far and negative values mean focus near.
     0 means stop.
     """
-    continuousirismove: int | None = None
+    continuous_iris_move: int | None = None
     """-100 ... 100 Continuous iris motion.
 
     Positive values mean iris open and negative values mean iris close.
     0 means stop.
     """
-    continuousbrightnessmove: int | None = None
+    continuous_brightness_move: int | None = None
     """-100 ... 100 Continuous brightness motion.
 
     Positive values mean brighter image and negative values mean darker image.
@@ -240,11 +240,11 @@ class PtzControlRequest(ApiRequest):
     Check in driver's documentation or in response to info=1
     for information about <function name>.
     """
-    gotoserverpresetname: str | None = None
+    go_to_server_preset_name: str | None = None
     """Move to the position associated with the <preset name>."""
-    gotoserverpresetno: int | None = None
+    go_to_server_preset_number: int | None = None
     """Move to the position associated with the specified preset position number."""
-    gotodevicepreset: int | None = None
+    go_to_device_preset: int | None = None
     """Bypasses the presetpos interface.
 
     Tells the device togo directly to the preset position number
@@ -254,7 +254,7 @@ class PtzControlRequest(ApiRequest):
     """
     speed: int | None = None
     """1 ... 100 Sets the move speed of pan and tilt."""
-    imagerotation: PtzRotation | None = None
+    image_rotation: PtzRotation | None = None
     """Rotate image.
 
     If PTZ command refers to an image stream that is rotated differently
@@ -262,7 +262,7 @@ class PtzControlRequest(ApiRequest):
     must be added to each command with this argument to
     allow the Axis product to compensate.
     """
-    ircutfilter: PtzState | None = None
+    ir_cut_filter: PtzState | None = None
     """Control the IR cut filter."""
     backlight: bool | None = None
     """Control the backlight compensation."""
@@ -276,16 +276,16 @@ class PtzControlRequest(ApiRequest):
         if self.center:
             x, y = self.center
             data["center"] = f"{x},{y}"
-        if self.areazoom:
-            x, y, z = self.areazoom
+        if self.area_zoom:
+            x, y, z = self.area_zoom
             if z < 1:
                 z = 1
             data["areazoom"] = f"{x},{y},{z}"
-        if self.center or self.areazoom:
-            if self.imagewidth:
-                data["imagewidth"] = str(self.imagewidth)
-            if self.imageheight:
-                data["imageheight"] = str(self.imageheight)
+        if self.center or self.area_zoom:
+            if self.image_width:
+                data["imagewidth"] = str(self.image_width)
+            if self.image_height:
+                data["imageheight"] = str(self.image_height)
 
         for key, limit_value, minimum, maximum in (
             ("pan", self.pan, -180, 180),
@@ -294,50 +294,50 @@ class PtzControlRequest(ApiRequest):
             ("focus", self.focus, 1, 9999),
             ("iris", self.iris, 1, 9999),
             ("brightness", self.brightness, 1, 9999),
-            ("rpan", self.rpan, -360, 360),
-            ("rtilt", self.rtilt, -360, 360),
-            ("rzoom", self.rzoom, -9999, 9999),
-            ("rfocus", self.rfocus, -9999, 9999),
-            ("riris", self.riris, -9999, 9999),
-            ("rbrightness", self.rbrightness, -9999, 9999),
-            ("continuouszoommove", self.continuouszoommove, -100, 100),
-            ("continuousfocusmove", self.continuousfocusmove, -100, 100),
-            ("continuousirismove", self.continuousirismove, -100, 100),
-            ("continuousbrightnessmove", self.continuousbrightnessmove, -100, 100),
+            ("rpan", self.relative_pan, -360, 360),
+            ("rtilt", self.relative_tilt, -360, 360),
+            ("rzoom", self.relative_zoom, -9999, 9999),
+            ("rfocus", self.relative_focus, -9999, 9999),
+            ("riris", self.relative_iris, -9999, 9999),
+            ("rbrightness", self.relative_brightness, -9999, 9999),
+            ("continuouszoommove", self.continuous_zoom_move, -100, 100),
+            ("continuousfocusmove", self.continuous_focus_move, -100, 100),
+            ("continuousirismove", self.continuous_iris_move, -100, 100),
+            ("continuousbrightnessmove", self.continuous_brightness_move, -100, 100),
             ("speed", self.speed, 1, 100),
         ):
             if limit_value is not None:
                 data[key] = str(limit(limit_value, minimum, maximum))
 
         for key, command_bool in (
-            ("autofocus", self.autofocus),
-            ("autoiris", self.autoiris),
+            ("autofocus", self.auto_focus),
+            ("autoiris", self.auto_iris),
             ("backlight", self.backlight),
         ):
             if command_bool is not None:
                 data[key] = "on" if command_bool else "off"
 
         for key, command_enum in (
-            ("imagerotation", self.imagerotation),
-            ("ircutfilter", self.ircutfilter),
+            ("imagerotation", self.image_rotation),
+            ("ircutfilter", self.ir_cut_filter),
             ("move", self.move),
         ):
             if command_enum is not None:
                 data[key] = command_enum.value
 
-        if self.continuouspantiltmove:
-            pan_speed, tilt_speed = self.continuouspantiltmove
+        if self.continuous_pantilt_move:
+            pan_speed, tilt_speed = self.continuous_pantilt_move
             pan_speed = limit(pan_speed, -100, 100)
             tilt_speed = limit(tilt_speed, -100, 100)
             data["continuouspantiltmove"] = f"{pan_speed},{tilt_speed}"
         if self.auxiliary:
             data["auxiliary"] = self.auxiliary
-        if self.gotoserverpresetname:
-            data["gotoserverpresetname"] = self.gotoserverpresetname
-        if self.gotoserverpresetno:
-            data["gotoserverpresetno"] = str(self.gotoserverpresetno)
-        if self.gotodevicepreset:
-            data["gotodevicepreset"] = str(self.gotodevicepreset)
+        if self.go_to_server_preset_name:
+            data["gotoserverpresetname"] = self.go_to_server_preset_name
+        if self.go_to_server_preset_number:
+            data["gotoserverpresetno"] = str(self.go_to_server_preset_number)
+        if self.go_to_device_preset:
+            data["gotodevicepreset"] = str(self.go_to_device_preset)
 
         if len(data) == 0 or (len(data) == 1 and "camera" in data):
             return None

@@ -77,7 +77,7 @@ root.Output.NbrOfOutputs=1
     assert ports["1"].configurable is False
     assert ports["1"].direction == PortDirection.IN
     assert ports["1"].name == "PIR sensor"
-    assert ports["1"].input_trig == "closed"
+    assert ports["1"].input_trigger == "closed"
 
     assert ports["2"].id == "2"
     assert ports["2"].configurable is False

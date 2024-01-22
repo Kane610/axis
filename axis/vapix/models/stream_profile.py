@@ -100,17 +100,14 @@ class StreamProfile(ApiItem):
         return {item.id: item for item in [cls.decode(item) for item in raw]}
 
 
-ListStreamProfilesT = dict[str, StreamProfile]
-
-
 @dataclass
-class ListStreamProfilesResponse(ApiResponse[ListStreamProfilesT]):
+class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
     """Response object for list sensors response."""
 
     api_version: str
     context: str
     method: str
-    data: ListStreamProfilesT
+    data: dict[str, StreamProfile]
     # error: ErrorDataT | None = None
 
     @classmethod
@@ -134,9 +131,10 @@ class ListStreamProfilesRequest(ApiRequest):
     content_type = "application/json"
     error_codes = error_codes
 
+    profiles: list[str] = field(default_factory=list)
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    profiles: list[str] = field(default_factory=list)
 
     @property
     def content(self) -> bytes:

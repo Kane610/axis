@@ -47,7 +47,7 @@ async def test_get_ports(io_port_management):
     assert item.usage == ""
     assert item.direction == "input"
     assert item.state == "open"
-    assert item.normalState == "open"
+    assert item.normal_state == "open"
 
     await io_port_management.open("0")
 

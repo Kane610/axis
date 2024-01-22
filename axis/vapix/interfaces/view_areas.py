@@ -16,7 +16,6 @@ from ..models.view_area import (
     GetSupportedVersionsResponse,
     ListViewAreasRequest,
     ListViewAreasResponse,
-    ListViewAreasT,
     ResetGeometryRequest,
     SetGeometryRequest,
     ViewArea,
@@ -28,13 +27,12 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
     """View areas for Axis devices."""
 
     api_id = ApiId.VIEW_AREA
-    # api_request = ListViewAreasRequest()
 
-    async def _api_request(self) -> ListViewAreasT:
+    async def _api_request(self) -> dict[str, ViewArea]:
         """Get default data of stream profiles."""
         return await self.list_view_areas()
 
-    async def list_view_areas(self) -> ListViewAreasT:
+    async def list_view_areas(self) -> dict[str, ViewArea]:
         """List all view areas of device."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         bytes_data = await self.vapix.api_request(
@@ -43,7 +41,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         response = ListViewAreasResponse.decode(bytes_data)
         return response.data
 
-    async def set_geometry(self, id: int, geometry: Geometry) -> ListViewAreasT:
+    async def set_geometry(self, id: int, geometry: Geometry) -> dict[str, ViewArea]:
         """Set geometry of a view area.
 
         Security level: Admin
@@ -60,7 +58,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         response = ListViewAreasResponse.decode(bytes_data)
         return response.data
 
-    async def reset_geometry(self, id: int) -> ListViewAreasT:
+    async def reset_geometry(self, id: int) -> dict[str, ViewArea]:
         """Restore geometry of a view area back to default values.
 
         Security level: Admin

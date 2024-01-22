@@ -173,17 +173,14 @@ class ViewArea(ApiItem):
         return {str(item.id): item for item in [cls.decode(item) for item in raw]}
 
 
-ListViewAreasT = dict[str, ViewArea]
-
-
 @dataclass
-class ListViewAreasResponse(ApiResponse[ListViewAreasT]):
+class ListViewAreasResponse(ApiResponse[dict[str, ViewArea]]):
     """Response object for list view areas response."""
 
     api_version: str
     context: str
     method: str
-    data: ListViewAreasT
+    data: dict[str, ViewArea]
     # error: ErrorDataT | None = None
 
     @classmethod

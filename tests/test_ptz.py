@@ -172,7 +172,7 @@ async def test_ptz_control_center(ptz_control: PtzControl):
 async def test_ptz_control_center_with_imagewidth(ptz_control: PtzControl):
     """Verify that PTZ control can send out center together with imagewidth."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
-    await ptz_control.control(center=(30, 60), imagewidth=120)
+    await ptz_control.control(center=(30, 60), image_width=120)
     assert (
         route.calls.last.request.content
         == urlencode({"center": "30,60", "imagewidth": 120}).encode()
@@ -183,7 +183,7 @@ async def test_ptz_control_center_with_imagewidth(ptz_control: PtzControl):
 async def test_ptz_control_areazoom(ptz_control: PtzControl):
     """Verify that PTZ control can send out areazoom input."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
-    await ptz_control.control(areazoom=(30, 60, 90))
+    await ptz_control.control(area_zoom=(30, 60, 90))
     assert (
         route.calls.last.request.content == urlencode({"areazoom": "30,60,90"}).encode()
     )
@@ -193,7 +193,7 @@ async def test_ptz_control_areazoom(ptz_control: PtzControl):
 async def test_ptz_control_areazoom_too_little_zoom(ptz_control: PtzControl):
     """Verify that PTZ control can send out areazoom input."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
-    await ptz_control.control(areazoom=(30, 60, 0))
+    await ptz_control.control(area_zoom=(30, 60, 0))
     assert (
         route.calls.last.request.content == urlencode({"areazoom": "30,60,1"}).encode()
     )
@@ -203,7 +203,7 @@ async def test_ptz_control_areazoom_too_little_zoom(ptz_control: PtzControl):
 async def test_ptz_control_areazoom_with_imageheight(ptz_control: PtzControl):
     """Verify that PTZ control can send out areazoom with imageheight."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
-    await ptz_control.control(areazoom=(30, 60, 90), imageheight=120)
+    await ptz_control.control(area_zoom=(30, 60, 90), image_height=120)
     assert (
         route.calls.last.request.content
         == urlencode({"areazoom": "30,60,90", "imageheight": 120}).encode()
@@ -305,13 +305,13 @@ async def test_ptz_control_rpan(ptz_control: PtzControl):
     """Verify that PTZ control can send out rpan and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(rpan=90)
+    await ptz_control.control(relative_pan=90)
     assert route.calls.last.request.content == urlencode({"rpan": 90}).encode()
 
-    await ptz_control.control(rpan=400)
+    await ptz_control.control(relative_pan=400)
     assert route.calls.last.request.content == urlencode({"rpan": 360}).encode()
 
-    await ptz_control.control(rpan=-400)
+    await ptz_control.control(relative_pan=-400)
     assert route.calls.last.request.content == urlencode({"rpan": -360}).encode()
 
 
@@ -320,13 +320,13 @@ async def test_ptz_control_rtilt(ptz_control: PtzControl):
     """Verify that PTZ control can send out rtilt and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(rtilt=90)
+    await ptz_control.control(relative_tilt=90)
     assert route.calls.last.request.content == urlencode({"rtilt": 90}).encode()
 
-    await ptz_control.control(rtilt=400)
+    await ptz_control.control(relative_tilt=400)
     assert route.calls.last.request.content == urlencode({"rtilt": 360}).encode()
 
-    await ptz_control.control(rtilt=-400)
+    await ptz_control.control(relative_tilt=-400)
     assert route.calls.last.request.content == urlencode({"rtilt": -360}).encode()
 
 
@@ -335,13 +335,13 @@ async def test_ptz_control_rzoom(ptz_control: PtzControl):
     """Verify that PTZ control can send out rzoom and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(rzoom=90)
+    await ptz_control.control(relative_zoom=90)
     assert route.calls.last.request.content == urlencode({"rzoom": 90}).encode()
 
-    await ptz_control.control(rzoom=10000)
+    await ptz_control.control(relative_zoom=10000)
     assert route.calls.last.request.content == urlencode({"rzoom": 9999}).encode()
 
-    await ptz_control.control(rzoom=-10000)
+    await ptz_control.control(relative_zoom=-10000)
     assert route.calls.last.request.content == urlencode({"rzoom": -9999}).encode()
 
 
@@ -350,13 +350,13 @@ async def test_ptz_control_rfocus(ptz_control: PtzControl):
     """Verify that PTZ control can send out rfocus and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(rfocus=90)
+    await ptz_control.control(relative_focus=90)
     assert route.calls.last.request.content == urlencode({"rfocus": 90}).encode()
 
-    await ptz_control.control(rfocus=10000)
+    await ptz_control.control(relative_focus=10000)
     assert route.calls.last.request.content == urlencode({"rfocus": 9999}).encode()
 
-    await ptz_control.control(rfocus=-10000)
+    await ptz_control.control(relative_focus=-10000)
     assert route.calls.last.request.content == urlencode({"rfocus": -9999}).encode()
 
 
@@ -365,13 +365,13 @@ async def test_ptz_control_riris(ptz_control: PtzControl):
     """Verify that PTZ control can send out riris and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(riris=90)
+    await ptz_control.control(relative_iris=90)
     assert route.calls.last.request.content == urlencode({"riris": 90}).encode()
 
-    await ptz_control.control(riris=10000)
+    await ptz_control.control(relative_iris=10000)
     assert route.calls.last.request.content == urlencode({"riris": 9999}).encode()
 
-    await ptz_control.control(riris=-10000)
+    await ptz_control.control(relative_iris=-10000)
     assert route.calls.last.request.content == urlencode({"riris": -9999}).encode()
 
 
@@ -380,13 +380,13 @@ async def test_ptz_control_rbrightness(ptz_control: PtzControl):
     """Verify that PTZ control can send out rbrightness and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(rbrightness=90)
+    await ptz_control.control(relative_brightness=90)
     assert route.calls.last.request.content == urlencode({"rbrightness": 90}).encode()
 
-    await ptz_control.control(rbrightness=10000)
+    await ptz_control.control(relative_brightness=10000)
     assert route.calls.last.request.content == urlencode({"rbrightness": 9999}).encode()
 
-    await ptz_control.control(rbrightness=-10000)
+    await ptz_control.control(relative_brightness=-10000)
     assert (
         route.calls.last.request.content == urlencode({"rbrightness": -9999}).encode()
     )
@@ -397,19 +397,19 @@ async def test_ptz_control_continuouszoommove(ptz_control: PtzControl):
     """Verify that PTZ control can send out continuouszoommove and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(continuouszoommove=90)
+    await ptz_control.control(continuous_zoom_move=90)
     assert (
         route.calls.last.request.content
         == urlencode({"continuouszoommove": 90}).encode()
     )
 
-    await ptz_control.control(continuouszoommove=200)
+    await ptz_control.control(continuous_zoom_move=200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuouszoommove": 100}).encode()
     )
 
-    await ptz_control.control(continuouszoommove=-200)
+    await ptz_control.control(continuous_zoom_move=-200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuouszoommove": -100}).encode()
@@ -421,19 +421,19 @@ async def test_ptz_control_continuousfocusmove(ptz_control: PtzControl):
     """Verify that PTZ control can send out continuousfocusmove and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(continuousfocusmove=90)
+    await ptz_control.control(continuous_focus_move=90)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousfocusmove": 90}).encode()
     )
 
-    await ptz_control.control(continuousfocusmove=200)
+    await ptz_control.control(continuous_focus_move=200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousfocusmove": 100}).encode()
     )
 
-    await ptz_control.control(continuousfocusmove=-200)
+    await ptz_control.control(continuous_focus_move=-200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousfocusmove": -100}).encode()
@@ -445,19 +445,19 @@ async def test_ptz_control_continuousirismove(ptz_control: PtzControl):
     """Verify that PTZ control can send out continuousirismove and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(continuousirismove=90)
+    await ptz_control.control(continuous_iris_move=90)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousirismove": 90}).encode()
     )
 
-    await ptz_control.control(continuousirismove=200)
+    await ptz_control.control(continuous_iris_move=200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousirismove": 100}).encode()
     )
 
-    await ptz_control.control(continuousirismove=-200)
+    await ptz_control.control(continuous_iris_move=-200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousirismove": -100}).encode()
@@ -469,19 +469,19 @@ async def test_ptz_control_continuousbrightnessmove(ptz_control: PtzControl):
     """Verify that PTZ control can send out continuousbrightnessmove and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(continuousbrightnessmove=90)
+    await ptz_control.control(continuous_brightness_move=90)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousbrightnessmove": 90}).encode()
     )
 
-    await ptz_control.control(continuousbrightnessmove=200)
+    await ptz_control.control(continuous_brightness_move=200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousbrightnessmove": 100}).encode()
     )
 
-    await ptz_control.control(continuousbrightnessmove=-200)
+    await ptz_control.control(continuous_brightness_move=-200)
     assert (
         route.calls.last.request.content
         == urlencode({"continuousbrightnessmove": -100}).encode()
@@ -508,7 +508,7 @@ async def test_ptz_control_autofocus(ptz_control: PtzControl):
     """Verify that PTZ control can send out autofocus."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(autofocus=True)
+    await ptz_control.control(auto_focus=True)
     assert route.calls.last.request.content == urlencode({"autofocus": "on"}).encode()
 
 
@@ -517,7 +517,7 @@ async def test_ptz_control_autoiris(ptz_control: PtzControl):
     """Verify that PTZ control can send out autoiris."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(autoiris=False)
+    await ptz_control.control(auto_iris=False)
     assert route.calls.last.request.content == urlencode({"autoiris": "off"}).encode()
 
 
@@ -535,7 +535,7 @@ async def test_ptz_control_ircutfilter(ptz_control: PtzControl):
     """Verify that PTZ control can send out ircutfilter."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(ircutfilter=PtzState.AUTO)
+    await ptz_control.control(ir_cut_filter=PtzState.AUTO)
     assert (
         route.calls.last.request.content == urlencode({"ircutfilter": "auto"}).encode()
     )
@@ -546,7 +546,7 @@ async def test_ptz_control_imagerotation(ptz_control: PtzControl):
     """Verify that PTZ control can send out imagerotation."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(imagerotation=PtzRotation.ROTATION_180)
+    await ptz_control.control(image_rotation=PtzRotation.ROTATION_180)
     assert (
         route.calls.last.request.content == urlencode({"imagerotation": "180"}).encode()
     )
@@ -557,19 +557,19 @@ async def test_ptz_control_continuouspantiltmove(ptz_control: PtzControl):
     """Verify that PTZ control can send out continuouspantiltmove and its limits."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
 
-    await ptz_control.control(continuouspantiltmove=(30, 60))
+    await ptz_control.control(continuous_pantilt_move=(30, 60))
     assert (
         route.calls.last.request.content
         == urlencode({"continuouspantiltmove": "30,60"}).encode()
     )
 
-    await ptz_control.control(continuouspantiltmove=(200, 200))
+    await ptz_control.control(continuous_pantilt_move=(200, 200))
     assert (
         route.calls.last.request.content
         == urlencode({"continuouspantiltmove": "100,100"}).encode()
     )
 
-    await ptz_control.control(continuouspantiltmove=(-200, -200))
+    await ptz_control.control(continuous_pantilt_move=(-200, -200))
     assert (
         route.calls.last.request.content
         == urlencode({"continuouspantiltmove": "-100,-100"}).encode()
@@ -588,7 +588,7 @@ async def test_ptz_control_auxiliary(ptz_control: PtzControl):
 async def test_ptz_control_gotoserverpresetname(ptz_control: PtzControl):
     """Verify that PTZ control can send out gotoserverpresetname."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
-    await ptz_control.control(gotoserverpresetname="any")
+    await ptz_control.control(go_to_server_preset_name="any")
     assert (
         route.calls.last.request.content
         == urlencode({"gotoserverpresetname": "any"}).encode()
@@ -599,7 +599,7 @@ async def test_ptz_control_gotoserverpresetname(ptz_control: PtzControl):
 async def test_ptz_control_gotoserverpresetno(ptz_control: PtzControl):
     """Verify that PTZ control can send out gotoserverpresetno."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
-    await ptz_control.control(gotoserverpresetno=1)
+    await ptz_control.control(go_to_server_preset_number=1)
     assert (
         route.calls.last.request.content
         == urlencode({"gotoserverpresetno": 1}).encode()
@@ -610,7 +610,7 @@ async def test_ptz_control_gotoserverpresetno(ptz_control: PtzControl):
 async def test_ptz_control_gotodevicepreset(ptz_control: PtzControl):
     """Verify that PTZ control can send out gotodevicepreset."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/com/ptz.cgi")
-    await ptz_control.control(gotodevicepreset=2)
+    await ptz_control.control(go_to_device_preset=2)
     assert (
         route.calls.last.request.content == urlencode({"gotodevicepreset": 2}).encode()
     )
