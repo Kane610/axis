@@ -31,7 +31,7 @@ class ConfigurationPerspectiveDataT(TypedDict):
     """Perspective configuration data from response."""
 
     id: int
-    bars: list
+    bars: list[dict[str, Any]]
 
 
 class ConfigurationScenarioDataT(TypedDict):
@@ -42,12 +42,12 @@ class ConfigurationScenarioDataT(TypedDict):
     type: Literal["crosslinecounting", "fence", "motion", "occupancyInArea"]
     metadataOverlay: int
     alarmRate: str
-    devices: list
-    filters: list
-    objectClassifications: list
-    perspectives: list
-    presets: list
-    triggers: list
+    devices: list[dict[str, Any]]
+    filters: list[dict[str, Any]]
+    objectClassifications: list[dict[str, str]]
+    perspectives: list[dict[str, Any]]
+    presets: list[int]
+    triggers: list[dict[str, Any]]
 
 
 class ConfigurationDataT(TypedDict):
