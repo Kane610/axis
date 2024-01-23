@@ -220,19 +220,22 @@ class ListViewAreasRequest(ApiRequest):
 
 
 @dataclass
-class SetGeometryRequest(ListViewAreasRequest):
+class SetGeometryRequest(ApiRequest):
     """Request object for setting geometry of a view area."""
 
+    method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
     error_codes = general_error_codes
 
-    id: int | None = None
-    geometry: Geometry | None = None
+    id: int
+    geometry: Geometry
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.id is not None and self.geometry is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -254,18 +257,21 @@ class SetGeometryRequest(ListViewAreasRequest):
 
 
 @dataclass
-class ResetGeometryRequest(ListViewAreasRequest):
+class ResetGeometryRequest(ApiRequest):
     """Request object for resetting geometry of a view area."""
 
+    method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
     error_codes = general_error_codes
 
-    id: int | None = None
+    id: int
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
