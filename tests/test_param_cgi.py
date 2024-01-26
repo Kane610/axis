@@ -270,7 +270,7 @@ root.IOPort.I0.Input.Trig=closed
     assert not port.configurable
     assert port.direction.value == "input"
     assert port.name == "PIR sensor"
-    assert port.input_trig == "closed"
+    assert port.input_trigger == "closed"
     assert port.output_active == ""
 
 

@@ -45,7 +45,7 @@ class StreamProfileParam(ParamItem):
         raw_profiles = dict(data)
         raw_profiles.pop("MaxGroups", None)
 
-        profiles = [
+        stream_profiles = [
             StreamProfile(
                 id=profile["Name"],
                 description=profile["Description"],
@@ -57,7 +57,7 @@ class StreamProfileParam(ParamItem):
         return cls(
             id="stream profiles",
             max_groups=max_groups,
-            stream_profiles=profiles,
+            stream_profiles=stream_profiles,
         )
 
     @classmethod

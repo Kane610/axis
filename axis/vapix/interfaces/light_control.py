@@ -73,45 +73,45 @@ class LightHandler(ApiHandler[LightInformation]):
     async def get_light_information(self) -> dict[str, LightInformation]:
         """List the light control information."""
         bytes_data = await self.vapix.api_request(
-            GetLightInformationRequest(self.api_version)
+            GetLightInformationRequest(api_version=self.api_version)
         )
         return GetLightInformationResponse.decode(bytes_data).data
 
     async def get_service_capabilities(self) -> ServiceCapabilities:
         """List the light control information."""
         bytes_data = await self.vapix.api_request(
-            GetServiceCapabilitiesRequest(self.api_version)
+            GetServiceCapabilitiesRequest(api_version=self.api_version)
         )
         return GetServiceCapabilitiesResponse.decode(bytes_data).data
 
     async def activate_light(self, light_id: str) -> None:
         """Activate the light."""
         await self.vapix.api_request(
-            ActivateLightRequest(self.api_version, light_id=light_id)
+            ActivateLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
     async def deactivate_light(self, light_id: str) -> None:
         """Deactivate the light."""
         await self.vapix.api_request(
-            DeactivateLightRequest(self.api_version, light_id=light_id)
+            DeactivateLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
     async def enable_light(self, light_id: str) -> None:
         """Activate the light."""
         await self.vapix.api_request(
-            EnableLightRequest(self.api_version, light_id=light_id)
+            EnableLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
     async def disable_light(self, light_id: str) -> None:
         """Deactivate the light."""
         await self.vapix.api_request(
-            DisableLightRequest(self.api_version, light_id=light_id)
+            DisableLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
     async def get_light_status(self, light_id: str) -> bool:
         """Get light status if its on or off."""
         bytes_data = await self.vapix.api_request(
-            GetLightStatusRequest(self.api_version, light_id=light_id)
+            GetLightStatusRequest(api_version=self.api_version, light_id=light_id)
         )
         return GetLightStatusResponse.decode(bytes_data).data
 
@@ -119,7 +119,7 @@ class LightHandler(ApiHandler[LightInformation]):
         """Enable the automatic light intensity control."""
         await self.vapix.api_request(
             SetAutomaticIntensityModeRequest(
-                self.api_version,
+                api_version=self.api_version,
                 light_id=light_id,
                 enabled=enabled,
             )
@@ -128,7 +128,7 @@ class LightHandler(ApiHandler[LightInformation]):
     async def get_valid_intensity(self, light_id: str) -> Range:
         """Get valid intensity range for light."""
         bytes_data = await self.vapix.api_request(
-            GetValidIntensityRequest(self.api_version, light_id=light_id)
+            GetValidIntensityRequest(api_version=self.api_version, light_id=light_id)
         )
         return GetValidIntensityResponse.decode(bytes_data).data
 
@@ -136,7 +136,7 @@ class LightHandler(ApiHandler[LightInformation]):
         """Manually sets the intensity."""
         await self.vapix.api_request(
             SetManualIntensityRequest(
-                self.api_version,
+                api_version=self.api_version,
                 light_id=light_id,
                 intensity=intensity,
             )
@@ -145,7 +145,7 @@ class LightHandler(ApiHandler[LightInformation]):
     async def get_manual_intensity(self, light_id: str) -> int:
         """Enable the automatic light intensity control."""
         bytes_data = await self.vapix.api_request(
-            GetManualIntensityRequest(self.api_version, light_id=light_id)
+            GetManualIntensityRequest(api_version=self.api_version, light_id=light_id)
         )
         return GetManualIntensityResponse.decode(bytes_data).data
 
@@ -155,7 +155,7 @@ class LightHandler(ApiHandler[LightInformation]):
         """Manually sets the intensity for an individual LED."""
         await self.vapix.api_request(
             SetIndividualIntensityRequest(
-                self.api_version,
+                api_version=self.api_version,
                 light_id=light_id,
                 led_id=led_id,
                 intensity=intensity,
@@ -166,7 +166,7 @@ class LightHandler(ApiHandler[LightInformation]):
         """Receives the intensity from the setIndividualIntensity request."""
         bytes_data = await self.vapix.api_request(
             GetIndividualIntensityRequest(
-                self.api_version,
+                api_version=self.api_version,
                 light_id=light_id,
                 led_id=led_id,
             )
@@ -176,7 +176,7 @@ class LightHandler(ApiHandler[LightInformation]):
     async def get_current_intensity(self, light_id: str) -> int:
         """Receives the intensity from the setIndividualIntensity request."""
         bytes_data = await self.vapix.api_request(
-            GetCurrentIntensityRequest(self.api_version, light_id=light_id)
+            GetCurrentIntensityRequest(api_version=self.api_version, light_id=light_id)
         )
         return GetCurrentIntensityResponse.decode(bytes_data).data
 
@@ -190,14 +190,16 @@ class LightHandler(ApiHandler[LightInformation]):
         """
         await self.vapix.api_request(
             SetAutomaticAngleOfIlluminationModeRequest(
-                self.api_version, light_id=light_id, enabled=enabled
+                api_version=self.api_version, light_id=light_id, enabled=enabled
             )
         )
 
     async def get_valid_angle_of_illumination(self, light_id: str) -> list[Range]:
         """List the valid angle of illumination values."""
         bytes_data = await self.vapix.api_request(
-            GetValidAngleOfIlluminationRequest(self.api_version, light_id=light_id)
+            GetValidAngleOfIlluminationRequest(
+                api_version=self.api_version, light_id=light_id
+            )
         )
         return GetValidAngleOfIlluminationResponse.decode(bytes_data).data
 
@@ -211,7 +213,7 @@ class LightHandler(ApiHandler[LightInformation]):
         """
         await self.vapix.api_request(
             SetManualAngleOfIlluminationModeRequest(
-                self.api_version,
+                api_version=self.api_version,
                 light_id=light_id,
                 angle_of_illumination=angle_of_illumination,
             )
@@ -220,14 +222,18 @@ class LightHandler(ApiHandler[LightInformation]):
     async def get_manual_angle_of_illumination(self, light_id: str) -> int:
         """Get the angle of illumination."""
         bytes_data = await self.vapix.api_request(
-            GetManualAngleOfIlluminationRequest(self.api_version, light_id=light_id)
+            GetManualAngleOfIlluminationRequest(
+                api_version=self.api_version, light_id=light_id
+            )
         )
         return GetManualAngleOfIlluminationResponse.decode(bytes_data).data
 
     async def get_current_angle_of_illumination(self, light_id: str) -> int:
         """Receive the current angle of illumination."""
         bytes_data = await self.vapix.api_request(
-            GetCurrentAngleOfIlluminationRequest(self.api_version, light_id=light_id)
+            GetCurrentAngleOfIlluminationRequest(
+                api_version=self.api_version, light_id=light_id
+            )
         )
         return GetCurrentAngleOfIlluminationResponse.decode(bytes_data).data
 
@@ -237,14 +243,16 @@ class LightHandler(ApiHandler[LightInformation]):
         """Enable automatic synchronization with the day/night mode."""
         await self.vapix.api_request(
             SetLightSynchronizeDayNightModeRequest(
-                self.api_version, light_id=light_id, enabled=enabled
+                api_version=self.api_version, light_id=light_id, enabled=enabled
             )
         )
 
     async def get_light_synchronization_day_night_mode(self, light_id: str) -> bool:
         """Check if the automatic synchronization is enabled with the day/night mode."""
         bytes_data = await self.vapix.api_request(
-            GetLightSynchronizeDayNightModeRequest(self.api_version, light_id=light_id)
+            GetLightSynchronizeDayNightModeRequest(
+                api_version=self.api_version, light_id=light_id
+            )
         )
         return GetLightSynchronizeDayNightModeResponse.decode(bytes_data).data
 

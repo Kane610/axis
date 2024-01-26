@@ -256,7 +256,6 @@ class GetLightInformationRequest(ApiRequest):
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.api_version is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -373,14 +372,14 @@ class ActivateLightRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -398,7 +397,6 @@ class DeactivateLightRequest(ActivateLightRequest):
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -416,7 +414,6 @@ class EnableLightRequest(ActivateLightRequest):
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -434,7 +431,6 @@ class DisableLightRequest(ActivateLightRequest):
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -454,14 +450,14 @@ class GetLightStatusRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -503,16 +499,15 @@ class SetAutomaticIntensityModeRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+    enabled: bool
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
-    enabled: bool | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
-        assert self.enabled is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -532,14 +527,14 @@ class GetValidIntensityRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -581,16 +576,15 @@ class SetManualIntensityRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+    intensity: int
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
-    intensity: int | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
-        assert self.intensity is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -610,14 +604,14 @@ class GetManualIntensityRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -659,18 +653,16 @@ class SetIndividualIntensityRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+    led_id: int
+    intensity: int
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
-    led_id: int | None = None
-    intensity: int | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
-        assert self.led_id is not None
-        assert self.intensity is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -694,16 +686,15 @@ class GetIndividualIntensityRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+    led_id: int
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
-    led_id: int | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
-        assert self.led_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -745,14 +736,14 @@ class GetCurrentIntensityRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -794,16 +785,15 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+    enabled: bool
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
-    enabled: bool | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
-        assert self.enabled is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -823,14 +813,14 @@ class GetValidAngleOfIlluminationRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -872,16 +862,15 @@ class SetManualAngleOfIlluminationModeRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+    angle_of_illumination: int
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
-    angle_of_illumination: int | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
-        assert self.angle_of_illumination is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -904,14 +893,14 @@ class GetManualAngleOfIlluminationRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -953,14 +942,14 @@ class GetCurrentAngleOfIlluminationRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -1002,16 +991,15 @@ class SetLightSynchronizeDayNightModeRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+    enabled: bool
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
-    enabled: bool | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
-        assert self.enabled is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -1031,14 +1019,14 @@ class GetLightSynchronizeDayNightModeRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    light_id: str
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    light_id: str | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.light_id is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

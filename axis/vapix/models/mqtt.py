@@ -1,7 +1,7 @@
 """MQTT Client api."""
 
 from dataclasses import dataclass
-from typing import NotRequired, Self
+from typing import Literal, NotRequired, Self
 
 import orjson
 from typing_extensions import TypedDict
@@ -32,7 +32,7 @@ class ServerT(TypedDict):
     """Represent a server object."""
 
     host: str
-    protocol: NotRequired[str]  # Literal["ssl", "tcp", "ws", "wss"]
+    protocol: NotRequired[Literal["ssl", "tcp", "ws", "wss"]]
     alpnProtocol: NotRequired[str]
     basepath: NotRequired[str]
     port: NotRequired[int]
@@ -164,7 +164,7 @@ class Server:
     """Represent server config."""
 
     host: str
-    protocol: str = "tcp"  # "ssl", "tcp", "ws", "wss"
+    protocol: Literal["ssl", "tcp", "ws", "wss"] = "tcp"
     alpn_protocol: str | None = None
     basepath: str | None = None
     port: int | None = None
@@ -384,14 +384,14 @@ class ConfigureClientRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    client_config: ClientConfig
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    client_config: ClientConfig | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.client_config is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -545,14 +545,14 @@ class ConfigureEventPublicationRequest(ApiRequest):
     content_type = "application/json"
     error_codes = general_error_codes
 
+    config: EventPublicationConfig
+
     api_version: str = API_VERSION
     context: str = CONTEXT
-    config: EventPublicationConfig | None = None
 
     @property
     def content(self) -> bytes:
         """Initialize request data."""
-        assert self.config is not None
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

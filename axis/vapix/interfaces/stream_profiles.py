@@ -15,7 +15,6 @@ from ..models.stream_profile import (
     GetSupportedVersionsResponse,
     ListStreamProfilesRequest,
     ListStreamProfilesResponse,
-    ListStreamProfilesT,
     StreamProfile,
 )
 from .api_handler import ApiHandler
@@ -27,15 +26,15 @@ class StreamProfilesHandler(ApiHandler[StreamProfile]):
     api_id = ApiId.STREAM_PROFILES
     default_api_version = API_VERSION
 
-    async def _api_request(self) -> ListStreamProfilesT:
+    async def _api_request(self) -> dict[str, StreamProfile]:
         """Get default data of stream profiles."""
         return await self.list_stream_profiles()
 
-    async def list_stream_profiles(self) -> ListStreamProfilesT:
+    async def list_stream_profiles(self) -> dict[str, StreamProfile]:
         """List all stream profiles."""
         discovery_item = self.vapix.api_discovery[self.api_id.value]
         bytes_data = await self.vapix.api_request(
-            ListStreamProfilesRequest(discovery_item.version)
+            ListStreamProfilesRequest(api_version=discovery_item.version)
         )
         response = ListStreamProfilesResponse.decode(bytes_data)
         return response.data

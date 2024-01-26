@@ -123,17 +123,14 @@ class PirSensorConfiguration(ApiItem):
         return {item.id: item for item in [cls.decode(item) for item in raw]}
 
 
-ListSensorsT = dict[str, PirSensorConfiguration]
-
-
 @dataclass
-class ListSensorsResponse(ApiResponse[ListSensorsT]):
+class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
     """Response object for list sensors response."""
 
     api_version: str
     context: str
     method: str
-    data: ListSensorsT
+    data: dict[str, PirSensorConfiguration]
     # error: ErrorDataT | None = None
 
     @classmethod
@@ -204,6 +201,7 @@ class GetSensitivityRequest(ApiRequest):
     error_codes = sensor_specific_error_codes
 
     id: int
+
     api_version: str = API_VERSION
     context: str = CONTEXT
 
@@ -233,6 +231,7 @@ class SetSensitivityRequest(ApiRequest):
 
     id: int
     sensitivity: float
+
     api_version: str = API_VERSION
     context: str = CONTEXT
 

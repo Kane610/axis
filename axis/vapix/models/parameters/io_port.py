@@ -74,7 +74,7 @@ class IOPortParam(ParamItem):
     Read-only for non-configurable ports.
     """
 
-    input_trig: str
+    input_trigger: str
     """When port should trigger.
 
     closed=The input port triggers when the circuit is closed.
@@ -104,7 +104,7 @@ class IOPortParam(ParamItem):
             id=id,
             configurable=data.get("Configurable") == "yes",
             direction=direction,
-            input_trig=data.get("Input", {}).get("Trig", ""),
+            input_trigger=data.get("Input", {}).get("Trig", ""),
             name=name,
             output_active=data.get("Output", {}).get("Active", ""),
         )

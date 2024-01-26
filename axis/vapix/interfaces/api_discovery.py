@@ -13,7 +13,6 @@ from ..models.api_discovery import (
     GetSupportedVersionsRequest,
     GetSupportedVersionsResponse,
     ListApisRequest,
-    ListApisT,
 )
 from .api_handler import ApiHandler
 
@@ -36,7 +35,7 @@ class ApiDiscoveryHandler(ApiHandler[Api]):
         """Get default data of API discovery."""
         return await self.get_api_list()
 
-    async def get_api_list(self) -> ListApisT:
+    async def get_api_list(self) -> dict[str, Api]:
         """List all APIs registered on API Discovery service."""
         bytes_data = await self.vapix.api_request(ListApisRequest())
         response = GetAllApisResponse.decode(bytes_data)

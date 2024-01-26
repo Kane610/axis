@@ -122,9 +122,6 @@ class DeviceInformation(ApiItem):
         )
 
 
-GetAllPropertiesT = dict[str, DeviceInformation]
-
-
 @dataclass
 class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
     """Response object for basic device info."""
