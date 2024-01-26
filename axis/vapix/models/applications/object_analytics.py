@@ -70,53 +70,6 @@ class GetConfigurationResponseT(TypedDict):
 
 
 @dataclass
-class ProfileConfiguration(ApiItem):
-    """Profile configuration."""
-
-    camera: int
-    """Camera ID."""
-
-    filters: list[dict[str, Any]]
-    """Array of exclude filters."""
-
-    name: str
-    """Nice name of profile."""
-
-    presets: list[int]
-    """For mechanical PTZ cameras, each profile can be connected to one preset.
-
-    If a preset is added, the profile will only be active when the camera is at
-    the given preset. If this parameter is omitted or the profile is not connected
-    to any preset it will always be active.
-    """
-
-    triggers: list[dict[str, Any]]
-    """Array of triggers."""
-
-    uid: int
-    """Profile ID."""
-
-    @classmethod
-    def decode(cls, data: Any) -> Self:
-        """Decode dict to class object."""
-        return cls(
-            id=data["name"],
-            camera=data["camera"],
-            filters=data["filters"],
-            name=data["name"],
-            presets=data.get("presets", []),
-            triggers=data["triggers"],
-            uid=data["uid"],
-        )
-
-    @classmethod
-    def decode_from_list(cls, data: list[ConfigurationDeviceDataT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        applications = [cls.decode(v) for v in data]
-        return {app.id: app for app in applications}
-
-
-@dataclass
 class Configuration(ApiItem):
     """Object analytics configuration."""
 
