@@ -53,18 +53,7 @@ class MqttClientHandler(ApiHandler[Any]):
 
     api_id = ApiId.MQTT_CLIENT
     default_api_version = API_VERSION
-
-    async def do_update(self, skip_support_check=False) -> bool:
-        """Try update of API."""
-        try:
-            return await super().do_update(skip_support_check)
-        except NotImplementedError:
-            pass
-        return False
-
-    async def _api_request(self) -> dict[str, None]:
-        """Get API data method defined by subclass."""
-        raise NotImplementedError
+    skip_support_check = True
 
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""

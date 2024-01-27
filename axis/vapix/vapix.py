@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
+from ..errors import RequestError, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
 from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
@@ -146,7 +146,7 @@ class Vapix:
 
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        if not await self.api_discovery.do_update(skip_support_check=True):
+        if not await self.api_discovery.do_update():
             return
 
         apis: tuple[ApiHandler, ...] = (
@@ -213,14 +213,11 @@ class Vapix:
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self.event_instances.do_update(skip_support_check=True)
+        await self.event_instances.do_update()
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        try:
-            await self.users.update()
-        except Unauthorized:
-            pass
+        await self.users.do_update()
 
     async def load_user_groups(self) -> None:
         """Load user groups to know the access rights of the user.
@@ -231,12 +228,8 @@ class Vapix:
         if len(self.users) > 0 and self.device.config.username in self.users:
             user_groups = {"0": self.users[self.device.config.username]}
 
-        if not user_groups:
-            try:
-                await self.user_groups.update()
-                return
-            except PathNotFound:
-                pass
+        if not user_groups and await self.user_groups.do_update():
+            return
         self.user_groups._items = user_groups
 
     async def api_request(self, api_request: ApiRequest) -> bytes:

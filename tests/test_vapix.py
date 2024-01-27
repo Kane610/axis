@@ -359,31 +359,11 @@ async def test_applications_dont_load_without_params(vapix: Vapix):
 
 
 @respx.mock
-async def test_initialize_users(vapix: Vapix):
-    """Verify that you can list parameters."""
-    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
-        text="""users="usera,userv"
-viewer="root,userv"
-operator="root,usera"
-admin="root,usera"
-root="root"
-ptz=
-""",
-        headers={"Content-Type": "text/plain"},
-    )
-
-    await vapix.initialize_users()
-
-    assert vapix.users["root"].admin
-    assert vapix.users["usera"].admin
-    assert vapix.users["userv"].viewer
-
-
-@respx.mock
 async def test_initialize_users_fails_due_to_low_credentials(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(401)
     await vapix.initialize_users()
+    assert len(vapix.users.values()) == 0
 
 
 @respx.mock

@@ -14,10 +14,7 @@ class EventInstanceHandler(ApiHandler[Any]):
     """Event instances for Axis devices."""
 
     api_id = ApiId.UNKNOWN
-
-    def supported(self) -> bool:
-        """Is application supported and in a usable state."""
-        return True
+    skip_support_check = True
 
     async def _api_request(self) -> dict[str, Any]:
         """Get default data of API discovery."""

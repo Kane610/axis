@@ -28,6 +28,8 @@ from .api_handler import ApiHandler
 class Users(ApiHandler[User]):
     """Represents all users of a device."""
 
+    skip_support_check = True
+
     async def _api_request(self) -> dict[str, User]:
         """Get default data of basic device information."""
         return await self.list()

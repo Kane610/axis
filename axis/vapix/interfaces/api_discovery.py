@@ -4,7 +4,6 @@ The AXIS API Discovery service makes it possible to retrieve information
 about what APIs are supported per device.
 """
 
-from ...errors import PathNotFound
 from ..models.api_discovery import (
     API_VERSION,
     Api,
@@ -22,14 +21,7 @@ class ApiDiscoveryHandler(ApiHandler[Api]):
 
     api_id = ApiId.API_DISCOVERY
     default_api_version = API_VERSION
-
-    async def do_update(self, skip_support_check=False) -> bool:
-        """Try update of API."""
-        try:
-            return await super().do_update(skip_support_check)
-        except PathNotFound:  # Device doesn't support the endpoint
-            pass
-        return False
+    skip_support_check = True
 
     async def _api_request(self) -> dict[str, Api]:
         """Get default data of API discovery."""

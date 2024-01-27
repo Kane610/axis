@@ -1,6 +1,6 @@
 """API handler class and base class for an API endpoint."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Callable, ItemsView, Iterator, KeysView, ValuesView
 from typing import (
     TYPE_CHECKING,
@@ -8,7 +8,7 @@ from typing import (
     Generic,
 )
 
-from ...errors import Unauthorized
+from ...errors import PathNotFound, Unauthorized
 
 if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
@@ -73,6 +73,7 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
 
     api_id: "ApiId"
     default_api_version: str | None = None
+    skip_support_check = False
 
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
@@ -83,11 +84,15 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
 
     async def do_update(self, skip_support_check=False) -> bool:
         """Try update of API."""
+        skip_support_check = skip_support_check or self.skip_support_check
         if not skip_support_check and not self.supported():
             return False
+
         try:
             await self.update()
         except Unauthorized:  # Probably a viewer account
+            return False
+        except PathNotFound:  # Device doesn't support the endpoint
             return False
         return self.initialized
 
@@ -104,13 +109,16 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
             return discovery_item.version
         return self.default_api_version
 
-    @abstractmethod
     async def _api_request(self) -> dict[str, ApiItemT]:
         """Get API data method defined by subclass."""
+        raise NotImplementedError
 
     async def update(self) -> None:
         """Refresh data."""
-        self._items = await self._api_request()
+        try:
+            self._items = await self._api_request()
+        except NotImplementedError:
+            pass
         self.initialized = True
 
     def items(self) -> ItemsView[str, ApiItemT]:

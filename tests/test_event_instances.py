@@ -136,7 +136,7 @@ async def test_single_event_instance(
     )
     await event_instances.update()
 
-    assert event_instances.supported()
+    assert not event_instances.supported()
     assert len(event_instances) == 1
 
     event = event_instances[expected["topic"]]
