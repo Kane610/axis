@@ -21,6 +21,7 @@ class ParamHandler(ApiHandler[ParamItemT]):
     parameter_group: ParameterGroup
     parameter_item: type[ParamItemT]
     api_id = ApiId.PARAM_CGI
+    skip_support_check = True
 
     def __init__(self, param_handler: "Params") -> None:
         """Initialize API items."""
@@ -45,10 +46,6 @@ class ParamHandler(ApiHandler[ParamItemT]):
         self._items = self.get_params()
         self.initialized = True
 
-    async def update(self) -> None:
+    async def _update(self) -> None:
         """Refresh data."""
         await self.vapix.params.update_group(self.parameter_group)
-
-    async def _api_request(self) -> dict[str, ParamItemT]:
-        """Unusedd in this subclass."""
-        raise NotImplementedError

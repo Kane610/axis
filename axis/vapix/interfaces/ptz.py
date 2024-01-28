@@ -28,7 +28,7 @@ class PtzControl(ApiHandler[PtzParam]):
 
     async def get_ptz(self) -> dict[str, PtzParam]:
         """Retrieve privilege rights for current user."""
-        await self.vapix.params.ptz_handler.update()
+        await self.vapix.params.ptz_handler._update()
         return self.process_ptz()
 
     def process_ptz(self) -> dict[str, PtzParam]:

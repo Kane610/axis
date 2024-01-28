@@ -24,7 +24,7 @@ class Ports(ApiHandler[IOPortParam]):
 
     async def get_ports(self) -> dict[str, IOPortParam]:
         """Retrieve privilege rights for current user."""
-        await self.vapix.params.io_port_handler.update()
+        await self.vapix.params.io_port_handler._update()
         return self.process_ports()
 
     def load_ports(self) -> None:

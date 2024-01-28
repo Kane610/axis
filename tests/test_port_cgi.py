@@ -59,7 +59,7 @@ root.Output.NbrOfOutputs=1
         f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%5C"
     )
 
-    await ports.update()
+    await ports._update()
 
     assert update_ports_route.call_count == 1
     # assert update_ports_route.call_count == 3
@@ -112,7 +112,7 @@ async def test_no_ports(ports: Ports) -> None:
         headers={"Content-Type": "text/plain"},
     )
 
-    await ports.update()
+    await ports._update()
 
     assert route.call_count == 1
     assert len(ports.values()) == 0

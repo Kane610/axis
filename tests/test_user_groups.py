@@ -25,7 +25,7 @@ async def test_empty_response(user_groups):
         text="",
         headers={"Content-Type": "text/plain"},
     )
-    await user_groups.update()
+    await user_groups._update()
 
     assert user_groups.get("0") is None
 
@@ -37,7 +37,7 @@ async def test_root_user(user_groups):
         text="root\nroot admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
     )
-    await user_groups.update()
+    await user_groups._update()
 
     assert (user := user_groups.get("0"))
     assert user.privileges == SecondaryGroup.ADMIN_PTZ
@@ -54,7 +54,7 @@ async def test_admin_user(user_groups):
         text="administrator\nusers admin operator viewer\n",
         headers={"Content-Type": "text/plain"},
     )
-    await user_groups.update()
+    await user_groups._update()
 
     assert (user := user_groups.get("0"))
     assert user.privileges == SecondaryGroup.ADMIN
@@ -71,7 +71,7 @@ async def test_operator_user(user_groups):
         text="operator\nusers operator viewer\n",
         headers={"Content-Type": "text/plain"},
     )
-    await user_groups.update()
+    await user_groups._update()
 
     assert (user := user_groups.get("0"))
     assert user.privileges == SecondaryGroup.OPERATOR
@@ -88,7 +88,7 @@ async def test_viewer_user(user_groups):
         text="viewer\nusers viewer\n",
         headers={"Content-Type": "text/plain"},
     )
-    await user_groups.update()
+    await user_groups._update()
 
     assert (user := user_groups.get("0"))
     assert user.privileges == SecondaryGroup.VIEWER

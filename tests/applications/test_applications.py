@@ -25,7 +25,7 @@ async def test_update_no_application(applications: ApplicationsHandler):
         headers={"Content-Type": "text/xml"},
     )
 
-    await applications.update()
+    await applications._update()
 
     assert route.called
     assert len(applications.values()) == 0
@@ -38,7 +38,7 @@ async def test_update_single_application(applications: ApplicationsHandler):
         text=list_application_response,
         headers={"Content-Type": "text/xml"},
     )
-    await applications.update()
+    await applications._update()
 
     assert len(applications.values()) == 1
 
@@ -64,7 +64,7 @@ async def test_update_multiple_applications(applications: ApplicationsHandler):
         text=list_applications_response,
         headers={"Content-Type": "text/xml"},
     )
-    await applications.update()
+    await applications._update()
 
     assert len(applications.values()) == 7
 

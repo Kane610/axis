@@ -26,7 +26,7 @@ async def test_list_stream_profiles(stream_profiles: StreamProfilesHandler) -> N
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=response_list,
     )
-    await stream_profiles.update()
+    await stream_profiles._update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -62,7 +62,7 @@ async def test_list_stream_profiles_no_profiles(
             },
         },
     )
-    await stream_profiles.update()
+    await stream_profiles._update()
 
     assert len(stream_profiles.values()) == 0
 

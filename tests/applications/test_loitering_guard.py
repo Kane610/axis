@@ -25,7 +25,7 @@ async def test_get_empty_configuration(loitering_guard: LoiteringGuardHandler):
     route = respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
-    await loitering_guard.update()
+    await loitering_guard._update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -45,7 +45,7 @@ async def test_get_configuration(loitering_guard: LoiteringGuardHandler):
     respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
         json=response_get_configuration,
     )
-    await loitering_guard.update()
+    await loitering_guard._update()
 
     assert len(loitering_guard.values()) == 1
 

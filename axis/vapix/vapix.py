@@ -146,7 +146,7 @@ class Vapix:
 
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        if not await self.api_discovery.do_update():
+        if not await self.api_discovery.update():
             return
 
         apis: tuple[ApiHandler, ...] = (
@@ -158,7 +158,7 @@ class Vapix:
             self.stream_profiles,
             self.view_areas,
         )
-        await asyncio.gather(*[api.do_update() for api in apis])
+        await asyncio.gather(*[api.update() for api in apis])
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
@@ -192,14 +192,14 @@ class Vapix:
             not self.light_control.supported()
             and self.params.property_handler["0"].light_control
         ):
-            await self.light_control.do_update(skip_support_check=True)
+            await self.light_control.update(skip_support_check=True)
 
         if not self.io_port_management.supported():
             self.port_cgi.load_ports()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        if not await self.applications.do_update():
+        if not await self.applications.update():
             return
 
         apps: tuple[ApiHandler, ...] = (
@@ -209,15 +209,15 @@ class Vapix:
             self.object_analytics,
             self.vmd4,
         )
-        await asyncio.gather(*[app.do_update() for app in apps])
+        await asyncio.gather(*[app.update() for app in apps])
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self.event_instances.do_update()
+        await self.event_instances.update()
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        await self.users.do_update()
+        await self.users.update()
 
     async def load_user_groups(self) -> None:
         """Load user groups to know the access rights of the user.
@@ -228,7 +228,7 @@ class Vapix:
         if len(self.users) > 0 and self.device.config.username in self.users:
             user_groups = {"0": self.users[self.device.config.username]}
 
-        if not user_groups and await self.user_groups.do_update():
+        if not user_groups and await self.user_groups.update():
             return
         self.user_groups._items = user_groups
 

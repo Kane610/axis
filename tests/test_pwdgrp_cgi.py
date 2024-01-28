@@ -39,7 +39,7 @@ def test_user_class_privileges() -> None:
 async def test_users(users):
     """Verify that you can list users."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=fixture)
-    await users.update()
+    await users._update()
 
     assert users["userv"]
     assert users["userv"].name == "userv"
@@ -87,7 +87,7 @@ async def test_users_new_response(users):
     """Verify that you can list users."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(content=response)
-    await users.update()
+    await users._update()
 
     assert users["root"]
     assert users["root"].name == "root"
@@ -222,14 +222,14 @@ async def test_equals_in_value(users):
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
         text=fixture + 'equals-in-value="xyz=="'
     )
-    await users.update()
+    await users._update()
 
 
 @respx.mock
 async def test_no_equals_in_value(users):
     """Verify that values containing `=` are parsed correctly."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text="")
-    await users.update()
+    await users._update()
 
 
 fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"

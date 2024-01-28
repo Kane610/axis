@@ -43,7 +43,7 @@ async def test_update_ptz(ptz_control: PtzControl):
         headers={"Content-Type": "text/plain"},
     )
 
-    await ptz_control.update()
+    await ptz_control._update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"

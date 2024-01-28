@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Any
 
+from ...models.api_discovery import ApiId
 from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
 from ..api_handler import ApiHandler
 from .brand import BrandParameterHandler
@@ -17,6 +18,9 @@ if TYPE_CHECKING:
 
 class Params(ApiHandler[Any]):
     """Represents all parameters of param.cgi."""
+
+    api_id = ApiId.PARAM_CGI
+    skip_support_check = True
 
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
@@ -46,10 +50,6 @@ class Params(ApiHandler[Any]):
             for obj_id in objects:
                 self.signal_subscribers(obj_id)
 
-    async def update(self) -> None:
+    async def _update(self) -> None:
         """Refresh data."""
         await self.update_group()
-
-    async def _api_request(self) -> dict[str, Any]:
-        """Unusedd in this subclass."""
-        raise NotImplementedError

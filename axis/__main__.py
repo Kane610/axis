@@ -33,7 +33,7 @@ async def axis_device(
             await device.vapix.initialize_users()
             await device.vapix.load_user_groups()
         await device.vapix.initialize_event_instances()
-        await device.vapix.api_discovery.do_update()
+        await device.vapix.api_discovery.update()
 
         return device
 

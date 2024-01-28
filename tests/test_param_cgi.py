@@ -42,7 +42,7 @@ async def test_params(params: Params):
     )
     assert not params.initialized
     assert not params.brand_handler.initialized
-    await params.update()
+    await params._update()
     assert params.initialized
     assert params.brand_handler.initialized
 
@@ -80,7 +80,7 @@ async def test_update_brand(params: Params):
         text=response_param_cgi_brand,
         headers={"Content-Type": "text/plain"},
     )
-    await params.brand_handler.update()
+    await params.brand_handler._update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
@@ -106,7 +106,7 @@ async def test_update_image(params: Params):
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
-    await params.image_handler.update()
+    await params.image_handler._update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
@@ -259,7 +259,7 @@ root.IOPort.I0.Input.Trig=closed
 """,
         headers={"Content-Type": "text/plain"},
     )
-    await params.io_port_handler.update()
+    await params.io_port_handler._update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
@@ -283,7 +283,7 @@ async def test_update_properties(params: Params):
         text=response_param_cgi_properties,
         headers={"Content-Type": "text/plain"},
     )
-    await params.property_handler.update()
+    await params.property_handler._update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"
@@ -341,7 +341,7 @@ async def test_update_stream_profiles(params: Params):
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
-    await params.stream_profile_handler.update()
+    await params.stream_profile_handler._update()
 
     assert route.called
     assert route.calls.last.request.method == "GET"

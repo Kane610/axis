@@ -31,7 +31,7 @@ async def test_full_list_of_event_instances(event_instances):
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
     )
-    await event_instances.update()
+    await event_instances._update()
 
     assert len(event_instances) == 44
 
@@ -134,7 +134,7 @@ async def test_single_event_instance(
     respx.post(f"http://{HOST}:80/vapix/services").respond(
         text=response, headers={"Content-Type": "application/soap+xml; charset=utf-8"}
     )
-    await event_instances.update()
+    await event_instances._update()
 
     assert not event_instances.supported()
     assert len(event_instances) == 1

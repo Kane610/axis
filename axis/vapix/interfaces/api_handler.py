@@ -2,11 +2,7 @@
 
 from abc import ABC
 from collections.abc import Callable, ItemsView, Iterator, KeysView, ValuesView
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Generic,
-)
+from typing import TYPE_CHECKING, Any, Generic, final
 
 from ...errors import PathNotFound, Unauthorized
 
@@ -82,23 +78,24 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         self._items: dict[str, ApiItemT] = {}
         self.initialized = False
 
-    async def do_update(self, skip_support_check=False) -> bool:
+    def supported(self) -> bool:
+        """Is API supported by the device."""
+        return self.api_id.value in self.vapix.api_discovery
+
+    @final
+    async def update(self, skip_support_check=False) -> bool:
         """Try update of API."""
         skip_support_check = skip_support_check or self.skip_support_check
         if not skip_support_check and not self.supported():
             return False
 
         try:
-            await self.update()
+            await self._update()
         except Unauthorized:  # Probably a viewer account
             return False
         except PathNotFound:  # Device doesn't support the endpoint
             return False
         return self.initialized
-
-    def supported(self) -> bool:
-        """Is API supported by the device."""
-        return self.api_id.value in self.vapix.api_discovery
 
     @property
     def api_version(self) -> str | None:
@@ -113,7 +110,7 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         """Get API data method defined by subclass."""
         raise NotImplementedError
 
-    async def update(self) -> None:
+    async def _update(self) -> None:
         """Refresh data."""
         try:
             self._items = await self._api_request()
