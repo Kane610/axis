@@ -31,7 +31,7 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
 
     async def list_sensors(self) -> dict[str, PirSensorConfiguration]:
         """List all PIR sensors of device."""
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
             ListSensorsRequest(discovery_item.version)
         )
@@ -40,7 +40,7 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
 
     async def get_sensitivity(self, id: int) -> float | None:
         """Retrieve configured sensitivity of specific sensor."""
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
             GetSensitivityRequest(id, discovery_item.version)
         )
@@ -49,7 +49,7 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
 
     async def set_sensitivity(self, id: int, sensitivity: float) -> None:
         """Configure sensitivity of specific sensor."""
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        discovery_item = self.vapix.api_discovery[self.api_id]
         await self.vapix.api_request(
             SetSensitivityRequest(id, sensitivity, discovery_item.version)
         )

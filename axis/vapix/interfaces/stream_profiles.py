@@ -32,7 +32,7 @@ class StreamProfilesHandler(ApiHandler[StreamProfile]):
 
     async def list_stream_profiles(self) -> dict[str, StreamProfile]:
         """List all stream profiles."""
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
             ListStreamProfilesRequest(api_version=discovery_item.version)
         )

@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .param_cgi import Params
 
-from ...models.api_discovery import ApiId
 from ...models.parameters.param_cgi import ParameterGroup, ParamItemT
 from ..api_handler import ApiHandler
 
@@ -20,15 +19,14 @@ class ParamHandler(ApiHandler[ParamItemT]):
 
     parameter_group: ParameterGroup
     parameter_item: type[ParamItemT]
-    api_id = ApiId.PARAM_CGI
-    skip_support_check = True
 
     def __init__(self, param_handler: "Params") -> None:
         """Initialize API items."""
         super().__init__(param_handler.vapix)
         param_handler.subscribe(self.update_params, self.parameter_group.value)
 
-    def supported(self) -> bool:
+    @property
+    def supported_by_parameters(self) -> bool:
         """Is parameter group supported."""
         return self.vapix.params.get_param(self.parameter_group) != {}
 

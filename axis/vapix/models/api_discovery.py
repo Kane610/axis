@@ -15,7 +15,7 @@ API_VERSION = "1.0"
 LOGGER = logging.getLogger(__name__)
 
 
-class ApiId(enum.Enum):
+class ApiId(enum.StrEnum):
     """The API discovery ID."""
 
     ANALYTICS_METADATA_CONFIG = "analytics-metadata-config"

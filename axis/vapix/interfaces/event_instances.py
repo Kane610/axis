@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from ..models.api_discovery import ApiId
 from ..models.event_instance import (
     ListEventInstancesRequest,
     ListEventInstancesResponse,
@@ -12,9 +11,6 @@ from .api_handler import ApiHandler
 
 class EventInstanceHandler(ApiHandler[Any]):
     """Event instances for Axis devices."""
-
-    api_id = ApiId.UNKNOWN
-    skip_support_check = True
 
     async def _api_request(self) -> dict[str, Any]:
         """Get default data of API discovery."""

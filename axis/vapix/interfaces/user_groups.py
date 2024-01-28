@@ -3,7 +3,6 @@
 Figure out what access rights an account has.
 """
 
-from ..models.api_discovery import ApiId
 from ..models.pwdgrp_cgi import User
 from ..models.user_group import GetUserGroupRequest, GetUserGroupResponse
 from .api_handler import ApiHandler
@@ -11,9 +10,6 @@ from .api_handler import ApiHandler
 
 class UserGroups(ApiHandler[User]):
     """User group access rights for Axis devices."""
-
-    api_id = ApiId.UNKNOWN
-    skip_support_check = True
 
     async def _api_request(self) -> dict[str, User]:
         """Get API data method defined by subclass."""

@@ -2,7 +2,7 @@
 
 from abc import ABC
 from collections.abc import Callable, ItemsView, Iterator, KeysView, ValuesView
-from typing import TYPE_CHECKING, Any, Generic, final
+from typing import TYPE_CHECKING, Generic, final
 
 from ...errors import PathNotFound, Unauthorized
 
@@ -67,7 +67,7 @@ class SubscriptionHandler(ABC):
 class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     """Base class for a map of API Items."""
 
-    api_id: "ApiId"
+    api_id: "ApiId | None" = None
     default_api_version: str | None = None
     skip_support_check = False
 
@@ -78,17 +78,32 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         self._items: dict[str, ApiItemT] = {}
         self.initialized = False
 
+    @property
     def supported(self) -> bool:
         """Is API supported by the device."""
-        return self.api_id.value in self.vapix.api_discovery
+        return self.supported_by_api_discovery or self.supported_by_parameters
+
+    @property
+    def supported_by_api_discovery(self) -> bool:
+        """Is API listed in API Discovery."""
+        if self.api_id is None:
+            return False
+        return self.api_id in self.vapix.api_discovery
+
+    @property
+    def supported_by_parameters(self) -> bool:
+        """Is API listed in parameters."""
+        return False
+
+    async def check_support_and_update(self) -> bool:
+        """Check if API is supported and update."""
+        if not self.skip_support_check and not self.supported:
+            return False
+        return await self.update()
 
     @final
-    async def update(self, skip_support_check=False) -> bool:
+    async def update(self) -> bool:
         """Try update of API."""
-        skip_support_check = skip_support_check or self.skip_support_check
-        if not skip_support_check and not self.supported():
-            return False
-
         try:
             await self._update()
         except Unauthorized:  # Probably a viewer account
@@ -101,8 +116,10 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     def api_version(self) -> str | None:
         """Latest API version supported."""
         if (
-            discovery_item := self.vapix.api_discovery.get(self.api_id.value)
-        ) is not None:
+            self.api_id is not None
+            and (discovery_item := self.vapix.api_discovery.get(self.api_id))
+            is not None
+        ):
             return discovery_item.version
         return self.default_api_version
 
@@ -111,7 +128,10 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         raise NotImplementedError
 
     async def _update(self) -> None:
-        """Refresh data."""
+        """Refresh data.
+
+        Mark class as initialized if update request completed.
+        """
         try:
             self._items = await self._api_request()
         except NotImplementedError:
@@ -130,11 +150,9 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         """Return item values."""
         return self._items.values()
 
-    def get(self, obj_id: str, default: Any | None = None) -> ApiItemT | Any | None:
+    def get(self, obj_id: str) -> ApiItemT | None:
         """Get item value based on key, return default if no match."""
-        if obj_id in self:
-            return self[obj_id]
-        return default
+        return self._items.get(obj_id)
 
     def __getitem__(self, obj_id: str) -> ApiItemT:
         """Get item value based on key."""

@@ -6,7 +6,6 @@ and their license keys.
 
 from packaging import version
 
-from ...models.api_discovery import ApiId
 from ...models.applications.application import (
     Application,
     ListApplicationsRequest,
@@ -20,12 +19,11 @@ MINIMUM_VERSION = "1.20"
 class ApplicationsHandler(ApiHandler[Application]):
     """API Discovery for Axis devices."""
 
-    api_id = ApiId.UNKNOWN
-
-    def supported(self) -> bool:
+    @property
+    def supported_by_parameters(self) -> bool:
         """Is application supported and in a usable state."""
-        if self.vapix.params.property_handler.supported() and (
-            properties := self.vapix.params.property_handler["0"]
+        if self.vapix.params.property_handler.supported and (
+            properties := self.vapix.params.property_handler.get("0")
         ):
             return version.parse(properties.embedded_development) >= version.parse(
                 MINIMUM_VERSION

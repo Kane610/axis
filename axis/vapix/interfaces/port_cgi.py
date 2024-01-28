@@ -18,6 +18,11 @@ PROPERTY = "Properties.API.HTTP.Version=3"
 class Ports(ApiHandler[IOPortParam]):
     """Represents all ports of io/port.cgi."""
 
+    @property
+    def supported_by_parameters(self) -> bool:
+        """Is API listed in parameters."""
+        return self.vapix.params.io_port_handler.supported_by_parameters
+
     async def _api_request(self) -> dict[str, IOPortParam]:
         """Get API data method defined by subclass."""
         return await self.get_ports()

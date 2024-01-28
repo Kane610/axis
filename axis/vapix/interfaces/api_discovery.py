@@ -21,7 +21,11 @@ class ApiDiscoveryHandler(ApiHandler[Api]):
 
     api_id = ApiId.API_DISCOVERY
     default_api_version = API_VERSION
-    skip_support_check = True
+
+    @property
+    def supported_by_api_discovery(self) -> bool:
+        """API Discovery is always listed in API Discovery."""
+        return True
 
     async def _api_request(self) -> dict[str, Api]:
         """Get default data of API discovery."""

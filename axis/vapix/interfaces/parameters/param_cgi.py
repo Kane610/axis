@@ -20,7 +20,6 @@ class Params(ApiHandler[Any]):
     """Represents all parameters of param.cgi."""
 
     api_id = ApiId.PARAM_CGI
-    skip_support_check = True
 
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
