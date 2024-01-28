@@ -25,7 +25,7 @@ async def test_get_empty_configuration(vmd4: Vmd4Handler):
     route = respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration_empty,
     )
-    await vmd4._update()
+    await vmd4.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -45,7 +45,7 @@ async def test_get_configuration(vmd4: Vmd4Handler):
     respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=response_get_configuration,
     )
-    await vmd4._update()
+    await vmd4.update()
 
     assert len(vmd4.values()) == 1
 

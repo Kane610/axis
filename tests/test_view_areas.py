@@ -67,7 +67,7 @@ async def test_list_view_areas(view_areas: ViewAreaHandler):
             },
         }
     )
-    await view_areas._update()
+    await view_areas.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"

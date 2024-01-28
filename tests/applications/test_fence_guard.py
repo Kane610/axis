@@ -25,7 +25,7 @@ async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
     route = respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
-    await fence_guard._update()
+    await fence_guard.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -45,7 +45,7 @@ async def test_get_configuration(fence_guard: FenceGuardHandler):
     respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
         json=response_get_configuration,
     )
-    await fence_guard._update()
+    await fence_guard.update()
 
     assert len(fence_guard.values()) == 1
 

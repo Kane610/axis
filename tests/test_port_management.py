@@ -27,7 +27,7 @@ async def test_get_ports(io_port_management):
         json=response_getPorts,
     )
 
-    await io_port_management._update()
+    await io_port_management.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"

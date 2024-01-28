@@ -27,7 +27,7 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=response_getApiList,
     )
-    await api_discovery._update()
+    await api_discovery.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"

@@ -44,7 +44,7 @@ async def test_get_api_list(
             },
         },
     )
-    await pir_sensor_configuration._update()
+    await pir_sensor_configuration.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"

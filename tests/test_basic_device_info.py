@@ -29,7 +29,7 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
         json=response_getAllProperties,
     )
-    await basic_device_info._update()
+    await basic_device_info.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"

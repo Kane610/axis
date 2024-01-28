@@ -25,7 +25,7 @@ async def test_get_empty_configuration(motion_guard: MotionGuardHandler):
     route = respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration_empty,
     )
-    await motion_guard._update()
+    await motion_guard.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -45,7 +45,7 @@ async def test_get_configuration(motion_guard: MotionGuardHandler):
     respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
         json=response_get_configuration,
     )
-    await motion_guard._update()
+    await motion_guard.update()
 
     assert len(motion_guard.values()) == 1
 

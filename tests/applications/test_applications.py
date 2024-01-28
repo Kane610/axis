@@ -25,7 +25,7 @@ async def test_update_no_application(applications: ApplicationsHandler):
         headers={"Content-Type": "text/xml"},
     )
 
-    await applications._update()
+    await applications.update()
 
     assert route.called
     assert len(applications.values()) == 0
@@ -38,7 +38,7 @@ async def test_update_single_application(applications: ApplicationsHandler):
         text=list_application_response,
         headers={"Content-Type": "text/xml"},
     )
-    await applications._update()
+    await applications.update()
 
     assert len(applications.values()) == 1
 
@@ -58,13 +58,13 @@ async def test_update_single_application(applications: ApplicationsHandler):
 
 
 @respx.mock
-async def test_update_multiple_applications(applications: ApplicationsHandler):
+async def testupdate_multiple_applications(applications: ApplicationsHandler):
     """Test update applicatios call."""
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=list_applications_response,
         headers={"Content-Type": "text/xml"},
     )
-    await applications._update()
+    await applications.update()
 
     assert len(applications.values()) == 7
 

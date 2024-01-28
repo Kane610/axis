@@ -28,7 +28,7 @@ async def test_get_no_configuration(object_analytics):
         json={},
     )
     with pytest.raises(KeyError):
-        await object_analytics._update()
+        await object_analytics.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -48,7 +48,7 @@ async def test_get_empty_configuration(object_analytics):
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json=response_get_configuration_empty,
     )
-    await object_analytics._update()
+    await object_analytics.update()
 
     assert len(object_analytics.values()) == 1
 
@@ -59,7 +59,7 @@ async def test_get_configuration(object_analytics):
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json=response_get_configuration,
     )
-    await object_analytics._update()
+    await object_analytics.update()
 
     assert len(object_analytics.values()) == 1
     configuration = object_analytics["0"]

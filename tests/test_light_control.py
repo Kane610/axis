@@ -61,7 +61,7 @@ async def test_update(light_control):
         },
     )
 
-    await light_control._update()
+    await light_control.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
