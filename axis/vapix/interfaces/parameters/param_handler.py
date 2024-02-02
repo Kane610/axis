@@ -23,7 +23,7 @@ class ParamHandler(ApiHandler[ParamItemT]):
     def __init__(self, param_handler: "Params") -> None:
         """Initialize API items."""
         super().__init__(param_handler.vapix)
-        param_handler.subscribe(self.update_params, self.parameter_group.value)
+        param_handler.subscribe(self.update_params, self.parameter_group)
 
     @property
     def supported_by_parameters(self) -> bool:

@@ -312,7 +312,7 @@ async def test_initialize_applications_not_running(vapix: Vapix):
     )
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response.replace(
-            ApplicationStatus.RUNNING.value, ApplicationStatus.STOPPED.value
+            ApplicationStatus.RUNNING.value, ApplicationStatus.STOPPED
         ),
         headers={"Content-Type": "text/xml"},
     )

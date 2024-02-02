@@ -40,7 +40,7 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
 
     assert len(api_discovery.values()) == 15
 
-    item = api_discovery[ApiId.API_DISCOVERY.value]
+    item = api_discovery[ApiId.API_DISCOVERY]
     assert item.api_id == ApiId.API_DISCOVERY
     assert item.id == "api-discovery"
     assert item.name == "API Discovery Service"

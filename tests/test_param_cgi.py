@@ -268,7 +268,7 @@ root.IOPort.I0.Input.Trig=closed
     assert params.io_port_handler.supported
     port = params.io_port_handler["0"]
     assert not port.configurable
-    assert port.direction.value == "input"
+    assert port.direction == "input"
     assert port.name == "PIR sensor"
     assert port.input_trigger == "closed"
     assert port.output_active == ""

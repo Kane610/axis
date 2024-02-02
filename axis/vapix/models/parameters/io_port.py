@@ -35,7 +35,7 @@ class PortParamT(TypedDict):
     Output: NotRequired[PortOutputParamT]
 
 
-class PortAction(enum.Enum):
+class PortAction(enum.StrEnum):
     """Port action."""
 
     HIGH = "/"
@@ -48,7 +48,7 @@ class PortAction(enum.Enum):
         return cls.UNKNOWN
 
 
-class PortDirection(enum.Enum):
+class PortDirection(enum.StrEnum):
     """Port action."""
 
     IN = "input"

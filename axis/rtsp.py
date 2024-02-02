@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 RTSP_PORT = 554
 
 
-class Signal(enum.Enum):
+class Signal(enum.StrEnum):
     """What is the content of the callback."""
 
     DATA = "data"
@@ -25,7 +25,7 @@ class Signal(enum.Enum):
     PLAYING = "playing"
 
 
-class State(enum.Enum):
+class State(enum.StrEnum):
     """State of the connection."""
 
     PAUSED = "paused"

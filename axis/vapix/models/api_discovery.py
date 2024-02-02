@@ -83,7 +83,7 @@ class ApiId(enum.StrEnum):
         return ApiId.UNKNOWN
 
 
-class ApiStatus(enum.Enum):
+class ApiStatus(enum.StrEnum):
     """The API discovery status."""
 
     OFFICIAL = "official"

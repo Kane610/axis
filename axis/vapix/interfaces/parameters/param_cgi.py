@@ -34,7 +34,7 @@ class Params(ApiHandler[Any]):
 
     def get_param(self, group: ParameterGroup) -> dict[str, Any]:
         """Get parameter group."""
-        return self._items.get("root", {}).get(group.value, {})
+        return self._items.get("root", {}).get(group, {})
 
     async def update_group(self, group: ParameterGroup | None = None) -> None:
         """Refresh data."""
