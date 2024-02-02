@@ -41,7 +41,7 @@ class Params(ApiHandler[Any]):
         bytes_data = await self.vapix.api_request(ParamRequest(group))
         data = params_to_dict(bytes_data.decode())
 
-        root = self._items.setdefault("root", {})
+        root: dict[str, Any] = self._items.setdefault("root", {})
         if objects := data.get("root"):
             root.update(objects)
             self.initialized = True
@@ -52,3 +52,4 @@ class Params(ApiHandler[Any]):
     async def _update(self) -> None:
         """Refresh data."""
         await self.update_group()
+        self.initialized = True

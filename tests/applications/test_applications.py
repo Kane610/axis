@@ -58,7 +58,7 @@ async def test_update_single_application(applications: ApplicationsHandler):
 
 
 @respx.mock
-async def testupdate_multiple_applications(applications: ApplicationsHandler):
+async def test_update_multiple_applications(applications: ApplicationsHandler):
     """Test update applicatios call."""
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=list_applications_response,
