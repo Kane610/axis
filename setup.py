@@ -2,13 +2,14 @@
 
 from setuptools import find_packages, setup
 
-MIN_PY_VERSION = "3.10"
+MIN_PY_VERSION = "3.11"
 PACKAGES = find_packages(exclude=["tests", "tests.*"])
 VERSION = "48"
 
 setup(
     name="axis",
     packages=PACKAGES,
+    package_data={"axis": ["py.typed"]},
     version=VERSION,
     description="A Python library for communicating with devices from Axis Communications",
     author="Robert Svensson",
