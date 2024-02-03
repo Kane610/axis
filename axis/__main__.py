@@ -12,17 +12,17 @@ import axis
 LOGGER = logging.getLogger(__name__)
 
 
-def event_handler(event):
+def event_handler(event: axis.models.event.Event) -> None:
     """Receive and print events from RTSP stream."""
     LOGGER.info(event)
 
 
 async def axis_device(
     host: str, port: int, username: str, password: str
-) -> axis.AxisDevice:
+) -> axis.device.AxisDevice:
     """Create a Axis device."""
     session = AsyncClient(verify=False)
-    device = axis.AxisDevice(
+    device = axis.device.AxisDevice(
         axis.configuration.Configuration(
             session, host, port=port, username=username, password=password
         )
