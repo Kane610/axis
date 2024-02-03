@@ -41,7 +41,12 @@ class RTSPClient(asyncio.Protocol):
     """RTSP transport, session handling, message generation."""
 
     def __init__(
-        self, url: str, host: str, username: str, password: str, callback: Callable
+        self,
+        url: str,
+        host: str,
+        username: str,
+        password: str,
+        callback: Callable[[Signal], None],
     ) -> None:
         """RTSP."""
         self.loop = asyncio.get_running_loop()
@@ -145,7 +150,9 @@ class RTPClient:
     When data is received send a signal on callback to whoever is interested.
     """
 
-    def __init__(self, loop: Any, callback: Callable | None = None) -> None:
+    def __init__(
+        self, loop: Any, callback: Callable[[Signal], None] | None = None
+    ) -> None:
         """Configure and bind socket.
 
         We need to bind the port for RTSP before setting up the endpoint
@@ -179,7 +186,7 @@ class RTPClient:
     class UDPClient:
         """Datagram recepient for device data."""
 
-        def __init__(self, callback: Callable | None) -> None:
+        def __init__(self, callback: Callable[[Signal], None] | None) -> None:
             """Signal events to subscriber using callback."""
             self.callback = callback
             self.data: deque[bytes] = deque()
@@ -391,7 +398,7 @@ class RTSPMethods:
     def __init__(self, session: RTSPSession) -> None:
         """Define message methods."""
         self.session = session
-        self.message_methods: dict[str, Callable] = {
+        self.message_methods: dict[str, Callable[[], str]] = {
             "OPTIONS": self.OPTIONS,
             "DESCRIBE": self.DESCRIBE,
             "SETUP": self.SETUP,
