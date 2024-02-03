@@ -167,11 +167,6 @@ class ViewArea(ApiItem):
             grid=create_geometry(data.get("grid")),
         )
 
-    @classmethod
-    def decode_from_list(cls, raw: list[ViewAreaT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        return {str(item.id): item for item in [cls.decode(item) for item in raw]}
-
 
 @dataclass
 class ListViewAreasResponse(ApiResponse[dict[str, ViewArea]]):
@@ -191,7 +186,7 @@ class ListViewAreasResponse(ApiResponse[dict[str, ViewArea]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=ViewArea.decode_from_list(data.get("data", {}).get("viewAreas", [])),
+            data=ViewArea.decode_to_dict(data.get("data", {}).get("viewAreas", [])),
         )
 
 

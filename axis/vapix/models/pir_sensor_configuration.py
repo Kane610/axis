@@ -117,11 +117,6 @@ class PirSensorConfiguration(ApiItem):
             sensitivity=data.get("sensitivity"),
         )
 
-    @classmethod
-    def decode_from_list(cls, raw: list[PirSensorConfigurationT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        return {item.id: item for item in [cls.decode(item) for item in raw]}
-
 
 @dataclass
 class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
@@ -141,7 +136,7 @@ class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=PirSensorConfiguration.decode_from_list(data["data"]["sensors"]),
+            data=PirSensorConfiguration.decode_to_dict(data["data"]["sensors"]),
         )
 
 

@@ -59,8 +59,3 @@ class StreamProfileParam(ParamItem):
             max_groups=max_groups,
             stream_profiles=stream_profiles,
         )
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
-        """Create response object from dict."""
-        return {"0": cls.decode(data)}

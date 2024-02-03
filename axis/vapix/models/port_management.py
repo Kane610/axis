@@ -175,12 +175,6 @@ class Port(ApiItem):
             usage=data["usage"],
         )
 
-    @classmethod
-    def from_list(cls, data: list[PortItemT]) -> dict[str, Self]:
-        """Create objects from list."""
-        ports = [cls.decode(item) for item in data]
-        return {port.id: port for port in ports}
-
 
 @dataclass
 class GetPortsRequest(ApiRequest):
@@ -224,7 +218,7 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=Port.from_list(data["data"]["items"]),
+            data=Port.decode_to_dict(data["data"]["items"]),
         )
 
 

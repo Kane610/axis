@@ -216,12 +216,6 @@ class LightInformation(ApiItem):
             error_info=data["errorInfo"],
         )
 
-    @classmethod
-    def from_list(cls, data: list[LightInformationT]) -> dict[str, Self]:
-        """Create light information objects from list."""
-        lights = [cls.decode(item) for item in data]
-        return {light.id: light for light in lights}
-
 
 @dataclass
 class Range:
@@ -283,7 +277,7 @@ class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=LightInformation.from_list(data["data"]["items"]),
+            data=LightInformation.decode_to_dict(data["data"]["items"]),
         )
 
 

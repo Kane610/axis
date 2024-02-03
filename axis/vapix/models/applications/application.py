@@ -144,12 +144,6 @@ class Application(ApiItem):
             version=data["Version"],
         )
 
-    @classmethod
-    def decode_from_list(cls, data: list[ApplicationObjectT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        applications = [cls.decode(v) for v in data]
-        return {app.id: app for app in applications}
-
 
 @dataclass
 class ListApplicationsRequest(ApiRequest):
@@ -170,4 +164,4 @@ class ListApplicationsResponse(ApiResponse[dict[str, Application]]):
         """Prepare API description dictionary."""
         data = xmltodict.parse(bytes_data, attr_prefix="", force_list={"application"})
         apps: list[ApplicationObjectT] = data.get("reply", {}).get("application", [])
-        return cls(data=Application.decode_from_list(apps))
+        return cls(data=Application.decode_to_dict(apps))

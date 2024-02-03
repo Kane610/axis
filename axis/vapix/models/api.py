@@ -24,9 +24,9 @@ class ApiItem(ABC):
         return [cls.decode(data) for data in data_list]
 
     @classmethod
-    def decode_to_dict(cls, data_list: list[Any]) -> dict[str, Self]:
-        """Decodelist of data to a dict of class objects."""
-        return {v.id: v for v in cls.decode_to_list(data_list)}
+    def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
+        """Decode list of data to a dict of class objects."""
+        return {v.id: v for v in cls.decode_to_list(data)}
 
 
 ApiItemT = TypeVar("ApiItemT", bound=ApiItem)

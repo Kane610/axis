@@ -77,12 +77,6 @@ class User(ApiItem):
             ptz=data["ptz"],
         )
 
-    @classmethod
-    def from_list(cls, data: list[UserGroupsT]) -> dict[str, Self]:
-        """Create objects from list."""
-        users = [cls.decode(item) for item in data]
-        return {user.id: user for user in users}
-
 
 @dataclass
 class GetUsersRequest(ApiRequest):
@@ -129,7 +123,7 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
             for user in user_list
         ]
 
-        return cls(data=User.from_list(users))
+        return cls(data=User.decode_to_dict(users))
 
 
 @dataclass

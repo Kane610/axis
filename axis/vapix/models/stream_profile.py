@@ -94,11 +94,6 @@ class StreamProfile(ApiItem):
             parameters=data["parameters"],
         )
 
-    @classmethod
-    def decode_from_list(cls, raw: list[StreamProfileT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        return {item.id: item for item in [cls.decode(item) for item in raw]}
-
 
 @dataclass
 class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
@@ -118,7 +113,7 @@ class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=StreamProfile.decode_from_list(data["data"].get("streamProfile", [])),
+            data=StreamProfile.decode_to_dict(data["data"].get("streamProfile", [])),
         )
 
 
