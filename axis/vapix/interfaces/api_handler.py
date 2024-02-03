@@ -95,12 +95,6 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         """Is API listed in parameters."""
         return False
 
-    async def check_support_and_update(self) -> bool:
-        """Check if API is supported and update."""
-        if not self.skip_support_check and not self.supported:
-            return False
-        return await self.update()
-
     @final
     async def update(self) -> bool:
         """Try update of API."""

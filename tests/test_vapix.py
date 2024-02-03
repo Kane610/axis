@@ -45,6 +45,22 @@ def vapix(axis_device: AxisDevice) -> Vapix:
     return axis_device.vapix
 
 
+def test_vapix_not_initialized(vapix: Vapix) -> None:
+    """Test Vapix class without initialising any data."""
+    assert dict(vapix.basic_device_info.items()) == {}
+    assert list(vapix.basic_device_info.keys()) == []
+    assert list(vapix.basic_device_info.values()) == []
+    assert vapix.basic_device_info.get("0") is None
+    with pytest.raises(KeyError):
+        assert vapix.basic_device_info["0"]
+    assert iter(vapix.basic_device_info)
+    assert vapix.firmware_version == ""
+    assert vapix.product_number == ""
+    assert vapix.product_type == ""
+    assert vapix.serial_number == ""
+    assert vapix.streaming_profiles == []
+
+
 @respx.mock
 async def test_initialize(vapix: Vapix):
     """Verify that you can initialize all APIs."""
@@ -219,6 +235,7 @@ async def test_initialize_param_cgi(vapix: Vapix):
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
+    assert len(vapix.streaming_profiles) == 2
 
     assert len(vapix.basic_device_info) == 0
     assert len(vapix.ports.values()) == 1
