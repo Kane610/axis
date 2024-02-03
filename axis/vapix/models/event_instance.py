@@ -99,10 +99,10 @@ class EventInstance(ApiItem):
     Example: Storage device removed.
     """
 
-    source: dict | list
+    source: dict[str, Any] | list[dict[str, Any]]
     """Event source information."""
 
-    data: dict | list
+    data: dict[str, Any] | list[dict[str, Any]]
     """Event data description."""
 
     @classmethod

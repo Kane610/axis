@@ -102,7 +102,7 @@ class IOPortParam(ParamItem):
         )
         return cls(
             id=id,
-            configurable=data.get("Configurable") == "yes",
+            configurable=data.get("Configurable") is True,
             direction=direction,
             input_trigger=data.get("Input", {}).get("Trig", ""),
             name=name,

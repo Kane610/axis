@@ -113,7 +113,9 @@ XML_NAMESPACES = {
 }
 
 
-def traverse(data: dict, keys: tuple | list) -> dict:
+def traverse(
+    data: dict[str, dict[str, Any]], keys: tuple[str, ...] | list[str]
+) -> dict[str, Any]:
     """Traverse dictionary using keys to retrieve last item."""
     head, *tail = keys
     return traverse(data.get(head, {}), tail) if tail else data.get(head, {})

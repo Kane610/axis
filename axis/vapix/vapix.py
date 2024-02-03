@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -36,6 +36,7 @@ from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
 from .models.api import ApiRequest
 from .models.pwdgrp_cgi import SecondaryGroup
+from .models.stream_profile import StreamProfile
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
@@ -123,7 +124,7 @@ class Vapix:
         return SecondaryGroup.UNKNOWN
 
     @property
-    def streaming_profiles(self) -> list:
+    def streaming_profiles(self) -> list[StreamProfile]:
         """List streaming profiles."""
         if self.stream_profiles.supported:
             return list(self.stream_profiles.values())
@@ -149,7 +150,7 @@ class Vapix:
         if not await self.api_discovery.update():
             return
 
-        apis: tuple[ApiHandler, ...] = (
+        apis: tuple[ApiHandler[Any], ...] = (
             self.basic_device_info,
             self.io_port_management,
             self.light_control,
@@ -203,7 +204,7 @@ class Vapix:
             return
         await self.applications.update()
 
-        apps: tuple[ApiHandler, ...] = (
+        apps: tuple[ApiHandler[Any], ...] = (
             self.fence_guard,
             self.loitering_guard,
             self.motion_guard,
