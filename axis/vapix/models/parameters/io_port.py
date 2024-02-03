@@ -92,23 +92,23 @@ class IOPortParam(ParamItem):
     """
 
     @classmethod
-    def decode(cls, raw: tuple[str, PortParamT]) -> Self:
+    def decode(cls, data: tuple[str, PortParamT]) -> Self:
         # def decode(cls, id: str, data: PortParamT) -> Self:
         """Decode dict to class object."""
-        id, data = raw
-        direction = PortDirection(data.get("Direction", "input"))
+        id, raw = data
+        direction = PortDirection(raw.get("Direction", "input"))
         name = (
-            data.get("Input", {}).get("Name", "")
+            raw.get("Input", {}).get("Name", "")
             if direction == PortDirection.IN
-            else data.get("Output", {}).get("Name", "")
+            else raw.get("Output", {}).get("Name", "")
         )
         return cls(
             id=id,
-            configurable=data.get("Configurable") is True,
+            configurable=raw.get("Configurable") is True,
             direction=direction,
-            input_trigger=data.get("Input", {}).get("Trig", ""),
+            input_trigger=raw.get("Input", {}).get("Trig", ""),
             name=name,
-            output_active=data.get("Output", {}).get("Active", ""),
+            output_active=raw.get("Output", {}).get("Active", ""),
         )
 
     @classmethod

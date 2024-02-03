@@ -109,12 +109,12 @@ class PirSensorConfiguration(ApiItem):
     sensitivity: float | None = None
 
     @classmethod
-    def decode(cls, raw: PirSensorConfigurationT) -> Self:
+    def decode(cls, data: PirSensorConfigurationT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=str(raw["id"]),
-            configurable=raw["sensitivityConfigurable"],
-            sensitivity=raw.get("sensitivity"),
+            id=str(data["id"]),
+            configurable=data["sensitivityConfigurable"],
+            sensitivity=data.get("sensitivity"),
         )
 
     @classmethod

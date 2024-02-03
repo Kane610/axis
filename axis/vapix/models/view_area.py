@@ -140,7 +140,7 @@ class ViewArea(ApiItem):
     grid: Geometry | None = None
 
     @classmethod
-    def decode(cls, raw: ViewAreaT) -> Self:
+    def decode(cls, data: ViewAreaT) -> Self:
         """Decode dict to class object."""
 
         def create_geometry(item: GeometryT | None) -> Geometry | None:
@@ -156,15 +156,15 @@ class ViewArea(ApiItem):
             return Size.from_dict(item)
 
         return cls(
-            id=str(raw["id"]),
-            camera=raw["camera"],
-            source=raw["source"],
-            configurable=raw["configurable"],
-            canvas_size=create_size(raw.get("canvasSize")),
-            rectangular_geometry=create_geometry(raw.get("rectangularGeometry")),
-            min_size=create_size(raw.get("minSize")),
-            max_size=create_size(raw.get("maxSize")),
-            grid=create_geometry(raw.get("grid")),
+            id=str(data["id"]),
+            camera=data["camera"],
+            source=data["source"],
+            configurable=data["configurable"],
+            canvas_size=create_size(data.get("canvasSize")),
+            rectangular_geometry=create_geometry(data.get("rectangularGeometry")),
+            min_size=create_size(data.get("minSize")),
+            max_size=create_size(data.get("maxSize")),
+            grid=create_geometry(data.get("grid")),
         )
 
     @classmethod

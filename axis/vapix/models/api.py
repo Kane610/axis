@@ -15,8 +15,13 @@ class ApiItem(ABC):
 
     @classmethod
     @abstractmethod
-    def decode(cls, raw: Any) -> Self:
-        """Decode dict to class object."""
+    def decode(cls, data: Any) -> Self:
+        """Decode raw to class object."""
+
+    @classmethod
+    def decode_to_list(cls, data_list: list[Any]) -> list[Self]:
+        """Decode raw to list of class objects."""
+        return [cls(data) for data in data_list]
 
 
 ApiItemT = TypeVar("ApiItemT", bound=ApiItem)

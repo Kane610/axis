@@ -86,12 +86,12 @@ class StreamProfile(ApiItem):
         return self.id
 
     @classmethod
-    def decode(cls, raw: StreamProfileT) -> Self:
+    def decode(cls, data: StreamProfileT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=raw["name"],
-            description=raw["description"],
-            parameters=raw["parameters"],
+            id=data["name"],
+            description=data["description"],
+            parameters=data["parameters"],
         )
 
     @classmethod

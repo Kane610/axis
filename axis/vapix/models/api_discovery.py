@@ -175,13 +175,13 @@ class Api(ApiItem):
         return ApiId(self.id)
 
     @classmethod
-    def decode(cls, raw: ApiDescriptionT) -> Self:
+    def decode(cls, data: ApiDescriptionT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=raw["id"],
-            name=raw["name"],
-            status=ApiStatus(raw.get("status", "")),
-            version=raw["version"],
+            id=data["id"],
+            name=data["name"],
+            status=ApiStatus(data.get("status", "")),
+            version=data["version"],
         )
 
     @classmethod

@@ -163,16 +163,16 @@ class Port(ApiItem):
     """Usage of port."""
 
     @classmethod
-    def decode(cls, raw: PortItemT) -> Self:
+    def decode(cls, data: PortItemT) -> Self:
         """Create object from dict."""
         return cls(
-            id=raw["port"],
-            configurable=raw["configurable"],
-            direction=raw["direction"],
-            name=raw["name"],
-            normal_state=raw["normalState"],
-            state=raw["state"],
-            usage=raw["usage"],
+            id=data["port"],
+            configurable=data["configurable"],
+            direction=data["direction"],
+            name=data["name"],
+            normal_state=data["normalState"],
+            state=data["state"],
+            usage=data["usage"],
         )
 
     @classmethod

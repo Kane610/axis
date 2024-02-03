@@ -199,21 +199,21 @@ class LightInformation(ApiItem):
     error_info: str
 
     @classmethod
-    def decode(cls, raw: LightInformationT) -> Self:
+    def decode(cls, data: LightInformationT) -> Self:
         """Create light information object from dict."""
         return cls(
-            id=raw["lightID"],
-            enabled=raw["enabled"],
-            light_state=raw["lightState"],
-            light_type=raw["lightType"],
-            number_of_leds=raw["nrOfLEDs"],
-            automatic_intensity_mode=raw["automaticIntensityMode"],
-            automatic_angle_of_illumination_mode=raw[
+            id=data["lightID"],
+            enabled=data["enabled"],
+            light_state=data["lightState"],
+            light_type=data["lightType"],
+            number_of_leds=data["nrOfLEDs"],
+            automatic_intensity_mode=data["automaticIntensityMode"],
+            automatic_angle_of_illumination_mode=data[
                 "automaticAngleOfIlluminationMode"
             ],
-            synchronize_day_night_mode=raw["synchronizeDayNightMode"],
-            error=raw["error"],
-            error_info=raw["errorInfo"],
+            synchronize_day_night_mode=data["synchronizeDayNightMode"],
+            error=data["error"],
+            error_info=data["errorInfo"],
         )
 
     @classmethod
