@@ -10,7 +10,7 @@ import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.ptz import PtzControl
-from axis.vapix.models.ptz_cgi import PtzMove, PtzQuery, PtzRotation, PtzState, limit
+from axis.vapix.models.ptz_cgi import PtzMove, PtzQuery, PtzRotation, PtzState
 
 from .conftest import HOST
 from .test_param_cgi import response_param_cgi_ptz
@@ -22,15 +22,6 @@ UNSUPPORTED_COMMAND = "unsupported"
 def ptz_control(axis_device: AxisDevice) -> PtzControl:
     """Return the PTZ control mock object."""
     return axis_device.vapix.ptz
-
-
-def test_limit():
-    """Verify limit function works as expected."""
-    assert limit(1, 0, 2) == 1
-    assert limit(0, 0, 2) == 0
-    assert limit(-1, 0, 2) == 0
-    assert limit(2, 0, 2) == 2
-    assert limit(3, 0, 2) == 2
 
 
 @respx.mock

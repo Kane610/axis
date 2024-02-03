@@ -7,7 +7,6 @@ and actual parameter values, check the specification of the Axis PTZ driver used
 
 from dataclasses import dataclass
 import enum
-from typing import TypeVar
 
 from .api import ApiRequest
 
@@ -90,14 +89,6 @@ class PtzQuery(enum.StrEnum):
 
     SPEED = "speed"
     """Values for pan/tilt speed."""
-
-
-_T = TypeVar("_T", bound=int | float)
-
-
-def limit(num: _T, minimum: float, maximum: float) -> _T:
-    """Limits input 'num' between minimum and maximum values."""
-    return max(min(num, maximum), minimum)
 
 
 @dataclass
@@ -307,7 +298,7 @@ class PtzControlRequest(ApiRequest):
             ("speed", self.speed, 1, 100),
         ):
             if limit_value is not None:
-                data[key] = str(limit(limit_value, minimum, maximum))
+                data[key] = str(max(min(limit_value, maximum), minimum))
 
         for key, command_bool in (
             ("autofocus", self.auto_focus),
@@ -327,8 +318,8 @@ class PtzControlRequest(ApiRequest):
 
         if self.continuous_pantilt_move:
             pan_speed, tilt_speed = self.continuous_pantilt_move
-            pan_speed = limit(pan_speed, -100, 100)
-            tilt_speed = limit(tilt_speed, -100, 100)
+            pan_speed = max(min(pan_speed, 100), -100)
+            tilt_speed = max(min(tilt_speed, 100), -100)
             data["continuouspantiltmove"] = f"{pan_speed},{tilt_speed}"
         if self.auxiliary:
             data["auxiliary"] = self.auxiliary
