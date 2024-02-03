@@ -6,13 +6,13 @@ and actual parameter values, check the specification of the Axis PTZ driver used
 """
 
 from dataclasses import dataclass
-from enum import Enum
+import enum
 from typing import TypeVar
 
 from .api import ApiRequest
 
 
-class PtzMove(Enum):
+class PtzMove(enum.StrEnum):
     """Supported PTZ moves.
 
     Absolute:Moves the image 25 % of the image field width in the specified direction.
@@ -50,7 +50,7 @@ class PtzMove(Enum):
     """Stops the pan/tilt movement."""
 
 
-class PtzRotation(Enum):
+class PtzRotation(enum.StrEnum):
     """Supported PTZ rotations."""
 
     ROTATION_0 = "0"
@@ -59,7 +59,7 @@ class PtzRotation(Enum):
     ROTATION_270 = "270"
 
 
-class PtzState(Enum):
+class PtzState(enum.StrEnum):
     """Supported PTZ states."""
 
     AUTO = "auto"
@@ -67,7 +67,7 @@ class PtzState(Enum):
     OFF = "off"
 
 
-class PtzQuery(Enum):
+class PtzQuery(enum.StrEnum):
     """Supported PTZ queries."""
 
     LIMITS = "limits"
@@ -323,7 +323,7 @@ class PtzControlRequest(ApiRequest):
             ("move", self.move),
         ):
             if command_enum is not None:
-                data[key] = command_enum.value
+                data[key] = command_enum
 
         if self.continuous_pantilt_move:
             pan_speed, tilt_speed = self.continuous_pantilt_move
@@ -385,4 +385,4 @@ class QueryRequest(ApiRequest):
     @property
     def data(self) -> dict[str, str]:
         """Request data."""
-        return {"query": self.query.value}
+        return {"query": self.query}

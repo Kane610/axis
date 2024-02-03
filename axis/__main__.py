@@ -32,7 +32,7 @@ async def axis_device(
         async with timeout(5):
             await device.vapix.initialize_users()
             await device.vapix.load_user_groups()
-        await device.vapix.initialize_event_instances()
+        # await device.vapix.initialize_event_instances()
 
         return device
 

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from ..errors import PathNotFound, RequestError, Unauthorized, raise_error
+from ..errors import RequestError, raise_error
 from .interfaces.api_discovery import ApiDiscoveryHandler
 from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
@@ -82,36 +82,36 @@ class Vapix:
     @property
     def firmware_version(self) -> str:
         """Firmware version of device."""
-        if self.basic_device_info.supported():
+        if self.basic_device_info.supported:
             return self.basic_device_info.version
-        if self.params.property_handler.supported():
+        if self.params.property_handler.supported:
             return self.params.property_handler.get_params()["0"].firmware_version
         return ""
 
     @property
     def product_number(self) -> str:
         """Product number of device."""
-        if self.basic_device_info.supported():
+        if self.basic_device_info.supported:
             return self.basic_device_info.prodnbr
-        if self.params.brand_handler.supported():
+        if self.params.brand_handler.supported:
             return self.params.brand_handler.get_params()["0"].prodnbr
         return ""
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
-        if self.basic_device_info.supported():
+        if self.basic_device_info.supported:
             return self.basic_device_info.prodtype
-        if self.params.brand_handler.supported():
+        if self.params.brand_handler.supported:
             return self.params.brand_handler.get_params()["0"].prodtype
         return ""
 
     @property
     def serial_number(self) -> str:
         """Device serial number."""
-        if self.basic_device_info.supported():
+        if self.basic_device_info.supported:
             return self.basic_device_info.serialnumber
-        if self.params.property_handler.supported():
+        if self.params.property_handler.supported:
             return self.params.property_handler.get_params()["0"].system_serialnumber
         return ""
 
@@ -125,16 +125,16 @@ class Vapix:
     @property
     def streaming_profiles(self) -> list:
         """List streaming profiles."""
-        if self.stream_profiles.supported():
+        if self.stream_profiles.supported:
             return list(self.stream_profiles.values())
-        if self.params.stream_profile_handler.supported():
-            return self.params.stream_profile_handler.get_params()["0"].stream_profiles
+        if self.params.stream_profile_handler.supported:
+            return self.params.stream_profile_handler["0"].stream_profiles
         return []
 
     @property
     def ports(self) -> IoPortManagement | Ports:
         """Temporary port property."""
-        if not self.io_port_management.supported():
+        if not self.io_port_management.supported:
             return self.port_cgi
         return self.io_port_management
 
@@ -146,7 +146,7 @@ class Vapix:
 
     async def initialize_api_discovery(self) -> None:
         """Load API list from API Discovery."""
-        if not await self.api_discovery.do_update(skip_support_check=True):
+        if not await self.api_discovery.update():
             return
 
         apis: tuple[ApiHandler, ...] = (
@@ -158,7 +158,7 @@ class Vapix:
             self.stream_profiles,
             self.view_areas,
         )
-        await asyncio.gather(*[api.do_update() for api in apis])
+        await asyncio.gather(*[api.update() for api in apis if api.supported])
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
@@ -171,36 +171,37 @@ class Vapix:
             tasks.append(self.params.property_handler.update())
             tasks.append(self.params.ptz_handler.update())
 
-            if not self.basic_device_info.supported():
+            if not self.basic_device_info.supported:
                 tasks.append(self.params.brand_handler.update())
 
-            if not self.io_port_management.supported():
+            if not self.io_port_management.supported:
                 tasks.append(self.params.io_port_handler.update())
 
-            if not self.stream_profiles.supported():
+            if not self.stream_profiles.supported:
                 tasks.append(self.params.stream_profile_handler.update())
 
-            if self.view_areas.supported():
+            if self.view_areas.supported:
                 tasks.append(self.params.image_handler.update())
 
         await asyncio.gather(*tasks)
 
-        if not self.params.property_handler.supported():
+        if not self.params.property_handler.supported:
             return
 
         if (
-            not self.light_control.supported()
-            and self.params.property_handler["0"].light_control
+            not self.light_control.supported_by_api_discovery
+            and self.light_control.supported_by_parameters
         ):
-            await self.light_control.do_update(skip_support_check=True)
+            await self.light_control.update()
 
-        if not self.io_port_management.supported():
+        if not self.io_port_management.supported and self.port_cgi.supported:
             self.port_cgi.load_ports()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        if not await self.applications.do_update():
+        if not self.applications.supported:
             return
+        await self.applications.update()
 
         apps: tuple[ApiHandler, ...] = (
             self.fence_guard,
@@ -209,18 +210,16 @@ class Vapix:
             self.object_analytics,
             self.vmd4,
         )
-        await asyncio.gather(*[app.do_update() for app in apps])
+        await asyncio.gather(*[app.update() for app in apps if app.supported])
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self.event_instances.do_update(skip_support_check=True)
+        await self.event_instances.update()
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        try:
-            await self.users.update()
-        except Unauthorized:
-            pass
+        assert self.users.supported
+        await self.users.update()
 
     async def load_user_groups(self) -> None:
         """Load user groups to know the access rights of the user.
@@ -231,12 +230,8 @@ class Vapix:
         if len(self.users) > 0 and self.device.config.username in self.users:
             user_groups = {"0": self.users[self.device.config.username]}
 
-        if not user_groups:
-            try:
-                await self.user_groups.update()
-                return
-            except PathNotFound:
-                pass
+        if not user_groups and await self.user_groups.update():
+            return
         self.user_groups._items = user_groups
 
     async def api_request(self, api_request: ApiRequest) -> bytes:

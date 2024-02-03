@@ -27,6 +27,7 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=response_getApiList,
     )
+    assert api_discovery.supported
     await api_discovery.update()
 
     assert route.called
@@ -40,7 +41,7 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
 
     assert len(api_discovery.values()) == 15
 
-    item = api_discovery[ApiId.API_DISCOVERY.value]
+    item = api_discovery[ApiId.API_DISCOVERY]
     assert item.api_id == ApiId.API_DISCOVERY
     assert item.id == "api-discovery"
     assert item.name == "API Discovery Service"

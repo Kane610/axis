@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Any
 
+from ...models.api_discovery import ApiId
 from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
 from ..api_handler import ApiHandler
 from .brand import BrandParameterHandler
@@ -18,6 +19,8 @@ if TYPE_CHECKING:
 class Params(ApiHandler[Any]):
     """Represents all parameters of param.cgi."""
 
+    api_id = ApiId.PARAM_CGI
+
     def __init__(self, vapix: "Vapix") -> None:
         """Initialize API items."""
         super().__init__(vapix)
@@ -31,14 +34,14 @@ class Params(ApiHandler[Any]):
 
     def get_param(self, group: ParameterGroup) -> dict[str, Any]:
         """Get parameter group."""
-        return self._items.get("root", {}).get(group.value, {})
+        return self._items.get("root", {}).get(group, {})
 
     async def update_group(self, group: ParameterGroup | None = None) -> None:
         """Refresh data."""
         bytes_data = await self.vapix.api_request(ParamRequest(group))
         data = params_to_dict(bytes_data.decode())
 
-        root = self._items.setdefault("root", {})
+        root: dict[str, Any] = self._items.setdefault("root", {})
         if objects := data.get("root"):
             root.update(objects)
             self.initialized = True
@@ -46,10 +49,7 @@ class Params(ApiHandler[Any]):
             for obj_id in objects:
                 self.signal_subscribers(obj_id)
 
-    async def update(self) -> None:
+    async def _update(self) -> None:
         """Refresh data."""
         await self.update_group()
-
-    async def _api_request(self) -> dict[str, Any]:
-        """Unusedd in this subclass."""
-        raise NotImplementedError
+        self.initialized = True

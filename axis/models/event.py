@@ -10,7 +10,7 @@ import xmltodict
 LOGGER = logging.getLogger(__name__)
 
 
-class EventGroup(enum.Enum):
+class EventGroup(enum.StrEnum):
     """Logical grouping of events."""
 
     INPUT = "input"
@@ -22,7 +22,7 @@ class EventGroup(enum.Enum):
     NONE = "none"
 
 
-class EventOperation(str, enum.Enum):
+class EventOperation(enum.StrEnum):
     """Possible operations of an event."""
 
     INITIALIZED = "Initialized"
@@ -38,7 +38,7 @@ class EventOperation(str, enum.Enum):
         return EventOperation.UNKNOWN
 
 
-class EventTopic(enum.Enum):
+class EventTopic(enum.StrEnum):
     """Supported event topics."""
 
     DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
@@ -146,7 +146,7 @@ class Event:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Event":
         """Create event instance from dict."""
-        operation = EventOperation(data.get(EVENT_OPERATION))
+        operation = EventOperation(data.get(EVENT_OPERATION, ""))
         topic = data.get(EVENT_TOPIC, "")
         source = data.get(EVENT_SOURCE, "")
         source_idx = data.get(EVENT_SOURCE_IDX, "")

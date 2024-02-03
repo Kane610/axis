@@ -63,12 +63,12 @@ async def test_params(params: Params):
 async def test_params_empty_raw(params: Params):
     """Verify that params can take an empty raw on creation."""
     assert len(params) == 0
-    assert not params.brand_handler.supported()
-    assert not params.image_handler.supported()
-    assert not params.io_port_handler.supported()
-    assert not params.property_handler.supported()
-    assert not params.ptz_handler.supported()
-    assert not params.stream_profile_handler.supported()
+    assert not params.brand_handler.supported
+    assert not params.image_handler.supported
+    assert not params.io_port_handler.supported
+    assert not params.property_handler.supported
+    assert not params.ptz_handler.supported
+    assert not params.stream_profile_handler.supported
 
 
 @respx.mock
@@ -86,7 +86,7 @@ async def test_update_brand(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.brand_handler.supported()
+    assert params.brand_handler.supported
     brand = params.brand_handler["0"]
     assert brand.brand == "AXIS"
     assert brand.prodfullname == "AXIS M1065-LW Network Camera"
@@ -112,7 +112,7 @@ async def test_update_image(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.image_handler.supported()
+    assert params.image_handler.supported
     assert params.image_handler["0"].data == {
         "DateFormat": "YYYY-MM-DD",
         "MaxViewers": 20,
@@ -265,10 +265,10 @@ root.IOPort.I0.Input.Trig=closed
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.io_port_handler.supported()
+    assert params.io_port_handler.supported
     port = params.io_port_handler["0"]
     assert not port.configurable
-    assert port.direction.value == "input"
+    assert port.direction == "input"
     assert port.name == "PIR sensor"
     assert port.input_trigger == "closed"
     assert port.output_active == ""
@@ -289,7 +289,7 @@ async def test_update_properties(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.property_handler.supported()
+    assert params.property_handler.supported
     properties = params.property_handler["0"]
     assert properties.api_http_version == 3
     assert properties.api_metadata is True

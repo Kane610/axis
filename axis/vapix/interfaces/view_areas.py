@@ -34,7 +34,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
 
     async def list_view_areas(self) -> dict[str, ViewArea]:
         """List all view areas of device."""
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
             ListViewAreasRequest(discovery_item.version)
         )
@@ -47,7 +47,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
             SetGeometryRequest(
                 id=id,
@@ -64,7 +64,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        discovery_item = self.vapix.api_discovery[self.api_id.value]
+        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
             ResetGeometryRequest(id=id, api_version=discovery_item.version)
         )

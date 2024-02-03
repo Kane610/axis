@@ -18,6 +18,11 @@ PROPERTY = "Properties.API.HTTP.Version=3"
 class Ports(ApiHandler[IOPortParam]):
     """Represents all ports of io/port.cgi."""
 
+    @property
+    def supported_by_parameters(self) -> bool:
+        """Is API listed in parameters."""
+        return self.vapix.params.io_port_handler.supported_by_parameters
+
     async def _api_request(self) -> dict[str, IOPortParam]:
         """Get API data method defined by subclass."""
         return await self.get_ports()
@@ -39,7 +44,7 @@ class Ports(ApiHandler[IOPortParam]):
         """Activate or deactivate an output."""
         if (port := self[id]) and port.direction != PortDirection.OUT:
             return
-        await self.vapix.api_request(PortActionRequest(id, action.value))
+        await self.vapix.api_request(PortActionRequest(id, action))
 
     async def open(self, id: str) -> None:
         """Open port."""

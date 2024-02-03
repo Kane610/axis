@@ -675,9 +675,7 @@ async def test_query_limit(ptz_control, input, output):
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/com/ptz.cgi"
-    assert (
-        route.calls.last.request.content == urlencode({"query": input.value}).encode()
-    )
+    assert route.calls.last.request.content == urlencode({"query": input}).encode()
     assert response == output.encode()
 
 

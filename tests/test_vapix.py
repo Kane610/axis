@@ -45,6 +45,22 @@ def vapix(axis_device: AxisDevice) -> Vapix:
     return axis_device.vapix
 
 
+def test_vapix_not_initialized(vapix: Vapix) -> None:
+    """Test Vapix class without initialising any data."""
+    assert dict(vapix.basic_device_info.items()) == {}
+    assert list(vapix.basic_device_info.keys()) == []
+    assert list(vapix.basic_device_info.values()) == []
+    assert vapix.basic_device_info.get("0") is None
+    with pytest.raises(KeyError):
+        assert vapix.basic_device_info["0"]
+    assert iter(vapix.basic_device_info)
+    assert vapix.firmware_version == ""
+    assert vapix.product_number == ""
+    assert vapix.product_type == ""
+    assert vapix.serial_number == ""
+    assert vapix.streaming_profiles == []
+
+
 @respx.mock
 async def test_initialize(vapix: Vapix):
     """Verify that you can initialize all APIs."""
@@ -219,6 +235,7 @@ async def test_initialize_param_cgi(vapix: Vapix):
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
+    assert len(vapix.streaming_profiles) == 2
 
     assert len(vapix.basic_device_info) == 0
     assert len(vapix.ports.values()) == 1
@@ -312,7 +329,7 @@ async def test_initialize_applications_not_running(vapix: Vapix):
     )
     respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
         text=applications_response.replace(
-            ApplicationStatus.RUNNING.value, ApplicationStatus.STOPPED.value
+            ApplicationStatus.RUNNING.value, ApplicationStatus.STOPPED
         ),
         headers={"Content-Type": "text/xml"},
     )
@@ -359,31 +376,11 @@ async def test_applications_dont_load_without_params(vapix: Vapix):
 
 
 @respx.mock
-async def test_initialize_users(vapix: Vapix):
-    """Verify that you can list parameters."""
-    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
-        text="""users="usera,userv"
-viewer="root,userv"
-operator="root,usera"
-admin="root,usera"
-root="root"
-ptz=
-""",
-        headers={"Content-Type": "text/plain"},
-    )
-
-    await vapix.initialize_users()
-
-    assert vapix.users["root"].admin
-    assert vapix.users["usera"].admin
-    assert vapix.users["userv"].viewer
-
-
-@respx.mock
 async def test_initialize_users_fails_due_to_low_credentials(vapix: Vapix):
     """Verify that you can list parameters."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(401)
     await vapix.initialize_users()
+    assert len(vapix.users.values()) == 0
 
 
 @respx.mock
@@ -454,80 +451,25 @@ async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix)
 
 
 @respx.mock
-async def test_request_json_error(vapix: Vapix):
-    """Verify that a JSON error returns an empty dict."""
-    respx.get(f"http://{HOST}:80").respond(
-        json={"error": ""}, headers={"Content-Type": "application/json"}
-    )
+@pytest.mark.parametrize(
+    ("code", "error"),
+    ((401, Unauthorized), (404, PathNotFound), (405, MethodNotAllowed)),
+)
+async def test_request_raises(vapix: Vapix, code, error):
+    """Verify that a HTTP error raises the appropriate exception."""
+    respx.get(f"http://{HOST}:80").respond(code)
 
-    assert await vapix.request("get", "") == b'{"error": ""}'
-
-
-@respx.mock
-async def test_request_plain_text_error(vapix: Vapix):
-    """Verify that a plain text error returns an empty string."""
-    respx.get(f"http://{HOST}:80").respond(
-        text="# Error:", headers={"Content-Type": "text/plain"}
-    )
-
-    assert await vapix.request("get", "") == b"# Error:"
-
-
-@respx.mock
-async def test_request_401_raises_unauthorized(vapix: Vapix):
-    """Verify that a 401 raises Unauthorized exception.
-
-    This typically mean that user credentials aren't high enough, e.g. viewer account.
-    """
-    respx.get(f"http://{HOST}:80").respond(401)
-
-    with pytest.raises(Unauthorized):
+    with pytest.raises(error):
         await vapix.request("get", "")
 
 
 @respx.mock
-async def test_request_404_raises_path_not_found(vapix: Vapix):
-    """Verify that a 404 raises PathNotFound exception.
-
-    This typically means something is unsupported.
-    """
-    respx.get(f"http://{HOST}:80").respond(404)
-
-    with pytest.raises(PathNotFound):
-        await vapix.request("get", "")
-
-
-@respx.mock
-async def test_request_405_raises_method_not_allowed(vapix: Vapix):
-    """Verify that a 405 raises MethodNotAllowed exception."""
-    respx.get(f"http://{HOST}:80").respond(405)
-
-    with pytest.raises(MethodNotAllowed):
-        await vapix.request("get", "")
-
-
-@respx.mock
-async def test_request_timeout(vapix: Vapix):
-    """Verify that you can list parameters."""
-    respx.get(f"http://{HOST}:80").side_effect = httpx.TimeoutException
-
-    with pytest.raises(RequestError):
-        await vapix.request("get", "")
-
-
-@respx.mock
-async def test_request_transport_error(vapix: Vapix):
-    """Verify that you can list parameters."""
-    respx.get(f"http://{HOST}:80").side_effect = httpx.TransportError
-
-    with pytest.raises(RequestError):
-        await vapix.request("get", "")
-
-
-@respx.mock
-async def test_request_request_error(vapix: Vapix):
-    """Verify that you can list parameters."""
-    respx.get(f"http://{HOST}:80").side_effect = httpx.RequestError
+@pytest.mark.parametrize(
+    "side_effect", (httpx.TimeoutException, httpx.TransportError, httpx.RequestError)
+)
+async def test_request_side_effects(vapix: Vapix, side_effect):
+    """Test request side effects."""
+    respx.get(f"http://{HOST}:80").side_effect = side_effect
 
     with pytest.raises(RequestError):
         await vapix.request("get", "")

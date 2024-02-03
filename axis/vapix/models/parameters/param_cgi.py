@@ -11,7 +11,7 @@ from ..api import ApiItem, ApiRequest
 LOGGER = logging.getLogger(__name__)
 
 
-class ParameterGroup(enum.Enum):
+class ParameterGroup(enum.StrEnum):
     """Parameter groups."""
 
     AUDIO = "Audio"
@@ -109,5 +109,5 @@ class ParamRequest(ApiRequest):
     @property
     def params(self) -> dict[str, str]:
         """Request query parameters."""
-        group = f"&group=root.{self.group.value}" if self.group else ""
+        group = f"&group=root.{self.group}" if self.group else ""
         return {"action": f"list{group}"}

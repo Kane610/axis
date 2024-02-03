@@ -9,7 +9,7 @@ from typing_extensions import TypedDict
 from .api import ApiItem, ApiRequest, ApiResponse
 
 
-class SecondaryGroup(enum.Enum):
+class SecondaryGroup(enum.StrEnum):
     """Supported user secondary groups.
 
     Defines the user access rights for the account.
@@ -153,7 +153,7 @@ class CreateUserRequest(ApiRequest):
             "user": self.user,
             "pwd": self.pwd,
             "grp": "users",
-            "sgrp": self.sgrp.value,
+            "sgrp": self.sgrp,
         }
 
         if self.comment is not None:
@@ -184,7 +184,7 @@ class ModifyUserRequest(ApiRequest):
             data["pwd"] = self.pwd
 
         if self.sgrp:
-            data["sgrp"] = self.sgrp.value
+            data["sgrp"] = self.sgrp
 
         if self.comment:
             data["comment"] = self.comment
