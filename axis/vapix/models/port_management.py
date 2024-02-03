@@ -163,22 +163,22 @@ class Port(ApiItem):
     """Usage of port."""
 
     @classmethod
-    def from_dict(cls, data: PortItemT) -> Self:
+    def decode(cls, raw: PortItemT) -> Self:
         """Create object from dict."""
         return cls(
-            id=data["port"],
-            configurable=data["configurable"],
-            direction=data["direction"],
-            name=data["name"],
-            normal_state=data["normalState"],
-            state=data["state"],
-            usage=data["usage"],
+            id=raw["port"],
+            configurable=raw["configurable"],
+            direction=raw["direction"],
+            name=raw["name"],
+            normal_state=raw["normalState"],
+            state=raw["state"],
+            usage=raw["usage"],
         )
 
     @classmethod
     def from_list(cls, data: list[PortItemT]) -> dict[str, Self]:
         """Create objects from list."""
-        ports = [cls.from_dict(item) for item in data]
+        ports = [cls.decode(item) for item in data]
         return {port.id: port for port in ports}
 
 

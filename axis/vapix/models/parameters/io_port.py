@@ -92,8 +92,10 @@ class IOPortParam(ParamItem):
     """
 
     @classmethod
-    def decode(cls, id: str, data: PortParamT) -> Self:
+    def decode(cls, raw: tuple[str, PortParamT]) -> Self:
+        # def decode(cls, id: str, data: PortParamT) -> Self:
         """Decode dict to class object."""
+        id, data = raw
         direction = PortDirection(data.get("Direction", "input"))
         name = (
             data.get("Input", {}).get("Name", "")
@@ -112,5 +114,5 @@ class IOPortParam(ParamItem):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
         """Create objects from dict."""
-        ports = [cls.decode(k[1:], v) for k, v in data.items()]
+        ports = [cls.decode((k[1:], v)) for k, v in data.items()]
         return {port.id: port for port in ports}

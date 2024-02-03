@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Generic, Self, TypeVar
+from typing import Any, Generic, Self, TypeVar
 
 CONTEXT = "Axis library"
 
@@ -12,6 +12,11 @@ class ApiItem(ABC):
     """API item class."""
 
     id: str
+
+    @classmethod
+    @abstractmethod
+    def decode(cls, raw: Any) -> Self:
+        """Decode dict to class object."""
 
 
 ApiItemT = TypeVar("ApiItemT", bound=ApiItem)
