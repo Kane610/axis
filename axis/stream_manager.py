@@ -30,8 +30,8 @@ class StreamManager:
         self.event = False
         self.stream: RTSPClient | None = None
 
-        self.connection_status_callback: list[Callable] = []
-        self.background_tasks: set[asyncio.Task] = set()
+        self.connection_status_callback: list[Callable[[Signal], None]] = []
+        self.background_tasks: set[asyncio.Task[None]] = set()
         self.retry_timer: asyncio.TimerHandle | None = None
 
     @property
