@@ -7,7 +7,7 @@ from typing import Any, Generic, Self, TypeVar
 CONTEXT = "Axis library"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ApiItem(ABC):
     """API item class."""
 

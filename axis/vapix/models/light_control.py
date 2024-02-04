@@ -184,7 +184,7 @@ general_error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class LightInformation(ApiItem):
     """Light information item."""
 

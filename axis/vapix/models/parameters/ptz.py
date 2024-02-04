@@ -354,7 +354,7 @@ class PtzVarious:
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
 
-@dataclass
+@dataclass(frozen=True)
 class PtzParam(ParamItem):
     """PTZ parameters."""
 

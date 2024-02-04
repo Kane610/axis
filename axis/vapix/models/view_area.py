@@ -123,7 +123,7 @@ class Size:
         return Size(horizontal=item["horizontal"], vertical=item["vertical"])
 
 
-@dataclass
+@dataclass(frozen=True)
 class ViewArea(ApiItem):
     """View area object."""
 

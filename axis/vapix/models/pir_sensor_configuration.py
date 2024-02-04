@@ -101,7 +101,7 @@ sensor_specific_error_codes = general_error_codes | {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class PirSensorConfiguration(ApiItem):
     """Pir sensor configuration representation."""
 

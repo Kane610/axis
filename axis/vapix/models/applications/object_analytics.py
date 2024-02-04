@@ -69,7 +69,7 @@ class GetConfigurationResponseT(TypedDict):
     # error: NotRequired[ErrorDataT]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Configuration(ApiItem):
     """Object analytics configuration."""
 

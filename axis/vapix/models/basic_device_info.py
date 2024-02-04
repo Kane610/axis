@@ -81,7 +81,7 @@ error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class DeviceInformation(ApiItem):
     """API Discovery item."""
 

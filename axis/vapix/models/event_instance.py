@@ -50,7 +50,7 @@ def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
     return events
 
 
-@dataclass
+@dataclass(frozen=True)
 class EventInstance(ApiItem):
     """Events are emitted when the Axis product detects an occurrence of some kind.
 

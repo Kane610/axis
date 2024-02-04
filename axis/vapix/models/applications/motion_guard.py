@@ -50,7 +50,7 @@ class GetConfigurationResponseT(TypedDict):
     # error: NotRequired[ErrorDataT]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProfileConfiguration(ApiItem):
     """Profile configuration."""
 
@@ -95,7 +95,7 @@ class ProfileConfiguration(ApiItem):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Configuration(ApiItem):
     """Motion guard configuration."""
 

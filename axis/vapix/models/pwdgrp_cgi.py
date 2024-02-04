@@ -35,7 +35,7 @@ class UserGroupsT(TypedDict):
     ptz: bool
 
 
-@dataclass
+@dataclass(frozen=True)
 class User(ApiItem):
     """Represents a user and the groups it belongs to."""
 

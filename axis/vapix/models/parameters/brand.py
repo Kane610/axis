@@ -20,7 +20,7 @@ class BrandT(TypedDict):
     WebURL: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class BrandParam(ParamItem):
     """Brand parameters."""
 

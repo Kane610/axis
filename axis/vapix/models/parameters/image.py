@@ -110,7 +110,7 @@ class ImageParamT(TypedDict):
     Text: ImageTextParamT
 
 
-@dataclass
+@dataclass(frozen=True)
 class ImageParam(ParamItem):
     """Image parameters."""
 

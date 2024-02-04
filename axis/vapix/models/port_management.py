@@ -131,7 +131,7 @@ class PortSequence:
     sequence: list[Sequence]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Port(ApiItem):
     """I/O port management port."""
 

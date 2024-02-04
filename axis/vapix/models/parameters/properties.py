@@ -117,7 +117,7 @@ class PropertyParamT(TypedDict):
     System: PropertySystemParamT
 
 
-@dataclass
+@dataclass(frozen=True)
 class PropertyParam(ParamItem):
     """Property parameters."""
 

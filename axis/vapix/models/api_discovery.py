@@ -161,7 +161,7 @@ error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class Api(ApiItem):
     """API Discovery item."""
 

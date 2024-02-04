@@ -61,7 +61,7 @@ class PortDirection(enum.StrEnum):
         return cls.UNKNOWN
 
 
-@dataclass
+@dataclass(frozen=True)
 class IOPortParam(ParamItem):
     """Represents a IO port."""
 

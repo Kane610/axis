@@ -49,7 +49,7 @@ class GetConfigurationResponseT(TypedDict):
     # error: NotRequired[ErrorDataT]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProfileConfiguration(ApiItem):
     """Profile configuration."""
 
@@ -90,7 +90,7 @@ class ProfileConfiguration(ApiItem):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Configuration(ApiItem):
     """VMD4 configuration."""
 

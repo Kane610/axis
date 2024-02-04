@@ -73,7 +73,7 @@ error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class StreamProfile(ApiItem):
     """Stream profile item."""
 

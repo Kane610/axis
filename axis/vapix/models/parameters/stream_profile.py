@@ -27,7 +27,7 @@ class StreamProfileParamT(TypedDict):
     S3: NotRequired[ProfileParamT]
 
 
-@dataclass
+@dataclass(frozen=True)
 class StreamProfileParam(ParamItem):
     """Stream profile parameters."""
 

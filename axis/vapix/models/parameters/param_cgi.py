@@ -82,7 +82,7 @@ def params_to_dict(params: str) -> dict[str, Any]:
     return param_dict
 
 
-@dataclass
+@dataclass(frozen=True)
 class ParamItem(ApiItem):
     """Parameter item."""
 

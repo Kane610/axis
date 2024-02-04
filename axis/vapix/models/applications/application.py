@@ -71,7 +71,7 @@ class ApplicationStatus(enum.StrEnum):
     IDLE = "Idle"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Application(ApiItem):
     """Representation of an Application instance."""
 
