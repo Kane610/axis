@@ -30,19 +30,14 @@ class ParamHandler(ApiHandler[ParamItemT]):
         """Is parameter group supported."""
         return self.vapix.params.get(self.parameter_group) is not None
 
-    def get_params(self) -> dict[str, ParamItemT]:
-        """Retrieve parameters from param_cgi class."""
-        if data := self.vapix.params.get(self.parameter_group):
-            return self.parameter_item.decode_to_dict([data])
-        return {}
-
     def update_params(self, obj_id: str) -> None:
         """Update parameter data.
 
         Callback from parameter handler subscription.
         """
-        self._items = self.get_params()
-        self.initialized = True
+        if data := self.vapix.params.get(self.parameter_group):
+            self._items = self.parameter_item.decode_to_dict([data])
+            self.initialized = True
 
     async def _update(self) -> None:
         """Refresh data."""

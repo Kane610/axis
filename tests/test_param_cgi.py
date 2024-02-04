@@ -24,15 +24,6 @@ async def test_parameter_group_enum():
     assert ParameterGroup("unsupported") is ParameterGroup.UNKNOWN
 
 
-async def test_param_unused_api_request(params: Params):
-    """Verify that you can list parameters."""
-    with pytest.raises(NotImplementedError):
-        await params._api_request()
-    with pytest.raises(NotImplementedError):
-        await params.brand_handler._api_request()
-    assert params.brand_handler.get_params() == {}
-
-
 @respx.mock
 async def test_params(params: Params):
     """Verify that you can list parameters."""
