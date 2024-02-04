@@ -1,7 +1,7 @@
 """PTZ parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any, NotRequired, Self, cast
+from typing import NotRequired, Self
 
 from typing_extensions import TypedDict
 
@@ -354,7 +354,7 @@ class PtzVarious:
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
 
-@dataclass
+@dataclass(frozen=True)
 class PtzParam(ParamItem):
     """PTZ parameters."""
 
@@ -397,8 +397,3 @@ class PtzParam(ParamItem):
             support=PtzSupport.from_dict(data["Support"]),
             various=PtzVarious.from_dict(data["Various"]),
         )
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
-        """Create response object from dict."""
-        return {"0": cls.decode(cast(PtzParamT, data))}

@@ -50,7 +50,7 @@ def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
     return events
 
 
-@dataclass
+@dataclass(frozen=True)
 class EventInstance(ApiItem):
     """Events are emitted when the Axis product detects an occurrence of some kind.
 
@@ -124,12 +124,6 @@ class EventInstance(ApiItem):
             data=message.get("DataInstance", {}).get("SimpleItemInstance", {}),
         )
 
-    @classmethod
-    def decode_from_list(cls, data: list[dict[str, Any]]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        events = [cls.decode(v) for v in data]
-        return {event.id: event for event in events}
-
 
 @dataclass
 class ListEventInstancesRequest(ApiRequest):
@@ -177,4 +171,4 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
         )
         raw_events = traverse(data, EVENT_INSTANCE)  # Move past the irrelevant keys
         events = get_events(raw_events)  # Create topic/data dictionary of events
-        return cls(data=EventInstance.decode_from_list(events))
+        return cls(data=EventInstance.decode_to_dict(events))

@@ -184,7 +184,7 @@ general_error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class LightInformation(ApiItem):
     """Light information item."""
 
@@ -199,7 +199,7 @@ class LightInformation(ApiItem):
     error_info: str
 
     @classmethod
-    def from_dict(cls, data: LightInformationT) -> Self:
+    def decode(cls, data: LightInformationT) -> Self:
         """Create light information object from dict."""
         return cls(
             id=data["lightID"],
@@ -215,12 +215,6 @@ class LightInformation(ApiItem):
             error=data["error"],
             error_info=data["errorInfo"],
         )
-
-    @classmethod
-    def from_list(cls, data: list[LightInformationT]) -> dict[str, Self]:
-        """Create light information objects from list."""
-        lights = [cls.from_dict(item) for item in data]
-        return {light.id: light for light in lights}
 
 
 @dataclass
@@ -283,7 +277,7 @@ class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=LightInformation.from_list(data["data"]["items"]),
+            data=LightInformation.decode_to_dict(data["data"]["items"]),
         )
 
 

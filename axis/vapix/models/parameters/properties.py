@@ -1,7 +1,7 @@
 """Property parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any, NotRequired, Self, cast
+from typing import NotRequired, Self
 
 from typing_extensions import TypedDict
 
@@ -117,7 +117,7 @@ class PropertyParamT(TypedDict):
     System: PropertySystemParamT
 
 
-@dataclass
+@dataclass(frozen=True)
 class PropertyParam(ParamItem):
     """Property parameters."""
 
@@ -204,8 +204,3 @@ class PropertyParam(ParamItem):
             # digital_ptz=data.get("PTZ_DigitalPTZ") == "yes",
             system_serialnumber=data["System"]["SerialNumber"],
         )
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
-        """Create objects from dict."""
-        return {"0": cls.decode(cast(PropertyParamT, data))}

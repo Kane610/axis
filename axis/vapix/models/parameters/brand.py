@@ -1,7 +1,7 @@
 """Brand parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any, Self, cast
+from typing import Self
 
 from typing_extensions import TypedDict
 
@@ -20,7 +20,7 @@ class BrandT(TypedDict):
     WebURL: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class BrandParam(ParamItem):
     """Brand parameters."""
 
@@ -58,8 +58,3 @@ class BrandParam(ParamItem):
             prodvariant=data["ProdVariant"],
             weburl=data["WebURL"],
         )
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
-        """Create objects from dict."""
-        return {"0": cls.decode(cast(BrandT, data))}

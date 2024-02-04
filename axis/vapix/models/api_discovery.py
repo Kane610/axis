@@ -161,7 +161,7 @@ error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class Api(ApiItem):
     """API Discovery item."""
 
@@ -175,29 +175,24 @@ class Api(ApiItem):
         return ApiId(self.id)
 
     @classmethod
-    def decode(cls, raw: ApiDescriptionT) -> Self:
+    def decode(cls, data: ApiDescriptionT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=raw["id"],
-            name=raw["name"],
-            status=ApiStatus(raw.get("status", "")),
-            version=raw["version"],
+            id=data["id"],
+            name=data["name"],
+            status=ApiStatus(data.get("status", "")),
+            version=data["version"],
         )
-
-    @classmethod
-    def decode_from_list(cls, raw: list[ApiDescriptionT]) -> list[Self]:
-        """Decode list[dict] to list of class objects."""
-        return [cls.decode(item) for item in raw]
 
 
 @dataclass
-class GetAllApisResponse(ApiResponse[list[Api]]):
+class GetAllApisResponse(ApiResponse[dict[str, Api]]):
     """Response object for basic device info."""
 
     api_version: str
     context: str
     method: str
-    data: list[Api]
+    data: dict[str, Api]
     # error: ErrorDataT | None = None
 
     @classmethod
@@ -208,7 +203,7 @@ class GetAllApisResponse(ApiResponse[list[Api]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=Api.decode_from_list(data["data"]["apiList"]),
+            data=Api.decode_to_dict(data["data"]["apiList"]),
         )
 
 

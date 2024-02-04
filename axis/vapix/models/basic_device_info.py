@@ -81,7 +81,7 @@ error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class DeviceInformation(ApiItem):
     """API Discovery item."""
 
@@ -101,24 +101,24 @@ class DeviceInformation(ApiItem):
     web_url: str
 
     @classmethod
-    def decode(cls, raw: DeviceInformationDescriptionT) -> Self:
+    def decode(cls, data: DeviceInformationDescriptionT) -> Self:
         """Decode dict to class object."""
         return cls(
             id="0",
-            architecture=raw["Architecture"],
-            brand=raw["Brand"],
-            build_date=raw["BuildDate"],
-            hardware_id=raw["HardwareID"],
-            product_full_name=raw["ProdFullName"],
-            product_number=raw["ProdNbr"],
-            product_short_name=raw["ProdShortName"],
-            product_type=raw["ProdType"],
-            product_variant=raw["ProdVariant"],
-            serial_number=raw["SerialNumber"],
-            soc=raw["Soc"],
-            soc_serial_number=raw["SocSerialNumber"],
-            version=raw["Version"],
-            web_url=raw["WebURL"],
+            architecture=data["Architecture"],
+            brand=data["Brand"],
+            build_date=data["BuildDate"],
+            hardware_id=data["HardwareID"],
+            product_full_name=data["ProdFullName"],
+            product_number=data["ProdNbr"],
+            product_short_name=data["ProdShortName"],
+            product_type=data["ProdType"],
+            product_variant=data["ProdVariant"],
+            serial_number=data["SerialNumber"],
+            soc=data["Soc"],
+            soc_serial_number=data["SocSerialNumber"],
+            version=data["Version"],
+            web_url=data["WebURL"],
         )
 
 

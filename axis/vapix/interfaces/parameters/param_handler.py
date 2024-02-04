@@ -33,7 +33,7 @@ class ParamHandler(ApiHandler[ParamItemT]):
     def get_params(self) -> dict[str, ParamItemT]:
         """Retrieve parameters from param_cgi class."""
         if data := self.vapix.params.get_param(self.parameter_group):
-            return self.parameter_item.from_dict(data)
+            return self.parameter_item.decode_to_dict([data])
         return {}
 
     def update_params(self, obj_id: str) -> None:

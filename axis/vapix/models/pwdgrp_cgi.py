@@ -35,7 +35,7 @@ class UserGroupsT(TypedDict):
     ptz: bool
 
 
-@dataclass
+@dataclass(frozen=True)
 class User(ApiItem):
     """Represents a user and the groups it belongs to."""
 
@@ -76,12 +76,6 @@ class User(ApiItem):
             viewer=data["viewer"],
             ptz=data["ptz"],
         )
-
-    @classmethod
-    def from_list(cls, data: list[UserGroupsT]) -> dict[str, Self]:
-        """Create objects from list."""
-        users = [cls.decode(item) for item in data]
-        return {user.id: user for user in users}
 
 
 @dataclass
@@ -129,7 +123,7 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
             for user in user_list
         ]
 
-        return cls(data=User.from_list(users))
+        return cls(data=User.decode_to_dict(users))
 
 
 @dataclass

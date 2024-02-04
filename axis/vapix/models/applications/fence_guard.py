@@ -50,7 +50,7 @@ class GetConfigurationResponseT(TypedDict):
     # error: NotRequired[ErrorDataT]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProfileConfiguration(ApiItem):
     """Profile configuration."""
 
@@ -94,14 +94,8 @@ class ProfileConfiguration(ApiItem):
             uid=data["uid"],
         )
 
-    @classmethod
-    def decode_from_list(cls, data: list[ConfigurationProfileDataT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        applications = [cls.decode(v) for v in data]
-        return {app.id: app for app in applications}
 
-
-@dataclass
+@dataclass(frozen=True)
 class Configuration(ApiItem):
     """Fence guard configuration."""
 
@@ -119,7 +113,7 @@ class Configuration(ApiItem):
         return cls(
             id="fence guard",
             cameras=data["cameras"],
-            profiles=ProfileConfiguration.decode_from_list(data["profiles"]),
+            profiles=ProfileConfiguration.decode_to_dict(data["profiles"]),
             configuration_status=data["configurationStatus"],
         )
 

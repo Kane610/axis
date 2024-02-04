@@ -101,7 +101,7 @@ sensor_specific_error_codes = general_error_codes | {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class PirSensorConfiguration(ApiItem):
     """Pir sensor configuration representation."""
 
@@ -109,18 +109,13 @@ class PirSensorConfiguration(ApiItem):
     sensitivity: float | None = None
 
     @classmethod
-    def decode(cls, raw: PirSensorConfigurationT) -> Self:
+    def decode(cls, data: PirSensorConfigurationT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=str(raw["id"]),
-            configurable=raw["sensitivityConfigurable"],
-            sensitivity=raw.get("sensitivity"),
+            id=str(data["id"]),
+            configurable=data["sensitivityConfigurable"],
+            sensitivity=data.get("sensitivity"),
         )
-
-    @classmethod
-    def decode_from_list(cls, raw: list[PirSensorConfigurationT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        return {item.id: item for item in [cls.decode(item) for item in raw]}
 
 
 @dataclass
@@ -141,7 +136,7 @@ class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=PirSensorConfiguration.decode_from_list(data["data"]["sensors"]),
+            data=PirSensorConfiguration.decode_to_dict(data["data"]["sensors"]),
         )
 
 

@@ -131,7 +131,7 @@ class PortSequence:
     sequence: list[Sequence]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Port(ApiItem):
     """I/O port management port."""
 
@@ -163,7 +163,7 @@ class Port(ApiItem):
     """Usage of port."""
 
     @classmethod
-    def from_dict(cls, data: PortItemT) -> Self:
+    def decode(cls, data: PortItemT) -> Self:
         """Create object from dict."""
         return cls(
             id=data["port"],
@@ -174,12 +174,6 @@ class Port(ApiItem):
             state=data["state"],
             usage=data["usage"],
         )
-
-    @classmethod
-    def from_list(cls, data: list[PortItemT]) -> dict[str, Self]:
-        """Create objects from list."""
-        ports = [cls.from_dict(item) for item in data]
-        return {port.id: port for port in ports}
 
 
 @dataclass
@@ -224,7 +218,7 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=Port.from_list(data["data"]["items"]),
+            data=Port.decode_to_dict(data["data"]["items"]),
         )
 
 

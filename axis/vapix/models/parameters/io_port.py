@@ -61,7 +61,7 @@ class PortDirection(enum.StrEnum):
         return cls.UNKNOWN
 
 
-@dataclass
+@dataclass(frozen=True)
 class IOPortParam(ParamItem):
     """Represents a IO port."""
 
@@ -92,25 +92,28 @@ class IOPortParam(ParamItem):
     """
 
     @classmethod
-    def decode(cls, id: str, data: PortParamT) -> Self:
+    def decode(cls, data: tuple[str, PortParamT]) -> Self:
         """Decode dict to class object."""
-        direction = PortDirection(data.get("Direction", "input"))
+        id, raw = data
+        direction = PortDirection(raw.get("Direction", "input"))
         name = (
-            data.get("Input", {}).get("Name", "")
+            raw.get("Input", {}).get("Name", "")
             if direction == PortDirection.IN
-            else data.get("Output", {}).get("Name", "")
+            else raw.get("Output", {}).get("Name", "")
         )
         return cls(
             id=id,
-            configurable=data.get("Configurable") is True,
+            configurable=raw.get("Configurable") is True,
             direction=direction,
-            input_trigger=data.get("Input", {}).get("Trig", ""),
+            input_trigger=raw.get("Input", {}).get("Trig", ""),
             name=name,
-            output_active=data.get("Output", {}).get("Active", ""),
+            output_active=raw.get("Output", {}).get("Active", ""),
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
+    def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
         """Create objects from dict."""
-        ports = [cls.decode(k[1:], v) for k, v in data.items()]
-        return {port.id: port for port in ports}
+        return {
+            v.id: v
+            for v in cls.decode_to_list([(k[1:], v) for k, v in data[0].items()])
+        }

@@ -73,7 +73,7 @@ error_codes = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class StreamProfile(ApiItem):
     """Stream profile item."""
 
@@ -86,18 +86,13 @@ class StreamProfile(ApiItem):
         return self.id
 
     @classmethod
-    def decode(cls, raw: StreamProfileT) -> Self:
+    def decode(cls, data: StreamProfileT) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=raw["name"],
-            description=raw["description"],
-            parameters=raw["parameters"],
+            id=data["name"],
+            description=data["description"],
+            parameters=data["parameters"],
         )
-
-    @classmethod
-    def decode_from_list(cls, raw: list[StreamProfileT]) -> dict[str, Self]:
-        """Decode list[dict] to list of class objects."""
-        return {item.id: item for item in [cls.decode(item) for item in raw]}
 
 
 @dataclass
@@ -118,7 +113,7 @@ class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=StreamProfile.decode_from_list(data["data"].get("streamProfile", [])),
+            data=StreamProfile.decode_to_dict(data["data"].get("streamProfile", [])),
         )
 
 

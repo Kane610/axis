@@ -1,6 +1,5 @@
 """Axis Vapix parameter management."""
 
-from abc import abstractmethod
 from dataclasses import dataclass
 import enum
 import logging
@@ -83,14 +82,14 @@ def params_to_dict(params: str) -> dict[str, Any]:
     return param_dict
 
 
-@dataclass
+@dataclass(frozen=True)
 class ParamItem(ApiItem):
     """Parameter item."""
 
     @classmethod
-    @abstractmethod
-    def from_dict(cls, data: dict[str, Any]) -> dict[str, Self]:
+    def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
         """Create objects from dict."""
+        return {"0": cls.decode(data[0])}
 
 
 ParamItemT = TypeVar("ParamItemT", bound=ParamItem)
