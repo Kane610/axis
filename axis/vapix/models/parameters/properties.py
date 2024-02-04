@@ -143,10 +143,10 @@ class PropertyParam(ParamItem):
     Application list.cgi supported if => 1.20.
     """
 
-    firmware_builddate: str
+    firmware_build_date: str
     """Firmware build date."""
 
-    firmware_buildnumber: str
+    firmware_build_number: str
     """Firmware build number."""
 
     firmware_version: str
@@ -155,7 +155,7 @@ class PropertyParam(ParamItem):
     image_format: str
     """Supported image formats."""
 
-    image_nbrofviews: int
+    image_number_of_views: int
     """Amount of supported view areas."""
 
     image_resolution: str
@@ -173,7 +173,7 @@ class PropertyParam(ParamItem):
     digital_ptz: bool
     """Support digital PTZ control."""
 
-    system_serialnumber: str
+    system_serial_number: str
     """Device serial number."""
 
     @classmethod
@@ -188,12 +188,12 @@ class PropertyParam(ParamItem):
             # api_ptz_presets_version=data.get("API"]["PTZ"]["Presets"]["Version", False),
             embedded_development=data["EmbeddedDevelopment"]["Version"],
             # embedded_development=data.get("EmbeddedDevelopment_Version", "0.0"),
-            firmware_builddate=data["Firmware"]["BuildDate"],
-            firmware_buildnumber=data["Firmware"]["BuildNumber"],
+            firmware_build_date=data["Firmware"]["BuildDate"],
+            firmware_build_number=data["Firmware"]["BuildNumber"],
             firmware_version=data["Firmware"]["Version"],
             image_format=data["Image"]["Format"],
             # image_format=data.get("Image_Format", ""),
-            image_nbrofviews=int(data["Image"]["NbrOfViews"]),
+            image_number_of_views=int(data["Image"]["NbrOfViews"]),
             image_resolution=data["Image"]["Resolution"],
             image_rotation=data["Image"]["Rotation"],
             light_control=data["LightControl"]["LightControl2"],
@@ -202,5 +202,5 @@ class PropertyParam(ParamItem):
             # ptz=data.get("PTZ_PTZ") == "yes",
             digital_ptz=data["PTZ"]["DigitalPTZ"],
             # digital_ptz=data.get("PTZ_DigitalPTZ") == "yes",
-            system_serialnumber=data["System"]["SerialNumber"],
+            system_serial_number=data["System"]["SerialNumber"],
         )

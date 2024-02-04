@@ -88,6 +88,7 @@ class DeviceInformation(ApiItem):
     architecture: str
     brand: str
     build_date: str
+    firmware_version: str
     hardware_id: str
     product_full_name: str
     product_number: str
@@ -97,7 +98,6 @@ class DeviceInformation(ApiItem):
     serial_number: str
     soc: str
     soc_serial_number: str
-    version: str
     web_url: str
 
     @classmethod
@@ -108,6 +108,7 @@ class DeviceInformation(ApiItem):
             architecture=data["Architecture"],
             brand=data["Brand"],
             build_date=data["BuildDate"],
+            firmware_version=data["Version"],
             hardware_id=data["HardwareID"],
             product_full_name=data["ProdFullName"],
             product_number=data["ProdNbr"],
@@ -117,7 +118,6 @@ class DeviceInformation(ApiItem):
             serial_number=data["SerialNumber"],
             soc=data["Soc"],
             soc_serial_number=data["SocSerialNumber"],
-            version=data["Version"],
             web_url=data["WebURL"],
         )
 

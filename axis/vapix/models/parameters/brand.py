@@ -27,22 +27,22 @@ class BrandParam(ParamItem):
     brand: str
     """Device branding."""
 
-    prodfullname: str
+    product_full_name: str
     """Device product full name."""
 
-    prodnbr: str
+    product_number: str
     """Device product number."""
 
-    prodshortname: str
+    product_short_name: str
     """Device product short name."""
 
-    prodtype: str
+    product_type: str
     """Device product type."""
 
-    prodvariant: str
+    product_variant: str
     """Device product variant."""
 
-    weburl: str
+    web_url: str
     """Device home page URL."""
 
     @classmethod
@@ -51,10 +51,10 @@ class BrandParam(ParamItem):
         return cls(
             id="brand",
             brand=data["Brand"],
-            prodfullname=data["ProdFullName"],
-            prodnbr=data["ProdNbr"],
-            prodshortname=data["ProdShortName"],
-            prodtype=data["ProdType"],
-            prodvariant=data["ProdVariant"],
-            weburl=data["WebURL"],
+            product_full_name=data["ProdFullName"],
+            product_number=data["ProdNbr"],
+            product_short_name=data["ProdShortName"],
+            product_type=data["ProdType"],
+            product_variant=data["ProdVariant"],
+            web_url=data["WebURL"],
         )

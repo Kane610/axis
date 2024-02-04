@@ -89,12 +89,12 @@ async def test_update_brand(params: Params):
     assert params.brand_handler.supported
     brand = params.brand_handler["0"]
     assert brand.brand == "AXIS"
-    assert brand.prodfullname == "AXIS M1065-LW Network Camera"
-    assert brand.prodnbr == "M1065-LW"
-    assert brand.prodshortname == "AXIS M1065-LW"
-    assert brand.prodtype == "Network Camera"
-    assert brand.prodvariant == ""
-    assert brand.weburl == "http://www.axis.com"
+    assert brand.product_full_name == "AXIS M1065-LW Network Camera"
+    assert brand.product_number == "M1065-LW"
+    assert brand.product_short_name == "AXIS M1065-LW"
+    assert brand.product_type == "Network Camera"
+    assert brand.product_variant == ""
+    assert brand.web_url == "http://www.axis.com"
 
 
 @respx.mock
@@ -301,11 +301,11 @@ async def test_update_properties(params: Params):
     # assert params[f"{PROPERTIES}.ApiDiscovery.ApiDiscovery"] == "yes"
     # assert params[f"{PROPERTIES}.EmbeddedDevelopment.EmbeddedDevelopment"] == "yes"
     assert properties.embedded_development == "2.16"
-    assert properties.firmware_builddate == "Feb 15 2019 09:42"
-    assert properties.firmware_buildnumber == 26
+    assert properties.firmware_build_date == "Feb 15 2019 09:42"
+    assert properties.firmware_build_number == 26
     assert properties.firmware_version == "9.10.1"
     assert properties.image_format == "jpeg,mjpeg,h264"
-    assert properties.image_nbrofviews == 2
+    assert properties.image_number_of_views == 2
     assert (
         properties.image_resolution
         == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
@@ -329,7 +329,7 @@ async def test_update_properties(params: Params):
     assert properties.digital_ptz is True
     assert properties.ptz is True
     # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
-    assert properties.system_serialnumber == "ACCC12345678"
+    assert properties.system_serial_number == "ACCC12345678"
 
 
 @respx.mock

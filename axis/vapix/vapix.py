@@ -84,36 +84,36 @@ class Vapix:
     def firmware_version(self) -> str:
         """Firmware version of device."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.version
+            return self.basic_device_info["0"].firmware_version
         if self.params.property_handler.supported:
-            return self.params.property_handler.get_params()["0"].firmware_version
+            return self.params.property_handler["0"].firmware_version
         return ""
 
     @property
     def product_number(self) -> str:
         """Product number of device."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.prodnbr
+            return self.basic_device_info["0"].product_number
         if self.params.brand_handler.supported:
-            return self.params.brand_handler.get_params()["0"].prodnbr
+            return self.params.brand_handler["0"].product_number
         return ""
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.prodtype
+            return self.basic_device_info["0"].product_type
         if self.params.brand_handler.supported:
-            return self.params.brand_handler.get_params()["0"].prodtype
+            return self.params.brand_handler["0"].product_type
         return ""
 
     @property
     def serial_number(self) -> str:
         """Device serial number."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.serialnumber
+            return self.basic_device_info["0"].serial_number
         if self.params.property_handler.supported:
-            return self.params.property_handler.get_params()["0"].system_serialnumber
+            return self.params.property_handler["0"].system_serial_number
         return ""
 
     @property
@@ -135,9 +135,9 @@ class Vapix:
     @property
     def ports(self) -> IoPortManagement | Ports:
         """Temporary port property."""
-        if not self.io_port_management.supported:
-            return self.port_cgi
-        return self.io_port_management
+        if self.io_port_management.supported:
+            return self.io_port_management
+        return self.port_cgi
 
     async def initialize(self) -> None:
         """Initialize Vapix functions."""
