@@ -84,7 +84,7 @@ class Vapix:
     def firmware_version(self) -> str:
         """Firmware version of device."""
         if self.basic_device_info.supported:
-            return self.basic_device_info["0"].version
+            return self.basic_device_info["0"].firmware_version
         if self.params.property_handler.supported:
             return self.params.property_handler["0"].firmware_version
         return ""

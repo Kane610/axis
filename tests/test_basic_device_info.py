@@ -44,6 +44,7 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     assert device_info.architecture == "armv7hf"
     assert device_info.brand == "AXIS"
     assert device_info.build_date == "Apr 29 2020 06:50"
+    assert device_info.firmware_version == "9.80.1"
     assert device_info.hardware_id == "70E"
     assert device_info.product_full_name == "AXIS M1065-LW Network Camera"
     assert device_info.product_number == "M1065-LW"
@@ -53,7 +54,6 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     assert device_info.serial_number == "ACCC12345678"
     assert device_info.soc == "Ambarella S2L (Flattened Device Tree)"
     assert device_info.soc_serial_number == ""
-    assert device_info.version == "9.80.1"
     assert device_info.web_url == "http://www.axis.com"
 
     items = await basic_device_info.get_all_properties()
