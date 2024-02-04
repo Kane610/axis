@@ -28,11 +28,11 @@ class ParamHandler(ApiHandler[ParamItemT]):
     @property
     def supported_by_parameters(self) -> bool:
         """Is parameter group supported."""
-        return self.vapix.params.get_param(self.parameter_group) != {}
+        return self.vapix.params.get(self.parameter_group) is not None
 
     def get_params(self) -> dict[str, ParamItemT]:
         """Retrieve parameters from param_cgi class."""
-        if data := self.vapix.params.get_param(self.parameter_group):
+        if data := self.vapix.params.get(self.parameter_group):
             return self.parameter_item.decode_to_dict([data])
         return {}
 

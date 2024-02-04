@@ -50,14 +50,14 @@ async def test_params(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.get_param(ParameterGroup.BRAND)
-    assert params.get_param(ParameterGroup.IMAGE)
-    assert params.get_param(ParameterGroup.INPUT)
-    assert params.get_param(ParameterGroup.OUTPUT)
-    assert params.get_param(ParameterGroup.IOPORT)
-    assert params.get_param(ParameterGroup.PROPERTIES)
-    assert params.get_param(ParameterGroup.PTZ)
-    assert params.get_param(ParameterGroup.STREAMPROFILE)
+    assert params.get(ParameterGroup.BRAND)
+    assert params.get(ParameterGroup.IMAGE)
+    assert params.get(ParameterGroup.INPUT)
+    assert params.get(ParameterGroup.OUTPUT)
+    assert params.get(ParameterGroup.IOPORT)
+    assert params.get(ParameterGroup.PROPERTIES)
+    assert params.get(ParameterGroup.PTZ)
+    assert params.get(ParameterGroup.STREAMPROFILE)
 
 
 async def test_params_empty_raw(params: Params):

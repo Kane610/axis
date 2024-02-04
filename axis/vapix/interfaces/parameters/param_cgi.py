@@ -32,19 +32,13 @@ class Params(ApiHandler[Any]):
         self.ptz_handler = PtzParameterHandler(self)
         self.stream_profile_handler = StreamProfileParameterHandler(self)
 
-    def get_param(self, group: ParameterGroup) -> dict[str, Any]:
-        """Get parameter group."""
-        data: dict[str, Any] = self._items.get("root", {}).get(group, {})
-        return data
-
     async def update_group(self, group: ParameterGroup | None = None) -> None:
         """Refresh data."""
         bytes_data = await self.vapix.api_request(ParamRequest(group))
         data = params_to_dict(bytes_data.decode())
 
-        root: dict[str, Any] = self._items.setdefault("root", {})
         if objects := data.get("root"):
-            root.update(objects)
+            self._items.update(objects)
             self.initialized = True
 
             for obj_id in objects:
