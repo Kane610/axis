@@ -38,11 +38,7 @@ class EventManager:
 
     def handler(self, data: bytes | dict[str, Any]) -> None:
         """Create event and pass it along to subscribers."""
-        if isinstance(data, dict):
-            event = Event.from_dict(data)
-        else:
-            event = Event.from_bytes(data)
-
+        event = Event.decode(data)
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(event)
 
