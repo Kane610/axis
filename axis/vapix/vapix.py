@@ -95,7 +95,7 @@ class Vapix:
         if self.basic_device_info.supported:
             return self.basic_device_info["0"].product_number
         if self.params.brand_handler.supported:
-            return self.params.brand_handler["0"].prodnbr
+            return self.params.brand_handler["0"].product_number
         return ""
 
     @property
@@ -104,7 +104,7 @@ class Vapix:
         if self.basic_device_info.supported:
             return self.basic_device_info["0"].product_type
         if self.params.brand_handler.supported:
-            return self.params.brand_handler["0"].prodtype
+            return self.params.brand_handler["0"].product_type
         return ""
 
     @property
@@ -113,7 +113,7 @@ class Vapix:
         if self.basic_device_info.supported:
             return self.basic_device_info["0"].serial_number
         if self.params.property_handler.supported:
-            return self.params.property_handler["0"].system_serialnumber
+            return self.params.property_handler["0"].system_serial_number
         return ""
 
     @property
