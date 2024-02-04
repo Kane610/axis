@@ -84,7 +84,7 @@ class Vapix:
     def firmware_version(self) -> str:
         """Firmware version of device."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.version
+            return self.basic_device_info["0"].version
         if self.params.property_handler.supported:
             return self.params.property_handler["0"].firmware_version
         return ""
@@ -93,7 +93,7 @@ class Vapix:
     def product_number(self) -> str:
         """Product number of device."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.prodnbr
+            return self.basic_device_info["0"].product_number
         if self.params.brand_handler.supported:
             return self.params.brand_handler["0"].prodnbr
         return ""
@@ -102,7 +102,7 @@ class Vapix:
     def product_type(self) -> str:
         """Product type of device."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.prodtype
+            return self.basic_device_info["0"].product_type
         if self.params.brand_handler.supported:
             return self.params.brand_handler["0"].prodtype
         return ""
@@ -111,7 +111,7 @@ class Vapix:
     def serial_number(self) -> str:
         """Device serial number."""
         if self.basic_device_info.supported:
-            return self.basic_device_info.serialnumber
+            return self.basic_device_info["0"].serial_number
         if self.params.property_handler.supported:
             return self.params.property_handler["0"].system_serialnumber
         return ""
@@ -135,9 +135,9 @@ class Vapix:
     @property
     def ports(self) -> IoPortManagement | Ports:
         """Temporary port property."""
-        if not self.io_port_management.supported:
-            return self.port_cgi
-        return self.io_port_management
+        if self.io_port_management.supported:
+            return self.io_port_management
+        return self.port_cgi
 
     async def initialize(self) -> None:
         """Initialize Vapix functions."""
