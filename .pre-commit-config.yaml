@@ -10,5 +10,10 @@ repos:
     rev: v1.8.0
     hooks:
       - id: mypy
-        args: [--ignore-missing-imports]
+        additional_dependencies: [
+          "httpx==0.26.0",
+          "packaging==23.2",
+          "types-orjson==3.6.2",
+          "types-xmltodict==v0.13.0.3"
+        ]
         exclude: ^tests/

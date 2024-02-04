@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-from asyncio.timeouts import timeout
 import logging
 
 from httpx import AsyncClient
@@ -29,7 +28,7 @@ async def axis_device(
     )
 
     try:
-        async with timeout(5):
+        async with asyncio.timeout(5):
             await device.vapix.initialize_users()
             await device.vapix.load_user_groups()
         # await device.vapix.initialize_event_instances()
@@ -41,7 +40,7 @@ async def axis_device(
             "Connected to device at %s but not registered or user not admin.", host
         )
 
-    except (asyncio.TimeoutError, axis.RequestError):
+    except (TimeoutError, axis.RequestError):
         LOGGER.error("Error connecting to the Axis device at %s", host)
 
     except axis.AxisException:
