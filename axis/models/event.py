@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any
+from typing import Any, Self
 
 import xmltodict
 
@@ -146,7 +146,14 @@ class Event:
     topic_base: EventTopic
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Event":
+    def decode(cls, data: bytes | dict[str, Any]) -> Self:
+        """Decode data to an event object."""
+        if isinstance(data, dict):
+            return cls._decode_from_dict(data)
+        return cls._decode_from_bytes(data)
+
+    @classmethod
+    def _decode_from_dict(cls, data: dict[str, Any]) -> Self:
         """Create event instance from dict."""
         operation = EventOperation(data.get(EVENT_OPERATION, ""))
         topic = data.get(EVENT_TOPIC, "")
@@ -175,13 +182,13 @@ class Event:
             topic_base=topic_base,
         )
 
-    @staticmethod
-    def from_bytes(data: bytes) -> "Event":
+    @classmethod
+    def _decode_from_bytes(cls, data: bytes) -> Self:
         """Parse metadata xml."""
         raw = xmltodict.parse(data, process_namespaces=True, namespaces=XML_NAMESPACES)
 
         if raw.get("MetadataStream") is None:
-            return Event.from_dict({})
+            return cls._decode_from_dict({})
 
         topic = traverse(raw, TOPIC)
         # timestamp = traverse(raw, TIMESTAMP)
@@ -195,7 +202,7 @@ class Event:
         if match := traverse(raw, DATA):
             data_type, data_value = extract_name_value(match)
 
-        return Event.from_dict(
+        return cls._decode_from_dict(
             {
                 EVENT_OPERATION: operation,
                 EVENT_TOPIC: topic,
