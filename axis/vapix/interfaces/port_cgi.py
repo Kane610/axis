@@ -34,7 +34,7 @@ class Ports(ApiHandler[IOPortParam]):
 
     def load_ports(self) -> None:
         """Load ports into class."""
-        self._items = self.process_ports()
+        self._items.update(self.process_ports())
 
     def process_ports(self) -> dict[str, IOPortParam]:
         """Process ports from I/O port handler."""

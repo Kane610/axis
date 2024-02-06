@@ -5,6 +5,7 @@ Generalises parameter specific handling like
 - Defining parameter group
 """
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,22 +24,22 @@ class ParamHandler(ApiHandler[ParamItemT]):
     def __init__(self, param_handler: "Params") -> None:
         """Initialize API items."""
         super().__init__(param_handler.vapix)
-        param_handler.subscribe(self.update_params, self.parameter_group)
+        param_handler.subscribe(self._update_params_callback, self.parameter_group)
 
     @property
     def supported_by_parameters(self) -> bool:
         """Is parameter group supported."""
         return self.vapix.params.get(self.parameter_group) is not None
 
-    def update_params(self, obj_id: str) -> None:
-        """Update parameter data.
+    async def _update(self) -> Sequence[str]:
+        """Request group data from parameter handler.
 
-        Callback from parameter handler subscription.
+        This method returns after _update_params_callback have updated items.
         """
-        if data := self.vapix.params.get(self.parameter_group):
-            self._items = self.parameter_item.decode_to_dict([data])
-            self.initialized = True
+        return await self.vapix.params.request_group(self.parameter_group)
 
-    async def _update(self) -> None:
-        """Refresh data."""
-        await self.vapix.params.update_group(self.parameter_group)
+    def _update_params_callback(self, obj_id: str) -> None:
+        """Update parameter data from parameter handler subscription."""
+        if data := self.vapix.params.get(self.parameter_group):
+            self._items.update(self.parameter_item.decode_to_dict([data]))
+            self.initialized = True

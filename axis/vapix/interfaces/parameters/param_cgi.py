@@ -1,5 +1,6 @@
 """Axis Vapix parameter management."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from ...models.api_discovery import ApiId
@@ -32,19 +33,21 @@ class Params(ApiHandler[Any]):
         self.ptz_handler = PtzParameterHandler(self)
         self.stream_profile_handler = StreamProfileParameterHandler(self)
 
-    async def update_group(self, group: ParameterGroup | None = None) -> None:
-        """Refresh data."""
+    async def _api_request(self, group: ParameterGroup | None = None) -> dict[str, Any]:
+        """Request parameter data and convert it into a dict."""
         bytes_data = await self.vapix.api_request(ParamRequest(group))
-        data = params_to_dict(bytes_data.decode())
+        return params_to_dict(bytes_data.decode()).get("root") or {}
 
-        if objects := data.get("root"):
-            self._items.update(objects)
-            self.initialized = True
-
-            for obj_id in objects:
-                self.signal_subscribers(obj_id)
-
-    async def _update(self) -> None:
+    async def _update(self, group: ParameterGroup | None = None) -> Sequence[str]:
         """Refresh data."""
-        await self.update_group()
+        objects = await self._api_request(group)
+        self._items.update(objects)
         self.initialized = True
+        return list(self.keys())
+
+    async def request_group(self, group: ParameterGroup | None = None) -> Sequence[str]:
+        """Request parameter data and signal subscribers."""
+        if obj_ids := await self._update(group):
+            for obj_id in obj_ids:
+                self.signal_subscribers(obj_id)
+        return obj_ids

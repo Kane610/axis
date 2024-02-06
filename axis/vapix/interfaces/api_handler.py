@@ -1,7 +1,14 @@
 """API handler class and base class for an API endpoint."""
 
 from abc import ABC
-from collections.abc import Callable, ItemsView, Iterator, KeysView, ValuesView
+from collections.abc import (
+    Callable,
+    ItemsView,
+    Iterator,
+    KeysView,
+    Sequence,
+    ValuesView,
+)
 from typing import TYPE_CHECKING, Generic, final
 
 from ...errors import PathNotFound, Unauthorized
@@ -95,15 +102,34 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         """Is API listed in parameters."""
         return False
 
+    async def _api_request(self) -> dict[str, ApiItemT]:
+        """Get API data method defined by subclass."""
+        raise NotImplementedError
+
+    async def _update(self) -> Sequence[str]:
+        """Refresh data, update items and return changed item keys.
+
+        Mark class as initialized if update request completed.
+        """
+        try:
+            objects = await self._api_request()
+        except NotImplementedError:
+            return []
+        self._items.update(objects)
+        self.initialized = True
+        return list(objects.keys())
+
     @final
     async def update(self) -> bool:
-        """Try update of API."""
+        """Try update of API and signal subscribers."""
         try:
-            await self._update()
+            obj_ids = await self._update()
         except Unauthorized:  # Probably a viewer account
             return False
         except PathNotFound:  # Device doesn't support the endpoint
             return False
+        for obj_id in obj_ids:
+            self.signal_subscribers(obj_id)
         return self.initialized
 
     @property
@@ -116,21 +142,6 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         ):
             return discovery_item.version
         return self.default_api_version
-
-    async def _api_request(self) -> dict[str, ApiItemT]:
-        """Get API data method defined by subclass."""
-        raise NotImplementedError
-
-    async def _update(self) -> None:
-        """Refresh data.
-
-        Mark class as initialized if update request completed.
-        """
-        try:
-            self._items = await self._api_request()
-        except NotImplementedError:
-            pass
-        self.initialized = True
 
     def items(self) -> ItemsView[str, ApiItemT]:
         """Return items."""

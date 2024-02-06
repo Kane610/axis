@@ -233,7 +233,7 @@ class Vapix:
 
         if not user_groups and await self.user_groups.update():
             return
-        self.user_groups._items = user_groups
+        self.user_groups._items.update(user_groups)
 
     async def api_request(self, api_request: ApiRequest) -> bytes:
         """Make a request to the device."""
