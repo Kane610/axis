@@ -56,7 +56,7 @@ class LightHandler(ApiHandler[LightInformation]):
     default_api_version = API_VERSION
 
     @property
-    def supported_by_parameters(self) -> bool:
+    def listed_in_parameters(self) -> bool:
         """Is API listed in parameters."""
         if prop := self.vapix.params.property_handler.get("0"):
             return prop.light_control

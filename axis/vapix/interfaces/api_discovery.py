@@ -23,7 +23,7 @@ class ApiDiscoveryHandler(ApiHandler[Api]):
     default_api_version = API_VERSION
 
     @property
-    def supported_by_api_discovery(self) -> bool:
+    def listed_in_api_discovery(self) -> bool:
         """API Discovery is always listed in API Discovery."""
         return True
 

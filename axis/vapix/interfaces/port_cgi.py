@@ -19,9 +19,9 @@ class Ports(ApiHandler[IOPortParam]):
     """Represents all ports of io/port.cgi."""
 
     @property
-    def supported_by_parameters(self) -> bool:
+    def listed_in_parameters(self) -> bool:
         """Is API listed in parameters."""
-        return self.vapix.params.io_port_handler.supported_by_parameters
+        return self.vapix.params.io_port_handler.listed_in_parameters
 
     async def _api_request(self) -> dict[str, IOPortParam]:
         """Get API data method defined by subclass."""

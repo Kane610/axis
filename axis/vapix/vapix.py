@@ -190,8 +190,8 @@ class Vapix:
             return
 
         if (
-            not self.light_control.supported_by_api_discovery
-            and self.light_control.supported_by_parameters
+            not self.light_control.listed_in_api_discovery
+            and self.light_control.listed_in_parameters
         ):
             await self.light_control.update()
 

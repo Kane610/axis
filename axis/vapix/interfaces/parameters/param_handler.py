@@ -27,7 +27,7 @@ class ParamHandler(ApiHandler[ParamItemT]):
         param_handler.subscribe(self._update_params_callback, self.parameter_group)
 
     @property
-    def supported_by_parameters(self) -> bool:
+    def listed_in_parameters(self) -> bool:
         """Is parameter group supported."""
         return self.vapix.params.get(self.parameter_group) is not None
 

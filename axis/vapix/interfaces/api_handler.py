@@ -88,17 +88,17 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     @property
     def supported(self) -> bool:
         """Is API supported by the device."""
-        return self.supported_by_api_discovery or self.supported_by_parameters
+        return self.listed_in_api_discovery or self.listed_in_parameters
 
     @property
-    def supported_by_api_discovery(self) -> bool:
+    def listed_in_api_discovery(self) -> bool:
         """Is API listed in API Discovery."""
         if self.api_id is None:
             return False
         return self.api_id in self.vapix.api_discovery
 
     @property
-    def supported_by_parameters(self) -> bool:
+    def listed_in_parameters(self) -> bool:
         """Is API listed in parameters."""
         return False
 
