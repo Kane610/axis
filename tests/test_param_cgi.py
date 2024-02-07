@@ -24,15 +24,6 @@ async def test_parameter_group_enum():
     assert ParameterGroup("unsupported") is ParameterGroup.UNKNOWN
 
 
-async def test_param_unused_api_request(params: Params):
-    """Verify that you can list parameters."""
-    with pytest.raises(NotImplementedError):
-        await params._api_request()
-    with pytest.raises(NotImplementedError):
-        await params.brand_handler._api_request()
-    assert params.brand_handler.get_params() == {}
-
-
 @respx.mock
 async def test_params(params: Params):
     """Verify that you can list parameters."""
@@ -50,14 +41,14 @@ async def test_params(params: Params):
     assert route.calls.last.request.method == "GET"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.get_param(ParameterGroup.BRAND)
-    assert params.get_param(ParameterGroup.IMAGE)
-    assert params.get_param(ParameterGroup.INPUT)
-    assert params.get_param(ParameterGroup.OUTPUT)
-    assert params.get_param(ParameterGroup.IOPORT)
-    assert params.get_param(ParameterGroup.PROPERTIES)
-    assert params.get_param(ParameterGroup.PTZ)
-    assert params.get_param(ParameterGroup.STREAMPROFILE)
+    assert params.get(ParameterGroup.BRAND)
+    assert params.get(ParameterGroup.IMAGE)
+    assert params.get(ParameterGroup.INPUT)
+    assert params.get(ParameterGroup.OUTPUT)
+    assert params.get(ParameterGroup.IOPORT)
+    assert params.get(ParameterGroup.PROPERTIES)
+    assert params.get(ParameterGroup.PTZ)
+    assert params.get(ParameterGroup.STREAMPROFILE)
 
 
 async def test_params_empty_raw(params: Params):

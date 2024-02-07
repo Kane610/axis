@@ -1,5 +1,6 @@
 """Axis Vapix parameter management."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from ...models.api_discovery import ApiId
@@ -22,7 +23,7 @@ class Params(ApiHandler[Any]):
     api_id = ApiId.PARAM_CGI
 
     def __init__(self, vapix: "Vapix") -> None:
-        """Initialize API items."""
+        """Initialize parameter classes."""
         super().__init__(vapix)
 
         self.brand_handler = BrandParameterHandler(self)
@@ -32,25 +33,21 @@ class Params(ApiHandler[Any]):
         self.ptz_handler = PtzParameterHandler(self)
         self.stream_profile_handler = StreamProfileParameterHandler(self)
 
-    def get_param(self, group: ParameterGroup) -> dict[str, Any]:
-        """Get parameter group."""
-        data: dict[str, Any] = self._items.get("root", {}).get(group, {})
-        return data
-
-    async def update_group(self, group: ParameterGroup | None = None) -> None:
-        """Refresh data."""
+    async def _api_request(self, group: ParameterGroup | None = None) -> dict[str, Any]:
+        """Fetch parameter data and convert it into a dictionary."""
         bytes_data = await self.vapix.api_request(ParamRequest(group))
-        data = params_to_dict(bytes_data.decode())
+        return params_to_dict(bytes_data.decode()).get("root") or {}
 
-        root: dict[str, Any] = self._items.setdefault("root", {})
-        if objects := data.get("root"):
-            root.update(objects)
-            self.initialized = True
-
-            for obj_id in objects:
-                self.signal_subscribers(obj_id)
-
-    async def _update(self) -> None:
-        """Refresh data."""
-        await self.update_group()
+    async def _update(self, group: ParameterGroup | None = None) -> Sequence[str]:
+        """Request parameter data and update items."""
+        objects = await self._api_request(group)
+        self._items.update(objects)
         self.initialized = True
+        return list(self.keys())
+
+    async def request_group(self, group: ParameterGroup | None = None) -> Sequence[str]:
+        """Request parameter data and signal subscribers."""
+        if obj_ids := await self._update(group):
+            for obj_id in obj_ids:
+                self.signal_subscribers(obj_id)
+        return obj_ids
