@@ -23,7 +23,7 @@ class Params(ApiHandler[Any]):
     api_id = ApiId.PARAM_CGI
 
     def __init__(self, vapix: "Vapix") -> None:
-        """Initialize API items."""
+        """Initialize parameter classes."""
         super().__init__(vapix)
 
         self.brand_handler = BrandParameterHandler(self)
@@ -34,12 +34,12 @@ class Params(ApiHandler[Any]):
         self.stream_profile_handler = StreamProfileParameterHandler(self)
 
     async def _api_request(self, group: ParameterGroup | None = None) -> dict[str, Any]:
-        """Request parameter data and convert it into a dict."""
+        """Fetch parameter data and convert it into a dictionary."""
         bytes_data = await self.vapix.api_request(ParamRequest(group))
         return params_to_dict(bytes_data.decode()).get("root") or {}
 
     async def _update(self, group: ParameterGroup | None = None) -> Sequence[str]:
-        """Refresh data."""
+        """Request parameter data and update items."""
         objects = await self._api_request(group)
         self._items.update(objects)
         self.initialized = True

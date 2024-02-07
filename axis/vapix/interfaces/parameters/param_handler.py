@@ -32,9 +32,9 @@ class ParamHandler(ApiHandler[ParamItemT]):
         return self.vapix.params.get(self.parameter_group) is not None
 
     async def _update(self) -> Sequence[str]:
-        """Request group data from parameter handler.
+        """Request parameter group data from parameter handler.
 
-        This method returns after _update_params_callback have updated items.
+        This method returns after _update_params_callback has updated items.
         """
         return await self.vapix.params.request_group(self.parameter_group)
 
