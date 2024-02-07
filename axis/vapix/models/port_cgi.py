@@ -29,6 +29,7 @@ class PortActionRequest(ApiRequest):
     -------
       To set output 1 to active, use 1:/.
       In the URI, the action argument becomes action=1%3A%2F
+
     """
 
     method = "get"
