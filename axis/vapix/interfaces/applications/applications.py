@@ -20,7 +20,7 @@ class ApplicationsHandler(ApiHandler[Application]):
     """API Discovery for Axis devices."""
 
     @property
-    def supported_by_parameters(self) -> bool:
+    def listed_in_parameters(self) -> bool:
         """Is application supported and in a usable state."""
         if self.vapix.params.property_handler.supported and (
             properties := self.vapix.params.property_handler.get("0")

@@ -62,7 +62,7 @@ async def test_update(light_control):
     )
 
     assert light_control.supported
-    assert not light_control.supported_by_parameters
+    assert not light_control.listed_in_parameters
     await light_control.update()
 
     assert route.called
