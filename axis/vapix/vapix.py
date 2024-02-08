@@ -289,12 +289,11 @@ class Vapix:
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(
-                "Response: %s from %s %s",
-                response.content,
-                self.device.config.host,
-                path,
-            )
+        LOGGER.debug(
+            "Response: %s from %s %s",
+            response.content,
+            self.device.config.host,
+            path,
+        )
 
         return response.content

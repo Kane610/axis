@@ -129,11 +129,12 @@ def extract_name_value(
     if isinstance(item, list):
         item = item[0]
     return item.get("@Name", ""), item.get("@Value", "")
+    # return item.get("Name", ""), item.get("Value", "")
 
 
 @dataclass
 class Event:
-    """Event data from deCONZ websocket."""
+    """Event data from Axis device."""
 
     data: dict[str, Any]
     group: EventGroup
@@ -185,7 +186,12 @@ class Event:
     @classmethod
     def _decode_from_bytes(cls, data: bytes) -> Self:
         """Parse metadata xml."""
-        raw = xmltodict.parse(data, process_namespaces=True, namespaces=XML_NAMESPACES)
+        raw = xmltodict.parse(
+            data,
+            # attr_prefix="",
+            process_namespaces=True,
+            namespaces=XML_NAMESPACES,
+        )
 
         if raw.get("MetadataStream") is None:
             return cls._decode_from_dict({})
