@@ -63,6 +63,7 @@ class ApiRequest(ABC):
 
     method: str = field(init=False)
     path: str = field(init=False)
+    content_type: str = field(init=False)
 
     @property
     def content(self) -> bytes | None:
@@ -83,12 +84,12 @@ class ApiRequest(ABC):
         return None
 
     @property
-    def headers(self) -> dict[str, str] | None:
+    def headers(self) -> dict[str, str]:
         """Request headers."""
-        return None
+        return {"Content-Type": self.content_type}
 
     @property
-    def params(self) -> dict[str, str] | None:
+    def params(self) -> dict[str, list[str]] | None:
         """Request query parameters.
 
         In:

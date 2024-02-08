@@ -199,11 +199,6 @@ class GetPortsRequest(ApiRequest):
             }
         )
 
-    @property
-    def headers(self) -> dict[str, str] | None:
-        """Request headers."""
-        return {"Content-Type": self.content_type}
-
 
 @dataclass
 class GetPortsResponse(ApiResponse[dict[str, Port]]):

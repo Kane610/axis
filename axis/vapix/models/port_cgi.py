@@ -40,6 +40,6 @@ class PortActionRequest(ApiRequest):
     action: str
 
     @property
-    def params(self) -> dict[str, str]:
+    def params(self) -> dict[str, list[str]]:
         """Request query parameters."""
-        return {"action": f"{int(self.port) + 1}:{self.action}"}
+        return {"action": [f"{int(self.port) + 1}:{self.action}"]}

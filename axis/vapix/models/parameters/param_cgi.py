@@ -106,7 +106,7 @@ class ParamRequest(ApiRequest):
     group: ParameterGroup | None = None
 
     @property
-    def params(self) -> dict[str, str]:
+    def params(self) -> dict[str, list[str]]:
         """Request query parameters."""
-        group = f"&group=root.{self.group}" if self.group else ""
-        return {"action": f"list{group}"}
+        group = f"group=root.{self.group}" if self.group else ""
+        return {"action": ["list", group]}

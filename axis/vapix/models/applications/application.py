@@ -26,7 +26,7 @@ class ApplicationObjectT(TypedDict):
     Status: Literal["Running", "Stopped", "Idle"]
     ValidationResult: NotRequired[str]
     Vendor: str
-    VendorHomePage: str
+    VendorHomePage: NotRequired[str]
     Version: str
 
 
@@ -140,7 +140,7 @@ class Application(ApiItem):
             status=ApplicationStatus(data["Status"]),
             validation_result_page=data.get("ValidationResult", ""),
             vendor=data["Vendor"],
-            vendor_page=data["VendorHomePage"],
+            vendor_page=data.get("VendorHomePage", ""),
             version=data["Version"],
         )
 
@@ -151,6 +151,7 @@ class ListApplicationsRequest(ApiRequest):
 
     method = "post"
     path = "/axis-cgi/applications/list.cgi"
+    content_type = "text/xml"
 
 
 @dataclass
