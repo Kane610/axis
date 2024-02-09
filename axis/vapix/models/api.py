@@ -89,7 +89,7 @@ class ApiRequest(ABC):
         return {"Content-Type": self.content_type}
 
     @property
-    def params(self) -> dict[str, list[str]] | None:
+    def params(self) -> dict[str, str] | None:
         """Request query parameters.
 
         In:

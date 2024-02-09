@@ -27,7 +27,10 @@ async def test_parameter_group_enum():
 @respx.mock
 async def test_params(params: Params):
     """Verify that you can list parameters."""
-    route = respx.get(f"http://{HOST}:80/axis-cgi/param.cgi?action=list").respond(
+    route = respx.post(
+        f"http://{HOST}:80/axis-cgi/param.cgi",
+        data={"action": "list"},
+    ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
     )
@@ -38,7 +41,7 @@ async def test_params(params: Params):
     assert params.brand_handler.initialized
 
     assert route.called
-    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.get(ParameterGroup.BRAND)
@@ -65,8 +68,9 @@ async def test_params_empty_raw(params: Params):
 @respx.mock
 async def test_update_brand(params: Params):
     """Verify that update brand works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Brand"
+    route = respx.post(
+        f"http://{HOST}:80/axis-cgi/param.cgi",
+        data={"action": "list", "group": "root.Brand"},
     ).respond(
         text=response_param_cgi_brand,
         headers={"Content-Type": "text/plain"},
@@ -74,7 +78,7 @@ async def test_update_brand(params: Params):
     await params.brand_handler.update()
 
     assert route.called
-    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.brand_handler.supported
@@ -91,8 +95,9 @@ async def test_update_brand(params: Params):
 @respx.mock
 async def test_update_image(params: Params):
     """Verify that update image works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Image"
+    route = respx.post(
+        f"http://{HOST}:80/axis-cgi/param.cgi",
+        data={"action": "list", "group": "root.Image"},
     ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
@@ -100,7 +105,7 @@ async def test_update_image(params: Params):
     await params.image_handler.update()
 
     assert route.called
-    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.image_handler.supported
@@ -240,8 +245,9 @@ async def test_update_image(params: Params):
 @respx.mock
 async def test_update_ports(params: Params):
     """Verify that update brand works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.IOPort"
+    route = respx.post(
+        f"http://{HOST}:80/axis-cgi/param.cgi",
+        data={"action": "list", "group": "root.IOPort"},
     ).respond(
         text="""root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input
@@ -253,7 +259,7 @@ root.IOPort.I0.Input.Trig=closed
     await params.io_port_handler.update()
 
     assert route.called
-    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.io_port_handler.supported
@@ -268,8 +274,9 @@ root.IOPort.I0.Input.Trig=closed
 @respx.mock
 async def test_update_properties(params: Params):
     """Verify that update properties works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.Properties"
+    route = respx.post(
+        f"http://{HOST}:80/axis-cgi/param.cgi",
+        data={"action": "list", "group": "root.Properties"},
     ).respond(
         text=response_param_cgi_properties,
         headers={"Content-Type": "text/plain"},
@@ -277,7 +284,7 @@ async def test_update_properties(params: Params):
     await params.property_handler.update()
 
     assert route.called
-    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.property_handler.supported
@@ -326,8 +333,9 @@ async def test_update_properties(params: Params):
 @respx.mock
 async def test_update_stream_profiles(params: Params):
     """Verify that update properties works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.StreamProfile"
+    route = respx.post(
+        f"http://{HOST}:80/axis-cgi/param.cgi",
+        data={"action": "list", "group": "root.StreamProfile"},
     ).respond(
         text=response_param_cgi,
         headers={"Content-Type": "text/plain"},
@@ -335,7 +343,7 @@ async def test_update_stream_profiles(params: Params):
     await params.stream_profile_handler.update()
 
     assert route.called
-    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     profile_params = params.stream_profile_handler["0"]

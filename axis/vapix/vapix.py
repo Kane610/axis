@@ -253,7 +253,7 @@ class Vapix:
         content: bytes | None = None,
         data: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
-        params: dict[str, list[str]] | None = None,
+        params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path

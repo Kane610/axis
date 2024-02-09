@@ -99,14 +99,16 @@ ParamItemT = TypeVar("ParamItemT", bound=ParamItem)
 class ParamRequest(ApiRequest):
     """Request object for listing parameters."""
 
-    method = "get"
+    method = "post"
     path = "/axis-cgi/param.cgi"
     content_type = "text/plain"
 
     group: ParameterGroup | None = None
 
     @property
-    def params(self) -> dict[str, list[str]]:
+    def data(self) -> dict[str, str]:
         """Request query parameters."""
-        group = f"group=root.{self.group}" if self.group else ""
-        return {"action": ["list", group]}
+        query = {"action": "list"}
+        if self.group:
+            query["group"] = f"root.{self.group}"
+        return query

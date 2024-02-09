@@ -119,6 +119,7 @@ class GetConfigurationRequest(ApiRequest):
 
     method = "post"
     path = "/local/vmd/control.cgi"
+    content_type = "application/json"
 
     api_version: str = API_VERSION
     context: str = CONTEXT

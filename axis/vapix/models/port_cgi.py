@@ -1,7 +1,5 @@
 """Axis Vapix port management.
 
-https://www.axis.com/vapix-library/#/subjects/t10037719/section/t10074527
-
 I/O port API. Digital input and output ports.
 General purpose I/O service API. Extends I/O port API with support for
     supervised I/Os and relay connectors.
@@ -40,6 +38,6 @@ class PortActionRequest(ApiRequest):
     action: str
 
     @property
-    def params(self) -> dict[str, list[str]]:
+    def params(self) -> dict[str, str]:
         """Request query parameters."""
-        return {"action": [f"{int(self.port) + 1}:{self.action}"]}
+        return {"action": f"{int(self.port) + 1}:{self.action}"}
