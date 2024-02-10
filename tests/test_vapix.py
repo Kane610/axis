@@ -217,10 +217,7 @@ async def test_initialize_api_discovery_unsupported(vapix: Vapix):
 @respx.mock
 async def test_initialize_param_cgi(vapix: Vapix):
     """Verify that you can list parameters."""
-    respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list"},
-    ).respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/param.cgi").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
@@ -251,16 +248,13 @@ async def test_initialize_params_no_data(vapix: Vapix):
     ).respond(text="")
     await vapix.initialize_param_cgi(preload_data=False)
 
-    assert param_route.call_count == 5
+    assert param_route.call_count == 4
 
 
 @respx.mock
 async def test_initialize_applications(vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
-    respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list"},
-    ).respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/param.cgi").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
@@ -300,10 +294,7 @@ async def test_initialize_applications(vapix: Vapix):
 @respx.mock
 async def test_initialize_applications_unauthorized(vapix: Vapix):
     """Verify initialize applications doesnt break on too low credentials."""
-    respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list"},
-    ).respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/param.cgi").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
@@ -323,10 +314,7 @@ async def test_initialize_applications_unauthorized(vapix: Vapix):
 @respx.mock
 async def test_initialize_applications_not_running(vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
-    respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list"},
-    ).respond(
+    respx.post(f"http://{HOST}:80/axis-cgi/param.cgi").respond(
         text=param_cgi_response,
         headers={"Content-Type": "text/plain"},
     )
@@ -376,7 +364,7 @@ async def test_applications_dont_load_without_params(vapix: Vapix):
     await vapix.initialize_param_cgi(preload_data=False)
     await vapix.initialize_applications()
 
-    assert param_route.call_count == 5
+    assert param_route.call_count == 4
     assert not applications_route.called
     assert not vapix.object_analytics.supported
 
