@@ -37,6 +37,7 @@ async def test_get_no_configuration(object_analytics):
         "method": "getConfiguration",
         "apiVersion": "1.0",
         "context": "Axis library",
+        "params": {},
     }
 
     assert len(object_analytics.values()) == 0
