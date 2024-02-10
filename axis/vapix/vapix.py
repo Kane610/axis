@@ -170,7 +170,6 @@ class Vapix:
 
         else:
             tasks.append(self.params.property_handler.update())
-            tasks.append(self.params.ptz_handler.update())
 
             if not self.basic_device_info.supported:
                 tasks.append(self.params.brand_handler.update())
@@ -197,6 +196,9 @@ class Vapix:
 
         if not self.io_port_management.supported and self.port_cgi.supported:
             self.port_cgi.load_ports()
+
+        if self.params.property_handler["0"].ptz:
+            await self.params.ptz_handler.update()
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""

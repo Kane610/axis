@@ -111,7 +111,7 @@ class PropertyParamT(TypedDict):
     API: PropertyApiParamT
     EmbeddedDevelopment: NotRequired[PropertyEmbeddedDevelopmentParamT]
     Firmware: PropertyFirmwareParamT
-    Image: PropertyImageParamT
+    Image: NotRequired[PropertyImageParamT]
     LightControl: NotRequired[PropertyLightControlParamT]
     PTZ: NotRequired[PropertyPtzParamT]
     System: PropertySystemParamT
@@ -193,15 +193,12 @@ class PropertyParam(ParamItem):
             firmware_build_date=data["Firmware"]["BuildDate"],
             firmware_build_number=data["Firmware"]["BuildNumber"],
             firmware_version=data["Firmware"]["Version"],
-            image_format=data["Image"]["Format"],
-            # image_format=data.get("Image_Format", ""),
-            image_number_of_views=int(data["Image"]["NbrOfViews"]),
-            image_resolution=data["Image"]["Resolution"],
-            image_rotation=data["Image"]["Rotation"],
-            light_control=data["LightControl"].get("LightControl2", False),
-            ptz=data["PTZ"]["PTZ"],
-            # ptz=data.get("PTZ_PTZ") == "yes",
-            digital_ptz=data["PTZ"]["DigitalPTZ"],
-            # digital_ptz=data.get("PTZ_DigitalPTZ") == "yes",
+            image_format=data.get("Image", {}).get("Format", ""),
+            image_number_of_views=int(data.get("Image", {}).get("NbrOfViews", 0)),
+            image_resolution=data.get("Image", {}).get("Resolution", ""),
+            image_rotation=data.get("Image", {}).get("Rotation", ""),
+            light_control=data.get("LightControl", {}).get("LightControl2", False),
+            ptz=data.get("PTZ", {}).get("PTZ", False),
+            digital_ptz=data.get("PTZ", {}).get("DigitalPTZ", False),
             system_serial_number=data["System"]["SerialNumber"],
         )
