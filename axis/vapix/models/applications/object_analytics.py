@@ -116,6 +116,7 @@ class GetConfigurationRequest(ApiRequest):
                 "apiVersion": self.api_version,
                 "context": self.context,
                 "method": "getConfiguration",
+                "params": {},  # Early version of AOA (v1.0-20) requires this
             }
         )
 
