@@ -13,6 +13,7 @@ sgrp: Colon separated existing secondary group names of the account.
 comment: The comment field of the account.
 """
 
+from ..models.api_discovery import ApiId
 from ..models.pwdgrp_cgi import (
     CreateUserRequest,
     DeleteUserRequest,
@@ -28,10 +29,16 @@ from .api_handler import ApiHandler
 class Users(ApiHandler[User]):
     """Represents all users of a device."""
 
+    api_id = ApiId.USER_MANAGEMENT
+
     @property
-    def supported(self) -> bool:
-        """pwdgrp.cgi is always available."""
-        return True
+    def listed_in_parameters(self) -> bool:
+        """Is pwdgrp.cgi supported."""
+        if self.vapix.params.property_handler.supported and (
+            self.vapix.params.property_handler["0"].api_http_version >= 3
+        ):
+            return True
+        return False
 
     async def _api_request(self) -> dict[str, User]:
         """Get default data of basic device information."""

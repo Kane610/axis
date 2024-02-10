@@ -219,7 +219,6 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        assert self.users.supported
         await self.users.update()
 
     async def load_user_groups(self) -> None:
