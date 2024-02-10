@@ -170,7 +170,6 @@ class Vapix:
 
         else:
             tasks.append(self.params.property_handler.update())
-            tasks.append(self.params.ptz_handler.update())
 
             if not self.basic_device_info.supported:
                 tasks.append(self.params.brand_handler.update())
@@ -198,6 +197,9 @@ class Vapix:
         if not self.io_port_management.supported and self.port_cgi.supported:
             self.port_cgi.load_ports()
 
+        if self.params.property_handler["0"].ptz:
+            await self.params.ptz_handler.update()
+
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
         if not self.applications.supported:
@@ -219,7 +221,6 @@ class Vapix:
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
-        assert self.users.supported
         await self.users.update()
 
     async def load_user_groups(self) -> None:
@@ -289,12 +290,11 @@ class Vapix:
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(
-                "Response: %s from %s %s",
-                response.content,
-                self.device.config.host,
-                path,
-            )
+        LOGGER.debug(
+            "Response: %s from %s %s",
+            response.content,
+            self.device.config.host,
+            path,
+        )
 
         return response.content

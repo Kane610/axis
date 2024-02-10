@@ -220,6 +220,7 @@ class SetGeometryRequest(ApiRequest):
 
     method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
+    content_type = "application/json"
     error_codes = general_error_codes
 
     id: int
@@ -257,6 +258,7 @@ class ResetGeometryRequest(ApiRequest):
 
     method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
+    content_type = "application/json"
     error_codes = general_error_codes
 
     id: int

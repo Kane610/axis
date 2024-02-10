@@ -39,7 +39,7 @@ class PropertyApiParamT(TypedDict):
 
     HTTP: PropertyApiHttpParamT
     Metadata: PropertyApiMetadataParamT
-    PTZ: PropertyApiPtzParamT
+    PTZ: NotRequired[PropertyApiPtzParamT]
 
 
 class PropertyEmbeddedDevelopmentRuleEngineParamT(TypedDict):
@@ -79,7 +79,7 @@ class PropertyImageParamT(TypedDict):
 class PropertyLightControlParamT(TypedDict):
     """Represent a light control object."""
 
-    LightControl2: bool
+    LightControl2: NotRequired[bool]
     LightControlAvailable: bool
 
 
@@ -111,7 +111,7 @@ class PropertyParamT(TypedDict):
     API: PropertyApiParamT
     EmbeddedDevelopment: NotRequired[PropertyEmbeddedDevelopmentParamT]
     Firmware: PropertyFirmwareParamT
-    Image: PropertyImageParamT
+    Image: NotRequired[PropertyImageParamT]
     LightControl: NotRequired[PropertyLightControlParamT]
     PTZ: NotRequired[PropertyPtzParamT]
     System: PropertySystemParamT
@@ -184,23 +184,21 @@ class PropertyParam(ParamItem):
             api_http_version=data["API"]["HTTP"]["Version"],
             api_metadata=data["API"]["Metadata"]["Metadata"],
             api_metadata_version=data["API"]["Metadata"]["Version"],
-            api_ptz_presets_version=data["API"]["PTZ"]["Presets"]["Version"],
-            # api_ptz_presets_version=data.get("API"]["PTZ"]["Presets"]["Version", False),
+            api_ptz_presets_version=data["API"]
+            .get("PTZ", {})
+            .get("Presets", {})
+            .get("Version", False),
             embedded_development=data["EmbeddedDevelopment"]["Version"],
             # embedded_development=data.get("EmbeddedDevelopment_Version", "0.0"),
             firmware_build_date=data["Firmware"]["BuildDate"],
             firmware_build_number=data["Firmware"]["BuildNumber"],
             firmware_version=data["Firmware"]["Version"],
-            image_format=data["Image"]["Format"],
-            # image_format=data.get("Image_Format", ""),
-            image_number_of_views=int(data["Image"]["NbrOfViews"]),
-            image_resolution=data["Image"]["Resolution"],
-            image_rotation=data["Image"]["Rotation"],
-            light_control=data["LightControl"]["LightControl2"],
-            # light_control=data.get("LightControl_LightControl2") == "yes",
-            ptz=data["PTZ"]["PTZ"],
-            # ptz=data.get("PTZ_PTZ") == "yes",
-            digital_ptz=data["PTZ"]["DigitalPTZ"],
-            # digital_ptz=data.get("PTZ_DigitalPTZ") == "yes",
+            image_format=data.get("Image", {}).get("Format", ""),
+            image_number_of_views=int(data.get("Image", {}).get("NbrOfViews", 0)),
+            image_resolution=data.get("Image", {}).get("Resolution", ""),
+            image_rotation=data.get("Image", {}).get("Rotation", ""),
+            light_control=data.get("LightControl", {}).get("LightControl2", False),
+            ptz=data.get("PTZ", {}).get("PTZ", False),
+            digital_ptz=data.get("PTZ", {}).get("DigitalPTZ", False),
             system_serial_number=data["System"]["SerialNumber"],
         )

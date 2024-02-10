@@ -103,6 +103,7 @@ class GetConfigurationRequest(ApiRequest):
 
     method = "post"
     path = "/local/objectanalytics/control.cgi"
+    content_type = "application/json"
 
     api_version: str = API_VERSION
     context: str = CONTEXT
@@ -115,6 +116,7 @@ class GetConfigurationRequest(ApiRequest):
                 "apiVersion": self.api_version,
                 "context": self.context,
                 "method": "getConfiguration",
+                "params": {},  # Early version of AOA (v1.0-20) requires this
             }
         )
 

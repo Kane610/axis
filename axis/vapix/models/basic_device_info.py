@@ -139,7 +139,7 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
         return cls(
             api_version=data["apiVersion"],
             context=data["context"],
-            method=data["method"],
+            method=data.get("method", ""),
             data=DeviceInformation.decode(data["data"]["propertyList"]),
         )
 

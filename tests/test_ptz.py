@@ -27,8 +27,9 @@ def ptz_control(axis_device: AxisDevice) -> PtzControl:
 @respx.mock
 async def test_update_ptz(ptz_control: PtzControl):
     """Verify that update ptz works."""
-    route = respx.get(
-        f"http://{HOST}:80/axis-cgi/param.cgi?action=list%26group%3Droot.PTZ"
+    route = respx.post(
+        f"http://{HOST}:80/axis-cgi/param.cgi",
+        data={"action": "list", "group": "root.PTZ"},
     ).respond(
         text=response_param_cgi_ptz,
         headers={"Content-Type": "text/plain"},
@@ -37,7 +38,7 @@ async def test_update_ptz(ptz_control: PtzControl):
     await ptz_control.update()
 
     assert route.called
-    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     ptz = ptz_control["0"]

@@ -79,7 +79,7 @@ class ApiId(enum.StrEnum):
     @classmethod
     def _missing_(cls, value: object) -> "ApiId":
         """Set default enum member if an unknown value is provided."""
-        LOGGER.info("Unsupported API discovery ID %s", value)
+        LOGGER.info("Unsupported API discovery ID '%s'", value)
         return ApiId.UNKNOWN
 
 
@@ -97,7 +97,7 @@ class ApiStatus(enum.StrEnum):
     @classmethod
     def _missing_(cls, value: object) -> "ApiStatus":
         """Set default enum member if an unknown value is provided."""
-        LOGGER.warning("Unsupported API discovery status %s", value)
+        LOGGER.debug("Unsupported API discovery status '%s'", value)
         return ApiStatus.UNKNOWN
 
 
