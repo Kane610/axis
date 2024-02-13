@@ -1,9 +1,7 @@
 """Image parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Self
-
-from typing_extensions import TypedDict
+from typing import Any, Self, TypedDict
 
 from .param_cgi import ParamItem
 
@@ -120,3 +118,15 @@ class ImageParam(ParamItem):
     def decode(cls, data: dict[str, ImageParamT]) -> Self:
         """Decode dictionary to class object."""
         return cls(id="image", data=data)
+
+    @classmethod
+    def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
+        """Create objects from dict."""
+        image_data = {  # Rename channels I0-I19 to 0-19
+            str(id): data[0][channel_id]
+            for id in range(0, 20)
+            if (channel_id := f"I{id}") in data[0]
+        }
+
+        data = cls.decode_to_list([image_data])
+        return {"0": data[0]}
