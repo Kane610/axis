@@ -73,20 +73,16 @@ class ProfileConfiguration(ApiItem):
     triggers: list[dict[str, Any]]
     """Array of triggers."""
 
-    uid: int
-    """Profile ID."""
-
     @classmethod
     def decode(cls, data: Any) -> Self:
         """Decode dict to class object."""
         return cls(
-            id=data["name"],
+            id=str(data["uid"]),
             camera=data["camera"],
             filters=data["filters"],
             name=data["name"],
             presets=data.get("presets", []),
             triggers=data["triggers"],
-            uid=data["uid"],
         )
 
 

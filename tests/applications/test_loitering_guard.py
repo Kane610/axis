@@ -50,11 +50,10 @@ async def test_get_configuration(loitering_guard: LoiteringGuardHandler):
     assert len(loitering_guard.values()) == 1
 
     assert len(loitering_guard["0"].profiles) == 1
-    profile = loitering_guard["0"].profiles["Profile 1"]
-    assert profile.id == "Profile 1"
+    profile = loitering_guard["0"].profiles["1"]
+    assert profile.id == "1"
     assert profile.name == "Profile 1"
     assert profile.camera == 1
-    assert profile.uid == 1
     assert profile.filters == [
         {"active": True, "data": [5, 5], "type": "sizePercentage"},
         {"active": True, "data": 5, "type": "distanceSwayingObject"},
