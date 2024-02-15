@@ -109,136 +109,122 @@ async def test_update_image(params: Params):
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert params.image_handler.supported
-    assert params.image_handler["0"].data == {
-        # "DateFormat": "YYYY-MM-DD",
-        # "MaxViewers": 20,
-        # "MotionDetection": False,
-        # "NbrOfConfigs": 2,
-        # "OverlayPath": "/etc/overlays/axis(128x44).ovl",
-        # "OwnDateFormat": "%F",
-        # "OwnDateFormatEnabled": False,
-        # "OwnTimeFormat": "%T",
-        # "OwnTimeFormatEnabled": False,
-        # "PrivacyMaskType": "none",
-        # "Referrers": "",
-        # "ReferrersEnabled": False,
-        # "RFCCompliantMultipartEnabled": True,
-        # "TimeFormat": 24,
-        # "TimeResolution": 1,
-        # "TriggerDataEnabled": False,
-        "0": {
-            "Enabled": True,
-            "Name": "View Area 1",
-            "Source": 0,
-            "Appearance": {
-                "ColorEnabled": True,
-                "Compression": 30,
-                "MirrorEnabled": False,
-                "Resolution": "1920x1080",
-                "Rotation": 0,
-            },
-            "MPEG": {
-                "Complexity": 50,
-                "ConfigHeaderInterval": 1,
-                "FrameSkipMode": "drop",
-                "ICount": 1,
-                "PCount": 31,
-                "UserDataEnabled": False,
-                "UserDataInterval": 1,
-                "ZChromaQPMode": "off",
-                "ZFpsMode": "fixed",
-                "ZGopMode": "fixed",
-                "ZMaxGopLength": 300,
-                "ZMinFps": 0,
-                "ZStrength": 10,
-                "H264": {"Profile": "high", "PSEnabled": False},
-            },
-            "Overlay": {
-                "Enabled": False,
-                "XPos": 0,
-                "YPos": 0,
-                "MaskWindows": {"Color": "black"},
-            },
-            "RateControl": {
-                "MaxBitrate": 0,
-                "Mode": "vbr",
-                "Priority": "framerate",
-                "TargetBitrate": 0,
-            },
-            "SizeControl": {"MaxFrameSize": 0},
-            "Stream": {"Duration": 0, "FPS": 0, "NbrOfFrames": 0},
-            "Text": {
-                "BGColor": "black",
-                "ClockEnabled": False,
-                "Color": "white",
-                "DateEnabled": False,
-                "Position": "top",
-                "String": "",
-                "TextEnabled": False,
-                "TextSize": "medium",
-            },
-            "TriggerData": {
-                "AudioEnabled": True,
-                "MotionDetectionEnabled": True,
-                "MotionLevelEnabled": False,
-                "TamperingEnabled": True,
-                "UserTriggers": "",
-            },
-        },
-        "1": {
-            "Enabled": False,
-            "Name": "View Area 2",
-            "Source": 0,
-            "Appearance": {
-                "ColorEnabled": True,
-                "Compression": 30,
-                "MirrorEnabled": False,
-                "Resolution": "1920x1080",
-                "Rotation": 0,
-            },
-            "MPEG": {
-                "Complexity": 50,
-                "ConfigHeaderInterval": 1,
-                "FrameSkipMode": "drop",
-                "ICount": 1,
-                "PCount": 31,
-                "UserDataEnabled": False,
-                "UserDataInterval": 1,
-                "ZChromaQPMode": "off",
-                "ZFpsMode": "fixed",
-                "ZGopMode": "fixed",
-                "ZMaxGopLength": 300,
-                "ZMinFps": 0,
-                "ZStrength": 10,
-                "H264": {"Profile": "high", "PSEnabled": False},
-            },
-            "Overlay": {"Enabled": False, "XPos": 0, "YPos": 0},
-            "RateControl": {
-                "MaxBitrate": 0,
-                "Mode": "vbr",
-                "Priority": "framerate",
-                "TargetBitrate": 0,
-            },
-            "SizeControl": {"MaxFrameSize": 0},
-            "Stream": {"Duration": 0, "FPS": 0, "NbrOfFrames": 0},
-            "Text": {
-                "BGColor": "black",
-                "ClockEnabled": False,
-                "Color": "white",
-                "DateEnabled": False,
-                "Position": "top",
-                "String": "",
-                "TextEnabled": False,
-                "TextSize": "medium",
-            },
-            "TriggerData": {
-                "AudioEnabled": True,
-                "MotionDetectionEnabled": True,
-                "MotionLevelEnabled": False,
-                "TamperingEnabled": True,
-                "UserTriggers": "",
-            },
-        },
+    assert params.image_handler["0"].enabled is True
+    assert params.image_handler["0"].name == "View Area 1"
+    assert params.image_handler["0"].source == 0
+    assert params.image_handler["0"].appearance == {
+        "ColorEnabled": True,
+        "Compression": 30,
+        "MirrorEnabled": False,
+        "Resolution": "1920x1080",
+        "Rotation": 0,
+    }
+    assert params.image_handler["0"].mpeg == {
+        "Complexity": 50,
+        "ConfigHeaderInterval": 1,
+        "FrameSkipMode": "drop",
+        "ICount": 1,
+        "PCount": 31,
+        "UserDataEnabled": False,
+        "UserDataInterval": 1,
+        "ZChromaQPMode": "off",
+        "ZFpsMode": "fixed",
+        "ZGopMode": "fixed",
+        "ZMaxGopLength": 300,
+        "ZMinFps": 0,
+        "ZStrength": 10,
+        "H264": {"Profile": "high", "PSEnabled": False},
+    }
+    assert params.image_handler["0"].overlay == {
+        "Enabled": False,
+        "XPos": 0,
+        "YPos": 0,
+        "MaskWindows": {"Color": "black"},
+    }
+    assert params.image_handler["0"].rate_control == {
+        "MaxBitrate": 0,
+        "Mode": "vbr",
+        "Priority": "framerate",
+        "TargetBitrate": 0,
+    }
+    assert params.image_handler["0"].size_control == {"MaxFrameSize": 0}
+    assert params.image_handler["0"].stream == {
+        "Duration": 0,
+        "FPS": 0,
+        "NbrOfFrames": 0,
+    }
+    assert params.image_handler["0"].text == {
+        "BGColor": "black",
+        "ClockEnabled": False,
+        "Color": "white",
+        "DateEnabled": False,
+        "Position": "top",
+        "String": "",
+        "TextEnabled": False,
+        "TextSize": "medium",
+    }
+    assert params.image_handler["0"].trigger_data == {
+        "AudioEnabled": True,
+        "MotionDetectionEnabled": True,
+        "MotionLevelEnabled": False,
+        "TamperingEnabled": True,
+        "UserTriggers": "",
+    }
+    assert params.image_handler["1"].enabled is False
+    assert params.image_handler["1"].name == "View Area 2"
+    assert params.image_handler["1"].source == 0
+    assert params.image_handler["1"].appearance == {
+        "ColorEnabled": True,
+        "Compression": 30,
+        "MirrorEnabled": False,
+        "Resolution": "1920x1080",
+        "Rotation": 0,
+    }
+    assert params.image_handler["1"].mpeg == {
+        "Complexity": 50,
+        "ConfigHeaderInterval": 1,
+        "FrameSkipMode": "drop",
+        "ICount": 1,
+        "PCount": 31,
+        "UserDataEnabled": False,
+        "UserDataInterval": 1,
+        "ZChromaQPMode": "off",
+        "ZFpsMode": "fixed",
+        "ZGopMode": "fixed",
+        "ZMaxGopLength": 300,
+        "ZMinFps": 0,
+        "ZStrength": 10,
+        "H264": {"Profile": "high", "PSEnabled": False},
+    }
+    assert params.image_handler["1"].overlay == {"Enabled": False, "XPos": 0, "YPos": 0}
+    assert params.image_handler["1"].rate_control == {
+        "MaxBitrate": 0,
+        "Mode": "vbr",
+        "Priority": "framerate",
+        "TargetBitrate": 0,
+    }
+    assert params.image_handler["1"].size_control == {"MaxFrameSize": 0}
+    assert params.image_handler["1"].stream == {
+        "Duration": 0,
+        "FPS": 0,
+        "NbrOfFrames": 0,
+    }
+    assert params.image_handler["1"].text == {
+        "BGColor": "black",
+        "ClockEnabled": False,
+        "Color": "white",
+        "DateEnabled": False,
+        "Position": "top",
+        "String": "",
+        "TextEnabled": False,
+        "TextSize": "medium",
+    }
+    assert params.image_handler["1"].trigger_data == {
+        "AudioEnabled": True,
+        "MotionDetectionEnabled": True,
+        "MotionLevelEnabled": False,
+        "TamperingEnabled": True,
+        "UserTriggers": "",
     }
 
 
