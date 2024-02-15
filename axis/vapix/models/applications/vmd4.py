@@ -74,7 +74,7 @@ class ProfileConfiguration(ApiItem):
     """Array of triggers."""
 
     @classmethod
-    def decode(cls, data: Any) -> Self:
+    def decode(cls, data: ProfileConfigurationDataT) -> Self:
         """Decode dict to class object."""
         return cls(
             id=str(data["uid"]),

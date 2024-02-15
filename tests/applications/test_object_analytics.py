@@ -11,6 +11,7 @@ import respx
 from axis.vapix.interfaces.applications.object_analytics import (
     ObjectAnalyticsHandler,
 )
+from axis.vapix.models.applications.object_analytics import ScenarioType
 
 from ..conftest import HOST
 
@@ -69,53 +70,48 @@ async def test_get_configuration(object_analytics):
     assert configuration.devices == [{"id": 1, "rotation": 180, "type": "camera"}]
     assert configuration.metadata_overlay == []
     assert configuration.perspectives == []
-    assert configuration.scenarios == [
-        {
-            "devices": [{"id": 1}],
-            "filters": [
-                {"distance": 5, "type": "distanceSwayingObject"},
-                {"time": 1, "type": "timeShortLivedLimit"},
-                {"height": 3, "type": "sizePercentage", "width": 3},
-            ],
-            "id": 1,
-            "name": "Scenario 1",
-            "objectClassifications": [],
-            "perspectives": [],
-            "presets": [],
-            "triggers": [
-                {
-                    "type": "includeArea",
-                    "vertices": [
-                        [-0.97, -0.97],
-                        [-0.97, 0.97],
-                        [0.97, 0.97],
-                        [0.97, -0.97],
-                    ],
-                }
-            ],
-            "type": "motion",
-        },
-        {
-            "devices": [{"id": 1}],
-            "filters": [
-                {"time": 1, "type": "timeShortLivedLimit"},
-                {"height": 3, "type": "sizePercentage", "width": 3},
-            ],
-            "id": 2,
-            "name": "Scenario 2",
-            "objectClassifications": [{"type": "human"}],
-            "perspectives": [],
-            "presets": [],
-            "triggers": [
-                {
-                    "alarmDirection": "leftToRight",
-                    "type": "fence",
-                    "vertices": [[0, -0.7], [0, 0.7]],
-                }
-            ],
-            "type": "fence",
-        },
+    assert configuration.scenarios["1"].id == "1"
+    assert configuration.scenarios["1"].devices == [{"id": 1}]
+    assert configuration.scenarios["1"].filters == [
+        {"distance": 5, "type": "distanceSwayingObject"},
+        {"time": 1, "type": "timeShortLivedLimit"},
+        {"height": 3, "type": "sizePercentage", "width": 3},
     ]
+    assert configuration.scenarios["1"].name == "Scenario 1"
+    assert configuration.scenarios["1"].object_classifications == []
+    assert configuration.scenarios["1"].perspectives == []
+    assert configuration.scenarios["1"].presets == []
+    assert configuration.scenarios["1"].triggers == [
+        {
+            "type": "includeArea",
+            "vertices": [
+                [-0.97, -0.97],
+                [-0.97, 0.97],
+                [0.97, 0.97],
+                [0.97, -0.97],
+            ],
+        }
+    ]
+    assert configuration.scenarios["1"].type == ScenarioType.MOTION
+
+    assert configuration.scenarios["2"].devices == [{"id": 1}]
+    assert configuration.scenarios["2"].filters == [
+        {"time": 1, "type": "timeShortLivedLimit"},
+        {"height": 3, "type": "sizePercentage", "width": 3},
+    ]
+    assert configuration.scenarios["2"].id == "2"
+    assert configuration.scenarios["2"].name == "Scenario 2"
+    assert configuration.scenarios["2"].object_classifications == [{"type": "human"}]
+    assert configuration.scenarios["2"].perspectives == []
+    assert configuration.scenarios["2"].presets == []
+    assert configuration.scenarios["2"].triggers == [
+        {
+            "alarmDirection": "leftToRight",
+            "type": "fence",
+            "vertices": [[0, -0.7], [0, 0.7]],
+        }
+    ]
+    assert configuration.scenarios["2"].type == ScenarioType.FENCE
 
 
 response_get_configuration_empty = {

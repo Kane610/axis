@@ -1,6 +1,7 @@
 """Object Analytics API data model."""
 
 from dataclasses import dataclass
+import enum
 from typing import Any, Literal, NotRequired, Self, TypedDict
 
 import orjson
@@ -45,7 +46,7 @@ class ConfigurationScenarioDataT(TypedDict):
     devices: list[dict[str, Any]]
     filters: list[dict[str, Any]]
     objectClassifications: list[dict[str, str]]
-    perspectives: list[dict[str, Any]]
+    perspectives: list[int]
     presets: list[int]
     triggers: list[dict[str, Any]]
 
@@ -69,6 +70,84 @@ class GetConfigurationResponseT(TypedDict):
     # error: NotRequired[ErrorDataT]
 
 
+class ScenarioType(enum.StrEnum):
+    """Scenario types."""
+
+    CROSS_LINE_COUNTING = "crosslinecounting"
+    """Crossline Counting scenario count objects crossing a defined
+    counting line. The line has a polyline shape and is triggered by objects passing
+    the line in a specified direction.
+    """
+    FENCE = "fence"
+    """This scenario makes it possible to define a special fence trigger with a
+    polyline shape activated by objects passing the line in a certain direction.
+    """
+    MOTION = "motion"
+    """This scenario makes it possible to define an include area which acts
+    as a trigger zone for moving objects. Additionally, filters can be configured to
+    exclude objects based on other criteria, such as size.
+    """
+    OCCUPANCY_IN_AREA = "occupancyInArea"
+    """Occupancy in Area scenario allows defining an include area which are
+    able to count objects. This include stationary objects.
+    """
+
+
+@dataclass(frozen=True)
+class ScenarioConfiguration(ApiItem):
+    """Profile configuration."""
+
+    devices: list[dict[str, int]]
+    """Lists the devices that the scenario should be applied to."""
+
+    filters: list[dict[str, Any]]
+    """Array of exclude filters."""
+
+    name: str
+    """Nice name of scenario."""
+
+    object_classifications: list[dict[str, str]]
+    """Identifies the object type and additional subtype."""
+
+    perspectives: list[int]
+    """A list of perspective IDs used in the scenario."""
+
+    presets: list[int]
+    """For mechanical PTZ cameras, each profile can be connected to one preset.
+
+    If a preset is added, the profile will only be active when the camera is at
+    the given preset. If this parameter is omitted or the profile is not connected
+    to any preset it will always be active.
+
+    -2 - Tracking is always enabled, except when camera is moving.
+    -1 - Tracking is done on all preset positions.
+    No tracking is done if the PTZ device is not set to a preset.
+    1 - Tracking on the home position of the PTZ device.
+    2... - Tracking on specific presets only.
+    """
+
+    triggers: list[dict[str, Any]]
+    """Array of triggers."""
+
+    type: ScenarioType
+    """Possible scenario types."""
+
+    @classmethod
+    def decode(cls, data: ConfigurationScenarioDataT) -> Self:
+        """Decode dict to class object."""
+        return cls(
+            id=str(data["id"]),
+            devices=data["devices"],
+            filters=data["filters"],
+            name=data["name"],
+            object_classifications=data["objectClassifications"],
+            perspectives=data["perspectives"],
+            presets=data["presets"],
+            triggers=data["triggers"],
+            type=ScenarioType(data["type"]),
+        )
+
+
 @dataclass(frozen=True)
 class Configuration(ApiItem):
     """Object analytics configuration."""
@@ -82,7 +161,7 @@ class Configuration(ApiItem):
     perspectives: list[ConfigurationPerspectiveDataT]
     """Container for the perspective data."""
 
-    scenarios: list[ConfigurationScenarioDataT]
+    scenarios: dict[str, ScenarioConfiguration]
     """Container for the scenario data."""
 
     @classmethod
@@ -93,7 +172,7 @@ class Configuration(ApiItem):
             devices=data["devices"],
             metadata_overlay=data["metadataOverlay"],
             perspectives=data.get("perspective", []),
-            scenarios=data["scenarios"],
+            scenarios=ScenarioConfiguration.decode_to_dict(data["scenarios"]),
         )
 
 
