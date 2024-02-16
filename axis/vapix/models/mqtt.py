@@ -1,6 +1,7 @@
 """MQTT Client api."""
 
 from dataclasses import dataclass
+import enum
 from typing import Literal, NotRequired, Self
 
 import orjson
@@ -69,8 +70,8 @@ class ConfigT(TypedDict):
 class StatusT(TypedDict):
     """Represent a status object."""
 
-    connectionStatus: str
-    state: str
+    connectionStatus: Literal["connected", "disconnected"]
+    state: Literal["active", "inactive"]
 
 
 class ClientStatusDataT(TypedDict):
@@ -135,6 +136,29 @@ general_error_codes = {
 }
 
 
+class ClientState(enum.StrEnum):
+    """The current state of the client."""
+
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
+class ClientConnectionState(enum.StrEnum):
+    """The current connection state of the client."""
+
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
+
+
+class ServerProtocol(enum.StrEnum):
+    """Connection protocols used in the server configuration."""
+
+    SSL = "ssl"
+    TCP = "tcp"
+    WS = "ws"
+    WSS = "wss"
+
+
 @dataclass
 class Message:
     """Message description."""
@@ -164,7 +188,7 @@ class Server:
     """Represent server config."""
 
     host: str
-    protocol: Literal["ssl", "tcp", "ws", "wss"] = "tcp"
+    protocol: ServerProtocol = ServerProtocol.TCP
     alpn_protocol: str | None = None
     basepath: str | None = None
     port: int | None = None
@@ -174,7 +198,7 @@ class Server:
         """Create server object from dict."""
         return Server(
             host=data["host"],
-            protocol=data["protocol"],
+            protocol=ServerProtocol(data["protocol"]),
             alpn_protocol=data.get("alpnProtocol"),
             basepath=data.get("basepath"),
             port=data.get("port"),
@@ -182,9 +206,7 @@ class Server:
 
     def to_dict(self) -> ServerT:
         """Create json dict from object."""
-        data: ServerT = {"host": self.host}
-        if self.protocol is not None:
-            data["protocol"] = self.protocol
+        data: ServerT = {"host": self.host, "protocol": self.protocol.value}
         if self.alpn_protocol is not None:
             data["alpnProtocol"] = self.alpn_protocol
         if self.basepath is not None:
@@ -269,15 +291,16 @@ class ClientConfig:
 class ClientStatus:
     """Represent client status."""
 
-    connection_status: str
-    state: str
+    connection_status: ClientConnectionState
+    state: ClientState
 
     @classmethod
     def from_dict(cls, data: StatusT) -> "ClientStatus":
         """Create client status object from dict."""
+        # Note to investigate closer, documentation say lower case.
         return ClientStatus(
-            connection_status=data["connectionStatus"],
-            state=data["state"],
+            connection_status=ClientConnectionState(data["connectionStatus"].lower()),
+            state=ClientState(data["state"].lower()),
         )
 
 

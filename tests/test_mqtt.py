@@ -11,7 +11,7 @@ import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
-from axis.vapix.models.mqtt import ClientConfig, Message, Server, Ssl
+from axis.vapix.models.mqtt import ClientConfig, Message, Server, ServerProtocol, Ssl
 
 from .conftest import HOST
 
@@ -54,7 +54,7 @@ async def test_client_config_advanced(mqtt_client: MqttClientHandler):
     client_config = ClientConfig(
         Server(
             "192.168.0.1",
-            protocol="ws",
+            protocol=ServerProtocol.WS,
             alpn_protocol="alpn",
             basepath="base",
             port=1883,
