@@ -1,20 +1,18 @@
-"""Test Axis parameter management.
+"""Test Axis parameter management."""
 
-pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
-"""
+from unittest.mock import patch
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.param_cgi import Params
-from axis.vapix.models.parameters.param_cgi import ParameterGroup
+from axis.vapix.models.parameters.param_cgi import ParameterGroup, ParamRequest
 
-from .conftest import HOST
+from ..conftest import HOST
 
 
 @pytest.fixture
-def params(axis_device: AxisDevice) -> Params:
+def param_handler(axis_device: AxisDevice) -> Params:
     """Return the param cgi mock object."""
     return axis_device.vapix.params
 
@@ -24,326 +22,73 @@ async def test_parameter_group_enum():
     assert ParameterGroup("unsupported") is ParameterGroup.UNKNOWN
 
 
-@respx.mock
-async def test_params(params: Params):
+async def test_parameter_request():
+    """Verify parameter request specific group."""
+    request = ParamRequest(ParameterGroup.AUDIO)
+    assert request.data == {"action": "list", "group": "root.Audio"}
+
+
+async def test_param_handler_request_signalling(param_handler: Params):
+    """Verify that signalling to subscribers."""
+    with patch.object(param_handler, "_update") as update_mock, patch.object(
+        param_handler, "signal_subscribers"
+    ) as signal_mock:
+        update_mock.return_value = ["obj_id"]
+        await param_handler.request_group()
+        signal_mock.assert_called_with("obj_id")
+
+
+async def test_param_handler(respx_mock, param_handler: Params):
     """Verify that you can list parameters."""
-    route = respx.post(
+    route = respx_mock.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list"},
     ).respond(
-        text=response_param_cgi,
+        text=PARAM_RESPONSE,
         headers={"Content-Type": "text/plain"},
     )
-    assert not params.initialized
-    assert not params.brand_handler.initialized
-    await params.update()
-    assert params.initialized
-    assert params.brand_handler.initialized
+    assert not param_handler.initialized
+
+    await param_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.get(ParameterGroup.BRAND)
-    assert params.get(ParameterGroup.IMAGE)
-    assert params.get(ParameterGroup.INPUT)
-    assert params.get(ParameterGroup.OUTPUT)
-    assert params.get(ParameterGroup.IOPORT)
-    assert params.get(ParameterGroup.PROPERTIES)
-    assert params.get(ParameterGroup.PTZ)
-    assert params.get(ParameterGroup.STREAMPROFILE)
+    assert param_handler.initialized
+
+    assert ParameterGroup.BRAND in param_handler
+    assert param_handler.brand_handler.initialized
+    assert ParameterGroup.IMAGE in param_handler
+    assert param_handler.image_handler.initialized
+    assert ParameterGroup.IOPORT in param_handler
+    assert param_handler.io_port_handler.initialized
+    assert ParameterGroup.PROPERTIES in param_handler
+    assert param_handler.property_handler.initialized
+    assert ParameterGroup.PTZ in param_handler
+    assert param_handler.ptz_handler.initialized
+    assert ParameterGroup.STREAMPROFILE in param_handler
+    assert param_handler.stream_profile_handler.initialized
 
 
-async def test_params_empty_raw(params: Params):
+async def test_params_empty_raw(param_handler: Params):
     """Verify that params can take an empty raw on creation."""
-    assert len(params) == 0
-    assert not params.brand_handler.supported
-    assert not params.image_handler.supported
-    assert not params.io_port_handler.supported
-    assert not params.property_handler.supported
-    assert not params.ptz_handler.supported
-    assert not params.stream_profile_handler.supported
+    assert len(param_handler) == 0
+    assert not param_handler.brand_handler.supported
+    assert not param_handler.brand_handler.initialized
+    assert not param_handler.image_handler.supported
+    assert not param_handler.image_handler.initialized
+    assert not param_handler.io_port_handler.supported
+    assert not param_handler.io_port_handler.initialized
+    assert not param_handler.property_handler.supported
+    assert not param_handler.property_handler.initialized
+    assert not param_handler.ptz_handler.supported
+    assert not param_handler.ptz_handler.initialized
+    assert not param_handler.stream_profile_handler.supported
+    assert not param_handler.stream_profile_handler.initialized
 
 
-@respx.mock
-async def test_update_brand(params: Params):
-    """Verify that update brand works."""
-    route = respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Brand"},
-    ).respond(
-        text=response_param_cgi_brand,
-        headers={"Content-Type": "text/plain"},
-    )
-    await params.brand_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert params.brand_handler.supported
-    brand = params.brand_handler["0"]
-    assert brand.brand == "AXIS"
-    assert brand.product_full_name == "AXIS M1065-LW Network Camera"
-    assert brand.product_number == "M1065-LW"
-    assert brand.product_short_name == "AXIS M1065-LW"
-    assert brand.product_type == "Network Camera"
-    assert brand.product_variant == ""
-    assert brand.web_url == "http://www.axis.com"
-
-
-@respx.mock
-async def test_update_image(params: Params):
-    """Verify that update image works."""
-    route = respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Image"},
-    ).respond(
-        text=response_param_cgi,
-        headers={"Content-Type": "text/plain"},
-    )
-    await params.image_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert params.image_handler.supported
-    assert params.image_handler["0"].enabled is True
-    assert params.image_handler["0"].name == "View Area 1"
-    assert params.image_handler["0"].source == 0
-    assert params.image_handler["0"].appearance == {
-        "ColorEnabled": True,
-        "Compression": 30,
-        "MirrorEnabled": False,
-        "Resolution": "1920x1080",
-        "Rotation": 0,
-    }
-    assert params.image_handler["0"].mpeg == {
-        "Complexity": 50,
-        "ConfigHeaderInterval": 1,
-        "FrameSkipMode": "drop",
-        "ICount": 1,
-        "PCount": 31,
-        "UserDataEnabled": False,
-        "UserDataInterval": 1,
-        "ZChromaQPMode": "off",
-        "ZFpsMode": "fixed",
-        "ZGopMode": "fixed",
-        "ZMaxGopLength": 300,
-        "ZMinFps": 0,
-        "ZStrength": 10,
-        "H264": {"Profile": "high", "PSEnabled": False},
-    }
-    assert params.image_handler["0"].overlay == {
-        "Enabled": False,
-        "XPos": 0,
-        "YPos": 0,
-        "MaskWindows": {"Color": "black"},
-    }
-    assert params.image_handler["0"].rate_control == {
-        "MaxBitrate": 0,
-        "Mode": "vbr",
-        "Priority": "framerate",
-        "TargetBitrate": 0,
-    }
-    assert params.image_handler["0"].size_control == {"MaxFrameSize": 0}
-    assert params.image_handler["0"].stream == {
-        "Duration": 0,
-        "FPS": 0,
-        "NbrOfFrames": 0,
-    }
-    assert params.image_handler["0"].text == {
-        "BGColor": "black",
-        "ClockEnabled": False,
-        "Color": "white",
-        "DateEnabled": False,
-        "Position": "top",
-        "String": "",
-        "TextEnabled": False,
-        "TextSize": "medium",
-    }
-    assert params.image_handler["0"].trigger_data == {
-        "AudioEnabled": True,
-        "MotionDetectionEnabled": True,
-        "MotionLevelEnabled": False,
-        "TamperingEnabled": True,
-        "UserTriggers": "",
-    }
-    assert params.image_handler["1"].enabled is False
-    assert params.image_handler["1"].name == "View Area 2"
-    assert params.image_handler["1"].source == 0
-    assert params.image_handler["1"].appearance == {
-        "ColorEnabled": True,
-        "Compression": 30,
-        "MirrorEnabled": False,
-        "Resolution": "1920x1080",
-        "Rotation": 0,
-    }
-    assert params.image_handler["1"].mpeg == {
-        "Complexity": 50,
-        "ConfigHeaderInterval": 1,
-        "FrameSkipMode": "drop",
-        "ICount": 1,
-        "PCount": 31,
-        "UserDataEnabled": False,
-        "UserDataInterval": 1,
-        "ZChromaQPMode": "off",
-        "ZFpsMode": "fixed",
-        "ZGopMode": "fixed",
-        "ZMaxGopLength": 300,
-        "ZMinFps": 0,
-        "ZStrength": 10,
-        "H264": {"Profile": "high", "PSEnabled": False},
-    }
-    assert params.image_handler["1"].overlay == {"Enabled": False, "XPos": 0, "YPos": 0}
-    assert params.image_handler["1"].rate_control == {
-        "MaxBitrate": 0,
-        "Mode": "vbr",
-        "Priority": "framerate",
-        "TargetBitrate": 0,
-    }
-    assert params.image_handler["1"].size_control == {"MaxFrameSize": 0}
-    assert params.image_handler["1"].stream == {
-        "Duration": 0,
-        "FPS": 0,
-        "NbrOfFrames": 0,
-    }
-    assert params.image_handler["1"].text == {
-        "BGColor": "black",
-        "ClockEnabled": False,
-        "Color": "white",
-        "DateEnabled": False,
-        "Position": "top",
-        "String": "",
-        "TextEnabled": False,
-        "TextSize": "medium",
-    }
-    assert params.image_handler["1"].trigger_data == {
-        "AudioEnabled": True,
-        "MotionDetectionEnabled": True,
-        "MotionLevelEnabled": False,
-        "TamperingEnabled": True,
-        "UserTriggers": "",
-    }
-
-
-@respx.mock
-async def test_update_ports(params: Params):
-    """Verify that update brand works."""
-    route = respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.IOPort"},
-    ).respond(
-        text="""root.IOPort.I0.Configurable=no
-root.IOPort.I0.Direction=input
-root.IOPort.I0.Input.Name=PIR sensor
-root.IOPort.I0.Input.Trig=closed
-""",
-        headers={"Content-Type": "text/plain"},
-    )
-    await params.io_port_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert params.io_port_handler.supported
-    port = params.io_port_handler["0"]
-    assert not port.configurable
-    assert port.direction == "input"
-    assert port.name == "PIR sensor"
-    assert port.input_trigger == "closed"
-    assert port.output_active == ""
-
-
-@respx.mock
-async def test_update_properties(params: Params):
-    """Verify that update properties works."""
-    route = respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Properties"},
-    ).respond(
-        text=response_param_cgi_properties,
-        headers={"Content-Type": "text/plain"},
-    )
-    await params.property_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    assert params.property_handler.supported
-    properties = params.property_handler["0"]
-    assert properties.api_http_version == 3
-    assert properties.api_metadata is True
-    assert properties.api_metadata_version == "1.0"
-    # assert params[f"{PROPERTIES}.API.OnScreenControls.OnScreenControls"] == "yes"
-    assert properties.api_ptz_presets_version == "2.00"
-    # assert params[f"{PROPERTIES}.API.RTSP.RTSPAuth"] == "yes"
-    # assert params[f"{PROPERTIES}.API.RTSP.Version"] == "2.01"
-    # assert params[f"{PROPERTIES}.ApiDiscovery.ApiDiscovery"] == "yes"
-    # assert params[f"{PROPERTIES}.EmbeddedDevelopment.EmbeddedDevelopment"] == "yes"
-    assert properties.embedded_development == "2.16"
-    assert properties.firmware_build_date == "Feb 15 2019 09:42"
-    assert properties.firmware_build_number == 26
-    assert properties.firmware_version == "9.10.1"
-    assert properties.image_format == "jpeg,mjpeg,h264"
-    assert properties.image_number_of_views == 2
-    assert (
-        properties.image_resolution
-        == "1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240"
-    )
-    assert properties.image_rotation == "0,180"
-    # assert params[f"{PROPERTIES}.LEDControl.LEDControl"] == "yes"
-    assert properties.light_control is True
-    # assert params[f"{PROPERTIES}.LightControl.LightControlAvailable"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.AutoRepair"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.ContinuousRecording"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.DiskEncryption"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.DiskHealth"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.ExportRecording"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.FailOverRecording"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.LocalStorage"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.NbrOfContinuousRecordingProfiles"] == "1"
-    # assert params[f"{PROPERTIES}.LocalStorage.RequiredFileSystem"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.SDCard"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.StorageLimit"] == "yes"
-    # assert params[f"{PROPERTIES}.LocalStorage.Version"] == "1.00"
-    assert properties.digital_ptz is True
-    assert properties.ptz is True
-    # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
-    assert properties.system_serial_number == "ACCC12345678"
-
-
-@respx.mock
-async def test_update_stream_profiles(params: Params):
-    """Verify that update properties works."""
-    route = respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.StreamProfile"},
-    ).respond(
-        text=response_param_cgi,
-        headers={"Content-Type": "text/plain"},
-    )
-    await params.stream_profile_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    profile_params = params.stream_profile_handler["0"]
-    assert profile_params.max_groups == 26
-    assert len(profile_params.stream_profiles) == 2
-    assert profile_params.stream_profiles[0].name == "profile_1"
-    assert profile_params.stream_profiles[0].description == "profile_1_description"
-    assert profile_params.stream_profiles[0].parameters == "videocodec=h264"
-    assert profile_params.stream_profiles[1].name == "profile_2"
-    assert profile_params.stream_profiles[1].description == "profile_2_description"
-    assert profile_params.stream_profiles[1].parameters == "videocodec=h265"
-
-
-response_param_cgi = """root.Audio.DSCP=0
+PARAM_RESPONSE = """root.Audio.DSCP=0
 root.Audio.DuplexMode=half
 root.Audio.MaxListeners=20
 root.Audio.NbrOfConfigs=2
@@ -1142,240 +887,3 @@ root.Time.DST.Enabled=no
 root.Time.NTP.Server=0.0.0.0
 root.Time.NTP.VolatileServer=0.0.0.0
 root.WebService.UsernameToken.ReplayAttackProtection=yes"""
-
-response_param_cgi_brand = """root.Brand.Brand=AXIS
-root.Brand.ProdFullName=AXIS M1065-LW Network Camera
-root.Brand.ProdNbr=M1065-LW
-root.Brand.ProdShortName=AXIS M1065-LW
-root.Brand.ProdType=Network Camera
-root.Brand.ProdVariant=
-root.Brand.WebURL=http://www.axis.com"""
-
-response_param_cgi_ports = """root.Input.NbrOfInputs=1
-root.IOPort.I0.Configurable=no
-root.IOPort.I0.Direction=input
-root.IOPort.I0.Input.Name=PIR sensor
-root.IOPort.I0.Input.Trig=closed
-root.Output.NbrOfOutputs=0
-"""
-
-response_param_cgi_properties = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
-root.Properties.API.Browser.Language=yes
-root.Properties.API.Browser.RootPwdSetValue=yes
-root.Properties.API.Browser.UserGroup=yes
-root.Properties.API.ClientNotes.ClientNotes=yes
-root.Properties.API.HTTP.AdminPath=/
-root.Properties.API.HTTP.Version=3
-root.Properties.API.Metadata.Metadata=yes
-root.Properties.API.Metadata.Version=1.0
-root.Properties.API.OnScreenControls.OnScreenControls=yes
-root.Properties.API.PTZ.Presets.Version=2.00
-root.Properties.API.RTSP.RTSPAuth=yes
-root.Properties.API.RTSP.Version=2.01
-root.Properties.API.WebService.EntryService=yes
-root.Properties.API.WebService.WebService=yes
-root.Properties.API.WebService.ONVIF.ONVIF=yes
-root.Properties.API.WebService.ONVIF.Version=1.02
-root.Properties.API.WebSocket.RTSP.RTSP=yes
-root.Properties.ApiDiscovery.ApiDiscovery=yes
-root.Properties.Audio.Audio=yes
-root.Properties.Audio.DuplexMode=half,post,get
-root.Properties.Audio.Format=lpcm,g711,g726,aac,opus
-root.Properties.Audio.InputType=internal
-root.Properties.Audio.Decoder.Format=g711,g726,axis-mulaw-128
-root.Properties.Audio.Source.A0.Input=yes
-root.Properties.Audio.Source.A0.Output=yes
-root.Properties.EmbeddedDevelopment.CacheSize=76546048
-root.Properties.EmbeddedDevelopment.DefaultCacheSize=92274688
-root.Properties.EmbeddedDevelopment.EmbeddedDevelopment=yes
-root.Properties.EmbeddedDevelopment.Version=2.16
-root.Properties.EmbeddedDevelopment.RuleEngine.MultiConfiguration=yes
-root.Properties.Firmware.BuildDate=Feb 15 2019 09:42
-root.Properties.Firmware.BuildNumber=26
-root.Properties.Firmware.Version=9.10.1
-root.Properties.FirmwareManagement.Version=1.0
-root.Properties.GuardTour.GuardTour=yes
-root.Properties.GuardTour.MaxGuardTours=100
-root.Properties.GuardTour.MinGuardTourWaitTime=10
-root.Properties.GuardTour.RecordedTour=no
-root.Properties.HTTPS.HTTPS=yes
-root.Properties.Image.Format=jpeg,mjpeg,h264
-root.Properties.Image.NbrOfViews=2
-root.Properties.Image.Resolution=1920x1080,1280x960,1280x720,1024x768,1024x576,800x600,640x480,640x360,352x240,320x240
-root.Properties.Image.Rotation=0,180
-root.Properties.Image.ShowSuboptimalResolutions=false
-root.Properties.Image.H264.Profiles=Baseline,Main,High
-root.Properties.ImageSource.DayNight=yes
-root.Properties.IO.ManualTriggerNbr=6
-root.Properties.LEDControl.LEDControl=yes
-root.Properties.LightControl.LightControl2=yes
-root.Properties.LightControl.LightControlAvailable=yes
-root.Properties.LocalStorage.AutoRepair=yes
-root.Properties.LocalStorage.ContinuousRecording=yes
-root.Properties.LocalStorage.DiskEncryption=yes
-root.Properties.LocalStorage.DiskHealth=yes
-root.Properties.LocalStorage.ExportRecording=yes
-root.Properties.LocalStorage.FailOverRecording=yes
-root.Properties.LocalStorage.LocalStorage=yes
-root.Properties.LocalStorage.NbrOfContinuousRecordingProfiles=1
-root.Properties.LocalStorage.RequiredFileSystem=yes
-root.Properties.LocalStorage.SDCard=yes
-root.Properties.LocalStorage.StorageLimit=yes
-root.Properties.LocalStorage.Version=1.00
-root.Properties.Motion.MaxNbrOfWindows=10
-root.Properties.Motion.Motion=yes
-root.Properties.Network.WLAN.WLANScan2=yes
-root.Properties.NetworkShare.CIFS=yes
-root.Properties.NetworkShare.IPV6=yes
-root.Properties.NetworkShare.NameLookup=yes
-root.Properties.NetworkShare.NetworkShare=yes
-root.Properties.PackageManager.FormatListing=yes
-root.Properties.PackageManager.LicenseKeyManagement=yes
-root.Properties.PackageManager.PackageManager=yes
-root.Properties.PrivacyMask.MaxNbrOfPrivacyMasks=10
-root.Properties.PrivacyMask.Polygon=no
-root.Properties.PrivacyMask.PrivacyMask=no
-root.Properties.PrivacyMask.Query=list,position,listpxjson,positionpxjson
-root.Properties.PTZ.DigitalPTZ=yes
-root.Properties.PTZ.DriverManagement=no
-root.Properties.PTZ.DriverModeList=none
-root.Properties.PTZ.PTZ=yes
-root.Properties.PTZ.PTZOnQuadView=no
-root.Properties.PTZ.SelectableDriverMode=no
-root.Properties.RemoteService.RemoteService=no
-root.Properties.RTC.RTC=yes
-root.Properties.Sensor.PIR=yes
-root.Properties.Serial.Serial=no
-root.Properties.System.Architecture=armv7hf
-root.Properties.System.HardwareID=70E
-root.Properties.System.Language=English
-root.Properties.System.LanguageType=default
-root.Properties.System.SerialNumber=ACCC12345678
-root.Properties.System.Soc=Ambarella S2L (Flattened Device Tree)
-root.Properties.Tampering.Tampering=yes
-root.Properties.TemperatureSensor.Fan=no
-root.Properties.TemperatureSensor.Heater=no
-root.Properties.TemperatureSensor.TemperatureControl=yes
-root.Properties.TemperatureSensor.TemperatureSensor=yes
-root.Properties.VirtualInput.VirtualInput=yes
-root.Properties.ZipStream.ZipStream=yes"""
-
-response_param_cgi_ptz = """root.PTZ.BoaProtPTZOperator=password
-root.PTZ.CameraDefault=1
-root.PTZ.NbrOfCameras=1
-root.PTZ.NbrOfSerPorts=1
-root.PTZ.CamPorts.Cam1Port=1
-root.PTZ.ImageSource.I0.PTZEnabled=true
-root.PTZ.Limit.L1.MaxBrightness=9999
-root.PTZ.Limit.L1.MaxFieldAngle=623
-root.PTZ.Limit.L1.MaxFocus=9999
-root.PTZ.Limit.L1.MaxIris=9999
-root.PTZ.Limit.L1.MaxPan=170
-root.PTZ.Limit.L1.MaxTilt=90
-root.PTZ.Limit.L1.MaxZoom=9999
-root.PTZ.Limit.L1.MinBrightness=1
-root.PTZ.Limit.L1.MinFieldAngle=22
-root.PTZ.Limit.L1.MinFocus=770
-root.PTZ.Limit.L1.MinIris=1
-root.PTZ.Limit.L1.MinPan=-170
-root.PTZ.Limit.L1.MinTilt=-20
-root.PTZ.Limit.L1.MinZoom=1
-root.PTZ.Preset.P0.HomePosition=1
-root.PTZ.Preset.P0.ImageSource=0
-root.PTZ.Preset.P0.Name=
-root.PTZ.Preset.P0.Position.P1.Data=tilt=0.000000:focus=32766.000000:pan=0.000000:iris=32766.000000:zoom=1.000000
-root.PTZ.Preset.P0.Position.P1.Name=Home
-root.PTZ.PTZDriverStatuses.Driver1Status=3
-root.PTZ.SerDriverStatuses.Ser1Status=3
-root.PTZ.Support.S1.AbsoluteBrightness=true
-root.PTZ.Support.S1.AbsoluteFocus=true
-root.PTZ.Support.S1.AbsoluteIris=true
-root.PTZ.Support.S1.AbsolutePan=true
-root.PTZ.Support.S1.AbsoluteTilt=true
-root.PTZ.Support.S1.AbsoluteZoom=true
-root.PTZ.Support.S1.ActionNotification=true
-root.PTZ.Support.S1.AreaZoom=true
-root.PTZ.Support.S1.AutoFocus=true
-root.PTZ.Support.S1.AutoIrCutFilter=true
-root.PTZ.Support.S1.AutoIris=true
-root.PTZ.Support.S1.Auxiliary=true
-root.PTZ.Support.S1.BackLight=true
-root.PTZ.Support.S1.ContinuousBrightness=false
-root.PTZ.Support.S1.ContinuousFocus=true
-root.PTZ.Support.S1.ContinuousIris=false
-root.PTZ.Support.S1.ContinuousPan=true
-root.PTZ.Support.S1.ContinuousTilt=true
-root.PTZ.Support.S1.ContinuousZoom=true
-root.PTZ.Support.S1.DevicePreset=false
-root.PTZ.Support.S1.DigitalZoom=true
-root.PTZ.Support.S1.GenericHTTP=false
-root.PTZ.Support.S1.IrCutFilter=true
-root.PTZ.Support.S1.JoyStickEmulation=true
-root.PTZ.Support.S1.LensOffset=false
-root.PTZ.Support.S1.OSDMenu=false
-root.PTZ.Support.S1.ProportionalSpeed=true
-root.PTZ.Support.S1.RelativeBrightness=true
-root.PTZ.Support.S1.RelativeFocus=true
-root.PTZ.Support.S1.RelativeIris=true
-root.PTZ.Support.S1.RelativePan=true
-root.PTZ.Support.S1.RelativeTilt=true
-root.PTZ.Support.S1.RelativeZoom=true
-root.PTZ.Support.S1.ServerPreset=true
-root.PTZ.Support.S1.SpeedCtl=true
-root.PTZ.UserAdv.U1.AdjustableZoomSpeedEnabled=true
-root.PTZ.UserAdv.U1.DeviceModVer=model:0467, version:0310
-root.PTZ.UserAdv.U1.DeviceStatus=cam=ok,pan=ok,tilt=ok
-root.PTZ.UserAdv.U1.LastTestDate=Thu Oct 29 08:12:04 2020
-root.PTZ.UserAdv.U1.MoveSpeed=100
-root.PTZ.UserAdv.U1.WhiteBalanceOnePushModeEnabled=true
-root.PTZ.UserCtlQueue.U0.Priority=10
-root.PTZ.UserCtlQueue.U0.TimeoutTime=60
-root.PTZ.UserCtlQueue.U0.TimeoutType=activity
-root.PTZ.UserCtlQueue.U0.UseCookie=yes
-root.PTZ.UserCtlQueue.U0.UserGroup=Administrator
-root.PTZ.UserCtlQueue.U1.Priority=30
-root.PTZ.UserCtlQueue.U1.TimeoutTime=60
-root.PTZ.UserCtlQueue.U1.TimeoutType=activity
-root.PTZ.UserCtlQueue.U1.UseCookie=yes
-root.PTZ.UserCtlQueue.U1.UserGroup=Operator
-root.PTZ.UserCtlQueue.U2.Priority=50
-root.PTZ.UserCtlQueue.U2.TimeoutTime=60
-root.PTZ.UserCtlQueue.U2.TimeoutType=timespan
-root.PTZ.UserCtlQueue.U2.UseCookie=yes
-root.PTZ.UserCtlQueue.U2.UserGroup=Viewer
-root.PTZ.UserCtlQueue.U3.Priority=20
-root.PTZ.UserCtlQueue.U3.TimeoutTime=20
-root.PTZ.UserCtlQueue.U3.TimeoutType=activity
-root.PTZ.UserCtlQueue.U3.UseCookie=no
-root.PTZ.UserCtlQueue.U3.UserGroup=Event
-root.PTZ.UserCtlQueue.U4.Priority=35
-root.PTZ.UserCtlQueue.U4.TimeoutTime=60
-root.PTZ.UserCtlQueue.U4.TimeoutType=infinity
-root.PTZ.UserCtlQueue.U4.UseCookie=no
-root.PTZ.UserCtlQueue.U4.UserGroup=Autotracking
-root.PTZ.UserCtlQueue.U5.Priority=0
-root.PTZ.UserCtlQueue.U5.TimeoutTime=60
-root.PTZ.UserCtlQueue.U5.TimeoutType=infinity
-root.PTZ.UserCtlQueue.U5.UseCookie=no
-root.PTZ.UserCtlQueue.U5.UserGroup=Onvif
-root.PTZ.Various.V1.AutoFocus=true
-root.PTZ.Various.V1.AutoIris=true
-root.PTZ.Various.V1.BackLight=false
-root.PTZ.Various.V1.BackLightEnabled=true
-root.PTZ.Various.V1.BrightnessEnabled=true
-root.PTZ.Various.V1.CtlQueueing=false
-root.PTZ.Various.V1.CtlQueueLimit=20
-root.PTZ.Various.V1.CtlQueuePollTime=20
-root.PTZ.Various.V1.FocusEnabled=true
-root.PTZ.Various.V1.HomePresetSet=true
-root.PTZ.Various.V1.IrCutFilter=auto
-root.PTZ.Various.V1.IrCutFilterEnabled=true
-root.PTZ.Various.V1.IrisEnabled=true
-root.PTZ.Various.V1.MaxProportionalSpeed=200
-root.PTZ.Various.V1.PanEnabled=true
-root.PTZ.Various.V1.ProportionalSpeedEnabled=true
-root.PTZ.Various.V1.PTZCounter=8
-root.PTZ.Various.V1.ReturnToOverview=0
-root.PTZ.Various.V1.SpeedCtlEnabled=true
-root.PTZ.Various.V1.TiltEnabled=true
-root.PTZ.Various.V1.ZoomEnabled=true"""
