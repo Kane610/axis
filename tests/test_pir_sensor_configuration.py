@@ -7,7 +7,6 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
@@ -23,12 +22,12 @@ def pir_sensor_configuration(axis_device: AxisDevice) -> PirSensorConfigurationH
     return axis_device.vapix.pir_sensor_configuration
 
 
-@respx.mock
 async def test_get_api_list(
+    respx_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -62,12 +61,12 @@ async def test_get_api_list(
     assert item.sensitivity == 0.94117647409439087
 
 
-@respx.mock
 async def test_get_sensitivity(
+    respx_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -92,12 +91,12 @@ async def test_get_sensitivity(
     }
 
 
-@respx.mock
 async def test_set_sensitivity(
+    respx_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -120,12 +119,12 @@ async def test_set_sensitivity(
     }
 
 
-@respx.mock
 async def test_supported_versions(
+    respx_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",

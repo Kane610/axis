@@ -4,7 +4,6 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.stream_profiles import StreamProfilesHandler
@@ -20,10 +19,11 @@ def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
     return axis_device.vapix.stream_profiles
 
 
-@respx.mock
-async def test_list_stream_profiles(stream_profiles: StreamProfilesHandler) -> None:
+async def test_list_stream_profiles(
+    respx_mock, stream_profiles: StreamProfilesHandler
+) -> None:
     """Test get_supported_versions."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=LIST_RESPONSE,
     )
     await stream_profiles.update()
@@ -47,12 +47,12 @@ async def test_list_stream_profiles(stream_profiles: StreamProfilesHandler) -> N
     assert stream_profile.parameters == "resolution=1920x1080"
 
 
-@respx.mock
 async def test_list_stream_profiles_no_profiles(
+    respx_mock,
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-    respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    respx_mock.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json={
             "method": "list",
             "apiVersion": "1.0",
@@ -67,10 +67,11 @@ async def test_list_stream_profiles_no_profiles(
     assert len(stream_profiles.values()) == 0
 
 
-@respx.mock
-async def test_get_supported_versions(stream_profiles: StreamProfilesHandler) -> None:
+async def test_get_supported_versions(
+    respx_mock, stream_profiles: StreamProfilesHandler
+) -> None:
     """Test get_supported_versions."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
         json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await stream_profiles.get_supported_versions()

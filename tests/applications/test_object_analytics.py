@@ -6,7 +6,6 @@ pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/
 import json
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.applications.object_analytics import (
     ObjectAnalyticsHandler,
@@ -22,10 +21,11 @@ def object_analytics(axis_device) -> ObjectAnalyticsHandler:
     return axis_device.vapix.object_analytics
 
 
-@respx.mock
-async def test_get_no_configuration(object_analytics):
+async def test_get_no_configuration(respx_mock, object_analytics):
     """Test no response from get_configuration."""
-    route = respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
+    route = respx_mock.post(
+        f"http://{HOST}:80/local/objectanalytics/control.cgi"
+    ).respond(
         json={},
     )
     with pytest.raises(KeyError):
@@ -44,10 +44,9 @@ async def test_get_no_configuration(object_analytics):
     assert len(object_analytics.values()) == 0
 
 
-@respx.mock
-async def test_get_empty_configuration(object_analytics):
+async def test_get_empty_configuration(respx_mock, object_analytics):
     """Test empty get_configuration."""
-    respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
+    respx_mock.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await object_analytics.update()
@@ -55,10 +54,9 @@ async def test_get_empty_configuration(object_analytics):
     assert len(object_analytics.values()) == 1
 
 
-@respx.mock
-async def test_get_configuration(object_analytics):
+async def test_get_configuration(respx_mock, object_analytics):
     """Test get_configuration."""
-    respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
+    respx_mock.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
         json=GET_CONFIGURATION_RESPONSE,
     )
     await object_analytics.update()

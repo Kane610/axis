@@ -3,7 +3,6 @@
 import urllib
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.pwdgrp_cgi import Users
 from axis.vapix.models.pwdgrp_cgi import SecondaryGroup, User
@@ -32,10 +31,11 @@ def test_user_class_privileges() -> None:
     assert bad_user.privileges == SecondaryGroup.UNKNOWN
 
 
-@respx.mock
-async def test_users(users):
+async def test_users(respx_mock, users):
     """Verify that you can list users."""
-    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
+    respx_mock.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
+        text=GET_USERS_RESPONSE
+    )
     await users.update()
 
     assert users["userv"]
@@ -79,11 +79,10 @@ async def test_users(users):
     assert users["usera"].privileges == SecondaryGroup.ADMIN_PTZ
 
 
-@respx.mock
-async def test_users_new_response(users):
+async def test_users_new_response(respx_mock, users):
     """Verify that you can list users."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
-    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(content=response)
+    respx_mock.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(content=response)
     await users.update()
 
     assert users["root"]
@@ -94,10 +93,9 @@ async def test_users_new_response(users):
     assert users["root"].ptz
 
 
-@respx.mock
-async def test_create(users):
+async def test_create(respx_mock, users):
     """Verify that you can create users."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
@@ -137,10 +135,9 @@ async def test_create(users):
     )
 
 
-@respx.mock
-async def test_modify(users):
+async def test_modify(respx_mock, users):
     """Verify that you can modify users."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
     await users.modify("joe", pwd="abcd")
 
@@ -197,10 +194,9 @@ async def test_modify(users):
     )
 
 
-@respx.mock
-async def test_delete(users):
+async def test_delete(respx_mock, users):
     """Verify that you can delete users."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi")
 
     await users.delete("joe")
 
@@ -213,19 +209,17 @@ async def test_delete(users):
     )
 
 
-@respx.mock
-async def test_equals_in_value(users):
+async def test_equals_in_value(respx_mock, users):
     """Verify that values containing `=` are parsed correctly."""
-    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
+    respx_mock.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
         text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
     )
     await users.update()
 
 
-@respx.mock
-async def test_no_equals_in_value(users):
+async def test_no_equals_in_value(respx_mock, users):
     """Verify that values containing `=` are parsed correctly."""
-    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text="")
+    respx_mock.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text="")
     await users.update()
 
 

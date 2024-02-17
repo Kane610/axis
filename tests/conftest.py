@@ -19,7 +19,7 @@ RTSP_PORT = 8888
 
 
 @pytest.fixture
-async def axis_device() -> AxisDevice:
+async def axis_device(respx_mock) -> AxisDevice:
     """Return the axis device.
 
     Clean up sessions automatically at the end of each test.

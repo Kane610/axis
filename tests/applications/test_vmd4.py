@@ -6,7 +6,6 @@ pytest --cov-report term-missing --cov=axis.applications.vmd4 tests/applications
 import json
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.applications.vmd4 import Vmd4Handler
 
@@ -19,10 +18,9 @@ def vmd4(axis_device) -> Vmd4Handler:
     return axis_device.vapix.vmd4
 
 
-@respx.mock
-async def test_get_empty_configuration(vmd4: Vmd4Handler):
+async def test_get_empty_configuration(respx_mock, vmd4: Vmd4Handler):
     """Test empty get_configuration."""
-    route = respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await vmd4.update()
@@ -39,10 +37,9 @@ async def test_get_empty_configuration(vmd4: Vmd4Handler):
     assert len(vmd4.values()) == 1
 
 
-@respx.mock
-async def test_get_configuration(vmd4: Vmd4Handler):
+async def test_get_configuration(respx_mock, vmd4: Vmd4Handler):
     """Test get_supported_versions."""
-    respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
+    respx_mock.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
         json=GET_CONFIGURATION_RESPONSE,
     )
     await vmd4.update()

@@ -6,7 +6,6 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 import json
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.api_discovery import ApiDiscoveryHandler
@@ -21,10 +20,9 @@ def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
     return axis_device.vapix.api_discovery
 
 
-@respx.mock
-async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
+async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=GET_API_LIST_RESPONSE,
     )
     assert api_discovery.supported
@@ -54,10 +52,9 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
     assert ApiId("") == ApiId.UNKNOWN
 
 
-@respx.mock
-async def test_get_supported_versions(api_discovery: ApiDiscoveryHandler):
+async def test_get_supported_versions(respx_mock, api_discovery: ApiDiscoveryHandler):
     """Test get_supported_versions."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
         json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await api_discovery.get_supported_versions()

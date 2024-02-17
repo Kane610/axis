@@ -6,7 +6,6 @@ pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/a
 import json
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.applications.loitering_guard import LoiteringGuardHandler
 
@@ -19,10 +18,13 @@ def loitering_guard(axis_device) -> LoiteringGuardHandler:
     return axis_device.vapix.loitering_guard
 
 
-@respx.mock
-async def test_get_empty_configuration(loitering_guard: LoiteringGuardHandler):
+async def test_get_empty_configuration(
+    respx_mock, loitering_guard: LoiteringGuardHandler
+):
     """Test empty get_configuration."""
-    route = respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
+    route = respx_mock.post(
+        f"http://{HOST}:80/local/loiteringguard/control.cgi"
+    ).respond(
         json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await loitering_guard.update()
@@ -39,10 +41,9 @@ async def test_get_empty_configuration(loitering_guard: LoiteringGuardHandler):
     assert len(loitering_guard.values()) == 1
 
 
-@respx.mock
-async def test_get_configuration(loitering_guard: LoiteringGuardHandler):
+async def test_get_configuration(respx_mock, loitering_guard: LoiteringGuardHandler):
     """Test get_configuration."""
-    respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
+    respx_mock.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
         json=GET_CONFIGURATION_RESPONSE,
     )
     await loitering_guard.update()

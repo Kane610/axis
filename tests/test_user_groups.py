@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.user_groups tests/test_user_groups.p
 """
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.user_groups import UserGroups
 from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
@@ -18,10 +17,9 @@ def user_groups(axis_device) -> UserGroups:
     return UserGroups(axis_device.vapix)
 
 
-@respx.mock
-async def test_empty_response(user_groups):
+async def test_empty_response(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
         text="",
         headers={"Content-Type": "text/plain"},
     )
@@ -30,10 +28,9 @@ async def test_empty_response(user_groups):
     assert user_groups.get("0") is None
 
 
-@respx.mock
-async def test_root_user(user_groups):
+async def test_root_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
         text="root\nroot admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -47,10 +44,9 @@ async def test_root_user(user_groups):
     assert user.ptz
 
 
-@respx.mock
-async def test_admin_user(user_groups):
+async def test_admin_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
         text="administrator\nusers admin operator viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -64,10 +60,9 @@ async def test_admin_user(user_groups):
     assert not user.ptz
 
 
-@respx.mock
-async def test_operator_user(user_groups):
+async def test_operator_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
         text="operator\nusers operator viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -81,10 +76,9 @@ async def test_operator_user(user_groups):
     assert not user.ptz
 
 
-@respx.mock
-async def test_viewer_user(user_groups):
+async def test_viewer_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
         text="viewer\nusers viewer\n",
         headers={"Content-Type": "text/plain"},
     )
