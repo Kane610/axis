@@ -26,7 +26,7 @@ API_VERSION = "1.0"
 DEFAULT_TOPICS = ["//."]
 
 
-def mqtt_json_to_event(msg: str) -> dict[str, Any]:
+def mqtt_json_to_event(msg: bytes | str) -> dict[str, Any]:
     """Convert JSON message from MQTT to event format."""
     message = orjson.loads(msg)
     topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")

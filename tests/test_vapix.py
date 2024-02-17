@@ -29,12 +29,12 @@ from .applications.test_motion_guard import (
 from .applications.test_vmd4 import response_get_configuration as vmd4_response
 from .conftest import HOST
 from .event_fixtures import EVENT_INSTANCES
+from .parameters.test_param_cgi import response_param_cgi as param_cgi_response
 from .test_api_discovery import response_getApiList as api_discovery_response
 from .test_basic_device_info import (
     response_getAllProperties as basic_device_info_response,
 )
 from .test_light_control import response_getLightInformation as light_control_response
-from .test_param_cgi import response_param_cgi as param_cgi_response
 from .test_port_management import response_getPorts as io_port_management_response
 from .test_stream_profiles import response_list as stream_profiles_response
 

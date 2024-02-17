@@ -13,7 +13,7 @@ from axis.vapix.interfaces.ptz import PtzControl
 from axis.vapix.models.ptz_cgi import PtzMove, PtzQuery, PtzRotation, PtzState
 
 from .conftest import HOST
-from .test_param_cgi import response_param_cgi_ptz
+from .parameters.test_param_cgi import response_param_cgi_ptz
 
 UNSUPPORTED_COMMAND = "unsupported"
 
