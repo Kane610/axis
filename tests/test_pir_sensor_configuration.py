@@ -11,8 +11,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 
-from .conftest import HOST
-
 
 @pytest.fixture
 def pir_sensor_configuration(axis_device: AxisDevice) -> PirSensorConfigurationHandler:
@@ -27,7 +25,7 @@ async def test_get_api_list(
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -66,7 +64,7 @@ async def test_get_sensitivity(
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -96,7 +94,7 @@ async def test_set_sensitivity(
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -124,7 +122,7 @@ async def test_supported_versions(
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/pirsensor.cgi").respond(
+    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",

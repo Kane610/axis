@@ -8,7 +8,6 @@ import pytest
 from axis.vapix.interfaces.event_instances import EventInstanceHandler
 from axis.vapix.models.event_instance import get_events
 
-from .conftest import HOST
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,
     EVENT_INSTANCE_STORAGE_ALERT,
@@ -25,7 +24,7 @@ def event_instances(axis_device) -> EventInstanceHandler:
 
 async def test_full_list_of_event_instances(respx_mock, event_instances):
     """Test loading of event instances work."""
-    respx_mock.post(f"http://{HOST}:80/vapix/services").respond(
+    respx_mock.post("/vapix/services").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
     )
@@ -128,7 +127,7 @@ async def test_single_event_instance(
     respx_mock, event_instances: EventInstanceHandler, response: str, expected: dict
 ):
     """Verify expected outcome from different event instances."""
-    respx_mock.post(f"http://{HOST}:80/vapix/services").respond(
+    respx_mock.post("/vapix/services").respond(
         text=response, headers={"Content-Type": "application/soap+xml; charset=utf-8"}
     )
     await event_instances.update()

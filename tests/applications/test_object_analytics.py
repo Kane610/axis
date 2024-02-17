@@ -12,8 +12,6 @@ from axis.vapix.interfaces.applications.object_analytics import (
 )
 from axis.vapix.models.applications.object_analytics import ScenarioType
 
-from ..conftest import HOST
-
 
 @pytest.fixture
 def object_analytics(axis_device) -> ObjectAnalyticsHandler:
@@ -23,9 +21,7 @@ def object_analytics(axis_device) -> ObjectAnalyticsHandler:
 
 async def test_get_no_configuration(respx_mock, object_analytics):
     """Test no response from get_configuration."""
-    route = respx_mock.post(
-        f"http://{HOST}:80/local/objectanalytics/control.cgi"
-    ).respond(
+    route = respx_mock.post("/local/objectanalytics/control.cgi").respond(
         json={},
     )
     with pytest.raises(KeyError):
@@ -46,7 +42,7 @@ async def test_get_no_configuration(respx_mock, object_analytics):
 
 async def test_get_empty_configuration(respx_mock, object_analytics):
     """Test empty get_configuration."""
-    respx_mock.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
+    respx_mock.post("/local/objectanalytics/control.cgi").respond(
         json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await object_analytics.update()
@@ -56,7 +52,7 @@ async def test_get_empty_configuration(respx_mock, object_analytics):
 
 async def test_get_configuration(respx_mock, object_analytics):
     """Test get_configuration."""
-    respx_mock.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
+    respx_mock.post("/local/objectanalytics/control.cgi").respond(
         json=GET_CONFIGURATION_RESPONSE,
     )
     await object_analytics.update()

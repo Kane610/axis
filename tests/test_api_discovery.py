@@ -11,8 +11,6 @@ from axis.device import AxisDevice
 from axis.vapix.interfaces.api_discovery import ApiDiscoveryHandler
 from axis.vapix.models.api_discovery import ApiId, ApiStatus
 
-from .conftest import HOST
-
 
 @pytest.fixture
 def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
@@ -22,7 +20,7 @@ def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
 
 async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
+    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
         json=GET_API_LIST_RESPONSE,
     )
     assert api_discovery.supported
@@ -54,7 +52,7 @@ async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
 
 async def test_get_supported_versions(respx_mock, api_discovery: ApiDiscoveryHandler):
     """Test get_supported_versions."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
+    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
         json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await api_discovery.get_supported_versions()

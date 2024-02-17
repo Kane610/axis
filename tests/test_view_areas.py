@@ -11,11 +11,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.view_areas import Geometry, ViewAreaHandler
 
-from .conftest import HOST
-
-URL_INFO = "/axis-cgi/viewarea/info.cgi"
-URL_CONFIG = "/axis-cgi/viewarea/configure.cgi"
-
 
 @pytest.fixture
 def view_areas(axis_device: AxisDevice) -> ViewAreaHandler:
@@ -27,7 +22,7 @@ def view_areas(axis_device: AxisDevice) -> ViewAreaHandler:
 
 async def test_list_view_areas(respx_mock, view_areas: ViewAreaHandler):
     """Test simple view area."""
-    route = respx_mock.post(f"http://{HOST}:80{URL_INFO}").respond(
+    route = respx_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -69,7 +64,7 @@ async def test_list_view_areas(respx_mock, view_areas: ViewAreaHandler):
 
     assert route.called
     assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == URL_INFO
+    assert route.calls.last.request.url.path == "/axis-cgi/viewarea/info.cgi"
     assert json.loads(route.calls.last.request.content) == {
         "method": "list",
         "apiVersion": "1.0",
@@ -123,7 +118,7 @@ async def test_list_view_areas(respx_mock, view_areas: ViewAreaHandler):
 
 async def test_get_supported_versions(respx_mock, view_areas: ViewAreaHandler):
     """Test get supported versions api."""
-    route = respx_mock.post(f"http://{HOST}:80{URL_INFO}").respond(
+    route = respx_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",
@@ -147,7 +142,7 @@ async def test_get_supported_versions(respx_mock, view_areas: ViewAreaHandler):
 
 async def test_set_geometry_of_view_area(respx_mock, view_areas: ViewAreaHandler):
     """Test simple view area."""
-    respx_mock.post(f"http://{HOST}:80{URL_CONFIG}").respond(
+    respx_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -222,7 +217,7 @@ async def test_set_geometry_of_view_area(respx_mock, view_areas: ViewAreaHandler
 
 async def test_reset_geometry_of_view_area(respx_mock, view_areas: ViewAreaHandler):
     """Test simple view area."""
-    respx_mock.post(f"http://{HOST}:80{URL_CONFIG}").respond(
+    respx_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -295,7 +290,7 @@ async def test_reset_geometry_of_view_area(respx_mock, view_areas: ViewAreaHandl
 
 async def test_get_supported_config_versions(respx_mock, view_areas: ViewAreaHandler):
     """Test get supported versions api."""
-    route = respx_mock.post(f"http://{HOST}:80{URL_CONFIG}").respond(
+    route = respx_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",
@@ -323,7 +318,7 @@ async def test_general_error_101(respx_mock, view_areas: ViewAreaHandler):
     HTTP code: 200 OK
     Content-type: application/json
     """
-    respx_mock.post(f"http://{HOST}:80{URL_INFO}").respond(
+    respx_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",
@@ -346,7 +341,7 @@ async def test_general_error_102(respx_mock, view_areas: ViewAreaHandler):
     HTTP code: 200 OK
     Content-type: application/json
     """
-    respx_mock.post(f"http://{HOST}:80{URL_INFO}").respond(
+    respx_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",
@@ -369,7 +364,7 @@ async def test_general_error_103(respx_mock, view_areas: ViewAreaHandler):
     HTTP code: 200 OK
     Content-type: application/json
     """
-    respx_mock.post(f"http://{HOST}:80{URL_INFO}").respond(
+    respx_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",
@@ -392,7 +387,7 @@ async def test_method_specific_error_200(respx_mock, view_areas: ViewAreaHandler
     HTTP code: 200 OK
     Content-type: application/json
     """
-    respx_mock.post(f"http://{HOST}:80{URL_CONFIG}").respond(
+    respx_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",
@@ -413,7 +408,7 @@ async def test_method_specific_error_201(respx_mock, view_areas: ViewAreaHandler
     HTTP code: 200 OK
     Content-type: application/json
     """
-    respx_mock.post(f"http://{HOST}:80{URL_CONFIG}").respond(
+    respx_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",
@@ -434,7 +429,7 @@ async def test_method_specific_error_202(respx_mock, view_areas: ViewAreaHandler
     HTTP code: 200 OK
     Content-type: application/json
     """
-    respx_mock.post(f"http://{HOST}:80{URL_CONFIG}").respond(
+    respx_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "",

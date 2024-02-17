@@ -7,8 +7,6 @@ import pytest
 
 from axis.vapix.interfaces.applications import ApplicationsHandler
 
-from ..conftest import HOST
-
 
 @pytest.fixture
 def applications(axis_device) -> ApplicationsHandler:
@@ -18,7 +16,7 @@ def applications(axis_device) -> ApplicationsHandler:
 
 async def test_update_no_application(respx_mock, applications: ApplicationsHandler):
     """Test update applicatios call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
+    route = respx_mock.post("/axis-cgi/applications/list.cgi").respond(
         text=LIST_APPLICATION_EMPTY_RESPONSE,
         headers={"Content-Type": "text/xml"},
     )
@@ -31,7 +29,7 @@ async def test_update_no_application(respx_mock, applications: ApplicationsHandl
 
 async def test_update_single_application(respx_mock, applications: ApplicationsHandler):
     """Test update applications call."""
-    respx_mock.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
+    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
         text=LIST_APPLICATION_RESPONSE,
         headers={"Content-Type": "text/xml"},
     )
@@ -58,7 +56,7 @@ async def test_update_multiple_applications(
     respx_mock, applications: ApplicationsHandler
 ):
     """Test update applicatios call."""
-    respx_mock.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
+    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
         text=LIST_APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
     )

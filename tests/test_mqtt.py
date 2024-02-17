@@ -12,8 +12,6 @@ from axis.device import AxisDevice
 from axis.vapix.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
 from axis.vapix.models.mqtt import ClientConfig, Message, Server, ServerProtocol, Ssl
 
-from .conftest import HOST
-
 
 @pytest.fixture
 def mqtt_client(axis_device: AxisDevice) -> MqttClientHandler:
@@ -25,7 +23,7 @@ def mqtt_client(axis_device: AxisDevice) -> MqttClientHandler:
 
 async def test_client_config_simple(respx_mock, mqtt_client: MqttClientHandler):
     """Test simple MQTT client configuration."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
+    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
 
     client_config = ClientConfig(Server("192.168.0.1"))
 
@@ -46,7 +44,7 @@ async def test_client_config_simple(respx_mock, mqtt_client: MqttClientHandler):
 
 async def test_client_config_advanced(respx_mock, mqtt_client: MqttClientHandler):
     """Test advanced MQTT client configuration."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
+    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
 
     client_config = ClientConfig(
         Server(
@@ -149,7 +147,7 @@ async def test_client_config_advanced(respx_mock, mqtt_client: MqttClientHandler
 
 async def test_activate_client(respx_mock, mqtt_client: MqttClientHandler):
     """Test activate client method."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
+    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
 
     await mqtt_client.activate()
 
@@ -165,7 +163,7 @@ async def test_activate_client(respx_mock, mqtt_client: MqttClientHandler):
 
 async def test_deactivate_client(respx_mock, mqtt_client: MqttClientHandler):
     """Test deactivate client method."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi")
+    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
 
     await mqtt_client.deactivate()
 
@@ -181,7 +179,7 @@ async def test_deactivate_client(respx_mock, mqtt_client: MqttClientHandler):
 
 async def test_get_client_status(respx_mock, mqtt_client: MqttClientHandler):
     """Test get client status method."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi").respond(
+    route = respx_mock.post("/axis-cgi/mqtt/client.cgi").respond(
         json=GET_CLIENT_STATUS_RESPONSE,
     )
 
@@ -201,7 +199,7 @@ async def test_get_event_publication_config_small(
     respx_mock, mqtt_client: MqttClientHandler
 ):
     """Test get event publication config method."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi").respond(
+    route = respx_mock.post("/axis-cgi/mqtt/event.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis lib",
@@ -255,7 +253,7 @@ async def test_configure_event_publication_all_topics(
     respx_mock, mqtt_client: MqttClientHandler
 ):
     """Test configure event publication method with all topics."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi")
+    route = respx_mock.post("/axis-cgi/mqtt/event.cgi")
 
     await mqtt_client.configure_event_publication()
 
@@ -275,7 +273,7 @@ async def test_configure_event_publication_specific_topics(
     mqtt_client: MqttClientHandler,
 ):
     """Test configure event publication method with specific topics."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/mqtt/event.cgi")
+    route = respx_mock.post("/axis-cgi/mqtt/event.cgi")
 
     topics = [
         "onvif:Device/axis:IO/VirtualPort",

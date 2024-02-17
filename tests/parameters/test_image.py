@@ -5,8 +5,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.image import ImageParameterHandler
 
-from ..conftest import HOST
-
 IMAGE_RESPONSE = """root.Image.DateFormat=YYYY-MM-DD
 root.Image.MaxViewers=20
 root.Image.MotionDetection=no
@@ -129,7 +127,7 @@ def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
 async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
     """Verify that update image works."""
     route = respx_mock.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
+        "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Image"},
     ).respond(
         text=IMAGE_RESPONSE,

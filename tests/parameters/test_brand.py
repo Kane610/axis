@@ -5,8 +5,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.brand import BrandParameterHandler
 
-from ..conftest import HOST
-
 BRAND_RESPONSE = """root.Brand.Brand=AXIS
 root.Brand.ProdFullName=AXIS M1065-LW Network Camera
 root.Brand.ProdNbr=M1065-LW
@@ -25,7 +23,7 @@ def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
 async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
     """Verify that update brand works."""
     route = respx_mock.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
+        "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Brand"},
     ).respond(
         text=BRAND_RESPONSE,

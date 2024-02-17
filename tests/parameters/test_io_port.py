@@ -6,8 +6,6 @@ from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.io_port import IOPortParameterHandler
 from axis.vapix.models.parameters.io_port import PortAction, PortDirection
 
-from ..conftest import HOST
-
 PORT_RESPONSE = """root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Input.Name=PIR sensor
@@ -34,7 +32,7 @@ async def test_port_direction_enum():
 async def test_io_port_handler(respx_mock, io_port_handler: IOPortParameterHandler):
     """Verify that update brand works."""
     route = respx_mock.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
+        "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.IOPort"},
     ).respond(
         text=PORT_RESPONSE,

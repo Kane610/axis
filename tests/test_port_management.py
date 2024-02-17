@@ -10,8 +10,6 @@ import pytest
 from axis.vapix.interfaces.port_management import IoPortManagement
 from axis.vapix.models.port_management import PortConfiguration, Sequence
 
-from .conftest import HOST
-
 
 @pytest.fixture
 def io_port_management(axis_device) -> IoPortManagement:
@@ -21,7 +19,7 @@ def io_port_management(axis_device) -> IoPortManagement:
 
 async def test_get_ports(respx_mock, io_port_management):
     """Test get_ports call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
         json=GET_PORTS_RESPONSE,
     )
 
@@ -74,7 +72,7 @@ async def test_get_ports(respx_mock, io_port_management):
 
 async def test_set_ports(respx_mock, io_port_management):
     """Test set_ports call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi")
 
     await io_port_management.set_ports(
         [
@@ -111,7 +109,7 @@ async def test_set_ports(respx_mock, io_port_management):
 
 async def test_set_state_sequence(respx_mock, io_port_management):
     """Test setting state sequence call."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi")
 
     await io_port_management.set_state_sequence(
         "0", [Sequence("open", 3000), Sequence("closed", 5000)]
@@ -136,7 +134,7 @@ async def test_set_state_sequence(respx_mock, io_port_management):
 
 async def test_get_supported_versions(respx_mock, io_port_management):
     """Test get_supported_versions."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
         json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
 

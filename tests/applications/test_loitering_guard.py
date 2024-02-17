@@ -9,8 +9,6 @@ import pytest
 
 from axis.vapix.interfaces.applications.loitering_guard import LoiteringGuardHandler
 
-from ..conftest import HOST
-
 
 @pytest.fixture
 def loitering_guard(axis_device) -> LoiteringGuardHandler:
@@ -22,9 +20,7 @@ async def test_get_empty_configuration(
     respx_mock, loitering_guard: LoiteringGuardHandler
 ):
     """Test empty get_configuration."""
-    route = respx_mock.post(
-        f"http://{HOST}:80/local/loiteringguard/control.cgi"
-    ).respond(
+    route = respx_mock.post("/local/loiteringguard/control.cgi").respond(
         json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await loitering_guard.update()
@@ -43,7 +39,7 @@ async def test_get_empty_configuration(
 
 async def test_get_configuration(respx_mock, loitering_guard: LoiteringGuardHandler):
     """Test get_configuration."""
-    respx_mock.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
+    respx_mock.post("/local/loiteringguard/control.cgi").respond(
         json=GET_CONFIGURATION_RESPONSE,
     )
     await loitering_guard.update()

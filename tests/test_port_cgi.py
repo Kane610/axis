@@ -77,12 +77,8 @@ root.Output.NbrOfOutputs=1
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"
 
-    action_low_route = respx_mock.get(
-        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%2F"
-    )
-    action_high_route = respx_mock.get(
-        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%5C"
-    )
+    action_low_route = respx_mock.get("/axis-cgi/io/port.cgi?action=4%3A%2F")
+    action_high_route = respx_mock.get("/axis-cgi/io/port.cgi?action=4%3A%5C")
 
     assert not action_low_route.called
     assert not action_high_route.called

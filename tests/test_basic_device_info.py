@@ -11,8 +11,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.basic_device_info import BasicDeviceInfoHandler
 
-from .conftest import HOST
-
 
 @pytest.fixture
 def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
@@ -26,7 +24,7 @@ async def test_get_all_properties(
     respx_mock, basic_device_info: BasicDeviceInfoHandler
 ):
     """Test get all properties api."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
+    route = respx_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
         json=GET_ALL_PROPERTIES_RESPONSE,
     )
     await basic_device_info.update()
@@ -65,7 +63,7 @@ async def test_get_supported_versions(
     respx_mock, basic_device_info: BasicDeviceInfoHandler
 ):
     """Test get supported versions api."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
+    route = respx_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
         json={
             "apiVersion": "1.1",
             "context": "Axis library",

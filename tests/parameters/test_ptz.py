@@ -5,8 +5,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.ptz import PtzParameterHandler
 
-from ..conftest import HOST
-
 PTZ_RESPONSE = """root.PTZ.BoaProtPTZOperator=password
 root.PTZ.CameraDefault=1
 root.PTZ.NbrOfCameras=1
@@ -137,7 +135,7 @@ def ptz_handler(axis_device: AxisDevice) -> PtzParameterHandler:
 async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
     """Verify that update ptz works."""
     route = respx_mock.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
+        "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.PTZ"},
     ).respond(
         text=PTZ_RESPONSE,

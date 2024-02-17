@@ -8,8 +8,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.stream_profiles import StreamProfilesHandler
 
-from .conftest import HOST
-
 
 @pytest.fixture
 def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
@@ -23,7 +21,7 @@ async def test_list_stream_profiles(
     respx_mock, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
         json=LIST_RESPONSE,
     )
     await stream_profiles.update()
@@ -52,7 +50,7 @@ async def test_list_stream_profiles_no_profiles(
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-    respx_mock.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
         json={
             "method": "list",
             "apiVersion": "1.0",
@@ -71,7 +69,7 @@ async def test_get_supported_versions(
     respx_mock, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    route = respx_mock.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
         json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await stream_profiles.get_supported_versions()

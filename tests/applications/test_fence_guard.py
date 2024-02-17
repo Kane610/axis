@@ -9,8 +9,6 @@ import pytest
 
 from axis.vapix.interfaces.applications.fence_guard import FenceGuardHandler
 
-from ..conftest import HOST
-
 
 @pytest.fixture
 def fence_guard(axis_device) -> FenceGuardHandler:
@@ -20,7 +18,7 @@ def fence_guard(axis_device) -> FenceGuardHandler:
 
 async def test_get_empty_configuration(respx_mock, fence_guard: FenceGuardHandler):
     """Test empty get_configuration."""
-    route = respx_mock.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
+    route = respx_mock.post("/local/fenceguard/control.cgi").respond(
         json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await fence_guard.update()
@@ -39,7 +37,7 @@ async def test_get_empty_configuration(respx_mock, fence_guard: FenceGuardHandle
 
 async def test_get_configuration(respx_mock, fence_guard: FenceGuardHandler):
     """Test get_configuration."""
-    respx_mock.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
+    respx_mock.post("/local/fenceguard/control.cgi").respond(
         json=GET_CONFIGURATION_RESPONSE,
     )
     await fence_guard.update()

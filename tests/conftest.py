@@ -6,6 +6,7 @@ import logging
 
 from httpx import AsyncClient
 import pytest
+import respx
 
 from axis.configuration import Configuration
 from axis.device import AxisDevice
@@ -19,11 +20,12 @@ RTSP_PORT = 8888
 
 
 @pytest.fixture
-async def axis_device(respx_mock) -> AxisDevice:
+async def axis_device(respx_mock: respx) -> AxisDevice:
     """Return the axis device.
 
     Clean up sessions automatically at the end of each test.
     """
+    respx_mock(base_url=f"http://{HOST}:80")
     session = AsyncClient(verify=False)
     axis_device = AxisDevice(Configuration(session, HOST, username=USER, password=PASS))
     yield axis_device

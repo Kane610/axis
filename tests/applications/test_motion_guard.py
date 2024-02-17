@@ -9,8 +9,6 @@ import pytest
 
 from axis.vapix.interfaces.applications.motion_guard import MotionGuardHandler
 
-from ..conftest import HOST
-
 
 @pytest.fixture
 def motion_guard(axis_device) -> MotionGuardHandler:
@@ -20,7 +18,7 @@ def motion_guard(axis_device) -> MotionGuardHandler:
 
 async def test_get_empty_configuration(respx_mock, motion_guard: MotionGuardHandler):
     """Test empty get_configuration."""
-    route = respx_mock.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
+    route = respx_mock.post("/local/motionguard/control.cgi").respond(
         json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await motion_guard.update()
@@ -39,7 +37,7 @@ async def test_get_empty_configuration(respx_mock, motion_guard: MotionGuardHand
 
 async def test_get_configuration(respx_mock, motion_guard: MotionGuardHandler):
     """Test get_configuration."""
-    respx_mock.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
+    respx_mock.post("/local/motionguard/control.cgi").respond(
         json=GET_CONFIGURATION_RESPONSE,
     )
     await motion_guard.update()

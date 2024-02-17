@@ -8,8 +8,6 @@ import pytest
 from axis.vapix.interfaces.user_groups import UserGroups
 from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
 
-from .conftest import HOST
-
 
 @pytest.fixture
 def user_groups(axis_device) -> UserGroups:
@@ -19,7 +17,7 @@ def user_groups(axis_device) -> UserGroups:
 
 async def test_empty_response(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
         text="",
         headers={"Content-Type": "text/plain"},
     )
@@ -30,7 +28,7 @@ async def test_empty_response(respx_mock, user_groups):
 
 async def test_root_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
         text="root\nroot admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -46,7 +44,7 @@ async def test_root_user(respx_mock, user_groups):
 
 async def test_admin_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
         text="administrator\nusers admin operator viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -62,7 +60,7 @@ async def test_admin_user(respx_mock, user_groups):
 
 async def test_operator_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
         text="operator\nusers operator viewer\n",
         headers={"Content-Type": "text/plain"},
     )
@@ -78,7 +76,7 @@ async def test_operator_user(respx_mock, user_groups):
 
 async def test_viewer_user(respx_mock, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get(f"http://{HOST}:80/axis-cgi/usergroup.cgi").respond(
+    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
         text="viewer\nusers viewer\n",
         headers={"Content-Type": "text/plain"},
     )
