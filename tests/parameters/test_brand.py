@@ -1,7 +1,6 @@
 """Test Axis brand parameter management."""
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.brand import BrandParameterHandler
@@ -23,10 +22,9 @@ def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
     return axis_device.vapix.params.brand_handler
 
 
-@respx.mock
-async def test_brand_handler(brand_handler: BrandParameterHandler):
+async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
     """Verify that update brand works."""
-    route = respx.post(
+    route = respx_mock.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Brand"},
     ).respond(

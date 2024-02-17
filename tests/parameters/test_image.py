@@ -1,7 +1,6 @@
 """Test Axis parameter management."""
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.image import ImageParameterHandler
@@ -127,10 +126,9 @@ def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
     return axis_device.vapix.params.image_handler
 
 
-@respx.mock
-async def test_image_handler(image_handler: ImageParameterHandler):
+async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
     """Verify that update image works."""
-    route = respx.post(
+    route = respx_mock.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Image"},
     ).respond(

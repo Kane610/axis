@@ -1,7 +1,6 @@
 """Test Axis parameter management."""
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.properties import PropertyParameterHandler
@@ -116,10 +115,9 @@ def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
     return axis_device.vapix.params.property_handler
 
 
-@respx.mock
-async def test_property_handler(property_handler: PropertyParameterHandler):
+async def test_property_handler(respx_mock, property_handler: PropertyParameterHandler):
     """Verify that update properties works."""
-    route = respx.post(
+    route = respx_mock.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Properties"},
     ).respond(

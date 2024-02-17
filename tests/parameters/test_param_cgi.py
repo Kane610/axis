@@ -1,7 +1,6 @@
 """Test Axis parameter management."""
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.param_cgi import Params
@@ -21,10 +20,9 @@ async def test_parameter_group_enum():
     assert ParameterGroup("unsupported") is ParameterGroup.UNKNOWN
 
 
-@respx.mock
-async def test_param_handler(param_handler: Params):
+async def test_param_handler(respx_mock, param_handler: Params):
     """Verify that you can list parameters."""
-    route = respx.post(
+    route = respx_mock.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list"},
     ).respond(

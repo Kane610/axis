@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
 """
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.stream_profile import (
@@ -28,12 +27,12 @@ def stream_profile_handler(axis_device: AxisDevice) -> StreamProfileParameterHan
     return axis_device.vapix.params.stream_profile_handler
 
 
-@respx.mock
 async def test_stream_profile_handler(
+    respx_mock,
     stream_profile_handler: StreamProfileParameterHandler,
 ):
     """Verify that update properties works."""
-    route = respx.post(
+    route = respx_mock.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.StreamProfile"},
     ).respond(

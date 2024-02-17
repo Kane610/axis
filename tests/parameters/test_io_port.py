@@ -1,7 +1,6 @@
 """Test Axis parameter management."""
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.io_port import IOPortParameterHandler
@@ -21,10 +20,9 @@ def io_port_handler(axis_device: AxisDevice) -> IOPortParameterHandler:
     return axis_device.vapix.params.io_port_handler
 
 
-@respx.mock
-async def test_io_port_handler(io_port_handler: IOPortParameterHandler):
+async def test_io_port_handler(respx_mock, io_port_handler: IOPortParameterHandler):
     """Verify that update brand works."""
-    route = respx.post(
+    route = respx_mock.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.IOPort"},
     ).respond(
