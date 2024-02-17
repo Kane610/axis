@@ -694,7 +694,7 @@ async def test_get_supported_versions(light_control):
     assert response == ["1.1"]
 
 
-response_getLightInformation = {
+GET_LIGHT_INFORMATION_RESPONSE = {
     "apiVersion": "1.1",
     "context": "Axis library",
     "method": "getLightInformation",

@@ -48,7 +48,7 @@ async def test_get_no_configuration(object_analytics):
 async def test_get_empty_configuration(object_analytics):
     """Test empty get_configuration."""
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
-        json=response_get_configuration_empty,
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await object_analytics.update()
 
@@ -59,7 +59,7 @@ async def test_get_empty_configuration(object_analytics):
 async def test_get_configuration(object_analytics):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
-        json=response_get_configuration,
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await object_analytics.update()
 
@@ -114,7 +114,7 @@ async def test_get_configuration(object_analytics):
     assert configuration.scenarios["2"].type == ScenarioType.FENCE
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "data": {
@@ -128,7 +128,7 @@ response_get_configuration_empty = {
 }
 
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "data": {

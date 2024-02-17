@@ -23,7 +23,7 @@ def loitering_guard(axis_device) -> LoiteringGuardHandler:
 async def test_get_empty_configuration(loitering_guard: LoiteringGuardHandler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
-        json=response_get_configuration_empty,
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await loitering_guard.update()
 
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(loitering_guard: LoiteringGuardHandler):
 async def test_get_configuration(loitering_guard: LoiteringGuardHandler):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/loiteringguard/control.cgi").respond(
-        json=response_get_configuration,
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await loitering_guard.update()
 
@@ -76,7 +76,7 @@ async def test_get_configuration(loitering_guard: LoiteringGuardHandler):
     ]
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [],
@@ -87,7 +87,7 @@ response_get_configuration_empty = {
     "context": "Axis library",
 }
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [

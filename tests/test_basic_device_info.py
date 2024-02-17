@@ -27,7 +27,7 @@ def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
 async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     """Test get all properties api."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
-        json=response_getAllProperties,
+        json=GET_ALL_PROPERTIES_RESPONSE,
     )
     await basic_device_info.update()
 
@@ -78,7 +78,6 @@ async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler)
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
     assert json.loads(route.calls.last.request.content) == {
-        # "apiVersion": "1.1",
         "context": "Axis library",
         "method": "getSupportedVersions",
     }
@@ -86,7 +85,7 @@ async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler)
     assert response == ["1.1"]
 
 
-response_getAllProperties = {
+GET_ALL_PROPERTIES_RESPONSE = {
     "apiVersion": "1.1",
     "context": "Axis library",
     "method": "getAllProperties",

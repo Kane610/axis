@@ -24,7 +24,7 @@ def io_port_management(axis_device) -> IoPortManagement:
 async def test_get_ports(io_port_management):
     """Test get_ports call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
-        json=response_getPorts,
+        json=GET_PORTS_RESPONSE,
     )
 
     await io_port_management.update()
@@ -142,7 +142,7 @@ async def test_set_state_sequence(io_port_management):
 async def test_get_supported_versions(io_port_management):
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
-        json=response_getSupportedVersions,
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
 
     response = await io_port_management.get_supported_versions()
@@ -157,7 +157,7 @@ async def test_get_supported_versions(io_port_management):
     assert response == ["1.0"]
 
 
-response_getPorts = {
+GET_PORTS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Retrieve all properties of available ports",
     "method": "getPorts",
@@ -177,7 +177,7 @@ response_getPorts = {
     },
 }
 
-response_getSupportedVersions = {
+GET_SUPPORTED_VERSIONS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "",
     "method": "getSupportedVersions",

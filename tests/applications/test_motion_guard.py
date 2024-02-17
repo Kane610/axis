@@ -23,7 +23,7 @@ def motion_guard(axis_device) -> MotionGuardHandler:
 async def test_get_empty_configuration(motion_guard: MotionGuardHandler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
-        json=response_get_configuration_empty,
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await motion_guard.update()
 
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(motion_guard: MotionGuardHandler):
 async def test_get_configuration(motion_guard: MotionGuardHandler):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
-        json=response_get_configuration,
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await motion_guard.update()
 
@@ -82,7 +82,7 @@ async def test_get_configuration(motion_guard: MotionGuardHandler):
     ]
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [],
@@ -93,7 +93,7 @@ response_get_configuration_empty = {
     "context": "Axis library",
 }
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [

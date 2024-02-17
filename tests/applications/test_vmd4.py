@@ -23,7 +23,7 @@ def vmd4(axis_device) -> Vmd4Handler:
 async def test_get_empty_configuration(vmd4: Vmd4Handler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
-        json=response_get_configuration_empty,
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await vmd4.update()
 
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(vmd4: Vmd4Handler):
 async def test_get_configuration(vmd4: Vmd4Handler):
     """Test get_supported_versions."""
     respx.post(f"http://{HOST}:80/local/vmd/control.cgi").respond(
-        json=response_get_configuration,
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await vmd4.update()
 
@@ -72,7 +72,7 @@ async def test_get_configuration(vmd4: Vmd4Handler):
     ]
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "apiVersion": "1.4",
     "method": "getConfiguration",
     "context": "Axis library",
@@ -84,7 +84,7 @@ response_get_configuration_empty = {
 }
 
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "apiVersion": "1.4",
     "method": "getConfiguration",
     "context": "Axis library",
@@ -117,7 +117,7 @@ response_get_configuration = {
     },
 }
 
-response_get_configuration_error = {
+GET_CONFIGURATION_RESPONSE_error = {
     "apiVersion": "1.1",
     "method": "getConfiguration",
     "context": "Axis library",

@@ -24,7 +24,7 @@ def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
 async def test_list_stream_profiles(stream_profiles: StreamProfilesHandler) -> None:
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
-        json=response_list,
+        json=LIST_RESPONSE,
     )
     await stream_profiles.update()
 
@@ -71,7 +71,7 @@ async def test_list_stream_profiles_no_profiles(
 async def test_get_supported_versions(stream_profiles: StreamProfilesHandler) -> None:
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
-        json=response_getSupportedVersions,
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await stream_profiles.get_supported_versions()
 
@@ -86,7 +86,7 @@ async def test_get_supported_versions(stream_profiles: StreamProfilesHandler) ->
     assert response == ["1.0"]
 
 
-response_list = {
+LIST_RESPONSE = {
     "method": "list",
     "apiVersion": "1.0",
     "context": "",
@@ -103,7 +103,7 @@ response_list = {
 }
 
 
-response_getSupportedVersions = {
+GET_SUPPORTED_VERSIONS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "method": "getSupportedVersions",

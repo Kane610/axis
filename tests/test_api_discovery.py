@@ -25,7 +25,7 @@ def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
 async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
-        json=response_getApiList,
+        json=GET_API_LIST_RESPONSE,
     )
     assert api_discovery.supported
     await api_discovery.update()
@@ -58,7 +58,7 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
 async def test_get_supported_versions(api_discovery: ApiDiscoveryHandler):
     """Test get_supported_versions."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
-        json=response_getSupportedVersions,
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await api_discovery.get_supported_versions()
 
@@ -73,7 +73,7 @@ async def test_get_supported_versions(api_discovery: ApiDiscoveryHandler):
     assert response == ["1.0"]
 
 
-response_getApiList = {
+GET_API_LIST_RESPONSE = {
     "method": "getApiList",
     "apiVersion": "1.0",
     "context": "Axis library",
@@ -173,17 +173,9 @@ response_getApiList = {
     },
 }
 
-response_getSupportedVersions = {
+GET_SUPPORTED_VERSIONS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "method": "getSupportedVersions",
     "data": {"apiVersions": ["1.0"]},
-}
-
-{
-    "apiVersion": "1.0",
-    "error": {
-        "code": 4002,
-        "message": "'apiVersion' must not be provided for method 'getSupportedVersions'",
-    },
 }

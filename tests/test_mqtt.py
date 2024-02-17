@@ -188,7 +188,7 @@ async def test_deactivate_client(mqtt_client: MqttClientHandler):
 async def test_get_client_status(mqtt_client: MqttClientHandler):
     """Test get client status method."""
     route = respx.post(f"http://{HOST}:80/axis-cgi/mqtt/client.cgi").respond(
-        json=response_get_client_status,
+        json=GET_CLIENT_STATUS_RESPONSE,
     )
 
     await mqtt_client.get_client_status()
@@ -320,7 +320,7 @@ async def test_convert_json_to_event():
     }
 
 
-response_get_client_status = {
+GET_CLIENT_STATUS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "some context",
     "method": "getClientStatus",

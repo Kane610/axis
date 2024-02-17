@@ -23,7 +23,7 @@ def fence_guard(axis_device) -> FenceGuardHandler:
 async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
     """Test empty get_configuration."""
     route = respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
-        json=response_get_configuration_empty,
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await fence_guard.update()
 
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
 async def test_get_configuration(fence_guard: FenceGuardHandler):
     """Test get_configuration."""
     respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
-        json=response_get_configuration,
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await fence_guard.update()
 
@@ -68,7 +68,7 @@ async def test_get_configuration(fence_guard: FenceGuardHandler):
     ]
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [],
@@ -79,7 +79,7 @@ response_get_configuration_empty = {
     "context": "Axis library",
 }
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "context": "Axis library",
     "apiVersion": "1.4",
     "method": "getConfiguration",

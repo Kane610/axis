@@ -1,7 +1,4 @@
-"""Test Axis user management.
-
-pytest --cov-report term-missing --cov=axis.pwdgrp_cgi tests/test_pwdgrp_cgi.py
-"""
+"""Test Axis user management."""
 
 import urllib
 
@@ -38,7 +35,7 @@ def test_user_class_privileges() -> None:
 @respx.mock
 async def test_users(users):
     """Verify that you can list users."""
-    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=fixture)
+    respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
     await users.update()
 
     assert users["userv"]
@@ -220,7 +217,7 @@ async def test_delete(users):
 async def test_equals_in_value(users):
     """Verify that values containing `=` are parsed correctly."""
     respx.post(f"http://{HOST}:80/axis-cgi/pwdgrp.cgi").respond(
-        text=fixture + 'equals-in-value="xyz=="'
+        text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
     )
     await users.update()
 
@@ -232,7 +229,7 @@ async def test_no_equals_in_value(users):
     await users.update()
 
 
-fixture = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"
+GET_USERS_RESPONSE = """admin="usera,wwwa,wwwaop,wwwaovp,wwwao,wwwap,wwwaov,root"
 anonymous=""
 api-discovery=""
 audio="streamer,sdk,audiocontrol"

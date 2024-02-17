@@ -21,9 +21,7 @@ def ports(axis_device) -> Ports:
 @respx.mock
 async def test_ports(ports: Ports) -> None:
     """Test that different types of ports work."""
-    update_ports_route = respx.route(
-        url__startswith=f"http://{HOST}/axis-cgi/param.cgi"
-    ).respond(
+    update_ports_route = respx.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
         text="""root.Input.NbrOfInputs=3
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
@@ -52,17 +50,9 @@ root.Output.NbrOfOutputs=1
         headers={"Content-Type": "text/plain"},
     )
 
-    action_low_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%2F"
-    )
-    action_high_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%5C"
-    )
-
     await ports.update()
 
     assert update_ports_route.call_count == 1
-    # assert update_ports_route.call_count == 3
 
     assert ports["0"].id == "0"
     assert ports["0"].configurable is False
@@ -70,8 +60,6 @@ root.Output.NbrOfOutputs=1
     assert ports["0"].name == ""
 
     await ports.action("0", action=PortAction.LOW)
-
-    assert not action_low_route.called
 
     assert ports["1"].id == "1"
     assert ports["1"].configurable is False
@@ -91,6 +79,16 @@ root.Output.NbrOfOutputs=1
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"
 
+    action_low_route = respx.get(
+        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%2F"
+    )
+    action_high_route = respx.get(
+        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%5C"
+    )
+
+    assert not action_low_route.called
+    assert not action_high_route.called
+
     await ports.close("3")
     assert action_low_route.called
     assert action_low_route.calls.last.request.method == "GET"
@@ -107,7 +105,7 @@ root.Output.NbrOfOutputs=1
 @respx.mock
 async def test_no_ports(ports: Ports) -> None:
     """Test that no ports also work."""
-    route = respx.route(url__startswith=f"http://{HOST}/axis-cgi/param.cgi").respond(
+    route = respx.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
         text="",
         headers={"Content-Type": "text/plain"},
     )
