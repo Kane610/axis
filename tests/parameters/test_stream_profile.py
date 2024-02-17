@@ -1,7 +1,4 @@
-"""Test Axis parameter management.
-
-pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
-"""
+"""Test Axis stream profile parameter management."""
 
 import pytest
 

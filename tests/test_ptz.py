@@ -1,7 +1,4 @@
-"""Test Axis PTZ control API.
-
-pytest --cov-report term-missing --cov=axis.ptz tests/test_ptz.py
-"""
+"""Test Axis PTZ control API."""
 
 from urllib.parse import urlencode
 

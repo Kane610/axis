@@ -1,5 +1,4 @@
-"""Test PTZ parameters."""
-
+"""Test AXIS PTZ parameter management."""
 
 import pytest
 

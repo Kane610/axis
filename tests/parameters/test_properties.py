@@ -1,4 +1,4 @@
-"""Test Axis parameter management."""
+"""Test Axis property parameter management."""
 
 import pytest
 

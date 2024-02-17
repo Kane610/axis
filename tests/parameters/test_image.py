@@ -1,4 +1,4 @@
-"""Test Axis parameter management."""
+"""Test Axis image parameter management."""
 
 import pytest
 

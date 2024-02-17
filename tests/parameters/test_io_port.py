@@ -1,4 +1,4 @@
-"""Test Axis parameter management."""
+"""Test Axis IO port parameter management."""
 
 import pytest
 
