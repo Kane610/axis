@@ -1,7 +1,4 @@
-"""Test Axis parameter management.
-
-pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
-"""
+"""Test Axis parameter management."""
 
 import pytest
 import respx
@@ -120,7 +117,7 @@ def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
 
 
 @respx.mock
-async def test_update_properties(property_handler: PropertyParameterHandler):
+async def test_property_handler(property_handler: PropertyParameterHandler):
     """Verify that update properties works."""
     route = respx.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",

@@ -1,7 +1,5 @@
-"""Test Axis parameter management.
+"""Test Axis brand parameter management."""
 
-pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
-"""
 import pytest
 import respx
 
@@ -26,7 +24,7 @@ def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
 
 
 @respx.mock
-async def test_update_brand(brand_handler: BrandParameterHandler):
+async def test_brand_handler(brand_handler: BrandParameterHandler):
     """Verify that update brand works."""
     route = respx.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",

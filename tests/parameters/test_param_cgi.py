@@ -1,7 +1,4 @@
-"""Test Axis parameter management.
-
-pytest --cov-report term-missing --cov=axis.param_cgi tests/test_param_cgi.py
-"""
+"""Test Axis parameter management."""
 
 import pytest
 import respx
@@ -14,7 +11,7 @@ from ..conftest import HOST
 
 
 @pytest.fixture
-def params(axis_device: AxisDevice) -> Params:
+def param_handler(axis_device: AxisDevice) -> Params:
     """Return the param cgi mock object."""
     return axis_device.vapix.params
 
@@ -25,74 +22,58 @@ async def test_parameter_group_enum():
 
 
 @respx.mock
-async def test_params(params: Params):
+async def test_param_handler(param_handler: Params):
     """Verify that you can list parameters."""
     route = respx.post(
         f"http://{HOST}:80/axis-cgi/param.cgi",
         data={"action": "list"},
     ).respond(
-        text=response_param_cgi,
+        text=PARAM_RESPONSE,
         headers={"Content-Type": "text/plain"},
     )
-    assert not params.initialized
-    assert not params.brand_handler.initialized
-    await params.update()
-    assert params.initialized
-    assert params.brand_handler.initialized
+    assert not param_handler.initialized
+    assert not param_handler.brand_handler.initialized
+
+    await param_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert params.get(ParameterGroup.BRAND)
-    assert params.get(ParameterGroup.IMAGE)
-    assert params.get(ParameterGroup.INPUT)
-    assert params.get(ParameterGroup.OUTPUT)
-    assert params.get(ParameterGroup.IOPORT)
-    assert params.get(ParameterGroup.PROPERTIES)
-    assert params.get(ParameterGroup.PTZ)
-    assert params.get(ParameterGroup.STREAMPROFILE)
+    assert param_handler.initialized
+
+    assert ParameterGroup.BRAND in param_handler
+    assert param_handler.brand_handler.initialized
+    assert ParameterGroup.IMAGE in param_handler
+    assert param_handler.image_handler.initialized
+    assert ParameterGroup.IOPORT in param_handler
+    assert param_handler.io_port_handler.initialized
+    assert ParameterGroup.PROPERTIES in param_handler
+    assert param_handler.property_handler.initialized
+    assert ParameterGroup.PTZ in param_handler
+    assert param_handler.ptz_handler.initialized
+    assert ParameterGroup.STREAMPROFILE in param_handler
+    assert param_handler.stream_profile_handler.initialized
 
 
-async def test_params_empty_raw(params: Params):
+async def test_params_empty_raw(param_handler: Params):
     """Verify that params can take an empty raw on creation."""
-    assert len(params) == 0
-    assert not params.brand_handler.supported
-    assert not params.image_handler.supported
-    assert not params.io_port_handler.supported
-    assert not params.property_handler.supported
-    assert not params.ptz_handler.supported
-    assert not params.stream_profile_handler.supported
+    assert len(param_handler) == 0
+    assert not param_handler.brand_handler.supported
+    assert not param_handler.brand_handler.initialized
+    assert not param_handler.image_handler.supported
+    assert not param_handler.image_handler.initialized
+    assert not param_handler.io_port_handler.supported
+    assert not param_handler.io_port_handler.initialized
+    assert not param_handler.property_handler.supported
+    assert not param_handler.property_handler.initialized
+    assert not param_handler.ptz_handler.supported
+    assert not param_handler.ptz_handler.initialized
+    assert not param_handler.stream_profile_handler.supported
+    assert not param_handler.stream_profile_handler.initialized
 
 
-@respx.mock
-async def test_update_stream_profiles(params: Params):
-    """Verify that update properties works."""
-    route = respx.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.StreamProfile"},
-    ).respond(
-        text=response_param_cgi,
-        headers={"Content-Type": "text/plain"},
-    )
-    await params.stream_profile_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
-
-    profile_params = params.stream_profile_handler["0"]
-    assert profile_params.max_groups == 26
-    assert len(profile_params.stream_profiles) == 2
-    assert profile_params.stream_profiles[0].name == "profile_1"
-    assert profile_params.stream_profiles[0].description == "profile_1_description"
-    assert profile_params.stream_profiles[0].parameters == "videocodec=h264"
-    assert profile_params.stream_profiles[1].name == "profile_2"
-    assert profile_params.stream_profiles[1].description == "profile_2_description"
-    assert profile_params.stream_profiles[1].parameters == "videocodec=h265"
-
-
-response_param_cgi = """root.Audio.DSCP=0
+PARAM_RESPONSE = """root.Audio.DSCP=0
 root.Audio.DuplexMode=half
 root.Audio.MaxListeners=20
 root.Audio.NbrOfConfigs=2
