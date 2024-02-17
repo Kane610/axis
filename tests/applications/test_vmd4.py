@@ -50,11 +50,10 @@ async def test_get_configuration(vmd4: Vmd4Handler):
     assert len(vmd4.values()) == 1
 
     assert len(vmd4["0"].profiles) == 1
-    profile = vmd4["0"].profiles["Profile 1"]
-    assert profile.id == "Profile 1"
+    profile = vmd4["0"].profiles["1"]
+    assert profile.id == "1"
     assert profile.name == "Profile 1"
     assert profile.camera == 1
-    assert profile.uid == 1
     assert profile.triggers == [
         {
             "type": "includeArea",
