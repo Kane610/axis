@@ -31,13 +31,15 @@ async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
         text=BRAND_RESPONSE,
         headers={"Content-Type": "text/plain"},
     )
+    assert not brand_handler.initialized
+
     await brand_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert brand_handler.supported
+    assert brand_handler.initialized
     brand = brand_handler["0"]
     assert brand.brand == "AXIS"
     assert brand.product_full_name == "AXIS M1065-LW Network Camera"

@@ -143,6 +143,7 @@ async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
         text=PTZ_RESPONSE,
         headers={"Content-Type": "text/plain"},
     )
+    assert not ptz_handler.initialized
 
     await ptz_handler.update()
 

@@ -1,10 +1,12 @@
 """Test Axis parameter management."""
 
+from unittest.mock import patch
+
 import pytest
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.param_cgi import Params
-from axis.vapix.models.parameters.param_cgi import ParameterGroup
+from axis.vapix.models.parameters.param_cgi import ParameterGroup, ParamRequest
 
 from ..conftest import HOST
 
@@ -20,6 +22,22 @@ async def test_parameter_group_enum():
     assert ParameterGroup("unsupported") is ParameterGroup.UNKNOWN
 
 
+async def test_parameter_request():
+    """Verify parameter request specific group."""
+    request = ParamRequest(ParameterGroup.AUDIO)
+    assert request.data == {"action": "list", "group": "root.Audio"}
+
+
+async def test_param_handler_request_signalling(param_handler: Params):
+    """Verify that signalling to subscribers."""
+    with patch.object(param_handler, "_update") as update_mock, patch.object(
+        param_handler, "signal_subscribers"
+    ) as signal_mock:
+        update_mock.return_value = ["obj_id"]
+        await param_handler.request_group()
+        signal_mock.assert_called_with("obj_id")
+
+
 async def test_param_handler(respx_mock, param_handler: Params):
     """Verify that you can list parameters."""
     route = respx_mock.post(
@@ -30,7 +48,6 @@ async def test_param_handler(respx_mock, param_handler: Params):
         headers={"Content-Type": "text/plain"},
     )
     assert not param_handler.initialized
-    assert not param_handler.brand_handler.initialized
 
     await param_handler.update()
 

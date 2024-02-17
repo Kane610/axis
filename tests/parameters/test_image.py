@@ -135,13 +135,15 @@ async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
         text=IMAGE_RESPONSE,
         headers={"Content-Type": "text/plain"},
     )
+    assert not image_handler.initialized
+
     await image_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert image_handler.supported
+    assert image_handler.initialized
     image_0 = image_handler["0"]
     assert image_0.enabled is True
     assert image_0.name == "View Area 1"

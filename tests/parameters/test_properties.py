@@ -124,13 +124,14 @@ async def test_property_handler(respx_mock, property_handler: PropertyParameterH
         text=PROPERTY_RESPONSE,
         headers={"Content-Type": "text/plain"},
     )
+    assert not property_handler.initialized
     await property_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
-    assert property_handler.supported
+    assert property_handler.initialized
     properties = property_handler["0"]
     assert properties.api_http_version == 3
     assert properties.api_metadata is True

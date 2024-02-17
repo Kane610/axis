@@ -36,12 +36,15 @@ async def test_stream_profile_handler(
         text=STREAM_PROFILE_RESPONSE,
         headers={"Content-Type": "text/plain"},
     )
+    assert not stream_profile_handler.initialized
+
     await stream_profile_handler.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
+    assert stream_profile_handler.initialized
     profile_params = stream_profile_handler["0"]
     assert profile_params.max_groups == 26
     assert len(profile_params.stream_profiles) == 2
