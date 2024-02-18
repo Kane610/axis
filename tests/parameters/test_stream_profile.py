@@ -7,8 +7,6 @@ from axis.vapix.interfaces.parameters.stream_profile import (
     StreamProfileParameterHandler,
 )
 
-from ..conftest import HOST
-
 STREAM_PROFILE_RESPONSE = """root.StreamProfile.MaxGroups=26
 root.StreamProfile.S0.Description=profile_1_description
 root.StreamProfile.S0.Name=profile_1
@@ -30,7 +28,7 @@ async def test_stream_profile_handler(
 ):
     """Verify that update properties works."""
     route = respx_mock.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
+        "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.StreamProfile"},
     ).respond(
         text=STREAM_PROFILE_RESPONSE,

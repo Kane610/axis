@@ -4,12 +4,9 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.stream_profiles import StreamProfilesHandler
-
-from .conftest import HOST
 
 
 @pytest.fixture
@@ -20,11 +17,12 @@ def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
     return axis_device.vapix.stream_profiles
 
 
-@respx.mock
-async def test_list_stream_profiles(stream_profiles: StreamProfilesHandler) -> None:
+async def test_list_stream_profiles(
+    respx_mock, stream_profiles: StreamProfilesHandler
+) -> None:
     """Test get_supported_versions."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
-        json=response_list,
+    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
+        json=LIST_RESPONSE,
     )
     await stream_profiles.update()
 
@@ -38,21 +36,22 @@ async def test_list_stream_profiles(stream_profiles: StreamProfilesHandler) -> N
         "params": {"streamProfileName": []},
     }
 
-    items = await stream_profiles.list_stream_profiles()
-    assert len(items) == 1
-    stream_profile = items["My full HD profile"]
+    assert stream_profiles.initialized
+    assert len(stream_profiles.values()) == 1
+
+    stream_profile = stream_profiles["My full HD profile"]
     assert stream_profile.id == "My full HD profile"
     assert stream_profile.name == "My full HD profile"
     assert stream_profile.description == "HD profile:1920x1080"
     assert stream_profile.parameters == "resolution=1920x1080"
 
 
-@respx.mock
 async def test_list_stream_profiles_no_profiles(
+    respx_mock,
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-    respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
+    respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
         json={
             "method": "list",
             "apiVersion": "1.0",
@@ -67,11 +66,12 @@ async def test_list_stream_profiles_no_profiles(
     assert len(stream_profiles.values()) == 0
 
 
-@respx.mock
-async def test_get_supported_versions(stream_profiles: StreamProfilesHandler) -> None:
+async def test_get_supported_versions(
+    respx_mock, stream_profiles: StreamProfilesHandler
+) -> None:
     """Test get_supported_versions."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/streamprofile.cgi").respond(
-        json=response_getSupportedVersions,
+    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await stream_profiles.get_supported_versions()
 
@@ -86,7 +86,7 @@ async def test_get_supported_versions(stream_profiles: StreamProfilesHandler) ->
     assert response == ["1.0"]
 
 
-response_list = {
+LIST_RESPONSE = {
     "method": "list",
     "apiVersion": "1.0",
     "context": "",
@@ -103,7 +103,7 @@ response_list = {
 }
 
 
-response_getSupportedVersions = {
+GET_SUPPORTED_VERSIONS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "method": "getSupportedVersions",

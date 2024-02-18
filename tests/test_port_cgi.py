@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 """
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.port_cgi import Ports
 from axis.vapix.models.parameters.io_port import PortAction, PortDirection
@@ -18,12 +17,9 @@ def ports(axis_device) -> Ports:
     return axis_device.vapix.port_cgi
 
 
-@respx.mock
-async def test_ports(ports: Ports) -> None:
+async def test_ports(respx_mock, ports: Ports) -> None:
     """Test that different types of ports work."""
-    update_ports_route = respx.route(
-        url__startswith=f"http://{HOST}/axis-cgi/param.cgi"
-    ).respond(
+    update_ports_route = respx_mock.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
         text="""root.Input.NbrOfInputs=3
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
@@ -52,17 +48,9 @@ root.Output.NbrOfOutputs=1
         headers={"Content-Type": "text/plain"},
     )
 
-    action_low_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%2F"
-    )
-    action_high_route = respx.get(
-        f"http://{HOST}:80/axis-cgi/io/port.cgi?action=4%3A%5C"
-    )
-
     await ports.update()
 
     assert update_ports_route.call_count == 1
-    # assert update_ports_route.call_count == 3
 
     assert ports["0"].id == "0"
     assert ports["0"].configurable is False
@@ -70,8 +58,6 @@ root.Output.NbrOfOutputs=1
     assert ports["0"].name == ""
 
     await ports.action("0", action=PortAction.LOW)
-
-    assert not action_low_route.called
 
     assert ports["1"].id == "1"
     assert ports["1"].configurable is False
@@ -91,6 +77,12 @@ root.Output.NbrOfOutputs=1
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"
 
+    action_low_route = respx_mock.get("/axis-cgi/io/port.cgi?action=4%3A%2F")
+    action_high_route = respx_mock.get("/axis-cgi/io/port.cgi?action=4%3A%5C")
+
+    assert not action_low_route.called
+    assert not action_high_route.called
+
     await ports.close("3")
     assert action_low_route.called
     assert action_low_route.calls.last.request.method == "GET"
@@ -104,10 +96,9 @@ root.Output.NbrOfOutputs=1
     assert action_high_route.calls.last.request.url.query.decode() == "action=4%3A%5C"
 
 
-@respx.mock
-async def test_no_ports(ports: Ports) -> None:
+async def test_no_ports(respx_mock, ports: Ports) -> None:
     """Test that no ports also work."""
-    route = respx.route(url__startswith=f"http://{HOST}/axis-cgi/param.cgi").respond(
+    route = respx_mock.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
         text="",
         headers={"Content-Type": "text/plain"},
     )

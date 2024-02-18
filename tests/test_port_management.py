@@ -6,12 +6,9 @@ pytest --cov-report term-missing --cov=axis.port_management tests/test_port_mana
 import json
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.port_management import IoPortManagement
 from axis.vapix.models.port_management import PortConfiguration, Sequence
-
-from .conftest import HOST
 
 
 @pytest.fixture
@@ -20,11 +17,10 @@ def io_port_management(axis_device) -> IoPortManagement:
     return IoPortManagement(axis_device.vapix)
 
 
-@respx.mock
-async def test_get_ports(io_port_management):
+async def test_get_ports(respx_mock, io_port_management):
     """Test get_ports call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
-        json=response_getPorts,
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json=GET_PORTS_RESPONSE,
     )
 
     await io_port_management.update()
@@ -38,6 +34,7 @@ async def test_get_ports(io_port_management):
         "method": "getPorts",
     }
 
+    assert io_port_management.initialized
     assert len(io_port_management.values()) == 1
 
     item = io_port_management["0"]
@@ -74,10 +71,9 @@ async def test_get_ports(io_port_management):
     }
 
 
-@respx.mock
-async def test_set_ports(io_port_management):
+async def test_set_ports(respx_mock, io_port_management):
     """Test set_ports call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi")
 
     await io_port_management.set_ports(
         [
@@ -112,10 +108,9 @@ async def test_set_ports(io_port_management):
     }
 
 
-@respx.mock
-async def test_set_state_sequence(io_port_management):
+async def test_set_state_sequence(respx_mock, io_port_management):
     """Test setting state sequence call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi")
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi")
 
     await io_port_management.set_state_sequence(
         "0", [Sequence("open", 3000), Sequence("closed", 5000)]
@@ -138,11 +133,10 @@ async def test_set_state_sequence(io_port_management):
     }
 
 
-@respx.mock
-async def test_get_supported_versions(io_port_management):
+async def test_get_supported_versions(respx_mock, io_port_management):
     """Test get_supported_versions."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/io/portmanagement.cgi").respond(
-        json=response_getSupportedVersions,
+    route = respx_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
 
     response = await io_port_management.get_supported_versions()
@@ -157,7 +151,7 @@ async def test_get_supported_versions(io_port_management):
     assert response == ["1.0"]
 
 
-response_getPorts = {
+GET_PORTS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Retrieve all properties of available ports",
     "method": "getPorts",
@@ -177,7 +171,7 @@ response_getPorts = {
     },
 }
 
-response_getSupportedVersions = {
+GET_SUPPORTED_VERSIONS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "",
     "method": "getSupportedVersions",

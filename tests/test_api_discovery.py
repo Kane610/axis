@@ -6,13 +6,10 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 import json
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.api_discovery import ApiDiscoveryHandler
 from axis.vapix.models.api_discovery import ApiId, ApiStatus
-
-from .conftest import HOST
 
 
 @pytest.fixture
@@ -21,11 +18,20 @@ def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
     return axis_device.vapix.api_discovery
 
 
-@respx.mock
-async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
+async def test_api_id_enum():
+    """Verify API ID of unsupported type."""
+    assert ApiId("unsupported") is ApiId.UNKNOWN
+
+
+async def test_api_status_enum():
+    """Verify API status of unsupported type."""
+    assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
+
+
+async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
-        json=response_getApiList,
+    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+        json=GET_API_LIST_RESPONSE,
     )
     assert api_discovery.supported
     await api_discovery.update()
@@ -39,6 +45,7 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
         "context": "Axis library",
     }
 
+    assert api_discovery.initialized
     assert len(api_discovery.values()) == 15
 
     item = api_discovery[ApiId.API_DISCOVERY]
@@ -48,17 +55,11 @@ async def test_get_api_list(api_discovery: ApiDiscoveryHandler):
     assert item.status == ApiStatus.UNKNOWN
     assert item.version == "1.0"
 
-    items = await api_discovery.get_api_list()
-    assert len(items) == 15
 
-    assert ApiId("") == ApiId.UNKNOWN
-
-
-@respx.mock
-async def test_get_supported_versions(api_discovery: ApiDiscoveryHandler):
+async def test_get_supported_versions(respx_mock, api_discovery: ApiDiscoveryHandler):
     """Test get_supported_versions."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/apidiscovery.cgi").respond(
-        json=response_getSupportedVersions,
+    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     response = await api_discovery.get_supported_versions()
 
@@ -73,7 +74,7 @@ async def test_get_supported_versions(api_discovery: ApiDiscoveryHandler):
     assert response == ["1.0"]
 
 
-response_getApiList = {
+GET_API_LIST_RESPONSE = {
     "method": "getApiList",
     "apiVersion": "1.0",
     "context": "Axis library",
@@ -173,17 +174,9 @@ response_getApiList = {
     },
 }
 
-response_getSupportedVersions = {
+GET_SUPPORTED_VERSIONS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "method": "getSupportedVersions",
     "data": {"apiVersions": ["1.0"]},
-}
-
-{
-    "apiVersion": "1.0",
-    "error": {
-        "code": 4002,
-        "message": "'apiVersion' must not be provided for method 'getSupportedVersions'",
-    },
 }

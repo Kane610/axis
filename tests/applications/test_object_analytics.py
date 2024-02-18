@@ -6,14 +6,11 @@ pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/
 import json
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.applications.object_analytics import (
     ObjectAnalyticsHandler,
 )
 from axis.vapix.models.applications.object_analytics import ScenarioType
-
-from ..conftest import HOST
 
 
 @pytest.fixture
@@ -22,10 +19,9 @@ def object_analytics(axis_device) -> ObjectAnalyticsHandler:
     return axis_device.vapix.object_analytics
 
 
-@respx.mock
-async def test_get_no_configuration(object_analytics):
+async def test_get_no_configuration(respx_mock, object_analytics):
     """Test no response from get_configuration."""
-    route = respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
+    route = respx_mock.post("/local/objectanalytics/control.cgi").respond(
         json={},
     )
     with pytest.raises(KeyError):
@@ -44,25 +40,24 @@ async def test_get_no_configuration(object_analytics):
     assert len(object_analytics.values()) == 0
 
 
-@respx.mock
-async def test_get_empty_configuration(object_analytics):
+async def test_get_empty_configuration(respx_mock, object_analytics):
     """Test empty get_configuration."""
-    respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
-        json=response_get_configuration_empty,
+    respx_mock.post("/local/objectanalytics/control.cgi").respond(
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await object_analytics.update()
 
     assert len(object_analytics.values()) == 1
 
 
-@respx.mock
-async def test_get_configuration(object_analytics):
+async def test_get_configuration(respx_mock, object_analytics):
     """Test get_configuration."""
-    respx.post(f"http://{HOST}:80/local/objectanalytics/control.cgi").respond(
-        json=response_get_configuration,
+    respx_mock.post("/local/objectanalytics/control.cgi").respond(
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await object_analytics.update()
 
+    assert object_analytics.initialized
     assert len(object_analytics.values()) == 1
     configuration = object_analytics["0"]
 
@@ -114,7 +109,7 @@ async def test_get_configuration(object_analytics):
     assert configuration.scenarios["2"].type == ScenarioType.FENCE
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "data": {
@@ -128,7 +123,7 @@ response_get_configuration_empty = {
 }
 
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "apiVersion": "1.0",
     "context": "Axis library",
     "data": {

@@ -6,11 +6,8 @@ pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/appli
 import json
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.applications.fence_guard import FenceGuardHandler
-
-from ..conftest import HOST
 
 
 @pytest.fixture
@@ -19,11 +16,10 @@ def fence_guard(axis_device) -> FenceGuardHandler:
     return axis_device.vapix.fence_guard
 
 
-@respx.mock
-async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
+async def test_get_empty_configuration(respx_mock, fence_guard: FenceGuardHandler):
     """Test empty get_configuration."""
-    route = respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
-        json=response_get_configuration_empty,
+    route = respx_mock.post("/local/fenceguard/control.cgi").respond(
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await fence_guard.update()
 
@@ -39,14 +35,14 @@ async def test_get_empty_configuration(fence_guard: FenceGuardHandler):
     assert len(fence_guard.values()) == 1
 
 
-@respx.mock
-async def test_get_configuration(fence_guard: FenceGuardHandler):
+async def test_get_configuration(respx_mock, fence_guard: FenceGuardHandler):
     """Test get_configuration."""
-    respx.post(f"http://{HOST}:80/local/fenceguard/control.cgi").respond(
-        json=response_get_configuration,
+    respx_mock.post("/local/fenceguard/control.cgi").respond(
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await fence_guard.update()
 
+    assert fence_guard.initialized
     assert len(fence_guard.values()) == 1
 
     assert len(fence_guard["0"].profiles) == 1
@@ -68,7 +64,7 @@ async def test_get_configuration(fence_guard: FenceGuardHandler):
     ]
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [],
@@ -79,7 +75,7 @@ response_get_configuration_empty = {
     "context": "Axis library",
 }
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "context": "Axis library",
     "apiVersion": "1.4",
     "method": "getConfiguration",

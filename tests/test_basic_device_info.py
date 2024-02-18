@@ -7,12 +7,9 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.vapix.interfaces.basic_device_info import BasicDeviceInfoHandler
-
-from .conftest import HOST
 
 
 @pytest.fixture
@@ -23,11 +20,12 @@ def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
     return axis_device.vapix.basic_device_info
 
 
-@respx.mock
-async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
+async def test_get_all_properties(
+    respx_mock, basic_device_info: BasicDeviceInfoHandler
+):
     """Test get all properties api."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
-        json=response_getAllProperties,
+    route = respx_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
+        json=GET_ALL_PROPERTIES_RESPONSE,
     )
     await basic_device_info.update()
 
@@ -39,6 +37,8 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
         "apiVersion": "1.0",
         "context": "Axis library",
     }
+
+    assert basic_device_info.initialized
 
     device_info = basic_device_info["0"]
     assert device_info.architecture == "armv7hf"
@@ -56,15 +56,12 @@ async def test_get_all_properties(basic_device_info: BasicDeviceInfoHandler):
     assert device_info.soc_serial_number == ""
     assert device_info.web_url == "http://www.axis.com"
 
-    items = await basic_device_info.get_all_properties()
-    assert len(items) == 1
-    assert items["0"] == device_info
 
-
-@respx.mock
-async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler):
+async def test_get_supported_versions(
+    respx_mock, basic_device_info: BasicDeviceInfoHandler
+):
     """Test get supported versions api."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/basicdeviceinfo.cgi").respond(
+    route = respx_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
         json={
             "apiVersion": "1.1",
             "context": "Axis library",
@@ -78,7 +75,6 @@ async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler)
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
     assert json.loads(route.calls.last.request.content) == {
-        # "apiVersion": "1.1",
         "context": "Axis library",
         "method": "getSupportedVersions",
     }
@@ -86,7 +82,7 @@ async def test_get_supported_versions(basic_device_info: BasicDeviceInfoHandler)
     assert response == ["1.1"]
 
 
-response_getAllProperties = {
+GET_ALL_PROPERTIES_RESPONSE = {
     "apiVersion": "1.1",
     "context": "Axis library",
     "method": "getAllProperties",

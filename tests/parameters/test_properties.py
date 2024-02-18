@@ -5,8 +5,6 @@ import pytest
 from axis.device import AxisDevice
 from axis.vapix.interfaces.parameters.properties import PropertyParameterHandler
 
-from ..conftest import HOST
-
 PROPERTY_RESPONSE = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
 root.Properties.API.Browser.Language=yes
 root.Properties.API.Browser.RootPwdSetValue=yes
@@ -118,7 +116,7 @@ def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
 async def test_property_handler(respx_mock, property_handler: PropertyParameterHandler):
     """Verify that update properties works."""
     route = respx_mock.post(
-        f"http://{HOST}:80/axis-cgi/param.cgi",
+        "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Properties"},
     ).respond(
         text=PROPERTY_RESPONSE,

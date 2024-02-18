@@ -4,11 +4,8 @@ pytest --cov-report term-missing --cov=axis.applications.applications tests/appl
 """
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.applications import ApplicationsHandler
-
-from ..conftest import HOST
 
 
 @pytest.fixture
@@ -17,11 +14,10 @@ def applications(axis_device) -> ApplicationsHandler:
     return axis_device.vapix.applications
 
 
-@respx.mock
-async def test_update_no_application(applications: ApplicationsHandler):
+async def test_update_no_application(respx_mock, applications: ApplicationsHandler):
     """Test update applicatios call."""
-    route = respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
-        text=list_application_empty_response,
+    route = respx_mock.post("/axis-cgi/applications/list.cgi").respond(
+        text=LIST_APPLICATION_EMPTY_RESPONSE,
         headers={"Content-Type": "text/xml"},
     )
 
@@ -31,15 +27,15 @@ async def test_update_no_application(applications: ApplicationsHandler):
     assert len(applications.values()) == 0
 
 
-@respx.mock
-async def test_update_single_application(applications: ApplicationsHandler):
+async def test_update_single_application(respx_mock, applications: ApplicationsHandler):
     """Test update applications call."""
-    respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
-        text=list_application_response,
+    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
+        text=LIST_APPLICATION_RESPONSE,
         headers={"Content-Type": "text/xml"},
     )
     await applications.update()
 
+    assert applications.initialized
     assert len(applications.values()) == 1
 
     app = next(iter(applications.values()))
@@ -57,11 +53,12 @@ async def test_update_single_application(applications: ApplicationsHandler):
     assert app.version == "4.4-5"
 
 
-@respx.mock
-async def test_update_multiple_applications(applications: ApplicationsHandler):
+async def test_update_multiple_applications(
+    respx_mock, applications: ApplicationsHandler
+):
     """Test update applicatios call."""
-    respx.post(f"http://{HOST}:80/axis-cgi/applications/list.cgi").respond(
-        text=list_applications_response,
+    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
+        text=LIST_APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
     )
     await applications.update()
@@ -169,14 +166,14 @@ async def test_update_multiple_applications(applications: ApplicationsHandler):
     assert app.version == "2.2-6"
 
 
-list_application_empty_response = """<reply result="ok">
+LIST_APPLICATION_EMPTY_RESPONSE = """<reply result="ok">
 </reply>"""
 
-list_application_response = """<reply result="ok">
+LIST_APPLICATION_RESPONSE = """<reply result="ok">
  <application Name="vmd" NiceName="AXIS Video Motion Detection" Vendor="Axis Communications" Version="4.4-5" ApplicationID="143440" License="None" Status="Running" ConfigurationPage="local/vmd/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
 </reply>"""
 
-list_applications_response = """<reply result="ok">
+LIST_APPLICATIONS_RESPONSE = """<reply result="ok">
  <application Name="RemoteAccess" NiceName="AXIS Remote Access solution" Vendor="Axis Communications" Version="1.12" ApplicationID="1234" License="Custom" Status="Running" ConfigurationPage="local/RemoteAccess/#" VendorHomePage="http://www.axis.com" />
  <application Name="VMD3" NiceName="AXIS Video Motion Detection" Vendor="Axis Communications" Version="3.2-1" ApplicationID="46396" License="None" Status="Stopped" ConfigurationPage="local/VMD3/setup.html" VendorHomePage="http://www.axis.com" />
  <application Name="drstn_notifier" NiceName="AXIS Door Station Notifier" Vendor="Axis Communications" Version="1.0" ApplicationID="1234" License="Custom" Status="Running" ConfigurationPage="local/drstn_notifier/about.inc" VendorHomePage="http://www.axis.com" />

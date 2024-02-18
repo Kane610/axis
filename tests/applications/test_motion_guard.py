@@ -6,11 +6,8 @@ pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/appl
 import json
 
 import pytest
-import respx
 
 from axis.vapix.interfaces.applications.motion_guard import MotionGuardHandler
-
-from ..conftest import HOST
 
 
 @pytest.fixture
@@ -19,11 +16,10 @@ def motion_guard(axis_device) -> MotionGuardHandler:
     return axis_device.vapix.motion_guard
 
 
-@respx.mock
-async def test_get_empty_configuration(motion_guard: MotionGuardHandler):
+async def test_get_empty_configuration(respx_mock, motion_guard: MotionGuardHandler):
     """Test empty get_configuration."""
-    route = respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
-        json=response_get_configuration_empty,
+    route = respx_mock.post("/local/motionguard/control.cgi").respond(
+        json=GET_CONFIGURATION_EMPTY_RESPONSE,
     )
     await motion_guard.update()
 
@@ -39,14 +35,14 @@ async def test_get_empty_configuration(motion_guard: MotionGuardHandler):
     assert len(motion_guard.values()) == 1
 
 
-@respx.mock
-async def test_get_configuration(motion_guard: MotionGuardHandler):
+async def test_get_configuration(respx_mock, motion_guard: MotionGuardHandler):
     """Test get_configuration."""
-    respx.post(f"http://{HOST}:80/local/motionguard/control.cgi").respond(
-        json=response_get_configuration,
+    respx_mock.post("/local/motionguard/control.cgi").respond(
+        json=GET_CONFIGURATION_RESPONSE,
     )
     await motion_guard.update()
 
+    assert motion_guard.initialized
     assert len(motion_guard.values()) == 1
 
     assert len(motion_guard["0"].profiles) == 1
@@ -82,7 +78,7 @@ async def test_get_configuration(motion_guard: MotionGuardHandler):
     ]
 
 
-response_get_configuration_empty = {
+GET_CONFIGURATION_EMPTY_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [],
@@ -93,7 +89,7 @@ response_get_configuration_empty = {
     "context": "Axis library",
 }
 
-response_get_configuration = {
+GET_CONFIGURATION_RESPONSE = {
     "data": {
         "cameras": [{"id": 1, "active": True, "rotation": 0}],
         "profiles": [
