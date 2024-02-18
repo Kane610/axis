@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.models.api_discovery import ApiId, ApiStatus
+from axis.vapix.models.api_discovery import GetSupportedVersionsRequest, ListApisRequest
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -31,11 +32,9 @@ async def test_api_status_enum():
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
-async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
+async def test_get_api_list(mock_api_request, api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
-    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
-        json=GET_API_LIST_RESPONSE,
-    )
+    route = mock_api_request(ListApisRequest, GET_API_LIST_RESPONSE)
     assert api_discovery.supported
     await api_discovery.update()
 
@@ -59,10 +58,12 @@ async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
     assert item.version == "1.0"
 
 
-async def test_get_supported_versions(respx_mock, api_discovery: ApiDiscoveryHandler):
+async def test_get_supported_versions(
+    mock_api_request, api_discovery: ApiDiscoveryHandler
+):
     """Test get_supported_versions."""
-    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
-        json=GET_SUPPORTED_VERSIONS_RESPONSE,
+    route = mock_api_request(
+        GetSupportedVersionsRequest, GET_SUPPORTED_VERSIONS_RESPONSE
     )
     response = await api_discovery.get_supported_versions()
 

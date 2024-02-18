@@ -2,14 +2,17 @@
 
 import asyncio
 from collections import deque
+from collections.abc import Callable
 import logging
 from typing import TYPE_CHECKING
+from typing import Any
 
 from httpx import AsyncClient
 import pytest
 
 from axis.device import AxisDevice
 from axis.models.configuration import Configuration
+from axis.vapix.models.api import ApiRequest
 
 if TYPE_CHECKING:
     import respx
@@ -48,6 +51,27 @@ async def axis_companion_device(respx_mock: respx.router.MockRouter) -> AxisDevi
     )
     yield axis_device
     await session.aclose()
+
+
+@pytest.fixture(name="mock_api_request")
+def api_request_fixture(
+    respx_mock: respx.router.MockRouter,
+) -> Callable[[ApiRequest, Any], respx.router.MockRouter]:
+    """Mock API request."""
+    content_type_to_keyword = {
+        "application/json": "json",
+    }
+
+    def _register_route(
+        api_request: ApiRequest, response_data: Any
+    ) -> respx.router.MockRouter:
+        kwargs = {content_type_to_keyword[api_request.content_type]: response_data}
+        return respx_mock.request(
+            method=api_request.method,
+            url=api_request.path,
+        ).respond(**kwargs)
+
+    return _register_route
 
 
 class TcpServerProtocol(asyncio.Protocol):
