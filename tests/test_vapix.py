@@ -57,6 +57,7 @@ def test_vapix_not_initialized(vapix: Vapix) -> None:
     assert vapix.product_type == ""
     assert vapix.serial_number == ""
     assert vapix.streaming_profiles == []
+    assert not vapix.users.supported
 
 
 async def test_initialize(respx_mock, vapix: Vapix):
@@ -232,6 +233,8 @@ async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
     assert len(vapix.mqtt) == 0
     assert len(vapix.stream_profiles) == 0
     assert len(vapix.params.stream_profile_handler) == 1
+
+    assert vapix.users.supported
 
 
 async def test_initialize_params_no_data(respx_mock, vapix: Vapix):
