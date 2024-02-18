@@ -45,9 +45,9 @@ class ConfigurationScenarioDataT(TypedDict):
     alarmRate: str
     devices: list[dict[str, Any]]
     filters: list[dict[str, Any]]
-    objectClassifications: list[dict[str, str]]
-    perspectives: list[int]
-    presets: list[int]
+    objectClassifications: NotRequired[list[dict[str, str]]]
+    perspectives: NotRequired[list[int]]
+    presets: NotRequired[list[int]]
     triggers: list[dict[str, Any]]
 
 
@@ -56,7 +56,7 @@ class ConfigurationDataT(TypedDict):
 
     devices: list[ConfigurationDeviceDataT]
     metadataOverlay: list[ConfigurationMetadataOverlayDataT]
-    perspective: NotRequired[list[ConfigurationPerspectiveDataT]]
+    perspectives: NotRequired[list[ConfigurationPerspectiveDataT]]
     scenarios: list[ConfigurationScenarioDataT]
 
 
@@ -138,11 +138,11 @@ class ScenarioConfiguration(ApiItem):
         return cls(
             id=str(data["id"]),
             devices=data["devices"],
-            filters=data["filters"],
+            filters=data.get("filters", []),
             name=data["name"],
-            object_classifications=data["objectClassifications"],
-            perspectives=data["perspectives"],
-            presets=data["presets"],
+            object_classifications=data.get("objectClassifications", []),
+            perspectives=data.get("perspectives", []),
+            presets=data.get("presets", []),
             triggers=data["triggers"],
             type=ScenarioType(data["type"]),
         )
@@ -171,7 +171,7 @@ class Configuration(ApiItem):
             id="object analytics",
             devices=data["devices"],
             metadata_overlay=data["metadataOverlay"],
-            perspectives=data.get("perspective", []),
+            perspectives=data.get("perspectives", []),
             scenarios=ScenarioConfiguration.decode_to_dict(data["scenarios"]),
         )
 

@@ -1,7 +1,7 @@
 """Image parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any, Self, TypedDict
+from typing import Any, NotRequired, Self, TypedDict
 
 from .param_cgi import ParamItem
 
@@ -116,7 +116,7 @@ class ImageParamT(TypedDict):
     SizeControl: ImageSizeControlParamT
     Stream: ImageStreamParamT
     Text: ImageTextParamT
-    TriggerData: ImageTriggerDataParamT
+    TriggerData: NotRequired[ImageTriggerDataParamT]
 
 
 @dataclass(frozen=True)
@@ -133,7 +133,7 @@ class ImageParam(ParamItem):
     size_control: ImageSizeControlParamT
     stream: ImageStreamParamT
     text: ImageTextParamT
-    trigger_data: ImageTriggerDataParamT
+    trigger_data: ImageTriggerDataParamT | None
 
     @classmethod
     def decode(cls, data: tuple[str, ImageParamT]) -> Self:
@@ -151,7 +151,7 @@ class ImageParam(ParamItem):
             size_control=raw["SizeControl"],
             stream=raw["Stream"],
             text=raw["Text"],
-            trigger_data=raw["TriggerData"],
+            trigger_data=raw.get("TriggerData"),
         )
 
     @classmethod
