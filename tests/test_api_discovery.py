@@ -18,6 +18,16 @@ def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
     return axis_device.vapix.api_discovery
 
 
+async def test_api_id_enum():
+    """Verify API ID of unsupported type."""
+    assert ApiId("unsupported") is ApiId.UNKNOWN
+
+
+async def test_api_status_enum():
+    """Verify API status of unsupported type."""
+    assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
+
+
 async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
     """Test get_api_list call."""
     route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
@@ -46,8 +56,6 @@ async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
 
     items = await api_discovery.get_api_list()
     assert len(items) == 15
-
-    assert ApiId("") == ApiId.UNKNOWN
 
 
 async def test_get_supported_versions(respx_mock, api_discovery: ApiDiscoveryHandler):

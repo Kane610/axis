@@ -106,22 +106,23 @@ async def test_initialize(respx_mock, vapix: Vapix):
 
     await vapix.initialize()
 
-    assert vapix.api_discovery
-    assert vapix.basic_device_info
-    assert vapix.light_control
-    assert vapix.mqtt is not None
-    assert vapix.stream_profiles
-    assert len(vapix.view_areas) == 0
+    assert vapix.api_discovery.initialized
+    assert vapix.basic_device_info.initialized
+    assert vapix.light_control.initialized
+    assert not vapix.mqtt.initialized
+    assert vapix.stream_profiles.initialized
+    assert vapix.view_areas.initialized
 
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
 
-    assert len(vapix.fence_guard) == 1
-    assert len(vapix.loitering_guard) == 1
-    assert vapix.motion_guard
-    assert len(vapix.vmd4) == 1
+    assert vapix.fence_guard.initialized
+    assert vapix.loitering_guard.initialized
+    assert vapix.motion_guard.initialized
+    assert not vapix.object_analytics.initialized
+    assert vapix.vmd4.initialized
 
 
 async def test_initialize_api_discovery(respx_mock, vapix: Vapix):
