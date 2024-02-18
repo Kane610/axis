@@ -42,6 +42,7 @@ async def test_get_configuration(respx_mock, fence_guard: FenceGuardHandler):
     )
     await fence_guard.update()
 
+    assert fence_guard.initialized
     assert len(fence_guard.values()) == 1
 
     assert len(fence_guard["0"].profiles) == 1

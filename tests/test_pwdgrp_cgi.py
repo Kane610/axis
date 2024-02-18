@@ -34,6 +34,8 @@ async def test_users(respx_mock, users):
     respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
     await users.update()
 
+    assert users.initialized
+
     assert users["userv"]
     assert users["userv"].name == "userv"
     assert users["userv"].viewer

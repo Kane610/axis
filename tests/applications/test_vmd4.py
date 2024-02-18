@@ -42,6 +42,7 @@ async def test_get_configuration(respx_mock, vmd4: Vmd4Handler):
     )
     await vmd4.update()
 
+    assert vmd4.initialized
     assert len(vmd4.values()) == 1
 
     assert len(vmd4["0"].profiles) == 1

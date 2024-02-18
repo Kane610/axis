@@ -71,6 +71,7 @@ async def test_list_view_areas(respx_mock, view_areas: ViewAreaHandler):
         "context": "Axis library",
     }
 
+    assert view_areas.initialized
     assert len(view_areas) == 2
 
     view_area = view_areas["1000001"]

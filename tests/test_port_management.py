@@ -34,6 +34,7 @@ async def test_get_ports(respx_mock, io_port_management):
         "method": "getPorts",
     }
 
+    assert io_port_management.initialized
     assert len(io_port_management.values()) == 1
 
     item = io_port_management["0"]

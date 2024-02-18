@@ -42,6 +42,7 @@ async def test_get_configuration(respx_mock, motion_guard: MotionGuardHandler):
     )
     await motion_guard.update()
 
+    assert motion_guard.initialized
     assert len(motion_guard.values()) == 1
 
     assert len(motion_guard["0"].profiles) == 1

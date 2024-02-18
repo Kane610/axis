@@ -45,6 +45,7 @@ async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
         "context": "Axis library",
     }
 
+    assert api_discovery.initialized
     assert len(api_discovery.values()) == 15
 
     item = api_discovery[ApiId.API_DISCOVERY]
@@ -53,9 +54,6 @@ async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
     assert item.name == "API Discovery Service"
     assert item.status == ApiStatus.UNKNOWN
     assert item.version == "1.0"
-
-    items = await api_discovery.get_api_list()
-    assert len(items) == 15
 
 
 async def test_get_supported_versions(respx_mock, api_discovery: ApiDiscoveryHandler):

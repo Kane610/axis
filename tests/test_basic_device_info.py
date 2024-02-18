@@ -38,6 +38,8 @@ async def test_get_all_properties(
         "context": "Axis library",
     }
 
+    assert basic_device_info.initialized
+
     device_info = basic_device_info["0"]
     assert device_info.architecture == "armv7hf"
     assert device_info.brand == "AXIS"
@@ -53,10 +55,6 @@ async def test_get_all_properties(
     assert device_info.soc == "Ambarella S2L (Flattened Device Tree)"
     assert device_info.soc_serial_number == ""
     assert device_info.web_url == "http://www.axis.com"
-
-    items = await basic_device_info.get_all_properties()
-    assert len(items) == 1
-    assert items["0"] == device_info
 
 
 async def test_get_supported_versions(

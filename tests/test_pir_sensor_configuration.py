@@ -52,9 +52,9 @@ async def test_get_api_list(
         "context": "Axis library",
     }
 
-    items = await pir_sensor_configuration.list_sensors()
-    assert len(items) == 1
-    item = items["0"]
+    assert pir_sensor_configuration.initialized
+
+    item = pir_sensor_configuration["0"]
     assert item.configurable
     assert item.sensitivity == 0.94117647409439087
 

@@ -35,6 +35,7 @@ async def test_update_single_application(respx_mock, applications: ApplicationsH
     )
     await applications.update()
 
+    assert applications.initialized
     assert len(applications.values()) == 1
 
     app = next(iter(applications.values()))

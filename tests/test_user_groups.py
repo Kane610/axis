@@ -34,7 +34,9 @@ async def test_root_user(respx_mock, user_groups):
     )
     await user_groups.update()
 
-    assert (user := user_groups.get("0"))
+    assert user_groups.initialized
+
+    user = user_groups["0"]
     assert user.privileges == SecondaryGroup.ADMIN_PTZ
     assert user.admin
     assert user.operator

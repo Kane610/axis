@@ -57,6 +57,7 @@ async def test_get_configuration(respx_mock, object_analytics):
     )
     await object_analytics.update()
 
+    assert object_analytics.initialized
     assert len(object_analytics.values()) == 1
     configuration = object_analytics["0"]
 

@@ -36,9 +36,10 @@ async def test_list_stream_profiles(
         "params": {"streamProfileName": []},
     }
 
-    items = await stream_profiles.list_stream_profiles()
-    assert len(items) == 1
-    stream_profile = items["My full HD profile"]
+    assert stream_profiles.initialized
+    assert len(stream_profiles.values()) == 1
+
+    stream_profile = stream_profiles["My full HD profile"]
     assert stream_profile.id == "My full HD profile"
     assert stream_profile.name == "My full HD profile"
     assert stream_profile.description == "HD profile:1920x1080"

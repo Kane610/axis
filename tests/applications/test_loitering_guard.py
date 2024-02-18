@@ -44,6 +44,7 @@ async def test_get_configuration(respx_mock, loitering_guard: LoiteringGuardHand
     )
     await loitering_guard.update()
 
+    assert loitering_guard.initialized
     assert len(loitering_guard.values()) == 1
 
     assert len(loitering_guard["0"].profiles) == 1
