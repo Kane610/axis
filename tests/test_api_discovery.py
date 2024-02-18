@@ -5,7 +5,12 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 
 import json
 
-from axis.models.api_discovery import ApiId, ApiStatus
+from axis.models.api_discovery import (
+    ApiId,
+    ApiStatus,
+    GetSupportedVersionsRequest,
+    ListApisRequest,
+)
 
 
 async def test_api_id_enum():
@@ -18,13 +23,10 @@ async def test_api_status_enum():
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
-async def test_get_api_list(http_route_mock, axis_device):
+async def test_get_api_list(mock_api_request, axis_device):
     """Test get_api_list call."""
-    route = http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
-        json=GET_API_LIST_RESPONSE,
-    )
+    route = mock_api_request(ListApisRequest, GET_API_LIST_RESPONSE)
     api_discovery = axis_device.vapix.api_discovery
-
     assert api_discovery.supported
     await api_discovery.update()
 
@@ -48,10 +50,10 @@ async def test_get_api_list(http_route_mock, axis_device):
     assert item.version == "1.0"
 
 
-async def test_get_supported_versions(http_route_mock, axis_device):
+async def test_get_supported_versions(mock_api_request, axis_device):
     """Test get_supported_versions."""
-    route = http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
-        json=GET_SUPPORTED_VERSIONS_RESPONSE,
+    route = mock_api_request(
+        GetSupportedVersionsRequest, GET_SUPPORTED_VERSIONS_RESPONSE
     )
     api_discovery = axis_device.vapix.api_discovery
 

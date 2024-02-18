@@ -2,22 +2,22 @@
 
 import asyncio
 from collections import deque
+from collections.abc import Callable
 from contextlib import suppress
 import logging
-from typing import TYPE_CHECKING
+from typing import Any
 
 from aiohttp import ClientSession, web
 import pytest
 
 from axis.device import AxisDevice
+from axis.models.api import ApiRequest
 from axis.models.configuration import Configuration
 
 from tests.http_route_mock import HttpRouteMock, start_http_route_mock_server
+from tests.http_route_mock import Route
 from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +80,26 @@ async def axis_companion_device(session: ClientSession) -> AxisDevice:
 #   - Use aiohttp_mock_server for low-level handler assertions, payload capture,
 #     or custom request processing not modeled by route registration.
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture(name="mock_api_request")
+def api_request_fixture(
+    http_route_mock: HttpRouteMock,
+) -> Callable[[type[ApiRequest], Any], Route]:
+    """Mock API request."""
+    def _register_route(
+        api_request: type[ApiRequest], response_data: Any
+    ) -> Route:
+        route = getattr(http_route_mock, api_request.method.lower())(api_request.path)
+        if api_request.content_type == "application/json":
+            return route.respond(json=response_data)
+        if api_request.content_type in {"text/plain", "text/xml"}:
+            return route.respond(text=response_data)
+
+        msg = f"Unsupported content type: {api_request.content_type}"
+        raise ValueError(msg)
+
+    return _register_route
 
 
 class TcpServerProtocol(asyncio.Protocol):
