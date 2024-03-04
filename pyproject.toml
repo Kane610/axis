@@ -40,7 +40,7 @@ requirements_test = [
     "pytest-asyncio==0.23.5",
     "pytest-cov==4.1.0",
     "respx==0.20.2",
-    "ruff==0.2.2",
+    "ruff==0.3.0",
     "types-orjson==3.6.2",
     "types-xmltodict==v0.13.0.3",
 ]
@@ -109,7 +109,7 @@ lint.select = [
     "G",  # flake8-logging-format
     "I",  # isort
     "ICN001", # import concentions; {name} should be imported as {asname}
-    "ISC001", # Implicitly concatenated string literals on one line
+    # "ISC001", # Implicitly concatenated string literals on one line
     "N804",   # First argument of a class method should be named cls
     "N805",   # First argument of a method should be named self
     # "N815",  # Variable {name} in class scope should not be mixedCase
