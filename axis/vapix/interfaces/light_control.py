@@ -4,7 +4,6 @@ The Axis Light control API makes it possible to control the behavior
 and functionality of IR and White light LEDs in the Axis devices.
 """
 
-
 from ..models.api_discovery import ApiId
 from ..models.light_control import (
     API_VERSION,

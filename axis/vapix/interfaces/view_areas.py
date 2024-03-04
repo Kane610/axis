@@ -7,7 +7,6 @@ covers a specific region of interest. The API is also able to simplify the insta
 process by fine tuning an area digitally after the camera has been manually pointed at a scene.
 """
 
-
 from ..models.api_discovery import ApiId
 from ..models.view_area import (
     Geometry,

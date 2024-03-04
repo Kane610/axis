@@ -28,9 +28,10 @@ async def test_parameter_request():
 
 async def test_param_handler_request_signalling(param_handler: Params):
     """Verify that signalling to subscribers."""
-    with patch.object(param_handler, "_update") as update_mock, patch.object(
-        param_handler, "signal_subscribers"
-    ) as signal_mock:
+    with (
+        patch.object(param_handler, "_update") as update_mock,
+        patch.object(param_handler, "signal_subscribers") as signal_mock,
+    ):
         update_mock.return_value = ["obj_id"]
         await param_handler.request_group()
         signal_mock.assert_called_with("obj_id")

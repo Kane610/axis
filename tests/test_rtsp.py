@@ -466,9 +466,10 @@ async def test_successful_connect(rtsp_server, rtsp_client):
 
 def test_rtsp_client_time_out(rtsp_client, caplog):
     """Verify RTSP client time out method."""
-    with patch.object(rtsp_client, "stop") as mock_rtsp_client_stop, patch.object(
-        rtsp_client, "callback"
-    ) as mock_rtsp_client_callback:
+    with (
+        patch.object(rtsp_client, "stop") as mock_rtsp_client_stop,
+        patch.object(rtsp_client, "callback") as mock_rtsp_client_callback,
+    ):
         rtsp_client.time_out()
         assert f"Response timed out {HOST}" in caplog.text
         mock_rtsp_client_stop.assert_called()
@@ -522,13 +523,15 @@ def test_methods(rtsp_client):
     assert method.sequence == "CSeq: 0\r\n"
 
     assert method.authentication == ""
-    with patch.object(method.session, "digest", True), patch.object(
-        method.session, "generate_digest", return_value="digest"
+    with (
+        patch.object(method.session, "digest", True),
+        patch.object(method.session, "generate_digest", return_value="digest"),
     ):
         assert method.authentication == "Authorization: digest\r\n"
 
-    with patch.object(method.session, "basic", True), patch.object(
-        method.session, "generate_basic", return_value="basic"
+    with (
+        patch.object(method.session, "basic", True),
+        patch.object(method.session, "generate_basic", return_value="basic"),
     ):
         assert method.authentication == "Authorization: basic\r\n"
 

@@ -1,6 +1,5 @@
 """Motion guard analytics application."""
 
-
 from dataclasses import dataclass
 from typing import Any, NotRequired, Self, TypedDict
 

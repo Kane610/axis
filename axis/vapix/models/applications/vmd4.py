@@ -1,6 +1,5 @@
 """VMD4 API."""
 
-
 from dataclasses import dataclass
 from typing import Any, NotRequired, Self, TypedDict
 
