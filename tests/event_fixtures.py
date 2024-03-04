@@ -1,6 +1,5 @@
 """Event fixtures."""
 
-
 FIRST_MESSAGE = b'<?xml version="1.0" encoding="UTF-8"?>\n<tt:MetadataStream xmlns:tt="http://www.onvif.org/ver10/schema">\n</tt:MetadataStream>\n'
 
 AUDIO_INIT = b'<?xml version="1.0" encoding="UTF-8"?>\n<tt:MetadataStream xmlns:tt="http://www.onvif.org/ver10/schema">\n<tt:Event><wsnt:NotificationMessage xmlns:tns1="http://www.onvif.org/ver10/topics" xmlns:tnsaxis="http://www.axis.com/2009/event/topics" xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2" xmlns:wsa5="http://www.w3.org/2005/08/addressing"><wsnt:Topic Dialect="http://docs.oasis-open.org/wsn/t-1/TopicExpression/Simple">tns1:AudioSource/tnsaxis:TriggerLevel</wsnt:Topic><wsnt:ProducerReference><wsa5:Address>uri://1c8ae81b-3b00-46cf-bf76-79cc3fa533dc/ProducerReference</wsa5:Address></wsnt:ProducerReference><wsnt:Message><tt:Message UtcTime="2019-02-06T18:58:50.922426Z" PropertyOperation="Initialized"><tt:Source><tt:SimpleItem Name="channel" Value="1"/></tt:Source><tt:Key></tt:Key><tt:Data><tt:SimpleItem Name="triggered" Value="0"/></tt:Data></tt:Message></wsnt:Message></wsnt:NotificationMessage></tt:Event></tt:MetadataStream>\n'
