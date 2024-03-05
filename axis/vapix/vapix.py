@@ -291,10 +291,10 @@ class Vapix:
             raise_error(response.status_code)
 
         LOGGER.debug(
-            "Response: %s from %s %s",
-            response.content,
+            "Response (from %s %s): %s",
             self.device.config.host,
             path,
+            response.content,
         )
 
         return response.content
