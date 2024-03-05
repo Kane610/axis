@@ -1,7 +1,7 @@
 """Brand parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Self
+from typing import NotRequired, Self
 
 from typing_extensions import TypedDict
 
@@ -16,7 +16,7 @@ class BrandT(TypedDict):
     ProdNbr: str
     ProdShortName: str
     ProdType: str
-    ProdVariant: str
+    ProdVariant: NotRequired[str]
     WebURL: str
 
 
@@ -55,6 +55,6 @@ class BrandParam(ParamItem):
             product_number=data["ProdNbr"],
             product_short_name=data["ProdShortName"],
             product_type=data["ProdType"],
-            product_variant=data["ProdVariant"],
+            product_variant=data.get("ProdVariant", ""),
             web_url=data["WebURL"],
         )
