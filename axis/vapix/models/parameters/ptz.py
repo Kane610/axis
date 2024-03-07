@@ -21,15 +21,15 @@ class PtzLimitParamT(TypedDict):
     MaxFieldAngle: NotRequired[int]
     MaxFocus: NotRequired[int]
     MaxIris: NotRequired[int]
-    MaxPan: int
-    MaxTilt: int
+    MaxPan: NotRequired[int]
+    MaxTilt: NotRequired[int]
     MaxZoom: int
     MinBrightness: NotRequired[int]
     MinFieldAngle: int
     MinFocus: NotRequired[int]
     MinIris: NotRequired[int]
-    MinPan: int
-    MinTilt: int
+    MinPan: NotRequired[int]
+    MinTilt: NotRequired[int]
     MinZoom: int
 
 
@@ -113,12 +113,12 @@ class PtzVariousParamT(TypedDict):
     CtlQueuePollTime: int
     HomePresetSet: bool
     Locked: NotRequired[bool]
-    MaxProportionalSpeed: int
-    PanEnabled: bool
-    ProportionalSpeedEnabled: bool
+    MaxProportionalSpeed: NotRequired[int]
+    PanEnabled: NotRequired[bool]
+    ProportionalSpeedEnabled: NotRequired[bool]
     ReturnToOverview: int
-    SpeedCtlEnabled: bool
-    TiltEnabled: bool
+    SpeedCtlEnabled: NotRequired[bool]
+    TiltEnabled: NotRequired[bool]
     ZoomEnabled: bool
 
 
@@ -170,10 +170,6 @@ class PtzLimit:
     The purpose of those two parameters is to calibrate image centering.
     """
 
-    max_pan: int
-    min_pan: int
-    max_tilt: int
-    min_tilt: int
     max_zoom: int
     min_zoom: int
     max_brightness: int | None
@@ -184,15 +180,15 @@ class PtzLimit:
     min_focus: int | None
     max_iris: int | None
     min_iris: int | None
+    max_pan: int | None
+    min_pan: int | None
+    max_tilt: int | None
+    min_tilt: int | None
 
     @classmethod
     def decode(cls, data: PtzLimitParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
-            max_pan=data["MaxPan"],
-            min_pan=data["MinPan"],
-            max_tilt=data["MaxTilt"],
-            min_tilt=data["MinTilt"],
             max_zoom=data["MaxZoom"],
             min_zoom=data["MinZoom"],
             max_brightness=data.get("MaxBrightness"),
@@ -203,6 +199,10 @@ class PtzLimit:
             min_focus=data.get("MinFocus"),
             max_iris=data.get("MaxIris"),
             min_iris=data.get("MinIris"),
+            max_pan=data.get("MaxPan"),
+            min_pan=data.get("MinPan"),
+            max_tilt=data.get("MaxTilt"),
+            min_tilt=data.get("MinTilt"),
         )
 
     @classmethod
@@ -322,12 +322,12 @@ class PtzVarious:
     control_queue_poll_time: int
     home_preset_set: bool
     locked: bool
-    max_proportional_speed: int
-    pan_enabled: bool
-    proportional_speed_enabled: bool
+    max_proportional_speed: int | None
+    pan_enabled: bool | None
+    proportional_speed_enabled: bool | None
     return_to_overview: int
-    speed_control_enabled: bool
-    tilt_enabled: bool
+    speed_control_enabled: bool | None
+    tilt_enabled: bool | None
     zoom_enabled: bool
 
     @classmethod
@@ -339,12 +339,12 @@ class PtzVarious:
             control_queue_poll_time=data["CtlQueuePollTime"],
             home_preset_set=data["HomePresetSet"],
             locked=data.get("Locked", False),
-            max_proportional_speed=data["MaxProportionalSpeed"],
-            pan_enabled=data["PanEnabled"],
-            proportional_speed_enabled=data["ProportionalSpeedEnabled"],
+            max_proportional_speed=data.get("MaxProportionalSpeed"),
+            pan_enabled=data.get("PanEnabled"),
+            proportional_speed_enabled=data.get("ProportionalSpeedEnabled"),
             return_to_overview=data["ReturnToOverview"],
-            speed_control_enabled=data["SpeedCtlEnabled"],
-            tilt_enabled=data["TiltEnabled"],
+            speed_control_enabled=data.get("SpeedCtlEnabled"),
+            tilt_enabled=data.get("TiltEnabled"),
             zoom_enabled=data["ZoomEnabled"],
         )
 
