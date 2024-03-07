@@ -229,6 +229,73 @@ root.PTZ.Various.V1.ReturnToOverview=30
 root.PTZ.Various.V1.Locked=true
 """
 
+PTZ_5_51_M3024_RESPONSE = """root.PTZ.NbrOfSerPorts=0
+root.PTZ.CameraDefault=1
+root.PTZ.BoaProtPTZOperator=password
+root.PTZ.CamPorts.Cam1Port=1
+root.PTZ.ImageSource.I0.PTZEnabled=false
+root.PTZ.Limit.L1.MinPan=-180
+root.PTZ.Limit.L1.MaxPan=180
+root.PTZ.Limit.L1.MinTilt=-180
+root.PTZ.Limit.L1.MaxTilt=180
+root.PTZ.Limit.L1.MinZoom=1
+root.PTZ.Limit.L1.MaxZoom=9999
+root.PTZ.Preset.P0.Name=
+root.PTZ.Preset.P0.ImageSource=0
+root.PTZ.Preset.P0.HomePosition=1
+root.PTZ.Preset.P0.Position.P1.Name=Home
+root.PTZ.Preset.P0.Position.P1.Data=tilt=0.000000:pan=0.000000:zoom=1.000000
+root.PTZ.PTZDriverStatuses.Driver1Status=3
+root.PTZ.Support.S1.AbsolutePan=true
+root.PTZ.Support.S1.RelativePan=true
+root.PTZ.Support.S1.AbsoluteTilt=true
+root.PTZ.Support.S1.RelativeTilt=true
+root.PTZ.Support.S1.AbsoluteZoom=true
+root.PTZ.Support.S1.RelativeZoom=true
+root.PTZ.Support.S1.DigitalZoom=false
+root.PTZ.Support.S1.AbsoluteFocus=false
+root.PTZ.Support.S1.RelativeFocus=false
+root.PTZ.Support.S1.AutoFocus=false
+root.PTZ.Support.S1.AbsoluteIris=false
+root.PTZ.Support.S1.RelativeIris=false
+root.PTZ.Support.S1.AutoIris=false
+root.PTZ.Support.S1.AbsoluteBrightness=false
+root.PTZ.Support.S1.RelativeBrightness=false
+root.PTZ.Support.S1.ContinuousPan=true
+root.PTZ.Support.S1.ContinuousTilt=true
+root.PTZ.Support.S1.ContinuousZoom=true
+root.PTZ.Support.S1.ContinuousFocus=false
+root.PTZ.Support.S1.ContinuousIris=false
+root.PTZ.Support.S1.ContinuousBrightness=false
+root.PTZ.Support.S1.Auxiliary=false
+root.PTZ.Support.S1.ServerPreset=true
+root.PTZ.Support.S1.DevicePreset=false
+root.PTZ.Support.S1.SpeedCtl=true
+root.PTZ.Support.S1.JoyStickEmulation=true
+root.PTZ.Support.S1.IrCutFilter=false
+root.PTZ.Support.S1.AutoIrCutFilter=false
+root.PTZ.Support.S1.BackLight=false
+root.PTZ.Support.S1.OSDMenu=false
+root.PTZ.Support.S1.ActionNotification=true
+root.PTZ.Support.S1.ProportionalSpeed=true
+root.PTZ.Support.S1.GenericHTTP=false
+root.PTZ.Support.S1.LensOffset=false
+root.PTZ.Support.S1.AreaZoom=true
+root.PTZ.UserAdv.U1.MoveSpeed=100
+root.PTZ.Various.V1.CtlQueueing=false
+root.PTZ.Various.V1.CtlQueueLimit=20
+root.PTZ.Various.V1.CtlQueuePollTime=20
+root.PTZ.Various.V1.PanEnabled=true
+root.PTZ.Various.V1.TiltEnabled=true
+root.PTZ.Various.V1.ZoomEnabled=true
+root.PTZ.Various.V1.SpeedCtlEnabled=true
+root.PTZ.Various.V1.HomePresetSet=true
+root.PTZ.Various.V1.ProportionalSpeedEnabled=true
+root.PTZ.Various.V1.MaxProportionalSpeed=200
+root.PTZ.Various.V1.ReturnToOverview=30
+root.PTZ.Various.V1.Locked=true
+"""
+
 
 @pytest.fixture
 def ptz_handler(axis_device: AxisDevice) -> PtzParameterHandler:
@@ -330,14 +397,20 @@ async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
     assert various.tilt_enabled
     assert various.zoom_enabled
 
+    await ptz_handler.update()
 
-async def test_ptz_5_51(respx_mock, ptz_handler: PtzParameterHandler):
+
+@pytest.mark.parametrize(
+    ("ptz_response"), [PTZ_5_51_M1054_RESPONSE, PTZ_5_51_M3024_RESPONSE]
+)
+async def test_ptz_5_51(respx_mock, ptz_handler: PtzParameterHandler, ptz_response):
     """Verify that update ptz works.
 
     Max/Min Field Angle not reported.
+    NbrOfCameras not reported.
     """
     respx_mock.post(
         "/axis-cgi/param.cgi", data={"action": "list", "group": "root.PTZ"}
-    ).respond(text=PTZ_5_51_M1054_RESPONSE, headers={"Content-Type": "text/plain"})
+    ).respond(text=ptz_response, headers={"Content-Type": "text/plain"})
 
     await ptz_handler.update()
