@@ -389,7 +389,7 @@ class PtzParam(ParamItem):
         return cls(
             id="ptz",
             camera_default=data["CameraDefault"],
-            number_of_cameras=data["NbrOfCameras"],
+            number_of_cameras=data.get("NbrOfCameras", 1),
             number_of_serial_ports=data["NbrOfSerPorts"],
             cam_ports=data["CamPorts"],
             image_source=PtzImageSource.from_dict(data["ImageSource"]),
