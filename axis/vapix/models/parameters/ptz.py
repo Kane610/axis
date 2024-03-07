@@ -18,7 +18,7 @@ class PtzLimitParamT(TypedDict):
     """PTZ limit data description."""
 
     MaxBrightness: NotRequired[int]
-    MaxFieldAngle: int
+    MaxFieldAngle: NotRequired[int]
     MaxFocus: NotRequired[int]
     MaxIris: NotRequired[int]
     MaxPan: int
@@ -170,8 +170,6 @@ class PtzLimit:
     The purpose of those two parameters is to calibrate image centering.
     """
 
-    max_field_angle: int
-    min_field_angle: int
     max_pan: int
     min_pan: int
     max_tilt: int
@@ -180,6 +178,8 @@ class PtzLimit:
     min_zoom: int
     max_brightness: int | None
     min_brightness: int | None
+    max_field_angle: int | None
+    min_field_angle: int | None
     max_focus: int | None
     min_focus: int | None
     max_iris: int | None
@@ -189,8 +189,6 @@ class PtzLimit:
     def decode(cls, data: PtzLimitParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
-            max_field_angle=data["MaxFieldAngle"],
-            min_field_angle=data["MinFieldAngle"],
             max_pan=data["MaxPan"],
             min_pan=data["MinPan"],
             max_tilt=data["MaxTilt"],
@@ -199,6 +197,8 @@ class PtzLimit:
             min_zoom=data["MinZoom"],
             max_brightness=data.get("MaxBrightness"),
             min_brightness=data.get("MinBrightness"),
+            max_field_angle=data.get("MaxFieldAngle"),
+            min_field_angle=data.get("MinFieldAngle"),
             max_focus=data.get("MaxFocus"),
             min_focus=data.get("MinFocus"),
             max_iris=data.get("MaxIris"),
