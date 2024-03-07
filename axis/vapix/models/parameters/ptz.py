@@ -131,13 +131,13 @@ class PtzParamT(TypedDict):
     NbrOfSerPorts: int
     CamPorts: dict[str, int]
     ImageSource: dict[str, PtzImageSourceParamT]
-    Limit: dict[str, PtzLimitParamT]
+    Limit: NotRequired[dict[str, PtzLimitParamT]]
     Preset: dict[str, PtzPresetParamT]
     PTZDriverStatuses: dict[str, int]
-    Support: dict[str, PtzSupportParamT]
+    Support: NotRequired[dict[str, PtzSupportParamT]]
     UserAdv: dict[str, PtzUserAdvParamT]
     UserCtlQueue: dict[str, PtzUserCtlQueueParamT]
-    Various: dict[str, PtzVariousParamT]
+    Various: NotRequired[dict[str, PtzVariousParamT]]
 
 
 @dataclass
@@ -393,7 +393,7 @@ class PtzParam(ParamItem):
             number_of_serial_ports=data["NbrOfSerPorts"],
             cam_ports=data["CamPorts"],
             image_source=PtzImageSource.from_dict(data["ImageSource"]),
-            limits=PtzLimit.from_dict(data["Limit"]),
-            support=PtzSupport.from_dict(data["Support"]),
-            various=PtzVarious.from_dict(data["Various"]),
+            limits=PtzLimit.from_dict(data.get("Limit", {})),
+            support=PtzSupport.from_dict(data.get("Support", {})),
+            various=PtzVarious.from_dict(data.get("Various", {})),
         )
