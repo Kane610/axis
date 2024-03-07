@@ -296,6 +296,61 @@ root.PTZ.Various.V1.ReturnToOverview=30
 root.PTZ.Various.V1.Locked=true
 """
 
+PTZ_5_51_Q1921_RESPONSE = """root.PTZ.NbrOfSerPorts=1
+root.PTZ.NbrOfCameras=1
+root.PTZ.CameraDefault=1
+root.PTZ.BoaProtPTZOperator=password
+root.PTZ.CamPorts.Cam1Port=-1
+root.PTZ.ImageSource.I0.PTZEnabled=true
+root.PTZ.Preset.P0.Name=
+root.PTZ.Preset.P0.ImageSource=0
+root.PTZ.Preset.P0.HomePosition=-1
+root.PTZ.PTZDriverFirmwares.Driver1Major=none
+root.PTZ.PTZDriverFirmwares.Driver1Minor=none
+root.PTZ.PTZDrivers.Driver1=none
+root.PTZ.PTZDrivers.DriverNone=none
+root.PTZ.PTZDriverStatuses.Driver1Status=0
+root.PTZ.PTZDriverVersions.Driver1Version=none
+root.PTZ.SerDriverStatuses.Ser1Status=0
+root.PTZ.TargetFirmwares.Driver1Major=none
+root.PTZ.TargetFirmwares.Driver1Minor=none
+root.PTZ.UserCtlQueue.U0.UserGroup=Administrator
+root.PTZ.UserCtlQueue.U0.UseCookie=yes
+root.PTZ.UserCtlQueue.U0.Priority=10
+root.PTZ.UserCtlQueue.U0.TimeoutType=activity
+root.PTZ.UserCtlQueue.U0.TimeoutTime=60
+root.PTZ.UserCtlQueue.U1.UserGroup=Operator
+root.PTZ.UserCtlQueue.U1.UseCookie=yes
+root.PTZ.UserCtlQueue.U1.Priority=30
+root.PTZ.UserCtlQueue.U1.TimeoutType=activity
+root.PTZ.UserCtlQueue.U1.TimeoutTime=60
+root.PTZ.UserCtlQueue.U2.UserGroup=Viewer
+root.PTZ.UserCtlQueue.U2.UseCookie=yes
+root.PTZ.UserCtlQueue.U2.Priority=50
+root.PTZ.UserCtlQueue.U2.TimeoutType=timespan
+root.PTZ.UserCtlQueue.U2.TimeoutTime=60
+root.PTZ.UserCtlQueue.U3.UserGroup=Event
+root.PTZ.UserCtlQueue.U3.UseCookie=no
+root.PTZ.UserCtlQueue.U3.Priority=20
+root.PTZ.UserCtlQueue.U3.TimeoutType=activity
+root.PTZ.UserCtlQueue.U3.TimeoutTime=20
+root.PTZ.UserCtlQueue.U4.UserGroup=Guardtour
+root.PTZ.UserCtlQueue.U4.UseCookie=no
+root.PTZ.UserCtlQueue.U4.Priority=40
+root.PTZ.UserCtlQueue.U4.TimeoutType=infinity
+root.PTZ.UserCtlQueue.U4.TimeoutTime=60
+root.PTZ.UserCtlQueue.U5.UserGroup=Autotracking
+root.PTZ.UserCtlQueue.U5.UseCookie=no
+root.PTZ.UserCtlQueue.U5.Priority=1
+root.PTZ.UserCtlQueue.U5.TimeoutType=infinity
+root.PTZ.UserCtlQueue.U5.TimeoutTime=60
+root.PTZ.UserCtlQueue.U6.UserGroup=Onvif
+root.PTZ.UserCtlQueue.U6.UseCookie=no
+root.PTZ.UserCtlQueue.U6.Priority=1
+root.PTZ.UserCtlQueue.U6.TimeoutType=activity
+root.PTZ.UserCtlQueue.U6.TimeoutTime=60
+"""
+
 
 @pytest.fixture
 def ptz_handler(axis_device: AxisDevice) -> PtzParameterHandler:
@@ -401,7 +456,12 @@ async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
 
 
 @pytest.mark.parametrize(
-    ("ptz_response"), [PTZ_5_51_M1054_RESPONSE, PTZ_5_51_M3024_RESPONSE]
+    ("ptz_response"),
+    [
+        PTZ_5_51_M1054_RESPONSE,
+        PTZ_5_51_M3024_RESPONSE,
+        PTZ_5_51_Q1921_RESPONSE,
+    ],
 )
 async def test_ptz_5_51(respx_mock, ptz_handler: PtzParameterHandler, ptz_response):
     """Verify that update ptz works.
