@@ -71,6 +71,16 @@ async def test_get_ports(respx_mock, io_port_management):
     }
 
 
+async def test_get_empty_ports_response(respx_mock, io_port_management):
+    """Test get_ports call."""
+    respx_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json=GET_EMPTY_PORTS_RESPONSE,
+    )
+    await io_port_management.update()
+    assert io_port_management.initialized
+    assert len(io_port_management.values()) == 0
+
+
 async def test_set_ports(respx_mock, io_port_management):
     """Test set_ports call."""
     route = respx_mock.post("/axis-cgi/io/portmanagement.cgi")
@@ -169,6 +179,13 @@ GET_PORTS_RESPONSE = {
             }
         ],
     },
+}
+
+GET_EMPTY_PORTS_RESPONSE = {
+    "apiVersion": "1.0",
+    "context": "Axis library",
+    "method": "getPorts",
+    "data": {"numberOfPorts": 0},
 }
 
 GET_SUPPORTED_VERSIONS_RESPONSE = {

@@ -218,7 +218,7 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=Port.decode_to_dict(data["data"]["items"]),
+            data=Port.decode_to_dict(data["data"].get("items", [])),
         )
 
 
