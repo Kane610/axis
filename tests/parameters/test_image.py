@@ -117,6 +117,81 @@ root.Image.I1.TriggerData.MotionLevelEnabled=no
 root.Image.I1.TriggerData.TamperingEnabled=yes
 root.Image.I1.TriggerData.UserTriggers="""
 
+IMAGE_RESPONSE2 = """root.Image.NbrOfConfigs=8
+root.Image.I0.Enabled=yes
+root.Image.I0.Name=View Area 1
+root.Image.I0.Source=0
+root.Image.I0.Appearance.AutoRotationEnabled=yes
+root.Image.I0.Appearance.MirrorEnabled=no
+root.Image.I0.Appearance.Resolution=3840x2160
+root.Image.I0.Appearance.Rotation=0
+root.Image.I0.MPEG.SignedVideo.Enabled=no
+root.Image.I0.Stream.Duration=0
+root.Image.I1.Enabled=no
+root.Image.I1.Name=View Area 2
+root.Image.I1.Source=0
+root.Image.I1.Appearance.AutoRotationEnabled=yes
+root.Image.I1.Appearance.MirrorEnabled=no
+root.Image.I1.Appearance.Resolution=3840x2160
+root.Image.I1.Appearance.Rotation=0
+root.Image.I1.MPEG.SignedVideo.Enabled=no
+root.Image.I1.Stream.Duration=0
+root.Image.I2.Enabled=no
+root.Image.I2.Name=View Area 3
+root.Image.I2.Source=0
+root.Image.I2.Appearance.AutoRotationEnabled=yes
+root.Image.I2.Appearance.MirrorEnabled=no
+root.Image.I2.Appearance.Resolution=3840x2160
+root.Image.I2.Appearance.Rotation=0
+root.Image.I2.MPEG.SignedVideo.Enabled=no
+root.Image.I2.Stream.Duration=0
+root.Image.I3.Enabled=no
+root.Image.I3.Name=View Area 4
+root.Image.I3.Source=0
+root.Image.I3.Appearance.AutoRotationEnabled=yes
+root.Image.I3.Appearance.MirrorEnabled=no
+root.Image.I3.Appearance.Resolution=3840x2160
+root.Image.I3.Appearance.Rotation=0
+root.Image.I3.MPEG.SignedVideo.Enabled=no
+root.Image.I3.Stream.Duration=0
+root.Image.I4.Enabled=no
+root.Image.I4.Name=View Area 5
+root.Image.I4.Source=0
+root.Image.I4.Appearance.AutoRotationEnabled=yes
+root.Image.I4.Appearance.MirrorEnabled=no
+root.Image.I4.Appearance.Resolution=3840x2160
+root.Image.I4.Appearance.Rotation=0
+root.Image.I4.MPEG.SignedVideo.Enabled=no
+root.Image.I4.Stream.Duration=0
+root.Image.I5.Enabled=no
+root.Image.I5.Name=View Area 6
+root.Image.I5.Source=0
+root.Image.I5.Appearance.AutoRotationEnabled=yes
+root.Image.I5.Appearance.MirrorEnabled=no
+root.Image.I5.Appearance.Resolution=3840x2160
+root.Image.I5.Appearance.Rotation=0
+root.Image.I5.MPEG.SignedVideo.Enabled=no
+root.Image.I5.Stream.Duration=0
+root.Image.I6.Enabled=no
+root.Image.I6.Name=View Area 7
+root.Image.I6.Source=0
+root.Image.I6.Appearance.AutoRotationEnabled=yes
+root.Image.I6.Appearance.MirrorEnabled=no
+root.Image.I6.Appearance.Resolution=3840x2160
+root.Image.I6.Appearance.Rotation=0
+root.Image.I6.MPEG.SignedVideo.Enabled=no
+root.Image.I6.Stream.Duration=0
+root.Image.I7.Enabled=no
+root.Image.I7.Name=View Area 8
+root.Image.I7.Source=0
+root.Image.I7.Appearance.AutoRotationEnabled=yes
+root.Image.I7.Appearance.MirrorEnabled=no
+root.Image.I7.Appearance.Resolution=3840x2160
+root.Image.I7.Appearance.Rotation=0
+root.Image.I7.MPEG.SignedVideo.Enabled=no
+root.Image.I7.Stream.Duration=0
+"""
+
 
 @pytest.fixture
 def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
@@ -262,3 +337,23 @@ async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
         "TamperingEnabled": True,
         "UserTriggers": "",
     }
+
+
+@pytest.mark.parametrize(
+    ("image_response"),
+    [
+        IMAGE_RESPONSE2,
+    ],
+)
+async def test_image_5_51(
+    respx_mock, image_handler: ImageParameterHandler, image_response
+):
+    """Verify that update image works.
+
+    ImageParam missing Overlay, RateControl, SizeControl and Text.
+    """
+    respx_mock.post(
+        "/axis-cgi/param.cgi", data={"action": "list", "group": "root.Image"}
+    ).respond(text=image_response, headers={"Content-Type": "text/plain"})
+
+    await image_handler.update()

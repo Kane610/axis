@@ -111,11 +111,11 @@ class ImageParamT(TypedDict):
     Source: str
     Appearance: ImageAppearanceParamT
     MPEG: ImageMpegParamT
-    Overlay: ImageOverlayParamT
-    RateControl: ImageRateControlParamT
-    SizeControl: ImageSizeControlParamT
+    Overlay: NotRequired[ImageOverlayParamT]
+    RateControl: NotRequired[ImageRateControlParamT]
+    SizeControl: NotRequired[ImageSizeControlParamT]
     Stream: ImageStreamParamT
-    Text: ImageTextParamT
+    Text: NotRequired[ImageTextParamT]
     TriggerData: NotRequired[ImageTriggerDataParamT]
 
 
@@ -128,11 +128,11 @@ class ImageParam(ParamItem):
     source: str
     appearance: ImageAppearanceParamT
     mpeg: ImageMpegParamT
-    overlay: ImageOverlayParamT
-    rate_control: ImageRateControlParamT
-    size_control: ImageSizeControlParamT
+    overlay: ImageOverlayParamT | None
+    rate_control: ImageRateControlParamT | None
+    size_control: ImageSizeControlParamT | None
     stream: ImageStreamParamT
-    text: ImageTextParamT
+    text: ImageTextParamT | None
     trigger_data: ImageTriggerDataParamT | None
 
     @classmethod
@@ -146,11 +146,11 @@ class ImageParam(ParamItem):
             source=raw["Source"],
             appearance=raw["Appearance"],
             mpeg=raw["MPEG"],
-            overlay=raw["Overlay"],
-            rate_control=raw["RateControl"],
-            size_control=raw["SizeControl"],
+            overlay=raw.get("Overlay"),
+            rate_control=raw.get("RateControl"),
+            size_control=raw.get("SizeControl"),
             stream=raw["Stream"],
-            text=raw["Text"],
+            text=raw.get("Text"),
             trigger_data=raw.get("TriggerData"),
         )
 
