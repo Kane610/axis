@@ -75,10 +75,10 @@ class ApplicationStatus(enum.StrEnum):
 class Application(ApiItem):
     """Representation of an Application instance."""
 
-    application_id: str
+    application_id: str | None
     """Id of application."""
 
-    configuration_page: str
+    configuration_page: str | None
     """Relative URL to application configuration page."""
 
     license_name: str
@@ -130,8 +130,8 @@ class Application(ApiItem):
         """Decode dict to class object."""
         return cls(
             id=data["Name"],
-            application_id=data["ApplicationID"],
-            configuration_page=data["ConfigurationPage"],
+            application_id=data.get("ApplicationID"),
+            configuration_page=data.get("ConfigurationPage"),
             license_name=data.get("LicenseName", ""),
             license_status=ApplicationLicense(data["License"]),
             license_expiration_date=data.get("LicenseExpirationDate", ""),

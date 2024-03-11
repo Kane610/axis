@@ -166,6 +166,15 @@ async def test_update_multiple_applications(
     assert app.version == "2.2-6"
 
 
+async def test_app_2(respx_mock, applications: ApplicationsHandler):
+    """Test update applicatios call."""
+    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
+        text=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,
+        headers={"Content-Type": "text/xml"},
+    )
+    await applications.update()
+
+
 LIST_APPLICATION_EMPTY_RESPONSE = """<reply result="ok">
 </reply>"""
 
@@ -182,3 +191,15 @@ LIST_APPLICATIONS_RESPONSE = """<reply result="ok">
  <application Name="loiteringguard" NiceName="AXIS Loitering Guard" Vendor="Axis Communications" Version="2.2-6" ApplicationID="46775" License="None" Status="Running" ConfigurationPage="local/loiteringguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
  <application Name="motionguard" NiceName="AXIS Motion Guard" Vendor="Axis Communications" Version="2.2-6" ApplicationID="48170" License="None" Status="Running" ConfigurationPage="local/motionguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
 </reply>"""
+
+Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE = """<reply result="ok">
+ <application Name="AxisConnectDeploymentAgentAcap" NiceName="AXIS Connect Deployment Agent" Vendor="Axis Communications" Version="1.3-438" ApplicationID="412994" License="None" Status="Running" LicenseName="AXIS" />
+ <application Name="TrafficWiz" NiceName="AXIS Traffic Wizard" Vendor="Axis Communications" Version="1.4-3" License="None" Status="Stopped" ConfigurationPage="local/TrafficWiz/index.html" />
+ <application Name="deviceDiagnostics" NiceName="AXIS Device Diagnostics" Vendor="Axis Communications" Version="4.228-0" ApplicationID="328106" License="None" Status="Running" ConfigurationPage="local/deviceDiagnostics/info.html" LicenseName="Proprietary" />
+ <application Name="fenceguard" NiceName="AXIS Fence Guard" Vendor="Axis Communications" Version="2.2-4" ApplicationID="47775" License="None" Status="Running" ConfigurationPage="local/fenceguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
+ <application Name="loiteringguard" NiceName="AXIS Loitering Guard" Vendor="Axis Communications" Version="2.2-4" ApplicationID="46775" License="None" Status="Stopped" ConfigurationPage="local/loiteringguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
+ <application Name="motionguard" NiceName="AXIS Motion Guard" Vendor="Axis Communications" Version="2.2-4" ApplicationID="48170" License="None" Status="Running" ConfigurationPage="local/motionguard/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
+ <application Name="vmd" NiceName="AXIS Video Motion Detection" Vendor="Axis Communications" Version="4.5-2" ApplicationID="143440" License="None" Status="Running" ConfigurationPage="local/vmd/config.html" VendorHomePage="http://www.axis.com" LicenseName="Proprietary" />
+ <application Name="webrtc" NiceName="AXIS WebRTC" Vendor="Axis Communications" Version="4.15-2" ApplicationID="413622" License="None" Status="Running" ConfigurationPage="local/webrtc/webrtc.html" LicenseName="Available" />
+</reply>
+"""
