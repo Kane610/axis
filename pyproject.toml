@@ -54,7 +54,7 @@ requirements_dev = [
 "Forum" = "https://community.home-assistant.io/t/axis-camera-component/"
 
 [project.scripts]
-aiounifi = "axis.__main__:main"
+axis = "axis.__main__:main"
 
 [tool.coverage.report]
 fail_under = 95
