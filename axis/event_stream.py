@@ -21,6 +21,8 @@ UnsubscribeType = Callable[[], None]
 ID_FILTER_ALL = "*"
 
 BLACK_LISTED_TOPICS = [
+    "tns1:RuleEngine/tnsaxis:VideoMotionDetection/timer",
+    "tns1:RuleEngine/tnsaxis:VMD3/timer",
     "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data",
     "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/xinternal_data",
 ]

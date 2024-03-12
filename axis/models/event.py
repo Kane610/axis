@@ -46,7 +46,8 @@ class EventTopic(enum.StrEnum):
     LIGHT_STATUS = "tns1:Device/tnsaxis:Light/Status"
     LOITERING_GUARD = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
     MOTION_DETECTION = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
-    MOTION_DETECTION_3 = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
+    MOTION_DETECTION_2 = "tns1:RuleEngine/tnsaxis:VideoMotionDetection"
+    MOTION_DETECTION_3 = "tns1:RuleEngine/tnsaxis:VMD3"
     MOTION_DETECTION_4 = "tnsaxis:CameraApplicationPlatform/VMD"
     MOTION_GUARD = "tnsaxis:CameraApplicationPlatform/MotionGuard"
     OBJECT_ANALYTICS = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics"
@@ -73,6 +74,7 @@ TOPIC_TO_GROUP = {
     EventTopic.LIGHT_STATUS: EventGroup.LIGHT,
     EventTopic.LOITERING_GUARD: EventGroup.MOTION,
     EventTopic.MOTION_DETECTION: EventGroup.MOTION,
+    EventTopic.MOTION_DETECTION_2: EventGroup.MOTION,
     EventTopic.MOTION_DETECTION_3: EventGroup.MOTION,
     EventTopic.MOTION_DETECTION_4: EventGroup.MOTION,
     EventTopic.MOTION_GUARD: EventGroup.MOTION,
