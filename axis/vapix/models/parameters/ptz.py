@@ -170,8 +170,6 @@ class PtzLimit:
     The purpose of those two parameters is to calibrate image centering.
     """
 
-    max_zoom: int
-    min_zoom: int
     max_brightness: int | None
     min_brightness: int | None
     max_field_angle: int | None
@@ -184,13 +182,15 @@ class PtzLimit:
     min_pan: int | None
     max_tilt: int | None
     min_tilt: int | None
+    max_zoom: int | None
+    min_zoom: int | None
 
     @classmethod
     def decode(cls, data: PtzLimitParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
-            max_zoom=data["MaxZoom"],
-            min_zoom=data["MinZoom"],
+            max_zoom=data.get("MaxZoom"),
+            min_zoom=data.get("MinZoom"),
             max_brightness=data.get("MaxBrightness"),
             min_brightness=data.get("MinBrightness"),
             max_field_angle=data.get("MaxFieldAngle"),
