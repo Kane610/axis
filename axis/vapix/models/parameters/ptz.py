@@ -23,14 +23,14 @@ class PtzLimitParamT(TypedDict):
     MaxIris: NotRequired[int]
     MaxPan: NotRequired[int]
     MaxTilt: NotRequired[int]
-    MaxZoom: int
+    MaxZoom: NotRequired[int]
     MinBrightness: NotRequired[int]
-    MinFieldAngle: int
+    MinFieldAngle: NotRequired[int]
     MinFocus: NotRequired[int]
     MinIris: NotRequired[int]
     MinPan: NotRequired[int]
     MinTilt: NotRequired[int]
-    MinZoom: int
+    MinZoom: NotRequired[int]
 
 
 class PresetPositionT(TypedDict):
@@ -119,7 +119,7 @@ class PtzVariousParamT(TypedDict):
     ReturnToOverview: int
     SpeedCtlEnabled: NotRequired[bool]
     TiltEnabled: NotRequired[bool]
-    ZoomEnabled: bool
+    ZoomEnabled: NotRequired[bool]
 
 
 class PtzParamT(TypedDict):
@@ -328,7 +328,7 @@ class PtzVarious:
     return_to_overview: int
     speed_control_enabled: bool | None
     tilt_enabled: bool | None
-    zoom_enabled: bool
+    zoom_enabled: bool | None
 
     @classmethod
     def decode(cls, data: PtzVariousParamT) -> Self:
@@ -345,7 +345,7 @@ class PtzVarious:
             return_to_overview=data["ReturnToOverview"],
             speed_control_enabled=data.get("SpeedCtlEnabled"),
             tilt_enabled=data.get("TiltEnabled"),
-            zoom_enabled=data["ZoomEnabled"],
+            zoom_enabled=data.get("ZoomEnabled"),
         )
 
     @classmethod
