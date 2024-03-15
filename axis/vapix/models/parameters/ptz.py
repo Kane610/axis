@@ -320,12 +320,12 @@ class PtzVarious:
     control_queueing: bool
     control_queue_limit: int
     control_queue_poll_time: int
-    home_preset_set: bool
+    home_preset_set: bool | None
     locked: bool
     max_proportional_speed: int | None
     pan_enabled: bool | None
     proportional_speed_enabled: bool | None
-    return_to_overview: int
+    return_to_overview: int | None
     speed_control_enabled: bool | None
     tilt_enabled: bool | None
     zoom_enabled: bool | None
@@ -337,12 +337,12 @@ class PtzVarious:
             control_queueing=data["CtlQueueing"],
             control_queue_limit=data["CtlQueueLimit"],
             control_queue_poll_time=data["CtlQueuePollTime"],
-            home_preset_set=data["HomePresetSet"],
+            home_preset_set=data.get("HomePresetSet"),
             locked=data.get("Locked", False),
             max_proportional_speed=data.get("MaxProportionalSpeed"),
             pan_enabled=data.get("PanEnabled"),
             proportional_speed_enabled=data.get("ProportionalSpeedEnabled"),
-            return_to_overview=data["ReturnToOverview"],
+            return_to_overview=data.get("ReturnToOverview"),
             speed_control_enabled=data.get("SpeedCtlEnabled"),
             tilt_enabled=data.get("TiltEnabled"),
             zoom_enabled=data.get("ZoomEnabled"),
