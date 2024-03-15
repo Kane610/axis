@@ -23,14 +23,14 @@ class PtzLimitParamT(TypedDict):
     MaxIris: NotRequired[int]
     MaxPan: NotRequired[int]
     MaxTilt: NotRequired[int]
-    MaxZoom: int
+    MaxZoom: NotRequired[int]
     MinBrightness: NotRequired[int]
-    MinFieldAngle: int
+    MinFieldAngle: NotRequired[int]
     MinFocus: NotRequired[int]
     MinIris: NotRequired[int]
     MinPan: NotRequired[int]
     MinTilt: NotRequired[int]
-    MinZoom: int
+    MinZoom: NotRequired[int]
 
 
 class PresetPositionT(TypedDict):
@@ -119,7 +119,7 @@ class PtzVariousParamT(TypedDict):
     ReturnToOverview: int
     SpeedCtlEnabled: NotRequired[bool]
     TiltEnabled: NotRequired[bool]
-    ZoomEnabled: bool
+    ZoomEnabled: NotRequired[bool]
 
 
 class PtzParamT(TypedDict):
@@ -170,8 +170,6 @@ class PtzLimit:
     The purpose of those two parameters is to calibrate image centering.
     """
 
-    max_zoom: int
-    min_zoom: int
     max_brightness: int | None
     min_brightness: int | None
     max_field_angle: int | None
@@ -184,13 +182,15 @@ class PtzLimit:
     min_pan: int | None
     max_tilt: int | None
     min_tilt: int | None
+    max_zoom: int | None
+    min_zoom: int | None
 
     @classmethod
     def decode(cls, data: PtzLimitParamT) -> Self:
         """Decode dictionary to class object."""
         return cls(
-            max_zoom=data["MaxZoom"],
-            min_zoom=data["MinZoom"],
+            max_zoom=data.get("MaxZoom"),
+            min_zoom=data.get("MinZoom"),
             max_brightness=data.get("MaxBrightness"),
             min_brightness=data.get("MinBrightness"),
             max_field_angle=data.get("MaxFieldAngle"),
@@ -328,7 +328,7 @@ class PtzVarious:
     return_to_overview: int
     speed_control_enabled: bool | None
     tilt_enabled: bool | None
-    zoom_enabled: bool
+    zoom_enabled: bool | None
 
     @classmethod
     def decode(cls, data: PtzVariousParamT) -> Self:
@@ -345,7 +345,7 @@ class PtzVarious:
             return_to_overview=data["ReturnToOverview"],
             speed_control_enabled=data.get("SpeedCtlEnabled"),
             tilt_enabled=data.get("TiltEnabled"),
-            zoom_enabled=data["ZoomEnabled"],
+            zoom_enabled=data.get("ZoomEnabled"),
         )
 
     @classmethod
