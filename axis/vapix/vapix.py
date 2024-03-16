@@ -171,7 +171,10 @@ class Vapix:
         else:
             tasks.append(self.params.property_handler.update())
 
-            if not self.basic_device_info.supported:
+            if (
+                not self.basic_device_info.supported
+                or not self.basic_device_info.initialized
+            ):
                 tasks.append(self.params.brand_handler.update())
 
             if not self.io_port_management.supported:
