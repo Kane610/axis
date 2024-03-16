@@ -83,36 +83,36 @@ class Vapix:
     @property
     def firmware_version(self) -> str:
         """Firmware version of device."""
-        if self.basic_device_info.supported:
+        if self.basic_device_info.initialized:
             return self.basic_device_info["0"].firmware_version
-        if self.params.property_handler.supported:
+        if self.params.property_handler.initialized:
             return self.params.property_handler["0"].firmware_version
         return ""
 
     @property
     def product_number(self) -> str:
         """Product number of device."""
-        if self.basic_device_info.supported:
+        if self.basic_device_info.initialized:
             return self.basic_device_info["0"].product_number
-        if self.params.brand_handler.supported:
+        if self.params.brand_handler.initialized:
             return self.params.brand_handler["0"].product_number
         return ""
 
     @property
     def product_type(self) -> str:
         """Product type of device."""
-        if self.basic_device_info.supported:
+        if self.basic_device_info.initialized:
             return self.basic_device_info["0"].product_type
-        if self.params.brand_handler.supported:
+        if self.params.brand_handler.initialized:
             return self.params.brand_handler["0"].product_type
         return ""
 
     @property
     def serial_number(self) -> str:
         """Device serial number."""
-        if self.basic_device_info.supported:
+        if self.basic_device_info.initialized:
             return self.basic_device_info["0"].serial_number
-        if self.params.property_handler.supported:
+        if self.params.property_handler.initialized:
             return self.params.property_handler["0"].system_serial_number
         return ""
 
@@ -126,9 +126,9 @@ class Vapix:
     @property
     def streaming_profiles(self) -> list[StreamProfile]:
         """List streaming profiles."""
-        if self.stream_profiles.supported:
+        if self.stream_profiles.initialized:
             return list(self.stream_profiles.values())
-        if self.params.stream_profile_handler.supported:
+        if self.params.stream_profile_handler.initialized:
             return self.params.stream_profile_handler["0"].stream_profiles
         return []
 
