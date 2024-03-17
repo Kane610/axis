@@ -115,13 +115,13 @@ async def test_get_service_capabilities(respx_mock, light_control: LightHandler)
         "context": "Axis library",
     }
 
-    response.automatic_intensity_support is True
-    response.manual_intensity_support is True
-    response.get_current_intensity_support is True
-    response.individual_intensity_support is False
-    response.automatic_angle_of_illumination_support is False
-    response.manual_angle_of_illumination_support is False
-    response.day_night_synchronize_support is True
+    assert response.automatic_intensity_support is True
+    assert response.manual_intensity_support is True
+    assert response.get_current_intensity_support is True
+    assert response.individual_intensity_support is False
+    assert response.automatic_angle_of_illumination_support is False
+    assert response.manual_angle_of_illumination_support is False
+    assert response.day_night_synchronize_support is True
 
 
 async def test_get_light_information(respx_mock, light_control: LightHandler):
