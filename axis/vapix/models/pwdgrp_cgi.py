@@ -52,18 +52,12 @@ class User(ApiItem):
     @property
     def privileges(self) -> SecondaryGroup:
         """Return highest privileged role supported."""
-        if self.admin and self.ptz:
-            return SecondaryGroup.ADMIN_PTZ
         if self.admin:
-            return SecondaryGroup.ADMIN
-        if self.operator and self.ptz:
-            return SecondaryGroup.OPERATOR_PTZ
+            return SecondaryGroup.ADMIN_PTZ if self.ptz else SecondaryGroup.ADMIN
         if self.operator:
-            return SecondaryGroup.OPERATOR
-        if self.viewer and self.ptz:
-            return SecondaryGroup.VIEWER_PTZ
+            return SecondaryGroup.OPERATOR_PTZ if self.ptz else SecondaryGroup.OPERATOR
         if self.viewer:
-            return SecondaryGroup.VIEWER
+            return SecondaryGroup.VIEWER_PTZ if self.ptz else SecondaryGroup.VIEWER
         return SecondaryGroup.UNKNOWN
 
     @classmethod
