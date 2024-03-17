@@ -100,12 +100,12 @@ EVENT_TYPE = "type"
 EVENT_VALUE = "value"
 
 NOTIFICATION_MESSAGE = ("MetadataStream", "Event", "NotificationMessage")
-MESSAGE = NOTIFICATION_MESSAGE + ("Message", "Message")
-TOPIC = NOTIFICATION_MESSAGE + ("Topic", "#text")
-TIMESTAMP = MESSAGE + ("@UtcTime",)
-OPERATION = MESSAGE + ("@PropertyOperation",)
-SOURCE = MESSAGE + ("Source",)
-DATA = MESSAGE + ("Data",)
+MESSAGE = (*NOTIFICATION_MESSAGE, "Message", "Message")
+TOPIC = (*NOTIFICATION_MESSAGE, "Topic", "#text")
+TIMESTAMP = (*MESSAGE, "@UtcTime")
+OPERATION = (*MESSAGE, "@PropertyOperation")
+SOURCE = (*MESSAGE, "Source")
+DATA = (*MESSAGE, "Data")
 
 XML_NAMESPACES = {
     "http://www.onvif.org/ver10/schema": None,
