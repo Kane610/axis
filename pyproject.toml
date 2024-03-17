@@ -124,7 +124,8 @@ lint.select = [
     "PIE800",  # Unnecessary dictionary unpacking operators
     "PIE807", # Prefer list/dict over useless lambda
     "PIE810", # Call startswith/endswith once with a tuple
-    "PL",  # pylint
+    "PL",   # pylint
+    "PERF", # Perflint
     "RUF005", # Consider iterable unpacking instead of concatenation
     "RUF006", # Store a reference to the return value of asyncio.create_task
     "RUF100", # Unused `noqa` directive
