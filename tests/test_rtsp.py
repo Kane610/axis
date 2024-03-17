@@ -576,8 +576,8 @@ def test_session_state_method(rtsp_client):
         assert session.state == State.STOPPED
 
     with patch.object(session, "sequence", 6), pytest.raises(IndexError):
-        session.method
-        session.state
+        _ = session.method  # B018 lint
+        _ = session.state  # B018 lint
 
 
 def test_session_update_status_codes(rtsp_client):
