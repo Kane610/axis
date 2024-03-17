@@ -159,7 +159,7 @@ class ImageParam(ParamItem):
         """Create objects from dict."""
         image_data = [  # Rename channels I0-I19 to 0-19
             (str(id), data[0][channel_id])
-            for id in range(0, 20)
+            for id in range(20)
             if (channel_id := f"I{id}") in data[0]
         ]
         return {v.id: v for v in cls.decode_to_list(image_data)}
