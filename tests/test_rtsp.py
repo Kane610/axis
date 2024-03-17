@@ -31,55 +31,63 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     rtsp_server.register_responses(
         [
             # OPTIONS
-            "RTSP/1.0 200 OK\r\n"
-            + "CSeq: 0\r\n"
-            + "Public: OPTIONS, DESCRIBE, ANNOUNCE, GET_PARAMETER, PAUSE, PLAY, RECORD, SETUP, SET_PARAMETER, TEARDOWN\r\n"
-            + "Server: GStreamer RTSP server\r\n"
-            + "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n",
+            (
+                "RTSP/1.0 200 OK\r\n"
+                "CSeq: 0\r\n"
+                "Public: OPTIONS, DESCRIBE, ANNOUNCE, GET_PARAMETER, PAUSE, PLAY, RECORD, SETUP, SET_PARAMETER, TEARDOWN\r\n"
+                "Server: GStreamer RTSP server\r\n"
+                "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n"
+            ),
             # DESCRIBE is denied since it requires authentication
-            "RTSP/1.0 401 Unauthorized\r\n"
-            + "CSeq: 1\r\n"
-            + 'WWW-Authenticate: Digest realm="AXIS_ACCC8E012345", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", stale=FALSE\r\n'
-            + "Server: GStreamer RTSP server\r\n "
-            + "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n",
+            (
+                "RTSP/1.0 401 Unauthorized\r\n"
+                "CSeq: 1\r\n"
+                'WWW-Authenticate: Digest realm="AXIS_ACCC8E012345", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", stale=FALSE\r\n'
+                "Server: GStreamer RTSP server\r\n "
+                "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n"
+            ),
             # DESCRIBE with digest authentication
-            "RTSP/1.0 200 OK\r\n"
-            + "CSeq: 1\r\n"
-            + "Content-Type: application/sdp\r\n"
-            + "Content-Base: rtsp://127.0.0.1/axis-media/media.amp/\r\n"
-            + "Server: GStreamer RTSP server\r\n"
-            + "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n"
-            + "Content-Length: 440\r\n\r\n"
-            + "v=0\r\n"
-            + "o=- 18302136002250915122 1 IN IP4 host\r\n"
-            + "s=Session streamed with GStreamer\r\n"
-            + "i=rtsp-server\r\n"
-            + "t=0 0\r\n"
-            + "a=tool:GStreamer\r\n"
-            + "a=type:broadcast\r\n"
-            + "a=range:npt=now-\r\n"
-            + "a=control:rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on\r\n"
-            + "m=application 0 RTP/AVP 98\r\n"
-            + "c=IN IP4 0.0.0.0\r\n"
-            + "a=rtpmap:98 vnd.onvif.metadata/90000\r\n"
-            + "a=ts-refclk:local\r\n"
-            + "a=mediaclk:sender\r\n"
-            + "a=control:rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on\r\n",
+            (
+                "RTSP/1.0 200 OK\r\n"
+                "CSeq: 1\r\n"
+                "Content-Type: application/sdp\r\n"
+                "Content-Base: rtsp://127.0.0.1/axis-media/media.amp/\r\n"
+                "Server: GStreamer RTSP server\r\n"
+                "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n"
+                "Content-Length: 440\r\n\r\n"
+                "v=0\r\n"
+                "o=- 18302136002250915122 1 IN IP4 host\r\n"
+                "s=Session streamed with GStreamer\r\n"
+                "i=rtsp-server\r\n"
+                "t=0 0\r\n"
+                "a=tool:GStreamer\r\n"
+                "a=type:broadcast\r\n"
+                "a=range:npt=now-\r\n"
+                "a=control:rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on\r\n"
+                "m=application 0 RTP/AVP 98\r\n"
+                "c=IN IP4 0.0.0.0\r\n"
+                "a=rtpmap:98 vnd.onvif.metadata/90000\r\n"
+                "a=ts-refclk:local\r\n"
+                "a=mediaclk:sender\r\n"
+                "a=control:rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on\r\n"
+            ),
             # SETUP requires to know the rtp and rtcp ports which are not yet known
             # "RTSP/1.0 200 OK\r\n"
-            # + "CSeq: 2\r\n"
-            # + 'Transport: RTP/AVP;unicast;client_port=45678-45679;server_port=50000-50001;ssrc=315460DA;mode="PLAY"\r\n'
-            # + "Server: GStreamer RTSP server\r\n"
-            # + "Session: ghLlkf_I9pCBP24t;timeout=60\r\n"
-            # + "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n",
+            # "CSeq: 2\r\n"
+            # 'Transport: RTP/AVP;unicast;client_port=45678-45679;server_port=50000-50001;ssrc=315460DA;mode="PLAY"\r\n'
+            # "Server: GStreamer RTSP server\r\n"
+            # "Session: ghLlkf_I9pCBP24t;timeout=60\r\n"
+            # "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n",
             # PLAY
-            "RTSP/1.0 200 OK\r\n"
-            + "CSeq: 3\r\n"
-            + "RTP-Info: url=rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on;seq=13114;rtptime=3803548519\r\n"
-            + "Range: npt=now-\r\n"
-            + "Server: GStreamer RTSP server\r\n"
-            + "Session: ghLlkf_I9pCBP24t;timeout=60\r\n"
-            + "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n",
+            (
+                "RTSP/1.0 200 OK\r\n"
+                "CSeq: 3\r\n"
+                "RTP-Info: url=rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on;seq=13114;rtptime=3803548519\r\n"
+                "Range: npt=now-\r\n"
+                "Server: GStreamer RTSP server\r\n"
+                "Session: ghLlkf_I9pCBP24t;timeout=60\r\n"
+                "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n"
+            ),
         ]
     )
 
@@ -136,9 +144,9 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     # OPTIONS ask server to show what options it supports
     assert rtsp_server.last_request == (
         "OPTIONS "
-        + "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        + "CSeq: 0\r\n"
-        + "User-Agent: HASS Axis\r\n\r\n"
+        "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+        "CSeq: 0\r\n"
+        "User-Agent: HASS Axis\r\n\r\n"
     )
     rtsp_server.step_response()
     await rtsp_server.next_request_received.wait()
@@ -179,10 +187,10 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     # DESCRIBE ask server what it provides
     assert rtsp_server.last_request == (
         "DESCRIBE "
-        + "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        + "CSeq: 1\r\n"
-        + "User-Agent: HASS Axis\r\n"
-        + "Accept: application/sdp\r\n\r\n"
+        "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+        "CSeq: 1\r\n"
+        "User-Agent: HASS Axis\r\n"
+        "Accept: application/sdp\r\n\r\n"
     )
     rtsp_server.step_response()
     await rtsp_server.next_request_received.wait()
@@ -212,11 +220,11 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     # DESCRIBE with digest authentication
     assert rtsp_server.last_request == (
         "DESCRIBE "
-        + "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        + "CSeq: 1\r\n"
-        + 'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="909e6c215f6b0f350147a81ae3980018"\r\n'
-        + "User-Agent: HASS Axis\r\n"
-        + "Accept: application/sdp\r\n\r\n"
+        "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+        "CSeq: 1\r\n"
+        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="909e6c215f6b0f350147a81ae3980018"\r\n'
+        "User-Agent: HASS Axis\r\n"
+        "Accept: application/sdp\r\n\r\n"
     )
     rtsp_server.step_response()
     await rtsp_server.next_request_received.wait()
@@ -266,19 +274,19 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     # SETUP setup rtp connection to server
     assert rtsp_server.last_request == (
         "SETUP "
-        + "rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on RTSP/1.0\r\n"
-        + "CSeq: 2\r\n"
-        + 'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="3c4d88afefd4ab931f6db658326d60c2"\r\n'
-        + "User-Agent: HASS Axis\r\n"
-        + f"Transport: RTP/AVP;unicast;client_port={rtp_port}-{rtcp_port}\r\n\r\n"
+        "rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on RTSP/1.0\r\n"
+        "CSeq: 2\r\n"
+        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="3c4d88afefd4ab931f6db658326d60c2"\r\n'
+        "User-Agent: HASS Axis\r\n"
+        f"Transport: RTP/AVP;unicast;client_port={rtp_port}-{rtcp_port}\r\n\r\n"
     )
     rtsp_server.send_response(
         "RTSP/1.0 200 OK\r\n"
-        + "CSeq: 2\r\n"
-        + f'Transport: RTP/AVP;unicast;client_port={rtp_port}-{rtcp_port};server_port=50000-50001;ssrc=315460DA;mode="PLAY"\r\n'
-        + "Server: GStreamer RTSP server\r\n"
-        + "Session: ghLlkf_I9pCBP24t;timeout=60\r\n"
-        + "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n",
+        "CSeq: 2\r\n"
+        f'Transport: RTP/AVP;unicast;client_port={rtp_port}-{rtcp_port};server_port=50000-50001;ssrc=315460DA;mode="PLAY"\r\n'
+        "Server: GStreamer RTSP server\r\n"
+        "Session: ghLlkf_I9pCBP24t;timeout=60\r\n"
+        "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n",
     )
     await rtsp_server.next_request_received.wait()
     assert rtsp_client.session.sequence == 3
@@ -330,11 +338,11 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     # PLAY start stream
     assert rtsp_server.last_request == (
         "PLAY "
-        + "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        + "CSeq: 3\r\n"
-        + 'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="1c882325f7733b0d48d177ee8a0e6b2a"\r\n'
-        + "User-Agent: HASS Axis\r\n"
-        + "Session: ghLlkf_I9pCBP24t\r\n\r\n"
+        "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+        "CSeq: 3\r\n"
+        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="1c882325f7733b0d48d177ee8a0e6b2a"\r\n'
+        "User-Agent: HASS Axis\r\n"
+        "Session: ghLlkf_I9pCBP24t\r\n\r\n"
     )
     with patch.object(rtsp_client, "callback") as mock_callback:
         rtsp_server.step_response()
@@ -425,19 +433,19 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     await rtsp_server.next_request_received.wait()
     assert rtsp_server.last_request == (
         "OPTIONS "
-        + "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        + "CSeq: 4\r\n"
-        + "User-Agent: HASS Axis\r\n"
-        + "Session: ghLlkf_I9pCBP24t\r\n\r\n"
+        "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+        "CSeq: 4\r\n"
+        "User-Agent: HASS Axis\r\n"
+        "Session: ghLlkf_I9pCBP24t\r\n\r\n"
     )
     with patch.object(rtsp_client, "callback") as mock_callback:
         rtsp_server.send_response(
             "RTSP/1.0 200 OK\r\n"
-            + "CSeq: 4\r\n"
-            + "Public: OPTIONS, DESCRIBE, ANNOUNCE, GET_PARAMETER, PAUSE, PLAY, RECORD, SETUP, SET_PARAMETER, TEARDOWN\r\n"
-            + "Server: GStreamer RTSP server\r\n"
-            + "Session: ghLlkf_I9pCBP24t;timeout=30\r\n"
-            + "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n"
+            "CSeq: 4\r\n"
+            "Public: OPTIONS, DESCRIBE, ANNOUNCE, GET_PARAMETER, PAUSE, PLAY, RECORD, SETUP, SET_PARAMETER, TEARDOWN\r\n"
+            "Server: GStreamer RTSP server\r\n"
+            "Session: ghLlkf_I9pCBP24t;timeout=30\r\n"
+            "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n\r\n"
         )
         # We don't expect additional requests as RTSP handshake is complete
         # but we still need to wait for rtsp client to process response before continuing
@@ -456,11 +464,11 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     await rtsp_server.next_request_received.wait()
     assert rtsp_server.last_request == (
         "TEARDOWN "
-        + "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        + "CSeq: 5\r\n"
-        + 'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="2417a81b93d5ae64926d226e18a5ab99"\r\n'
-        + "User-Agent: HASS Axis\r\n"
-        + "Session: ghLlkf_I9pCBP24t\r\n\r\n"
+        "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+        "CSeq: 5\r\n"
+        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="2417a81b93d5ae64926d226e18a5ab99"\r\n'
+        "User-Agent: HASS Axis\r\n"
+        "Session: ghLlkf_I9pCBP24t\r\n\r\n"
     )
 
 
@@ -630,14 +638,13 @@ def test_session_generate_digest_auth(rtsp_client):
 
     digest_auth = session.generate_digest()
     assert (
-        digest_auth
-        == "Digest "
-        + 'username="root", '
-        + 'realm="AXIS_ACCC8E012345", '
-        + 'algorithm="MD5", '
-        + 'nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", '
-        + 'uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", '
-        + 'response="359495f9e42106627750e3cd65145f6b"'
+        digest_auth == "Digest "
+        'username="root", '
+        'realm="AXIS_ACCC8E012345", '
+        'algorithm="MD5", '
+        'nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", '
+        'uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", '
+        'response="359495f9e42106627750e3cd65145f6b"'
     )
 
 
