@@ -143,7 +143,6 @@ lint.ignore = [
     "D203",  # 1 blank line required before class docstring
     "D213",  # Multi-line docstring summary should start at the second line
     "E501",  # Checks for lines that exceed the specified maximum character length
-    "PLR0911",  # Too many return statements
     "PLR0912",  # Maximum number of branches allowed for a function or method body
     "PLR0913",  # Too many arguments to function call ({c_args} > {max_args})
     "PLR0915",  # Too many statements ({statements} > {max_statements})
