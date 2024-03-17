@@ -235,13 +235,13 @@ class PtzSupport:
     auto_ir_cut_filter: bool
     auto_iris: bool
     auxiliary: bool
-    backLight: bool
+    back_light: bool
     continuous_brightness: bool
     continuous_focus: bool
     continuous_iris: bool
     continuous_pan: bool
     continuous_tilt: bool
-    continuousZoom: bool
+    continuous_zoom: bool
     device_preset: bool
     digital_zoom: bool
     generic_http: bool
@@ -275,13 +275,13 @@ class PtzSupport:
             auto_ir_cut_filter=data["AutoIrCutFilter"],
             auto_iris=data["AutoIris"],
             auxiliary=data["Auxiliary"],
-            backLight=data["BackLight"],
+            back_light=data["BackLight"],
             continuous_brightness=data["ContinuousBrightness"],
             continuous_focus=data["ContinuousFocus"],
             continuous_iris=data["ContinuousIris"],
             continuous_pan=data["ContinuousPan"],
             continuous_tilt=data["ContinuousTilt"],
-            continuousZoom=data["ContinuousZoom"],
+            continuous_zoom=data["ContinuousZoom"],
             device_preset=data["DevicePreset"],
             digital_zoom=data["DigitalZoom"],
             generic_http=data["GenericHTTP"],

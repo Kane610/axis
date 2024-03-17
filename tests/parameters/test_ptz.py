@@ -1649,13 +1649,13 @@ async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
     assert support.auto_ir_cut_filter
     assert support.auto_iris
     assert support.auxiliary
-    assert support.backLight
+    assert support.back_light
     assert support.continuous_brightness is False
     assert support.continuous_focus
     assert support.continuous_iris is False
     assert support.continuous_pan
     assert support.continuous_tilt
-    assert support.continuousZoom
+    assert support.continuous_zoom
     assert support.device_preset is False
     assert support.digital_zoom
     assert support.generic_http is False
