@@ -76,7 +76,6 @@ async def main(
 
     except asyncio.CancelledError:
         device.stream.stop()
-        pass
 
     finally:
         await device.config.session.aclose()
