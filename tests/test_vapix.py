@@ -7,7 +7,13 @@ import httpx
 import pytest
 
 from axis.device import AxisDevice
-from axis.errors import MethodNotAllowed, PathNotFound, RequestError, Unauthorized
+from axis.errors import (
+    Forbidden,
+    MethodNotAllowed,
+    PathNotFound,
+    RequestError,
+    Unauthorized,
+)
 from axis.vapix.models.applications.application import ApplicationStatus
 from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
 from axis.vapix.models.stream_profile import StreamProfile
@@ -286,7 +292,8 @@ async def test_initialize_applications(respx_mock, vapix: Vapix):
     assert len(vapix.vmd4.values()) == 1
 
 
-async def test_initialize_applications_unauthorized(respx_mock, vapix: Vapix):
+@pytest.mark.parametrize("code", [401, 403])
+async def test_initialize_applications_unauthorized(respx_mock, vapix: Vapix, code):
     """Verify initialize applications doesnt break on too low credentials."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
         text=PARAM_CGI_RESPONSE,
@@ -295,7 +302,7 @@ async def test_initialize_applications_unauthorized(respx_mock, vapix: Vapix):
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
     )
-    respx_mock.post("/axis-cgi/applications/list.cgi").respond(status_code=401)
+    respx_mock.post("/axis-cgi/applications/list.cgi").respond(status_code=code)
 
     await vapix.initialize_param_cgi()
     await vapix.initialize_applications()
@@ -431,7 +438,12 @@ async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix)
 
 @pytest.mark.parametrize(
     ("code", "error"),
-    ((401, Unauthorized), (404, PathNotFound), (405, MethodNotAllowed)),
+    (
+        (401, Unauthorized),
+        (403, Forbidden),
+        (404, PathNotFound),
+        (405, MethodNotAllowed),
+    ),
 )
 async def test_request_raises(respx_mock, vapix: Vapix, code, error):
     """Verify that a HTTP error raises the appropriate exception."""

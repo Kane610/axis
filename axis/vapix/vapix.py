@@ -205,9 +205,8 @@ class Vapix:
 
     async def initialize_applications(self) -> None:
         """Load data for applications on device."""
-        if not self.applications.supported:
+        if not self.applications.supported or not await self.applications.update():
             return
-        await self.applications.update()
 
         apps: tuple[ApiHandler[Any], ...] = (
             self.fence_guard,

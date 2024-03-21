@@ -11,7 +11,7 @@ from collections.abc import (
 )
 from typing import TYPE_CHECKING, Generic, final
 
-from ...errors import PathNotFound, Unauthorized
+from ...errors import Forbidden, PathNotFound, Unauthorized
 
 if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
@@ -125,6 +125,8 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         try:
             obj_ids = await self._update()
         except Unauthorized:  # Probably a viewer account
+            return False
+        except Forbidden:  # Invalid permissions
             return False
         except PathNotFound:  # Device doesn't support the endpoint
             return False
