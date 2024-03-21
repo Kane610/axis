@@ -438,12 +438,12 @@ async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix)
 
 @pytest.mark.parametrize(
     ("code", "error"),
-    (
+    [
         (401, Unauthorized),
         (403, Forbidden),
         (404, PathNotFound),
         (405, MethodNotAllowed),
-    ),
+    ],
 )
 async def test_request_raises(respx_mock, vapix: Vapix, code, error):
     """Verify that a HTTP error raises the appropriate exception."""
@@ -454,7 +454,7 @@ async def test_request_raises(respx_mock, vapix: Vapix, code, error):
 
 
 @pytest.mark.parametrize(
-    "side_effect", (httpx.TimeoutException, httpx.TransportError, httpx.RequestError)
+    "side_effect", [httpx.TimeoutException, httpx.TransportError, httpx.RequestError]
 )
 async def test_request_side_effects(respx_mock, vapix: Vapix, side_effect):
     """Test request side effects."""
