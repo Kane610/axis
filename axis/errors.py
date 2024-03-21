@@ -20,6 +20,10 @@ class Unauthorized(AxisException):
     """Username is not authorized."""
 
 
+class Forbidden(AxisException):
+    """Endpoint is not accessible due to low permissions."""
+
+
 class LoginRequired(AxisException):
     """User is logged out."""
 
@@ -32,11 +36,7 @@ class PathNotFound(AxisException):
     """Path not found."""
 
 
-class NoPermission(AxisException):
-    """Users permissions are not high enough."""
-
-
-ERRORS = {401: Unauthorized, 404: PathNotFound, 405: MethodNotAllowed}
+ERRORS = {401: Unauthorized, 403: Forbidden, 404: PathNotFound, 405: MethodNotAllowed}
 
 
 def raise_error(error: int) -> None:

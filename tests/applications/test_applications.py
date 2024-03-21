@@ -166,8 +166,10 @@ async def test_update_multiple_applications(
     assert app.version == "2.2-6"
 
 
-async def test_app_2(respx_mock, applications: ApplicationsHandler):
-    """Test update applicatios call."""
+async def test_responses_with_with_limitations(
+    respx_mock, applications: ApplicationsHandler
+):
+    """Test update applications call."""
     respx_mock.post("/axis-cgi/applications/list.cgi").respond(
         text=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
