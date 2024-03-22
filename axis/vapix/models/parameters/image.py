@@ -125,7 +125,7 @@ class ImageParam(ParamItem):
 
     enabled: str
     name: str
-    source: str
+    source: str | None
     appearance: ImageAppearanceParamT
     mpeg: ImageMpegParamT | None
     overlay: ImageOverlayParamT | None
@@ -141,9 +141,9 @@ class ImageParam(ParamItem):
         id, raw = data
         return cls(
             id=id,
-            enabled=raw["Enabled"],
+            enabled=raw.get("Enabled", "yes"),
             name=raw["Name"],
-            source=raw["Source"],
+            source=raw.get("Source"),
             appearance=raw["Appearance"],
             mpeg=raw.get("MPEG"),
             overlay=raw.get("Overlay"),

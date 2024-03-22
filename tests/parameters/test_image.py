@@ -210,6 +210,15 @@ root.Image.I1.Stream.Duration=0
 """
 
 
+IMAGE_MINIMAL_RESPONSE = """root.Image.I0.Name=
+root.Image.I0.Appearance.Resolution=4CIF
+root.Image.I0.Appearance.Rotation=0
+root.Image.I0.Appearance.MirrorEnabled=no
+root.Image.I0.Appearance.SquarePixelEnabled=no
+root.Image.I0.Stream.Duration=0
+"""
+
+
 @pytest.fixture
 def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
     """Return the param cgi mock object."""
@@ -358,7 +367,11 @@ async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
 
 @pytest.mark.parametrize(
     ("image_response"),
-    [IMAGE_RESPONSE2, IMAGE_RESPONSE_MISSING_MPEG_KEY],
+    [
+        IMAGE_RESPONSE2,
+        IMAGE_RESPONSE_MISSING_MPEG_KEY,
+        IMAGE_MINIMAL_RESPONSE,
+    ],
 )
 async def test_limited_image_data(
     respx_mock, image_handler: ImageParameterHandler, image_response
