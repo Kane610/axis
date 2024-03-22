@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name        = "axis"
-version     = "57"
+version     = "58"
 license     = {text = "MIT"}
 description = "A Python library for communicating with devices from Axis Communications"
 readme      = "README.md"
