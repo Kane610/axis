@@ -110,7 +110,7 @@ class ImageParamT(TypedDict):
     Name: str
     Source: str
     Appearance: ImageAppearanceParamT
-    MPEG: ImageMpegParamT
+    MPEG: NotRequired[ImageMpegParamT]
     Overlay: NotRequired[ImageOverlayParamT]
     RateControl: NotRequired[ImageRateControlParamT]
     SizeControl: NotRequired[ImageSizeControlParamT]
@@ -127,7 +127,7 @@ class ImageParam(ParamItem):
     name: str
     source: str
     appearance: ImageAppearanceParamT
-    mpeg: ImageMpegParamT
+    mpeg: ImageMpegParamT | None
     overlay: ImageOverlayParamT | None
     rate_control: ImageRateControlParamT | None
     size_control: ImageSizeControlParamT | None
@@ -145,7 +145,7 @@ class ImageParam(ParamItem):
             name=raw["Name"],
             source=raw["Source"],
             appearance=raw["Appearance"],
-            mpeg=raw["MPEG"],
+            mpeg=raw.get("MPEG"),
             overlay=raw.get("Overlay"),
             rate_control=raw.get("RateControl"),
             size_control=raw.get("SizeControl"),
