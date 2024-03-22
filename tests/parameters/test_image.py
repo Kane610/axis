@@ -192,6 +192,23 @@ root.Image.I7.MPEG.SignedVideo.Enabled=no
 root.Image.I7.Stream.Duration=0
 """
 
+IMAGE_RESPONSE_MISSING_MPEG_KEY = """root.Image.NbrOfConfigs=2
+root.Image.I0.Enabled=yes
+root.Image.I0.Name=View Area 1
+root.Image.I0.Source=0
+root.Image.I0.Appearance.MirrorEnabled=no
+root.Image.I0.Appearance.Resolution=1920x1080
+root.Image.I0.Appearance.Rotation=90
+root.Image.I0.Stream.Duration=0
+root.Image.I1.Enabled=no
+root.Image.I1.Name=View Area 2
+root.Image.I1.Source=0
+root.Image.I1.Appearance.MirrorEnabled=no
+root.Image.I1.Appearance.Resolution=1920x1080
+root.Image.I1.Appearance.Rotation=90
+root.Image.I1.Stream.Duration=0
+"""
+
 
 @pytest.fixture
 def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
@@ -341,11 +358,9 @@ async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
 
 @pytest.mark.parametrize(
     ("image_response"),
-    [
-        IMAGE_RESPONSE2,
-    ],
+    [IMAGE_RESPONSE2, IMAGE_RESPONSE_MISSING_MPEG_KEY],
 )
-async def test_image_5_51(
+async def test_limited_image_data(
     respx_mock, image_handler: ImageParameterHandler, image_response
 ):
     """Verify that update image works.
