@@ -5,8 +5,8 @@ from unittest.mock import patch
 import pytest
 
 from axis.device import AxisDevice
+from axis.interfaces.parameters.param_cgi import Params
 from axis.models.parameters.param_cgi import ParameterGroup, ParamRequest
-from axis.vapix.interfaces.parameters.param_cgi import Params
 
 
 @pytest.fixture

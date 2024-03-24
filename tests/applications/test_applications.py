@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.applications.applications tests/appl
 
 import pytest
 
-from axis.vapix.interfaces.applications import ApplicationsHandler
+from axis.interfaces.applications import ApplicationsHandler
 
 
 @pytest.fixture

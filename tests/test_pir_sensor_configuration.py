@@ -1,6 +1,6 @@
 """Test Axis PIR sensor configuration API.
 
-pytest --cov-report term-missing --cov=axis.vapix.interfaces.pir_sensor_configuration tests/test_pir_sensor_configuration.py
+pytest --cov-report term-missing --cov=axis.interfaces.pir_sensor_configuration tests/test_pir_sensor_configuration.py
 """
 
 import json
@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
+from axis.interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 
 
 @pytest.fixture

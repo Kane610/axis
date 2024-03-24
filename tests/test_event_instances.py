@@ -5,8 +5,8 @@ pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_ins
 
 import pytest
 
+from axis.interfaces.event_instances import EventInstanceHandler
 from axis.models.event_instance import get_events
-from axis.vapix.interfaces.event_instances import EventInstanceHandler
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,

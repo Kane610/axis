@@ -3,7 +3,7 @@
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.parameters.image import ImageParameterHandler
+from axis.interfaces.parameters.image import ImageParameterHandler
 
 IMAGE_RESPONSE = """root.Image.DateFormat=YYYY-MM-DD
 root.Image.MaxViewers=20

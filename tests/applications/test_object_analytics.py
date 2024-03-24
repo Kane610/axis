@@ -7,10 +7,10 @@ import json
 
 import pytest
 
-from axis.models.applications.object_analytics import ScenarioType
-from axis.vapix.interfaces.applications.object_analytics import (
+from axis.interfaces.applications.object_analytics import (
     ObjectAnalyticsHandler,
 )
+from axis.models.applications.object_analytics import ScenarioType
 
 
 @pytest.fixture

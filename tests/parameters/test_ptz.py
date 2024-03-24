@@ -3,7 +3,7 @@
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.parameters.ptz import PtzParameterHandler
+from axis.interfaces.parameters.ptz import PtzParameterHandler
 
 PTZ_RESPONSE = """root.PTZ.BoaProtPTZOperator=password
 root.PTZ.CameraDefault=1

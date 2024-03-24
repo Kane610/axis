@@ -1,4 +1,4 @@
 """Tests for parameters.
 
-pytest --cov=axis.vapix.interfaces.parameters --cov=axis.vapix.parameters tests/parameters/
+pytest --cov=axis.interfaces.parameters --cov=axis.parameters tests/parameters/
 """
