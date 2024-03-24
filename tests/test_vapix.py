@@ -14,10 +14,10 @@ from axis.errors import (
     RequestError,
     Unauthorized,
 )
+from axis.interfaces.vapix import Vapix
 from axis.models.applications.application import ApplicationStatus
 from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.models.stream_profile import StreamProfile
-from axis.vapix.vapix import Vapix
 
 from .applications.test_applications import (
     LIST_APPLICATIONS_RESPONSE as APPLICATIONS_RESPONSE,

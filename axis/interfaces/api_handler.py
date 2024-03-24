@@ -15,7 +15,7 @@ from ..errors import Forbidden, PathNotFound, Unauthorized
 
 if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
-    from ..vapix.vapix import Vapix
+    from .vapix import Vapix
 
 from ..models.api import ApiItemT
 

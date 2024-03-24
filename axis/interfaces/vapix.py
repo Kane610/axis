@@ -7,36 +7,36 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..errors import RequestError, raise_error
-from ..interfaces.api_discovery import ApiDiscoveryHandler
-from ..interfaces.api_handler import ApiHandler
-from ..interfaces.applications import (
-    ApplicationsHandler,
-)
-from ..interfaces.applications.fence_guard import FenceGuardHandler
-from ..interfaces.applications.loitering_guard import (
-    LoiteringGuardHandler,
-)
-from ..interfaces.applications.motion_guard import MotionGuardHandler
-from ..interfaces.applications.object_analytics import (
-    ObjectAnalyticsHandler,
-)
-from ..interfaces.applications.vmd4 import Vmd4Handler
-from ..interfaces.basic_device_info import BasicDeviceInfoHandler
-from ..interfaces.event_instances import EventInstanceHandler
-from ..interfaces.light_control import LightHandler
-from ..interfaces.mqtt import MqttClientHandler
-from ..interfaces.parameters.param_cgi import Params
-from ..interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
-from ..interfaces.port_cgi import Ports
-from ..interfaces.port_management import IoPortManagement
-from ..interfaces.ptz import PtzControl
-from ..interfaces.pwdgrp_cgi import Users
-from ..interfaces.stream_profiles import StreamProfilesHandler
-from ..interfaces.user_groups import UserGroups
-from ..interfaces.view_areas import ViewAreaHandler
 from ..models.api import ApiRequest
 from ..models.pwdgrp_cgi import SecondaryGroup
 from ..models.stream_profile import StreamProfile
+from .api_discovery import ApiDiscoveryHandler
+from .api_handler import ApiHandler
+from .applications import (
+    ApplicationsHandler,
+)
+from .applications.fence_guard import FenceGuardHandler
+from .applications.loitering_guard import (
+    LoiteringGuardHandler,
+)
+from .applications.motion_guard import MotionGuardHandler
+from .applications.object_analytics import (
+    ObjectAnalyticsHandler,
+)
+from .applications.vmd4 import Vmd4Handler
+from .basic_device_info import BasicDeviceInfoHandler
+from .event_instances import EventInstanceHandler
+from .light_control import LightHandler
+from .mqtt import MqttClientHandler
+from .parameters.param_cgi import Params
+from .pir_sensor_configuration import PirSensorConfigurationHandler
+from .port_cgi import Ports
+from .port_management import IoPortManagement
+from .ptz import PtzControl
+from .pwdgrp_cgi import Users
+from .stream_profiles import StreamProfilesHandler
+from .user_groups import UserGroups
+from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
