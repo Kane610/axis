@@ -13,8 +13,8 @@ sgrp: Colon separated existing secondary group names of the account.
 comment: The comment field of the account.
 """
 
-from ..models.api_discovery import ApiId
-from ..models.pwdgrp_cgi import (
+from ...models.api_discovery import ApiId
+from ...models.pwdgrp_cgi import (
     CreateUserRequest,
     DeleteUserRequest,
     GetUsersRequest,

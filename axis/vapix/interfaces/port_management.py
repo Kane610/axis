@@ -4,8 +4,8 @@ The I/O port management API makes it possible to retrieve
 information about the ports and apply product dependent configurations
 """
 
-from ..models.api_discovery import ApiId
-from ..models.port_management import (
+from ...models.api_discovery import ApiId
+from ...models.port_management import (
     API_VERSION,
     GetPortsRequest,
     GetPortsResponse,

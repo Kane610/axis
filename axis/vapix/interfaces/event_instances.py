@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from ..models.event_instance import (
+from ...models.event_instance import (
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )

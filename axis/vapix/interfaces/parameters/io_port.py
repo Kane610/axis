@@ -1,7 +1,7 @@
 """I/O port parameters."""
 
-from ...models.parameters.io_port import IOPortParam
-from ...models.parameters.param_cgi import ParameterGroup
+from ....models.parameters.io_port import IOPortParam
+from ....models.parameters.param_cgi import ParameterGroup
 from .param_handler import ParamHandler
 
 

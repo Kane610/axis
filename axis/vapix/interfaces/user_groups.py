@@ -3,8 +3,8 @@
 Figure out what access rights an account has.
 """
 
-from ..models.pwdgrp_cgi import User
-from ..models.user_group import GetUserGroupRequest, GetUserGroupResponse
+from ...models.pwdgrp_cgi import User
+from ...models.user_group import GetUserGroupRequest, GetUserGroupResponse
 from .api_handler import ApiHandler
 
 

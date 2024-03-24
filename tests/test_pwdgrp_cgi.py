@@ -4,8 +4,8 @@ import urllib
 
 import pytest
 
+from axis.models.pwdgrp_cgi import SecondaryGroup, User
 from axis.vapix.interfaces.pwdgrp_cgi import Users
-from axis.vapix.models.pwdgrp_cgi import SecondaryGroup, User
 
 
 @pytest.fixture

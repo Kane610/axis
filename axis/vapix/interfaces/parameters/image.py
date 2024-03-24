@@ -1,7 +1,7 @@
 """Image parameters."""
 
-from ...models.parameters.image import ImageParam
-from ...models.parameters.param_cgi import ParameterGroup
+from ....models.parameters.image import ImageParam
+from ....models.parameters.param_cgi import ParameterGroup
 from .param_handler import ParamHandler
 
 

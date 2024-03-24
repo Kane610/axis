@@ -5,8 +5,8 @@ from urllib.parse import urlencode
 import pytest
 
 from axis.device import AxisDevice
+from axis.models.ptz_cgi import PtzMove, PtzQuery, PtzRotation, PtzState
 from axis.vapix.interfaces.ptz import PtzControl
-from axis.vapix.models.ptz_cgi import PtzMove, PtzQuery, PtzRotation, PtzState
 
 from .parameters.test_ptz import PTZ_RESPONSE
 

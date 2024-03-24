@@ -3,8 +3,8 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from ...models.api_discovery import ApiId
-from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
+from ....models.api_discovery import ApiId
+from ....models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
 from ..api_handler import ApiHandler
 from .brand import BrandParameterHandler
 from .image import ImageParameterHandler

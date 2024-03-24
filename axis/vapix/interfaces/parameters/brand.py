@@ -1,7 +1,7 @@
 """Brand parameters."""
 
-from ...models.parameters.brand import BrandParam
-from ...models.parameters.param_cgi import ParameterGroup
+from ....models.parameters.brand import BrandParam
+from ....models.parameters.param_cgi import ParameterGroup
 from .param_handler import ParamHandler
 
 

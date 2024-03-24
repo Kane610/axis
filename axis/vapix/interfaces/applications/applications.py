@@ -6,7 +6,7 @@ and their license keys.
 
 from packaging import version
 
-from ...models.applications.application import (
+from ....models.applications.application import (
     Application,
     ListApplicationsRequest,
     ListApplicationsResponse,

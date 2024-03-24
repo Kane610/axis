@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..errors import RequestError, raise_error
+from ..models.api import ApiRequest
+from ..models.pwdgrp_cgi import SecondaryGroup
+from ..models.stream_profile import StreamProfile
 from .interfaces.api_discovery import ApiDiscoveryHandler
 from .interfaces.api_handler import ApiHandler
 from .interfaces.applications import (
@@ -34,9 +37,6 @@ from .interfaces.pwdgrp_cgi import Users
 from .interfaces.stream_profiles import StreamProfilesHandler
 from .interfaces.user_groups import UserGroups
 from .interfaces.view_areas import ViewAreaHandler
-from .models.api import ApiRequest
-from .models.pwdgrp_cgi import SecondaryGroup
-from .models.stream_profile import StreamProfile
 
 if TYPE_CHECKING:
     from ..device import AxisDevice

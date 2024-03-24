@@ -1,7 +1,7 @@
 """Property parameters."""
 
-from ...models.parameters.param_cgi import ParameterGroup
-from ...models.parameters.properties import PropertyParam
+from ....models.parameters.param_cgi import ParameterGroup
+from ....models.parameters.properties import PropertyParam
 from .param_handler import ParamHandler
 
 

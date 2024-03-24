@@ -5,8 +5,8 @@ pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 
 import pytest
 
+from axis.models.parameters.io_port import PortAction, PortDirection
 from axis.vapix.interfaces.port_cgi import Ports
-from axis.vapix.models.parameters.io_port import PortAction, PortDirection
 
 from .conftest import HOST
 

@@ -6,8 +6,8 @@ when it detects a moving object, such as a person or vehicle, crossing a user-de
 virtual line.
 """
 
-from ...models.applications.application import ApplicationName
-from ...models.applications.fence_guard import (
+from ....models.applications.application import ApplicationName
+from ....models.applications.fence_guard import (
     Configuration,
     GetConfigurationRequest,
     GetConfigurationResponse,

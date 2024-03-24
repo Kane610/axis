@@ -5,8 +5,8 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
-from ..models.parameters.ptz import PtzParam
-from ..models.ptz_cgi import (
+from ...models.parameters.ptz import PtzParam
+from ...models.ptz_cgi import (
     DeviceDriverRequest,
     PtzCommandRequest,
     PtzControlRequest,

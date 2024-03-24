@@ -4,8 +4,8 @@ The PIR sensor configuration API helps you list and configure
 the sensitivity of the PIR (passive infrared) sensors on your Axis device.
 """
 
-from ..models.api_discovery import ApiId
-from ..models.pir_sensor_configuration import (
+from ...models.api_discovery import ApiId
+from ...models.pir_sensor_configuration import (
     API_VERSION,
     GetSensitivityRequest,
     GetSensitivityResponse,

@@ -5,8 +5,8 @@ AXIS Basic device information API can be used to retrieve
 This information is used to identify basic properties of the product.
 """
 
-from ..models.api_discovery import ApiId
-from ..models.basic_device_info import (
+from ...models.api_discovery import ApiId
+from ...models.basic_device_info import (
     API_VERSION,
     DeviceInformation,
     GetAllPropertiesRequest,

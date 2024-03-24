@@ -3,8 +3,8 @@
 AXIS Object Analytics.
 """
 
-from ...models.applications.application import ApplicationName
-from ...models.applications.object_analytics import (
+from ....models.applications.application import ApplicationName
+from ....models.applications.object_analytics import (
     Configuration,
     GetConfigurationRequest,
     GetConfigurationResponse,

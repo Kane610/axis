@@ -3,8 +3,8 @@
 import pytest
 
 from axis.device import AxisDevice
+from axis.models.parameters.io_port import PortAction, PortDirection
 from axis.vapix.interfaces.parameters.io_port import IOPortParameterHandler
-from axis.vapix.models.parameters.io_port import PortAction, PortDirection
 
 PORT_RESPONSE = """root.IOPort.I0.Configurable=no
 root.IOPort.I0.Direction=input

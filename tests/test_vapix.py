@@ -14,9 +14,9 @@ from axis.errors import (
     RequestError,
     Unauthorized,
 )
-from axis.vapix.models.applications.application import ApplicationStatus
-from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
-from axis.vapix.models.stream_profile import StreamProfile
+from axis.models.applications.application import ApplicationStatus
+from axis.models.pwdgrp_cgi import SecondaryGroup
+from axis.models.stream_profile import StreamProfile
 from axis.vapix.vapix import Vapix
 
 from .applications.test_applications import (

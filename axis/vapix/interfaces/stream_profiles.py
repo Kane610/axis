@@ -8,8 +8,8 @@ frame rates and compressions, and should be used to retrieve a video stream from
 can be saved in a stream profile.
 """
 
-from ..models.api_discovery import ApiId
-from ..models.stream_profile import (
+from ...models.api_discovery import ApiId
+from ...models.stream_profile import (
     API_VERSION,
     GetSupportedVersionsRequest,
     GetSupportedVersionsResponse,

@@ -4,8 +4,8 @@ from typing import Any
 
 import orjson
 
-from ..models.api_discovery import ApiId
-from ..models.mqtt import (
+from ...models.api_discovery import ApiId
+from ...models.mqtt import (
     ActivateClientRequest,
     ClientConfig,
     ClientConfigStatus,

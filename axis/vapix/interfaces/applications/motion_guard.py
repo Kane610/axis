@@ -5,8 +5,8 @@ and triggers an alarm whenever an object, such as a person or vehicle,
 moves within predefined areas in a camera’s field of view.
 """
 
-from ...models.applications.application import ApplicationName
-from ...models.applications.motion_guard import (
+from ....models.applications.application import ApplicationName
+from ....models.applications.motion_guard import (
     Configuration,
     GetConfigurationRequest,
     GetConfigurationResponse,

@@ -1,7 +1,7 @@
 """VMD4 API."""
 
-from ...models.applications.application import ApplicationName
-from ...models.applications.vmd4 import (
+from ....models.applications.application import ApplicationName
+from ....models.applications.vmd4 import (
     Configuration,
     GetConfigurationRequest,
     GetConfigurationResponse,

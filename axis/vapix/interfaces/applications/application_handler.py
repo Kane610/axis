@@ -2,8 +2,8 @@
 
 from abc import abstractmethod
 
-from ...models.api import ApiItemT
-from ...models.applications.application import ApplicationName, ApplicationStatus
+from ....models.api import ApiItemT
+from ....models.applications.application import ApplicationName, ApplicationStatus
 from ..api_handler import ApiHandler
 
 

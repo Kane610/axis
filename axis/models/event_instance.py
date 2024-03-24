@@ -5,8 +5,8 @@ from typing import Any, Self
 
 import xmltodict
 
-from ...models.event import traverse
 from .api import ApiItem, ApiRequest, ApiResponse
+from .event import traverse
 
 EVENT_INSTANCE = (
     "http://www.w3.org/2003/05/soap-envelope:Envelope",

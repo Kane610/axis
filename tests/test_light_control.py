@@ -8,8 +8,8 @@ import json
 import pytest
 
 from axis.device import AxisDevice
+from axis.models.api_discovery import Api
 from axis.vapix.interfaces.light_control import LightHandler
-from axis.vapix.models.api_discovery import Api
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .param_cgi import Params
 
-from ...models.parameters.param_cgi import ParameterGroup, ParamItemT
+from ....models.parameters.param_cgi import ParameterGroup, ParamItemT
 from ..api_handler import ApiHandler
 
 

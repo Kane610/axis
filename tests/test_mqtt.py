@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from axis.device import AxisDevice
+from axis.models.mqtt import ClientConfig, Message, Server, ServerProtocol, Ssl
 from axis.vapix.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
-from axis.vapix.models.mqtt import ClientConfig, Message, Server, ServerProtocol, Ssl
 
 
 @pytest.fixture

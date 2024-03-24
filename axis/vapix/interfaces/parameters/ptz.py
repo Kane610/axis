@@ -1,7 +1,7 @@
 """PTZ parameters."""
 
-from ...models.parameters.param_cgi import ParameterGroup
-from ...models.parameters.ptz import PtzParam
+from ....models.parameters.param_cgi import ParameterGroup
+from ....models.parameters.ptz import PtzParam
 from .param_handler import ParamHandler
 
 

@@ -14,10 +14,10 @@ from typing import TYPE_CHECKING, Generic, final
 from ...errors import Forbidden, PathNotFound, Unauthorized
 
 if TYPE_CHECKING:
-    from ..models.api_discovery import ApiId
+    from ...models.api_discovery import ApiId
     from ..vapix import Vapix
 
-from ..models.api import ApiItemT
+from ...models.api import ApiItemT
 
 CallbackType = Callable[[str], None]
 SubscriptionType = CallbackType

@@ -4,7 +4,7 @@ The AXIS API Discovery service makes it possible to retrieve information
 about what APIs are supported per device.
 """
 
-from ..models.api_discovery import (
+from ...models.api_discovery import (
     API_VERSION,
     Api,
     ApiId,

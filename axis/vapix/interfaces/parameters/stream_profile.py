@@ -1,7 +1,7 @@
 """Stream profile parameters."""
 
-from ...models.parameters.param_cgi import ParameterGroup
-from ...models.parameters.stream_profile import StreamProfileParam
+from ....models.parameters.param_cgi import ParameterGroup
+from ....models.parameters.stream_profile import StreamProfileParam
 from .param_handler import ParamHandler
 
 
