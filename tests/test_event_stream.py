@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import pytest
 
 from axis.device import AxisDevice
-from axis.event_stream import EventManager
+from axis.interfaces.event_manager import EventManager
 from axis.models.event import Event, EventGroup, EventOperation, EventTopic
 
 from .event_fixtures import (
