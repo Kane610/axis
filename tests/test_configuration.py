@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.configuration tests/test_configurati
 
 from httpx import AsyncClient
 
-from axis.configuration import Configuration
+from axis.models.configuration import Configuration
 
 
 def test_configuration():
