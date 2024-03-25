@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from axis.vapix.interfaces.port_management import IoPortManagement
-from axis.vapix.models.port_management import PortConfiguration, Sequence
+from axis.interfaces.port_management import IoPortManagement
+from axis.models.port_management import PortConfiguration, Sequence
 
 
 @pytest.fixture

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.stream_profiles import StreamProfilesHandler
+from axis.interfaces.stream_profiles import StreamProfilesHandler
 
 
 @pytest.fixture

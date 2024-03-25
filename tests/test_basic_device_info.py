@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.basic_device_info import BasicDeviceInfoHandler
+from axis.interfaces.basic_device_info import BasicDeviceInfoHandler
 
 
 @pytest.fixture

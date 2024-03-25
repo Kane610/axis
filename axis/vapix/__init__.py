@@ -1,1 +1,0 @@
-"""Vapix module."""

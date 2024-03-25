@@ -14,7 +14,7 @@ from .ptz import PtzParameterHandler
 from .stream_profile import StreamProfileParameterHandler
 
 if TYPE_CHECKING:
-    from ...vapix import Vapix
+    from ..vapix import Vapix
 
 
 class Params(ApiHandler[Any]):

@@ -3,7 +3,7 @@
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.parameters.stream_profile import (
+from axis.interfaces.parameters.stream_profile import (
     StreamProfileParameterHandler,
 )
 

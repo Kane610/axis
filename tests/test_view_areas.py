@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.view_areas import Geometry, ViewAreaHandler
+from axis.interfaces.view_areas import Geometry, ViewAreaHandler
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from axis.vapix.interfaces.applications.loitering_guard import LoiteringGuardHandler
+from axis.interfaces.applications.loitering_guard import LoiteringGuardHandler
 
 
 @pytest.fixture

@@ -8,8 +8,8 @@ import json
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.api_discovery import ApiDiscoveryHandler
-from axis.vapix.models.api_discovery import ApiId, ApiStatus
+from axis.interfaces.api_discovery import ApiDiscoveryHandler
+from axis.models.api_discovery import ApiId, ApiStatus
 
 
 @pytest.fixture

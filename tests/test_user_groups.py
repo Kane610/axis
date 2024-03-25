@@ -5,8 +5,8 @@ pytest --cov-report term-missing --cov=axis.user_groups tests/test_user_groups.p
 
 import pytest
 
-from axis.vapix.interfaces.user_groups import UserGroups
-from axis.vapix.models.pwdgrp_cgi import SecondaryGroup
+from axis.interfaces.user_groups import UserGroups
+from axis.models.pwdgrp_cgi import SecondaryGroup
 
 
 @pytest.fixture

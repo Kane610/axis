@@ -2,13 +2,9 @@
 
 from collections.abc import Callable
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from .models.event import Event, EventOperation, EventTopic
-
-if TYPE_CHECKING:
-    from .device import AxisDevice
-
+from ..models.event import Event, EventOperation, EventTopic
 
 SubscriptionCallback = Callable[[Event], None]
 SubscriptionType = tuple[
@@ -30,9 +26,8 @@ LOGGER = logging.getLogger(__name__)
 class EventManager:
     """Initialize new events and update states of existing events."""
 
-    def __init__(self, device: "AxisDevice") -> None:
+    def __init__(self) -> None:
         """Ready information about events."""
-        self.device = device
         self._known_topics: set[str] = set()
         self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
 

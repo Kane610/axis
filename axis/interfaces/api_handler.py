@@ -11,11 +11,11 @@ from collections.abc import (
 )
 from typing import TYPE_CHECKING, Generic, final
 
-from ...errors import Forbidden, PathNotFound, Unauthorized
+from ..errors import Forbidden, PathNotFound, Unauthorized
 
 if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
-    from ..vapix import Vapix
+    from .vapix import Vapix
 
 from ..models.api import ApiItemT
 

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from axis.vapix.interfaces.applications.motion_guard import MotionGuardHandler
+from axis.interfaces.applications.motion_guard import MotionGuardHandler
 
 
 @pytest.fixture

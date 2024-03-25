@@ -3,7 +3,7 @@
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.parameters.brand import BrandParameterHandler
+from axis.interfaces.parameters.brand import BrandParameterHandler
 
 BRAND_RESPONSE = """root.Brand.Brand=AXIS
 root.Brand.ProdFullName=AXIS M1065-LW Network Camera

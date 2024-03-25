@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from axis.vapix.interfaces.applications.fence_guard import FenceGuardHandler
+from axis.interfaces.applications.fence_guard import FenceGuardHandler
 
 
 @pytest.fixture

@@ -8,8 +8,8 @@ from httpx import AsyncClient
 import pytest
 import respx
 
-from axis.configuration import Configuration
 from axis.device import AxisDevice
+from axis.models.configuration import Configuration
 
 LOGGER = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from axis.vapix.interfaces.applications.vmd4 import Vmd4Handler
+from axis.interfaces.applications.vmd4 import Vmd4Handler
 
 
 @pytest.fixture

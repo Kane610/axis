@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from axis.vapix.interfaces.api_handler import SubscriptionHandler
+from axis.interfaces.api_handler import SubscriptionHandler
 
 
 @pytest.fixture

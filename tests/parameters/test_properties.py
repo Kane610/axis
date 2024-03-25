@@ -3,7 +3,7 @@
 import pytest
 
 from axis.device import AxisDevice
-from axis.vapix.interfaces.parameters.properties import PropertyParameterHandler
+from axis.interfaces.parameters.properties import PropertyParameterHandler
 
 PROPERTY_RESPONSE = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
 root.Properties.API.Browser.Language=yes
