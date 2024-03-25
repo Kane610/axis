@@ -1,5 +1,7 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
@@ -49,7 +51,7 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
-    def __init__(self, device: "AxisDevice") -> None:
+    def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
