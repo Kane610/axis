@@ -1,5 +1,7 @@
 """MQTT Client api."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import enum
 from typing import Literal, NotRequired, Self
@@ -169,6 +171,17 @@ class Message:
     retain: bool | None = None
     qos: int | None = None
 
+    @classmethod
+    def from_dict(cls, data: MessageT) -> Self:
+        """Create message object from dict."""
+        return cls(
+            use_default=data["useDefault"],
+            topic=data.get("topic"),
+            message=data.get("message"),
+            retain=data.get("retain"),
+            qos=data.get("qos"),
+        )
+
     def to_dict(self) -> MessageT:
         """Create json dict from object."""
         data: MessageT = {"useDefault": self.use_default}
@@ -194,9 +207,9 @@ class Server:
     port: int | None = None
 
     @classmethod
-    def from_dict(cls, data: ServerT) -> "Server":
+    def from_dict(cls, data: ServerT) -> Self:
         """Create server object from dict."""
-        return Server(
+        return cls(
             host=data["host"],
             protocol=ServerProtocol(data["protocol"]),
             alpn_protocol=data.get("alpnProtocol"),
@@ -224,6 +237,15 @@ class Ssl:
     ca_cert_id: str | None = None
     client_cert_id: str | None = None
 
+    @classmethod
+    def from_dict(cls, data: SslT) -> Self:
+        """Create client status object from dict."""
+        return cls(
+            validate_server_cert=data["validateServerCert"],
+            ca_cert_id=data.get("CACertID"),
+            client_cert_id=data.get("clientCertID"),
+        )
+
     def to_dict(self) -> SslT:
         """Create json dict from object."""
         data: SslT = {"validateServerCert": self.validate_server_cert}
@@ -245,6 +267,7 @@ class ClientConfig:
     client_id: str | None = None
     connect_message: Message | None = None
     connect_timeout: int | None = None
+    device_topic_prefix: str | None = None
     disconnect_message: Message | None = None
     keep_alive_interval: int | None = None
     last_will_testament: Message | None = None
@@ -253,9 +276,24 @@ class ClientConfig:
     username: str | None = None
 
     @classmethod
-    def from_dict(cls, data: ConfigT) -> "ClientConfig":
+    def from_dict(cls, data: ConfigT) -> Self:
         """Create client status object from dict."""
-        return ClientConfig(server=Server.from_dict(data["server"]))
+        return cls(
+            server=Server.from_dict(data["server"]),
+            activate_on_reboot=data.get("activateOnReboot"),
+            auto_reconnect=data.get("autoReconnect"),
+            clean_session=data.get("cleanSession"),
+            client_id=data.get("clientId"),
+            connect_message=Message.from_dict(data["connectMessage"]),
+            connect_timeout=data.get("connectTimeout"),
+            device_topic_prefix=data.get("deviceTopicPrefix"),
+            disconnect_message=Message.from_dict(data["disconnectMessage"]),
+            keep_alive_interval=data.get("keepAliveInterval"),
+            last_will_testament=Message.from_dict(data["lastWillTestament"]),
+            password=data.get("password"),
+            ssl=Ssl.from_dict(data["ssl"]),
+            username=data.get("username"),
+        )
 
     def to_dict(self) -> ConfigT:
         """Create json dict from object."""
@@ -295,10 +333,10 @@ class ClientStatus:
     state: ClientState
 
     @classmethod
-    def from_dict(cls, data: StatusT) -> "ClientStatus":
+    def from_dict(cls, data: StatusT) -> Self:
         """Create client status object from dict."""
         # Note to investigate closer, documentation say lower case.
-        return ClientStatus(
+        return cls(
             connection_status=ClientConnectionState(data["connectionStatus"].lower()),
             state=ClientState(data["state"].lower()),
         )
@@ -312,9 +350,9 @@ class ClientConfigStatus:
     status: ClientStatus
 
     @classmethod
-    def from_dict(cls, data: ClientStatusDataT) -> "ClientConfigStatus":
+    def from_dict(cls, data: ClientStatusDataT) -> Self:
         """Create client config status object from dict."""
-        return ClientConfigStatus(
+        return cls(
             config=ClientConfig.from_dict(data["config"]),
             status=ClientStatus.from_dict(data["status"]),
         )
@@ -329,18 +367,18 @@ class EventFilter:
     retain: str | None = None
 
     @classmethod
-    def from_dict(cls, data: EventFilterT) -> "EventFilter":
+    def from_dict(cls, data: EventFilterT) -> Self:
         """Create event filter object from dict."""
-        return EventFilter(
+        return cls(
             topic_filter=data["topicFilter"],
             qos=data.get("qos"),
             retain=data.get("retain"),
         )
 
     @classmethod
-    def from_list(cls, data: list[EventFilterT]) -> "list[EventFilter]":
+    def from_list(cls, data: list[EventFilterT]) -> list[Self]:
         """Create event filter object from dict."""
-        return [EventFilter.from_dict(item) for item in data]
+        return [cls.from_dict(item) for item in data]
 
     def to_dict(self) -> EventFilterT:
         """Create json dict from object."""
@@ -352,7 +390,7 @@ class EventFilter:
         return data
 
     @classmethod
-    def to_list(cls, data: "list[EventFilter]") -> list[EventFilterT]:
+    def to_list(cls, data: list[EventFilter]) -> list[EventFilterT]:
         """Create json list from object."""
         return [item.to_dict() for item in data]
 
@@ -369,9 +407,9 @@ class EventPublicationConfig:
     event_filter_list: list[EventFilter] | None = None
 
     @classmethod
-    def from_dict(cls, data: EventPublicationConfigT) -> "EventPublicationConfig":
+    def from_dict(cls, data: EventPublicationConfigT) -> Self:
         """Create client config status object from dict."""
-        return EventPublicationConfig(
+        return cls(
             topic_prefix=data["topicPrefix"],
             custom_topic_prefix=data["customTopicPrefix"],
             append_event_topic=data["appendEventTopic"],

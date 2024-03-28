@@ -81,6 +81,7 @@ class MqttClientHandler(ApiHandler[Any]):
         """Get MQTT Client status."""
         discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
+            # GetClientStatusRequest(api_version="1.5")
             GetClientStatusRequest(api_version=discovery_item.version)
         )
         response = GetClientStatusResponse.decode(bytes_data)
