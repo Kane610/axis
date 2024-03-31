@@ -1,5 +1,7 @@
 """Light Control API data model."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import NotRequired, Self
 
@@ -225,14 +227,14 @@ class Range:
     high: int
 
     @classmethod
-    def from_dict(cls, data: RangeT) -> "Range":
+    def from_dict(cls, data: RangeT) -> Self:
         """Create range object from dict."""
-        return Range(low=data["low"], high=data["high"])
+        return cls(low=data["low"], high=data["high"])
 
     @classmethod
-    def from_list(cls, data: list[RangeT]) -> list["Range"]:
+    def from_list(cls, data: list[RangeT]) -> list[Self]:
         """Create range object from dict."""
-        return [Range.from_dict(range) for range in data]
+        return [cls.from_dict(range) for range in data]
 
 
 @dataclass
@@ -294,9 +296,9 @@ class ServiceCapabilities:
     day_night_synchronize_support: bool
 
     @classmethod
-    def from_dict(cls, data: ServiceCapabilitiesT) -> "ServiceCapabilities":
+    def from_dict(cls, data: ServiceCapabilitiesT) -> Self:
         """Create service capabilities object from dict."""
-        return ServiceCapabilities(
+        return cls(
             automatic_intensity_support=data["automaticIntensitySupport"],
             manual_intensity_support=data["manualIntensitySupport"],
             get_current_intensity_support=data["getCurrentIntensitySupport"],
