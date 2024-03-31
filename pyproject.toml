@@ -103,6 +103,7 @@ lint.select = [
     "D", # docstrings
     "E", # pycodestyle
     "F", # pyflakes/autoflake
+    "FIX", # flake8-fixme
     "G", # flake8-logging-format
     "I", # isort
     "ICN", # flake8-import-conventions
