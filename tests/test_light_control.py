@@ -174,6 +174,24 @@ async def test_get_light_information(respx_mock, light_control: LightHandler):
     assert light.error_info == ""
 
 
+async def test_get_light_information_error(respx_mock, light_control: LightHandler):
+    """Test get light information API return error."""
+    respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+        json={
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "method": "getLightInformation",
+            "error": {
+                "code": 1005,
+                "message": "No light hardware found, could not complete request.",
+            },
+        },
+    )
+
+    response = await light_control.get_light_information()
+    assert len(response) == 0
+
+
 async def test_activate_light(respx_mock, light_control):
     """Test activating light API."""
     route = respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
