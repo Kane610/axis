@@ -101,6 +101,7 @@ lint.select = [
     # "ARG", # flake8-unused-arguments
     "B",  # bugbear
     "C",  # complexity
+    "C4", # flake8-comprehensions
     "COM818", # Trailing comma on bare tuple prohibited
     "D", # docstrings
     "E", # pycodestyle
