@@ -99,14 +99,14 @@ lint.select = [
     # "A", # flake8-builtins
     "ANN", # flake8-annotations
     # "ARG", # flake8-unused-arguments
-    "B",  # bugbear
-    "C",  # complexity
-    "C4", # flake8-comprehensions
+    "B",   # bugbear
+    "C",   # complexity
+    "C4",  # flake8-comprehensions
     "COM", # flake8-commas
     "D", # docstrings
     "E", # pycodestyle
-    # "ERA",  # eradicate
-    "F", # pyflakes/autoflake
+    # "ERA", # eradicate
+    "F",   # pyflakes/autoflake
     "FIX", # flake8-fixme
     "FLY", # flynt
     "G", # flake8-logging-format
@@ -122,21 +122,21 @@ lint.select = [
     "PIE",  # flake8-pie
     "PL",   # pylint
     "PERF", # Perflint
-    "PT",   # pytest
-    "Q",    # flake8-quotes
-    "RET",  # flake8-return
-    "RSE",  # flake8-raise
-    "RUF",  # Ruff-specific rules
-    "S",    # flake8-bandit
-    "SIM",  # flake8-simplify
-    # "SLF",  # flake8-self
+    "PT",  # pytest
+    "Q",   # flake8-quotes
+    "RET", # flake8-return
+    "RSE", # flake8-raise
+    "RUF", # Ruff-specific rules
+    "S",   # flake8-bandit
+    "SIM", # flake8-simplify
+    # "SLF", # flake8-self
     "SLOT", # flake8-slots
     "T100", # Trace found: {name} used
     "T20",  # flake8-print
     "TCH",  # flake8-type-checking
     "TD",   # flake8-todos
-    # "TID",  # flake8-tidy-imports
-    # "TRY",  # tryceratops
+    # "TID", # flake8-tidy-imports
+    # "TRY", # tryceratops
     "UP", # pyupgrade
     "W",  # pycodestyle
 ]
