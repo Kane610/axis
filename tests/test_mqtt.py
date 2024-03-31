@@ -183,7 +183,7 @@ async def test_get_client_status(respx_mock, mqtt_client: MqttClientHandler):
         json=GET_CLIENT_STATUS_RESPONSE,
     )
 
-    await mqtt_client.get_client_status()
+    client_status = await mqtt_client.get_client_status()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
@@ -193,6 +193,9 @@ async def test_get_client_status(respx_mock, mqtt_client: MqttClientHandler):
         "context": "Axis library",
         "method": "getClientStatus",
     }
+
+    assert client_status.status.active is True
+    assert client_status.status.connected is False
 
 
 async def test_get_event_publication_config_small(
