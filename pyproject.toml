@@ -104,7 +104,7 @@ lint.select = [
     "F", # pyflakes/autoflake
     "G", # flake8-logging-format
     "I", # isort
-    "ICN001", # import concentions; {name} should be imported as {asname}
+    "ICN", # flake8-import-conventions
     "ISC", # flake8-implicit-str-concat
     "LOG", # flake8-logging
     "N",   # pep8-naming
