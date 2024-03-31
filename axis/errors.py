@@ -1,45 +1,50 @@
 """Axis errors."""
 
 
-class AxisException(Exception):
+class AxisError(Exception):
     """Base error for Axis."""
 
 
-class RequestError(AxisException):
+class RequestError(AxisError):
     """Unable to fulfill request.
 
     Raised when device cannot be reached.
     """
 
 
-class ResponseError(AxisException):
+class ResponseError(AxisError):
     """Invalid response."""
 
 
-class Unauthorized(AxisException):
+class UnauthorizedError(AxisError):
     """Username is not authorized."""
 
 
-class Forbidden(AxisException):
+class ForbiddenError(AxisError):
     """Endpoint is not accessible due to low permissions."""
 
 
-class LoginRequired(AxisException):
+class LoginRequiredError(AxisError):
     """User is logged out."""
 
 
-class MethodNotAllowed(AxisException):
+class MethodNotAllowedError(AxisError):
     """Invalid request."""
 
 
-class PathNotFound(AxisException):
+class PathNotFoundError(AxisError):
     """Path not found."""
 
 
-ERRORS = {401: Unauthorized, 403: Forbidden, 404: PathNotFound, 405: MethodNotAllowed}
+ERRORS = {
+    401: UnauthorizedError,
+    403: ForbiddenError,
+    404: PathNotFoundError,
+    405: MethodNotAllowedError,
+}
 
 
 def raise_error(error: int) -> None:
     """Raise error."""
-    cls = ERRORS.get(error, AxisException)
+    cls = ERRORS.get(error, AxisError)
     raise cls(f"{error}")

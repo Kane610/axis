@@ -107,10 +107,8 @@ lint.select = [
     "ICN001", # import concentions; {name} should be imported as {asname}
     "ISC", # flake8-implicit-str-concat
     "LOG", # flake8-logging
-    "N804", # First argument of a class method should be named cls
-    "N805", # First argument of a method should be named self
-    "N815", # Variable {name} in class scope should not be mixedCase
-    "PERF", # A Linter for performance anti-patterns
+    "N",   # pep8-naming
+    "PERF",   # A Linter for performance anti-patterns
     "PGH004", # Use specific rule codes when using noqa
     "PIE",  # flake8-pie
     "PL",   # pylint

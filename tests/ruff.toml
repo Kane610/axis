@@ -1,9 +1,6 @@
 # This extend our general Ruff rules specifically for tests
 extend = "../pyproject.toml"
 
-lint.extend-select = [
-]
-
 [lint.isort]
 known-first-party = [
     "axis",

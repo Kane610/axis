@@ -35,7 +35,7 @@ async def axis_device(
 
         return device
 
-    except axis.Unauthorized:
+    except axis.UnauthorizedError:
         LOGGER.warning(
             "Connected to device at %s but not registered or user not admin.", host
         )
@@ -43,7 +43,7 @@ async def axis_device(
     except (TimeoutError, axis.RequestError):
         LOGGER.error("Error connecting to the Axis device at %s", host)
 
-    except axis.AxisException:
+    except axis.AxisError:
         LOGGER.exception("Unknown Axis communication error occurred")
 
     return device

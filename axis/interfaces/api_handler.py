@@ -10,7 +10,7 @@ from collections.abc import (
 )
 from typing import TYPE_CHECKING, Generic, final
 
-from ..errors import Forbidden, PathNotFound, Unauthorized
+from ..errors import ForbiddenError, PathNotFoundError, UnauthorizedError
 
 if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
@@ -123,11 +123,11 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         """Try update of API and signal subscribers."""
         try:
             obj_ids = await self._update()
-        except Unauthorized:  # Probably a viewer account
+        except UnauthorizedError:  # Probably a viewer account
             return False
-        except Forbidden:  # Invalid permissions
+        except ForbiddenError:  # Invalid permissions
             return False
-        except PathNotFound:  # Device doesn't support the endpoint
+        except PathNotFoundError:  # Device doesn't support the endpoint
             return False
         for obj_id in obj_ids:
             self.signal_subscribers(obj_id)
