@@ -188,8 +188,9 @@ class PropertyParam(ParamItem):
             .get("PTZ", {})
             .get("Presets", {})
             .get("Version", False),
-            embedded_development=data["EmbeddedDevelopment"]["Version"],
-            # embedded_development=data.get("EmbeddedDevelopment_Version", "0.0"),
+            embedded_development=data.get("EmbeddedDevelopment", {}).get(
+                "Version", "0.0"
+            ),
             firmware_build_date=data["Firmware"]["BuildDate"],
             firmware_build_number=data["Firmware"]["BuildNumber"],
             firmware_version=data["Firmware"]["Version"],
