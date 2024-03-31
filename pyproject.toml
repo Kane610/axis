@@ -103,8 +103,9 @@ lint.select = [
     "C",   # complexity
     "C4",  # flake8-comprehensions
     "COM", # flake8-commas
-    "D", # docstrings
-    "E", # pycodestyle
+    "D",  # docstrings
+    "E",  # pycodestyle
+    "EM", # flake8-errmsg
     # "ERA", # eradicate
     "F",   # pyflakes/autoflake
     "FIX", # flake8-fixme

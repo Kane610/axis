@@ -47,4 +47,4 @@ ERRORS = {
 def raise_error(error: int) -> None:
     """Raise error."""
     cls = ERRORS.get(error, AxisError)
-    raise cls(f"{error}")
+    raise cls(error)
