@@ -276,16 +276,16 @@ class Vapix:
                 timeout=TIME_OUT,
             )
 
-        except httpx.TimeoutException:
-            raise RequestError("Timeout")
+        except httpx.TimeoutException as errt:
+            raise RequestError("Timeout") from errt
 
         except httpx.TransportError as errc:
             LOGGER.debug("%s", errc)
-            raise RequestError(f"Connection error: {errc}")
+            raise RequestError(f"Connection error: {errc}") from errc
 
         except httpx.RequestError as err:
             LOGGER.debug("%s", err)
-            raise RequestError(f"Unknown error: {err}")
+            raise RequestError(f"Unknown error: {err}") from err
 
         try:
             response.raise_for_status()

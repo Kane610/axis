@@ -96,16 +96,8 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 lint.select = [
-    "B002", # Python does not support the unary prefix increment
-    "B005", # Using .strip() with multi-character strings is misleading
-    "B007", # Loop control variable {name} not used within loop body
-    "B014", # Exception handler with duplicate exception
-    "B015", # Pointless comparison. Did you mean to assign a value? Otherwise, prepend assert or remove it.
-    "B018", # Found useless attribute access. Either assign it to a variable or remove it.
-    "B023", # Function definition does not bind loop variable {name}
-    "B026", # Star-arg unpacking after a keyword argument is strongly discouraged
-    "B032", # Possible unintentional type annotation (using :). Did you mean to assign (using =)?
-    "C",    # complexity
+    "B",  # bugbear
+    "C",  # complexity
     "COM818", # Trailing comma on bare tuple prohibited
     "D", # docstrings
     "E", # pycodestyle
