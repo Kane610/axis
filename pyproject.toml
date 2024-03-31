@@ -124,6 +124,7 @@ lint.select = [
     "S307", # No builtin eval() allowed
     "SIM",  # flake8-simplify
     # "SLF",  # flake8-self
+    "SLOT", # flake8-slots
     "T100", # Trace found: {name} used
     "T20",  # flake8-print
     "UP", # pyupgrade
