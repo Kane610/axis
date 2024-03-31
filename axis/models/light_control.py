@@ -279,7 +279,7 @@ class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
             api_version=data["apiVersion"],
             context=data["context"],
             method=data["method"],
-            data=LightInformation.decode_to_dict(data["data"]["items"]),
+            data=LightInformation.decode_to_dict(data.get("data", {}).get("items", [])),
         )
 
 
