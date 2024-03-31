@@ -1,5 +1,7 @@
 """MQTT Client api."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import enum
 from typing import Literal, NotRequired, Self
@@ -24,7 +26,7 @@ class MessageT(TypedDict):
 
     useDefault: bool
     message: NotRequired[str]
-    qos: NotRequired[int]
+    qos: NotRequired[Literal[0, 1, 2]]
     retain: NotRequired[bool]
     topic: NotRequired[str]
 
@@ -70,7 +72,7 @@ class ConfigT(TypedDict):
 class StatusT(TypedDict):
     """Represent a status object."""
 
-    connectionStatus: Literal["connected", "disconnected"]
+    connectionStatus: Literal["connected", "disconnected", "not connected"]
     state: Literal["active", "inactive"]
 
 
@@ -149,6 +151,14 @@ class ClientConnectionState(enum.StrEnum):
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
 
+    @classmethod
+    def _missing_(cls, value: object) -> ClientConnectionState:
+        """Set default enum member if an unknown value is provided.
+
+        Some firmwares report "not connected" instead of "disconnected".
+        """
+        return cls.DISCONNECTED
+
 
 class ServerProtocol(enum.StrEnum):
     """Connection protocols used in the server configuration."""
@@ -164,10 +174,35 @@ class Message:
     """Message description."""
 
     use_default: bool = True
+    """Specifies if the default configuration should be used.
+
+    If set to true, other options in this parameter will be discarded.
+    If set to false, topic, messages, retained and qos options are required and used.
+    """
     topic: str | None = None
+    """The topic that should be used with the message."""
     message: str | None = None
+    """The message that should be used with the message."""
     retain: bool | None = None
-    qos: int | None = None
+    """The retained option that should be used with the message."""
+    qos: Literal[0, 1, 2] | None = None
+    """The QoS option that should be used with the message."""
+
+    @classmethod
+    def from_dict(cls, data: MessageT) -> Self:
+        """Create message object from dict."""
+        return cls(
+            use_default=data["useDefault"],
+            topic=data.get("topic"),
+            message=data.get("message"),
+            retain=data.get("retain"),
+            qos=data.get("qos"),
+        )
+
+    @classmethod
+    def from_dict_or_none(cls, data: MessageT | None) -> Self | None:
+        """Create class instance if data is not None."""
+        return cls.from_dict(data) if data is not None else None
 
     def to_dict(self) -> MessageT:
         """Create json dict from object."""
@@ -188,15 +223,42 @@ class Server:
     """Represent server config."""
 
     host: str
+    """The Broker location, i.e. the Hostname or IP address."""
     protocol: ServerProtocol = ServerProtocol.TCP
+    """Contains the protocols used by params.server.
+
+    Possible values are:
+    - tcp: MQTT over TCP
+    - ssl: MQTT over SSL
+    - ws: MQTT over Websocket
+    - wss: MQTT over Websocket Secure
+    """
     alpn_protocol: str | None = None
+    """The ALPN protocol that should be used if the selected protocol was ssl or wss.
+
+    If the string value is empty the ALPN will not be used.
+    Default value is empty and the maximum length of the protocol is 255 bytes.
+    """
     basepath: str | None = None
+    """The path that should be used as a suffix for the constructed URL.
+
+    Will only be used for the ws and wss connections.
+    The default value is empty string.
+    """
     port: int | None = None
+    """The port that should be used.
+
+    Default values for the protocols are:
+    - tcp: 1883
+    - ssl: 8883
+    - ws: 80
+    - wss: 443
+    """
 
     @classmethod
-    def from_dict(cls, data: ServerT) -> "Server":
+    def from_dict(cls, data: ServerT) -> Self:
         """Create server object from dict."""
-        return Server(
+        return cls(
             host=data["host"],
             protocol=ServerProtocol(data["protocol"]),
             alpn_protocol=data.get("alpnProtocol"),
@@ -221,8 +283,31 @@ class Ssl:
     """Represent SSL config."""
 
     validate_server_cert: bool = False
+    """Specifies if the server certificate shall be validated."""
     ca_cert_id: str | None = None
+    """Specifies the CA Certificate that should be used to validate the server certificate.
+
+    The certificates are managed through the user interface or via ONVIF services.
+    """
     client_cert_id: str | None = None
+    """Specifies the client certificate and key that should be used.
+
+    The certificates are managed through the user interface or via ONVIF services.
+    """
+
+    @classmethod
+    def from_dict(cls, data: SslT) -> Self:
+        """Create client status object from dict."""
+        return cls(
+            validate_server_cert=data["validateServerCert"],
+            ca_cert_id=data.get("CACertID"),
+            client_cert_id=data.get("clientCertID"),
+        )
+
+    @classmethod
+    def from_dict_or_none(cls, data: SslT | None) -> Self | None:
+        """Create class instance if data is not None."""
+        return cls.from_dict(data) if data is not None else None
 
     def to_dict(self) -> SslT:
         """Create json dict from object."""
@@ -239,23 +324,90 @@ class ClientConfig:
     """Represent client config."""
 
     server: Server
+    """Contains the address and protocol related information."""
     activate_on_reboot: bool | None = None
     auto_reconnect: bool | None = None
+    """Specifies if the client should reconnect on an unintentional disconnect."""
     clean_session: bool | None = None
+    """This parameter controls the behavior during connection and disconnection time.
+
+    Affects both the client and the server when this parameters is true,
+    the state information is discarded when the client and server change state.
+    Setting the parameter to false means that the state information is kept.
+    """
     client_id: str | None = None
+    """The client identifier sent to the server when the client connects to it."""
     connect_message: Message | None = None
+    """Specifies if a message should be sent when a connection is established.
+
+    Contains options related to connect announcements.
+    If this object is not defined this message won’t be sent.
+    """
     connect_timeout: int | None = None
+    """The timed interval (in seconds) to allow a connect to finish.
+
+    The default value is 60.
+    """
+    device_topic_prefix: str | None = None
+    """Specifies a prefix on MQTT topics in various scenarios.
+
+    Such as when you want to configure the translation of events into MQTT messages
+    or prefix all published MQTT messages with a common prefix.
+    The default value is axis/{device serial number}.
+    """
     disconnect_message: Message | None = None
+    """Specifies if a message should be sent when the client is manually disconnected.
+
+    Contains options related to manual disconnect announcements.
+    If this object is not defined this message won’t be sent.
+    This message should not be confused with LWT,
+    as it is used when the connection is lost and managed by the broker.
+    """
     keep_alive_interval: int | None = None
+    """Defines the maximum time (in seconds).
+
+    Time intervalthat should pass without communication between the client and server.
+    At least one message will be sent over the network by the client
+    during each keep alive period and the interval makes it possible to detect
+    when the server is no longer available without having to
+    wait for the TCP/IP timeout.
+    The default value is 60."""
     last_will_testament: Message | None = None
+    """Contains the options related to LWT.
+
+    If LWT is not required, this parameter is not included.
+    """
     password: str | None = None
+    """The password that should be used for authentication."""
     ssl: Ssl | None = None
+    """Contains the options related to the SSL connection.
+
+    This object should only be present if the connection type is ssl or wss.
+    """
     username: str | None = None
+    """The user name that should be used for authentication and authorization."""
 
     @classmethod
-    def from_dict(cls, data: ConfigT) -> "ClientConfig":
+    def from_dict(cls, data: ConfigT) -> Self:
         """Create client status object from dict."""
-        return ClientConfig(server=Server.from_dict(data["server"]))
+        return cls(
+            server=Server.from_dict(data["server"]),
+            activate_on_reboot=data.get("activateOnReboot"),
+            auto_reconnect=data.get("autoReconnect"),
+            clean_session=data.get("cleanSession"),
+            client_id=data.get("clientId"),
+            connect_message=Message.from_dict_or_none(data.get("connectMessage")),
+            connect_timeout=data.get("connectTimeout"),
+            device_topic_prefix=data.get("deviceTopicPrefix"),
+            disconnect_message=Message.from_dict_or_none(data.get("disconnectMessage")),
+            keep_alive_interval=data.get("keepAliveInterval"),
+            last_will_testament=Message.from_dict_or_none(
+                data.get("lastWillTestament")
+            ),
+            password=data.get("password"),
+            ssl=Ssl.from_dict_or_none(data.get("ssl")),
+            username=data.get("username"),
+        )
 
     def to_dict(self) -> ConfigT:
         """Create json dict from object."""
@@ -293,14 +445,19 @@ class ClientStatus:
 
     connection_status: ClientConnectionState
     state: ClientState
+    active: bool
+    """The current state of the client. Possible values are active and inactive."""
+    connected: bool
+    """The current connection state of your client. Possible values are connected, disconnected."""
 
     @classmethod
-    def from_dict(cls, data: StatusT) -> "ClientStatus":
+    def from_dict(cls, data: StatusT) -> Self:
         """Create client status object from dict."""
-        # Note to investigate closer, documentation say lower case.
-        return ClientStatus(
+        return cls(
             connection_status=ClientConnectionState(data["connectionStatus"].lower()),
             state=ClientState(data["state"].lower()),
+            active=data["state"] == "active",
+            connected=data["connectionStatus"] == "connected",
         )
 
 
@@ -309,12 +466,14 @@ class ClientConfigStatus:
     """GetClientStatus response."""
 
     config: ClientConfig
+    """The Config of the MQTT client."""
     status: ClientStatus
+    """The Status of the MQTT client."""
 
     @classmethod
-    def from_dict(cls, data: ClientStatusDataT) -> "ClientConfigStatus":
+    def from_dict(cls, data: ClientStatusDataT) -> Self:
         """Create client config status object from dict."""
-        return ClientConfigStatus(
+        return cls(
             config=ClientConfig.from_dict(data["config"]),
             status=ClientStatus.from_dict(data["status"]),
         )
@@ -329,18 +488,18 @@ class EventFilter:
     retain: str | None = None
 
     @classmethod
-    def from_dict(cls, data: EventFilterT) -> "EventFilter":
+    def from_dict(cls, data: EventFilterT) -> Self:
         """Create event filter object from dict."""
-        return EventFilter(
+        return cls(
             topic_filter=data["topicFilter"],
             qos=data.get("qos"),
             retain=data.get("retain"),
         )
 
     @classmethod
-    def from_list(cls, data: list[EventFilterT]) -> "list[EventFilter]":
+    def from_list(cls, data: list[EventFilterT]) -> list[Self]:
         """Create event filter object from dict."""
-        return [EventFilter.from_dict(item) for item in data]
+        return [cls.from_dict(item) for item in data]
 
     def to_dict(self) -> EventFilterT:
         """Create json dict from object."""
@@ -352,7 +511,7 @@ class EventFilter:
         return data
 
     @classmethod
-    def to_list(cls, data: "list[EventFilter]") -> list[EventFilterT]:
+    def to_list(cls, data: list[EventFilter]) -> list[EventFilterT]:
         """Create json list from object."""
         return [item.to_dict() for item in data]
 
@@ -369,9 +528,9 @@ class EventPublicationConfig:
     event_filter_list: list[EventFilter] | None = None
 
     @classmethod
-    def from_dict(cls, data: EventPublicationConfigT) -> "EventPublicationConfig":
+    def from_dict(cls, data: EventPublicationConfigT) -> Self:
         """Create client config status object from dict."""
-        return EventPublicationConfig(
+        return cls(
             topic_prefix=data["topicPrefix"],
             custom_topic_prefix=data["customTopicPrefix"],
             append_event_topic=data["appendEventTopic"],
