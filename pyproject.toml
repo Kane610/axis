@@ -108,6 +108,7 @@ lint.select = [
     "EM", # flake8-errmsg
     # "ERA", # eradicate
     "F",   # pyflakes/autoflake
+    "FA",  # flake8-future-annotations
     "FIX", # flake8-fixme
     "FLY", # flynt
     "G", # flake8-logging-format
