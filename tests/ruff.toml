@@ -2,6 +2,7 @@
 extend = "../pyproject.toml"
 
 lint.extend-ignore = [
+    "ANN", # flake8-annotations
     "S101", # Use of assert detected
     "S105", # Possible hardcoded password assigned to: "{}"
     "S106", # Possible hardcoded password assigned to argument: "{}"
