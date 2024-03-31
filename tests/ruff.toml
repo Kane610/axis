@@ -1,6 +1,13 @@
 # This extend our general Ruff rules specifically for tests
 extend = "../pyproject.toml"
 
+lint.extend-ignore = [
+    "S101", # Use of assert detected
+    "S105", # Possible hardcoded password assigned to: "{}"
+    "S106", # Possible hardcoded password assigned to argument: "{}"
+    "S501", # Probable use of {string} call with verify=False disabling SSL certificate checks
+]
+
 [lint.isort]
 known-first-party = [
     "axis",

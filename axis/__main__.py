@@ -20,7 +20,7 @@ async def axis_device(
     host: str, port: int, username: str, password: str
 ) -> axis.device.AxisDevice:
     """Create a Axis device."""
-    session = AsyncClient(verify=False)
+    session = AsyncClient(verify=False)  # noqa: S501
     device = axis.device.AxisDevice(
         axis.models.configuration.Configuration(
             session, host, port=port, username=username, password=password
