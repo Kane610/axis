@@ -195,7 +195,7 @@ class LightHandler(ApiHandler[LightInformation]):
         """Automatically control the angle of illumination.
 
         Using this mode means that the angle of illumination
-        is the same as the camera’s angle of view.
+        is the same as the camera's angle of view.
         """
         assert isinstance(self.api_version, str)
         await self.vapix.api_request(
@@ -220,7 +220,7 @@ class LightHandler(ApiHandler[LightInformation]):
         """Set the manual angle of illumination.
 
         This is useful when the angle of illumination needs
-        to be different from the camera’s view angle.
+        to be different from the camera's view angle.
         """
         assert isinstance(self.api_version, str)
         await self.vapix.api_request(

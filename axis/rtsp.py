@@ -471,7 +471,7 @@ class RTSPMethods:
     @property
     def sequence(self) -> str:
         """Generate sequence string."""
-        return f"CSeq: {str(self.session.sequence)}\r\n"
+        return f"CSeq: {self.session.sequence}\r\n"
 
     @property
     def authentication(self) -> str:

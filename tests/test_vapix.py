@@ -381,7 +381,8 @@ async def test_load_user_groups(respx_mock, vapix: Vapix):
 
     await vapix.load_user_groups()
 
-    assert (user := vapix.user_groups.get("0"))
+    user = vapix.user_groups.get("0")
+    assert user
     assert user.privileges == SecondaryGroup.ADMIN_PTZ
     assert user.admin
     assert user.operator
@@ -412,7 +413,8 @@ ptz=
 
     assert not user_group_route.called
 
-    assert (user := vapix.user_groups.get("0"))
+    user = vapix.user_groups.get("0")
+    assert user
     assert user.privileges == SecondaryGroup.ADMIN
     assert user.admin
     assert user.operator

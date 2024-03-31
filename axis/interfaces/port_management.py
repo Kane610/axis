@@ -45,7 +45,7 @@ class IoPortManagement(ApiHandler[Port]):
         * Configuring the states and what constitutes a normal
             and triggered state respectively.
             This will make triggers activate in either open or closed circuits.
-        The reason the change is treated as a nice name is because it doesn’t
+        The reason the change is treated as a nice name is because it doesn't
           affect the underlying behavior of the port.
         Devices with configurable ports can change the direction
           to either input or output.
