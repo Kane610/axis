@@ -9,11 +9,8 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..errors import RequestError, raise_error
-from ..models.api import ApiRequest
 from ..models.pwdgrp_cgi import SecondaryGroup
-from ..models.stream_profile import StreamProfile
 from .api_discovery import ApiDiscoveryHandler
-from .api_handler import ApiHandler
 from .applications import (
     ApplicationsHandler,
 )
@@ -42,6 +39,9 @@ from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
+    from ..models.api import ApiRequest
+    from ..models.stream_profile import StreamProfile
+    from .api_handler import ApiHandler
 
 LOGGER = logging.getLogger(__name__)
 
