@@ -96,6 +96,7 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 lint.select = [
+    # "A", # flake8-builtins
     # "ARG", # flake8-unused-arguments
     "B",  # bugbear
     "C",  # complexity
