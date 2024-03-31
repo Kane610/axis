@@ -96,6 +96,7 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 lint.select = [
+    # "ARG", # flake8-unused-arguments
     "B",  # bugbear
     "C",  # complexity
     "COM818", # Trailing comma on bare tuple prohibited
@@ -129,7 +130,7 @@ lint.select = [
     "T100", # Trace found: {name} used
     "T20",  # flake8-print
     "TCH",  # flake8-type-checking
-    #"TID",  # flake8-tidy-imports
+    # "TID",  # flake8-tidy-imports
     "UP", # pyupgrade
     "W",  # pycodestyle
 ]
