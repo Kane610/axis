@@ -10,18 +10,6 @@ import xmltodict
 LOGGER = logging.getLogger(__name__)
 
 
-class EventGroup(enum.StrEnum):
-    """Logical grouping of events."""
-
-    INPUT = "input"
-    LIGHT = "light"
-    MOTION = "motion"
-    OUTPUT = "output"
-    PTZ = "ptz"
-    SOUND = "sound"
-    NONE = "none"
-
-
 class EventOperation(enum.StrEnum):
     """Possible operations of an event."""
 
@@ -66,25 +54,6 @@ class EventTopic(enum.StrEnum):
             LOGGER.warning("Unsupported topic %s", value)
         return EventTopic.UNKNOWN
 
-
-TOPIC_TO_GROUP = {
-    EventTopic.DAY_NIGHT_VISION: EventGroup.LIGHT,
-    EventTopic.FENCE_GUARD: EventGroup.MOTION,
-    EventTopic.LIGHT_STATUS: EventGroup.LIGHT,
-    EventTopic.LOITERING_GUARD: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION_3: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION_4: EventGroup.MOTION,
-    EventTopic.MOTION_GUARD: EventGroup.MOTION,
-    EventTopic.OBJECT_ANALYTICS: EventGroup.MOTION,
-    EventTopic.PIR: EventGroup.MOTION,
-    EventTopic.PORT_INPUT: EventGroup.INPUT,
-    EventTopic.PORT_SUPERVISED_INPUT: EventGroup.INPUT,
-    EventTopic.PTZ_IS_MOVING: EventGroup.PTZ,
-    EventTopic.PTZ_ON_PRESET: EventGroup.PTZ,
-    EventTopic.RELAY: EventGroup.OUTPUT,
-    EventTopic.SOUND_TRIGGER_LEVEL: EventGroup.SOUND,
-}
 
 TOPIC_TO_STATE = {
     EventTopic.LIGHT_STATUS: "ON",
@@ -137,7 +106,6 @@ class Event:
     """Event data from Axis device."""
 
     data: dict[str, Any]
-    group: EventGroup
     id: str
     is_tripped: bool
     operation: EventOperation
@@ -173,7 +141,6 @@ class Event:
 
         return cls(
             data=data,
-            group=TOPIC_TO_GROUP.get(topic_base, EventGroup.NONE),
             id=source_idx,
             is_tripped=value == TOPIC_TO_STATE.get(topic_base, "1"),
             operation=operation,
