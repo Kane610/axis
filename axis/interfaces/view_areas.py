@@ -1,6 +1,6 @@
 """View area API.
 
-The View Area API makes it possible to define the subsections of a camera’s full view
+The View Area API makes it possible to define the subsections of a camera's full view
 as individual, virtual channels. This means that a wide angle and/or high resolution
 camera can provide multiple video streams at a lower resolution where each stream
 covers a specific region of interest. The API is also able to simplify the installation

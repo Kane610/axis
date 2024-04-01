@@ -1,13 +1,14 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
-from collections.abc import Callable
 import logging
 from typing import TYPE_CHECKING
 
 from .rtsp import RTSPClient, Signal, State
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .device import AxisDevice
 
 _LOGGER = logging.getLogger(__name__)

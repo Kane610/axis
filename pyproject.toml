@@ -96,54 +96,72 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 lint.select = [
-    "B002", # Python does not support the unary prefix increment
-    "B005", # Using .strip() with multi-character strings is misleading
-    "B007", # Loop control variable {name} not used within loop body
-    "B014", # Exception handler with duplicate exception
-    "B015", # Pointless comparison. Did you mean to assign a value? Otherwise, prepend assert or remove it.
-    "B018", # Found useless attribute access. Either assign it to a variable or remove it.
-    "B023", # Function definition does not bind loop variable {name}
-    "B026", # Star-arg unpacking after a keyword argument is strongly discouraged
-    "B032", # Possible unintentional type annotation (using :). Did you mean to assign (using =)?
-    "C",    # complexity
-    "COM818", # Trailing comma on bare tuple prohibited
-    "D", # docstrings
-    "E", # pycodestyle
-    "F", # pyflakes/autoflake
+    # "A", # flake8-builtins
+    "ANN", # flake8-annotations
+    # "ARG", # flake8-unused-arguments
+    "ASYNC", # flake8-async
+    "B",   # bugbear
+    "BLE", # flake8-blind-except
+    "C",   # complexity
+    "C4",  # flake8-comprehensions
+    "COM", # flake8-commas
+    "D",  # docstrings
+    "E",  # pycodestyle
+    "EM", # flake8-errmsg
+    # "ERA", # eradicate
+    "EXE", # flake8-executable
+    "F",   # pyflakes/autoflake
+    "FA",  # flake8-future-annotations
+    "FIX", # flake8-fixme
+    "FLY", # flynt
     "G", # flake8-logging-format
     "I", # isort
-    "ICN001", # import concentions; {name} should be imported as {asname}
+    "ICN", # flake8-import-conventions
+    "INP", # flake8-no-pep420
+    "INT", # flake8-gettext
     "ISC", # flake8-implicit-str-concat
     "LOG", # flake8-logging
-    "N804", # First argument of a class method should be named cls
-    "N805", # First argument of a method should be named self
-    "N815", # Variable {name} in class scope should not be mixedCase
+    "N",   # pep8-naming
     "PERF", # A Linter for performance anti-patterns
-    "PGH004", # Use specific rule codes when using noqa
+    "PGH",  # pygrep-hooks
     "PIE",  # flake8-pie
     "PL",   # pylint
     "PERF", # Perflint
-    "PT",   # pytest
-    "RSE",  # flake8-raise
-    "RUF005", # Consider iterable unpacking instead of concatenation
-    "RUF006", # Store a reference to the return value of asyncio.create_task
-    "RUF100", # Unused `noqa` directive
-    "S307", # No builtin eval() allowed
-    "SIM",  # flake8-simplify
-    "T100", # Trace found: {name} used
+    "PT",  # pytest
+    "PYI", # flake8-pyi
+    "Q",   # flake8-quotes
+    "RET", # flake8-return
+    "RSE", # flake8-raise
+    "RUF", # Ruff-specific rules
+    "S",   # flake8-bandit
+    "SIM", # flake8-simplify
+    # "SLF", # flake8-self
+    "SLOT", # flake8-slots
+    "T10",  # flake8-debugger
     "T20",  # flake8-print
+    "TCH",  # flake8-type-checking
+    "TD",   # flake8-todos
+    # "TID", # flake8-tidy-imports
+    # "TRY", # tryceratops
     "UP", # pyupgrade
     "W",  # pycodestyle
 ]
 
 lint.ignore = [
+    "ANN101", # Missing type annotation for {name} in method
+    "ANN102", # Missing type annotation for {name} in classmethod
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in {name}
+    "COM812", # Trailing comma missing
     "D203", # 1 blank line required before class docstring
     "D213", # Multi-line docstring summary should start at the second line
     "E501", # Checks for lines that exceed the specified maximum character length
+    "ISC001",  # Implicitly concatenated string literals on one line
+    "N818", # Exception name {name} should be named with an Error suffix
     "PLR0912", # Maximum number of branches allowed for a function or method body
     "PLR0913", # Too many arguments to function call ({c_args} > {max_args})
     "PLR0915", # Too many statements ({statements} > {max_statements})
     "PLR2004", # Magic value used in comparison, consider replacing {value} with a constant variable
+    "S324", # Probable use of insecure hash functions in {library}: {string}
 ]
 
 [tool.ruff.lint.flake8-pytest-style]

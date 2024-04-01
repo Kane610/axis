@@ -1,6 +1,5 @@
 """API handler class and base class for an API endpoint."""
 
-from abc import ABC
 from collections.abc import (
     Callable,
     ItemsView,
@@ -26,7 +25,7 @@ UnsubscribeType = Callable[[], None]
 ID_FILTER_ALL = "*"
 
 
-class SubscriptionHandler(ABC):
+class SubscriptionHandler:
     """Manage subscription and notification to subscribers."""
 
     def __init__(self) -> None:

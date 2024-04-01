@@ -341,7 +341,7 @@ class ClientConfig:
     """Specifies if a message should be sent when a connection is established.
 
     Contains options related to connect announcements.
-    If this object is not defined this message won’t be sent.
+    If this object is not defined this message won't be sent.
     """
     connect_timeout: int | None = None
     """The timed interval (in seconds) to allow a connect to finish.
@@ -359,7 +359,7 @@ class ClientConfig:
     """Specifies if a message should be sent when the client is manually disconnected.
 
     Contains options related to manual disconnect announcements.
-    If this object is not defined this message won’t be sent.
+    If this object is not defined this message won't be sent.
     This message should not be confused with LWT,
     as it is used when the connection is lost and managed by the broker.
     """

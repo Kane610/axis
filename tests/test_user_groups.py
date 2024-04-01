@@ -52,7 +52,8 @@ async def test_admin_user(respx_mock, user_groups):
     )
     await user_groups.update()
 
-    assert (user := user_groups.get("0"))
+    user = user_groups.get("0")
+    assert user
     assert user.privileges == SecondaryGroup.ADMIN
     assert user.admin
     assert user.operator
@@ -68,7 +69,8 @@ async def test_operator_user(respx_mock, user_groups):
     )
     await user_groups.update()
 
-    assert (user := user_groups.get("0"))
+    user = user_groups.get("0")
+    assert user
     assert user.privileges == SecondaryGroup.OPERATOR
     assert not user.admin
     assert user.operator
@@ -84,7 +86,8 @@ async def test_viewer_user(respx_mock, user_groups):
     )
     await user_groups.update()
 
-    assert (user := user_groups.get("0"))
+    user = user_groups.get("0")
+    assert user
     assert user.privileges == SecondaryGroup.VIEWER
     assert not user.admin
     assert not user.operator

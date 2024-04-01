@@ -9,11 +9,8 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..errors import RequestError, raise_error
-from ..models.api import ApiRequest
 from ..models.pwdgrp_cgi import SecondaryGroup
-from ..models.stream_profile import StreamProfile
 from .api_discovery import ApiDiscoveryHandler
-from .api_handler import ApiHandler
 from .applications import (
     ApplicationsHandler,
 )
@@ -42,6 +39,9 @@ from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
+    from ..models.api import ApiRequest
+    from ..models.stream_profile import StreamProfile
+    from .api_handler import ApiHandler
 
 LOGGER = logging.getLogger(__name__)
 
@@ -276,16 +276,19 @@ class Vapix:
                 timeout=TIME_OUT,
             )
 
-        except httpx.TimeoutException:
-            raise RequestError("Timeout")
+        except httpx.TimeoutException as errt:
+            message = "Timeout"
+            raise RequestError(message) from errt
 
         except httpx.TransportError as errc:
             LOGGER.debug("%s", errc)
-            raise RequestError(f"Connection error: {errc}")
+            message = f"Connection error: {errc}"
+            raise RequestError(message) from errc
 
         except httpx.RequestError as err:
             LOGGER.debug("%s", err)
-            raise RequestError(f"Unknown error: {err}")
+            message = f"Unknown error: {err}"
+            raise RequestError(message) from err
 
         try:
             response.raise_for_status()
