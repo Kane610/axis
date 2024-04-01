@@ -8,11 +8,11 @@ import pytest
 
 from axis.device import AxisDevice
 from axis.errors import (
-    ForbiddenError,
-    MethodNotAllowedError,
-    PathNotFoundError,
+    Forbidden,
+    MethodNotAllowed,
+    PathNotFound,
     RequestError,
-    UnauthorizedError,
+    Unauthorized,
 )
 from axis.interfaces.vapix import Vapix
 from axis.models.applications.application import ApplicationStatus
@@ -209,7 +209,7 @@ async def test_initialize_api_discovery_unauthorized(respx_mock, vapix: Vapix):
 
 async def test_initialize_api_discovery_unsupported(respx_mock, vapix: Vapix):
     """Test initialize api discovery doesnt break due to exception."""
-    respx_mock.post("/axis-cgi/apidiscovery.cgi").side_effect = PathNotFoundError
+    respx_mock.post("/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
 
     await vapix.initialize_api_discovery()
 
@@ -441,10 +441,10 @@ async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix)
 @pytest.mark.parametrize(
     ("code", "error"),
     [
-        (401, UnauthorizedError),
-        (403, ForbiddenError),
-        (404, PathNotFoundError),
-        (405, MethodNotAllowedError),
+        (401, Unauthorized),
+        (403, Forbidden),
+        (404, PathNotFound),
+        (405, MethodNotAllowed),
     ],
 )
 async def test_request_raises(respx_mock, vapix: Vapix, code, error):
