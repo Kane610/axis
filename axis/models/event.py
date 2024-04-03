@@ -29,22 +29,22 @@ class EventOperation(enum.StrEnum):
 class EventTopic(enum.StrEnum):
     """Supported event topics."""
 
-    DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
-    FENCE_GUARD = "tnsaxis:CameraApplicationPlatform/FenceGuard"
-    LIGHT_STATUS = "tns1:Device/tnsaxis:Light/Status"
-    LOITERING_GUARD = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
-    MOTION_DETECTION = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
-    MOTION_DETECTION_3 = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
-    MOTION_DETECTION_4 = "tnsaxis:CameraApplicationPlatform/VMD"
-    MOTION_GUARD = "tnsaxis:CameraApplicationPlatform/MotionGuard"
-    OBJECT_ANALYTICS = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics"
-    PIR = "tns1:Device/tnsaxis:Sensor/PIR"
-    PORT_INPUT = "tns1:Device/tnsaxis:IO/Port"
-    PORT_SUPERVISED_INPUT = "tns1:Device/tnsaxis:IO/SupervisedPort"
-    PTZ_IS_MOVING = "tns1:PTZController/tnsaxis:Move"
-    PTZ_ON_PRESET = "tns1:PTZController/tnsaxis:PTZPresets"
-    RELAY = "tns1:Device/Trigger/Relay"
-    SOUND_TRIGGER_LEVEL = "tns1:AudioSource/tnsaxis:TriggerLevel"
+    DAY_NIGHT_VISION = "onvif:VideoSource/axis:DayNightVision"
+    FENCE_GUARD = "axis:CameraApplicationPlatform/FenceGuard"
+    LIGHT_STATUS = "onvif:Device/axis:Light/Status"
+    LOITERING_GUARD = "axis:CameraApplicationPlatform/LoiteringGuard"
+    MOTION_DETECTION = "onvif:VideoAnalytics/axis:MotionDetection"
+    MOTION_DETECTION_3 = "onvif:RuleEngine/axis:VMD3/vmd3_video_1"
+    MOTION_DETECTION_4 = "axis:CameraApplicationPlatform/VMD"
+    MOTION_GUARD = "axis:CameraApplicationPlatform/MotionGuard"
+    OBJECT_ANALYTICS = "axis:CameraApplicationPlatform/ObjectAnalytics"
+    PIR = "onvif:Device/axis:Sensor/PIR"
+    PORT_INPUT = "onvif:Device/axis:IO/Port"
+    PORT_SUPERVISED_INPUT = "onvif:Device/axis:IO/SupervisedPort"
+    PTZ_IS_MOVING = "onvif:PTZController/axis:Move"
+    PTZ_ON_PRESET = "onvif:PTZController/axis:PTZPresets"
+    RELAY = "onvif:Device/Trigger/Relay"
+    SOUND_TRIGGER_LEVEL = "onvif:AudioSource/axis:TriggerLevel"
     UNKNOWN = "unknown"
 
     @classmethod
@@ -71,8 +71,8 @@ EVENT_VALUE = "value"
 NOTIFICATION_MESSAGE = ("MetadataStream", "Event", "NotificationMessage")
 MESSAGE = (*NOTIFICATION_MESSAGE, "Message", "Message")
 TOPIC = (*NOTIFICATION_MESSAGE, "Topic", "#text")
-TIMESTAMP = (*MESSAGE, "@UtcTime")
-OPERATION = (*MESSAGE, "@PropertyOperation")
+TIMESTAMP = (*MESSAGE, "UtcTime")
+OPERATION = (*MESSAGE, "PropertyOperation")
 SOURCE = (*MESSAGE, "Source")
 DATA = (*MESSAGE, "Data")
 
@@ -97,8 +97,7 @@ def extract_name_value(
     item = data.get("SimpleItem", {})
     if isinstance(item, list):
         item = item[0]
-    return item.get("@Name", ""), item.get("@Value", "")
-    # return item.get("Name", ""), item.get("Value", "")
+    return item.get("Name", ""), item.get("Value", "")
 
 
 @dataclass
@@ -137,7 +136,7 @@ class Event:
                 source_idx = _source_idx
 
         if source_idx == "-1":
-            source_idx = "ANY" if source != "port" else ""
+            source_idx = "ANY"
 
         return cls(
             id=source_idx,
@@ -154,16 +153,17 @@ class Event:
     def _decode_from_bytes(cls, data: bytes) -> Self:
         """Parse metadata xml."""
         raw = xmltodict.parse(
-            data,
-            # attr_prefix="",
-            process_namespaces=True,
-            namespaces=XML_NAMESPACES,
+            data, attr_prefix="", process_namespaces=True, namespaces=XML_NAMESPACES
         )
 
         if raw.get("MetadataStream") is None:
             return cls._decode_from_dict({})
 
-        topic = traverse(raw, TOPIC)
+        topic = (
+            str(traverse(raw, TOPIC))
+            .replace("tns1", "onvif")
+            .replace("tnsaxis", "axis")
+        )
         # timestamp = traverse(raw, TIMESTAMP)
         operation = traverse(raw, OPERATION)
 

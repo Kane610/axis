@@ -28,7 +28,6 @@ DEFAULT_TOPICS = ["//."]
 def mqtt_json_to_event(msg: bytes | str) -> dict[str, Any]:
     """Convert JSON message from MQTT to event format."""
     message = orjson.loads(msg)
-    topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")
 
     source = source_idx = ""
     if message["message"]["source"]:
@@ -39,7 +38,7 @@ def mqtt_json_to_event(msg: bytes | str) -> dict[str, Any]:
         data_type, data_value = next(iter(message["message"]["data"].items()))
 
     return {
-        "topic": topic,
+        "topic": message["topic"],
         "source": source,
         "source_idx": source_idx,
         "type": data_type,
