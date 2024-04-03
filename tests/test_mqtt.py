@@ -309,7 +309,7 @@ async def test_convert_json_to_event():
     )
 
     assert event == {
-        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+        "topic": "onvif:Device/axis:Sensor/PIR",
         "source": "sensor",
         "source_idx": "0",
         "type": "state",
