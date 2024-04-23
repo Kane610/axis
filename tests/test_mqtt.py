@@ -9,8 +9,15 @@ from unittest.mock import MagicMock
 import pytest
 
 from axis.device import AxisDevice
-from axis.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
-from axis.models.mqtt import ClientConfig, Message, Server, ServerProtocol, Ssl
+from axis.interfaces.mqtt import MqttClientHandler
+from axis.models.mqtt import (
+    ClientConfig,
+    Message,
+    Server,
+    ServerProtocol,
+    Ssl,
+    mqtt_json_to_event,
+)
 
 
 @pytest.fixture
