@@ -129,7 +129,7 @@ class Event:
         source_idx = data.get(EVENT_SOURCE_IDX, "")
         value = data.get(EVENT_VALUE, "")
 
-        if (topic_base := EventTopic(topic)) == EventTopic.UNKNOWN:
+        if (topic_base := EventTopic(topic)) is EventTopic.UNKNOWN:
             _topic_base, _, _source_idx = topic.rpartition("/")
             topic_base = EventTopic(_topic_base)
             if source_idx == "":
@@ -153,7 +153,10 @@ class Event:
     def _decode_from_bytes(cls, data: bytes) -> Self:
         """Parse metadata xml."""
         raw = xmltodict.parse(
-            data, attr_prefix="", process_namespaces=True, namespaces=XML_NAMESPACES
+            data,
+            attr_prefix="",
+            process_namespaces=True,
+            namespaces=XML_NAMESPACES,
         )
 
         if raw.get("MetadataStream") is None:
