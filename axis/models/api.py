@@ -58,7 +58,7 @@ ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponseSupportDecode)
 
 
 @dataclass
-class ApiRequest(ABC):
+class ApiRequest:
     """Create API request body."""
 
     method: str = field(init=False)
