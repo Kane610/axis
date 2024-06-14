@@ -9,8 +9,15 @@ from unittest.mock import MagicMock
 import pytest
 
 from axis.device import AxisDevice
-from axis.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
-from axis.models.mqtt import ClientConfig, Message, Server, ServerProtocol, Ssl
+from axis.interfaces.mqtt import MqttClientHandler
+from axis.models.mqtt import (
+    ClientConfig,
+    Message,
+    Server,
+    ServerProtocol,
+    Ssl,
+    mqtt_json_to_event,
+)
 
 
 @pytest.fixture
@@ -309,7 +316,7 @@ async def test_convert_json_to_event():
     )
 
     assert event == {
-        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+        "topic": "onvif:Device/axis:Sensor/PIR",
         "source": "sensor",
         "source_idx": "0",
         "type": "state",
