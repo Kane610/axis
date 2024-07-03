@@ -55,7 +55,7 @@ async def test_get_ports(respx_mock, io_port_management):
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
-        "params": [{"port": "0", "state": "open"}],
+        "params": {"ports": [{"port": "0", "state": "open"}]},
     }
 
     await io_port_management.close("0")
@@ -67,7 +67,7 @@ async def test_get_ports(respx_mock, io_port_management):
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
-        "params": [{"port": "0", "state": "closed"}],
+        "params": {"ports": [{"port": "0", "state": "closed"}]},
     }
 
 
@@ -105,16 +105,18 @@ async def test_set_ports(respx_mock, io_port_management):
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
-        "params": [
-            {
-                "port": "0",
-                "usage": "",
-                "direction": "",
-                "name": "",
-                "normalState": "",
-                "state": "closed",
-            }
-        ],
+        "params": {
+            "ports": [
+                {
+                    "port": "0",
+                    "usage": "",
+                    "direction": "",
+                    "name": "",
+                    "normalState": "",
+                    "state": "closed",
+                }
+            ]
+        },
     }
 
 

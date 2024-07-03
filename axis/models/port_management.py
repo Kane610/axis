@@ -247,7 +247,7 @@ class SetPortsRequest(ApiRequest):
                 "apiVersion": self.api_version,
                 "context": self.context,
                 "method": "setPorts",
-                "params": ports,
+                "params": {"ports": ports},
             }
         )
 
