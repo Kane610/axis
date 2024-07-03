@@ -34,11 +34,9 @@ class Users(ApiHandler[User]):
     @property
     def listed_in_parameters(self) -> bool:
         """Is pwdgrp.cgi supported."""
-        if self.vapix.params.property_handler.supported and (
+        return self.vapix.params.property_handler.supported and (
             self.vapix.params.property_handler["0"].api_http_version >= 3
-        ):
-            return True
-        return False
+        )
 
     async def _api_request(self) -> dict[str, User]:
         """Get default data of basic device information."""
