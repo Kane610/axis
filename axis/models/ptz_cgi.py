@@ -308,13 +308,15 @@ class PtzControlRequest(ApiRequest):
             if command_bool is not None:
                 data[key] = "on" if command_bool else "off"
 
-        for key, command_enum in (
-            ("imagerotation", self.image_rotation),
-            ("ircutfilter", self.ir_cut_filter),
-            ("move", self.move),
-        ):
-            if command_enum is not None:
-                data[key] = command_enum
+        data |= {
+            key: command_enum
+            for key, command_enum in (
+                ("imagerotation", self.image_rotation),
+                ("ircutfilter", self.ir_cut_filter),
+                ("move", self.move),
+            )
+            if command_enum is not None
+        }
 
         if self.continuous_pantilt_move:
             pan_speed, tilt_speed = self.continuous_pantilt_move
