@@ -4,14 +4,42 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import enum
-from typing import Literal, NotRequired, Self
+from typing import Any, Literal, NotRequired, Self
 
 import orjson
 from typing_extensions import TypedDict
 
 from .api import CONTEXT, ApiRequest, ApiResponse
+from .event import (
+    EVENT_SOURCE,
+    EVENT_SOURCE_IDX,
+    EVENT_TOPIC,
+    EVENT_TYPE,
+    EVENT_VALUE,
+)
 
 API_VERSION = "1.0"
+
+
+def mqtt_json_to_event(msg: bytes | str) -> dict[str, Any]:
+    """Convert JSON message from MQTT to event format."""
+    message = orjson.loads(msg)
+
+    source = source_idx = ""
+    if message["message"]["source"]:
+        source, source_idx = next(iter(message["message"]["source"].items()))
+
+    data_type = data_value = ""
+    if message["message"]["data"]:
+        data_type, data_value = next(iter(message["message"]["data"].items()))
+
+    return {
+        EVENT_TOPIC: message["topic"],
+        EVENT_SOURCE: source,
+        EVENT_SOURCE_IDX: source_idx,
+        EVENT_TYPE: data_type,
+        EVENT_VALUE: data_value,
+    }
 
 
 class ErrorDataT(TypedDict):
