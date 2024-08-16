@@ -71,8 +71,8 @@ async def main(
 
     try:
         if events:
-            while True:
-                await asyncio.sleep(1)
+            done = asyncio.Event()
+            await done.wait()
 
     except asyncio.CancelledError:
         device.stream.stop()
