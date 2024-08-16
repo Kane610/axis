@@ -269,8 +269,7 @@ class PtzControlRequest(ApiRequest):
             data["center"] = f"{x},{y}"
         if self.area_zoom:
             x, y, z = self.area_zoom
-            if z < 1:
-                z = 1
+            z = max(z, 1)
             data["areazoom"] = f"{x},{y},{z}"
         if self.center or self.area_zoom:
             if self.image_width:
