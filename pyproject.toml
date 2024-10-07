@@ -45,7 +45,7 @@ requirements_test = [
     "types-xmltodict==v0.13.0.3",
 ]
 requirements_dev = [
-    "pre-commit==3.8.0"
+    "pre-commit==4.0.0"
 ]
 
 [project.urls]
