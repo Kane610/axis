@@ -42,7 +42,7 @@ requirements_test = [
     "respx==0.21.1",
     "ruff==0.6.9",
     "types-orjson==3.6.2",
-    "types-xmltodict==v0.13.0.3",
+    "types-xmltodict==v0.14.0.20241009",
 ]
 requirements_dev = [
     "pre-commit==4.0.0"
