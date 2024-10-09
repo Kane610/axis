@@ -31,7 +31,7 @@ requirements = [
     "httpx==0.27.2",
     "orjson==3.10.7",
     "packaging==24.1",
-    "xmltodict==0.13.0",
+    "xmltodict==0.14.0",
 ]
 requirements_test = [
     "mypy==1.11.2",
