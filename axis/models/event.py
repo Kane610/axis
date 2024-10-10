@@ -123,11 +123,15 @@ def traverse(
 
 def extract_name_value(
     data: dict[str, list[dict[str, str]] | dict[str, str]],
+    prefer: str | None = None
 ) -> tuple[str, str]:
     """Extract name and value from a simple item, take first dictionary if it is a list."""
     item = data.get("SimpleItem", {})
     if isinstance(item, list):
-        item = item[0]
+        if prefer is None:
+            item = item[0]
+        else:
+            item = next(filter(lambda x: x.get("@Name", "") == prefer, item), item[0])
     return item.get("@Name", ""), item.get("@Value", "")
     # return item.get("Name", ""), item.get("Value", "")
 
@@ -206,7 +210,7 @@ class Event:
 
         data_type = data_value = ""
         if match := traverse(raw, DATA):
-            data_type, data_value = extract_name_value(match)
+            data_type, data_value = extract_name_value(match, "active")
 
         return cls._decode_from_dict(
             {
