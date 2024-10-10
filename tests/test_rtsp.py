@@ -514,9 +514,11 @@ def test_rtp_client(rtsp_client, caplog):
     assert "Stream recepient offline" in caplog.text
 
     with patch.object(rtp_client.client, "callback") as mock_callback:
-        rtp_client.client.datagram_received("0123456789ABCDEF", "addr")
+        rtp_client.client.datagram_received(
+            bytes.fromhex("008000000000000000000000AABBCCDD"), "addr"
+        )
         mock_callback.assert_called_with(Signal.DATA)
-        assert rtp_client.data == "CDEF"
+        assert rtp_client.data == bytes.fromhex("AABBCCDD")
 
     rtsp_client.stop()
     mock_transport.close.assert_called()
