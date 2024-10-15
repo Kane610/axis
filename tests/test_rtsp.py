@@ -9,9 +9,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from axis.rtsp import RTSPClient, Signal, State
+from axis.rtsp import RTP_HEADER_SIZE, RTSPClient, Signal, State
 
 from .conftest import HOST, RTSP_PORT
+from .packet_fixtures import (
+    RTP_PACKET1_FULL,
+    RTP_PACKET2_FRAGMENT1,
+    RTP_PACKET2_FRAGMENT2,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -514,12 +519,31 @@ def test_rtp_client(rtsp_client, caplog):
     assert "Stream recepient offline" in caplog.text
 
     with patch.object(rtp_client.client, "callback") as mock_callback:
-        rtp_client.client.datagram_received("0123456789ABCDEF", "addr")
+        rtp_client.client.datagram_received(
+            bytes.fromhex("008000000000000000000000AABBCCDD"), "addr"
+        )
         mock_callback.assert_called_with(Signal.DATA)
-        assert rtp_client.data == "CDEF"
+        assert rtp_client.data == bytes.fromhex("AABBCCDD")
 
     rtsp_client.stop()
     mock_transport.close.assert_called()
+
+
+@pytest.mark.parametrize(
+    ("packets"),
+    [([RTP_PACKET1_FULL]), ([RTP_PACKET2_FRAGMENT1, RTP_PACKET2_FRAGMENT2])],
+)
+def test_rtp_fragment(rtsp_client, packets: list[bytes]):
+    """Verify RTP fragment handling."""
+    rtp_client = rtsp_client.rtp
+
+    with patch.object(rtp_client.client, "callback") as mock_callback:
+        payload = b""
+        for packet in packets:
+            rtp_client.client.datagram_received(packet, "addr")
+            payload += packet[RTP_HEADER_SIZE:]
+        mock_callback.assert_called_with(Signal.DATA)
+        assert rtp_client.data == payload
 
 
 def test_methods(rtsp_client):
