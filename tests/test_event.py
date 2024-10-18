@@ -18,6 +18,7 @@ from .event_fixtures import (
     LIGHT_STATUS_INIT,
     LOITERING_GUARD_INIT,
     MOTION_GUARD_INIT,
+    OBJECT_ANALYTICS_ANY_CHANGE,
     OBJECT_ANALYTICS_INIT,
     PIR_CHANGE,
     PIR_INIT,
@@ -131,6 +132,18 @@ from .event_fixtures import (
                 "type": "Object Analytics",
                 "state": "0",
                 "tripped": False,
+            },
+        ),
+        (
+            OBJECT_ANALYTICS_ANY_CHANGE,
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                "source": "",
+                "source_idx": "Device1Scenario1",
+                "group": EventGroup.MOTION,
+                "type": "Object Analytics",
+                "state": "1",
+                "tripped": True,
             },
         ),
         (
@@ -323,6 +336,17 @@ def test_create_event(input: bytes, expected: tuple) -> None:
             {
                 "operation": "Changed",
                 "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "source": "",
+                "source_idx": "",
+                "type": "active",
+                "value": "1",
+            },
+        ),
+        (
+            OBJECT_ANALYTICS_ANY_CHANGE,
+            {
+                "operation": "Changed",
+                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
                 "source": "",
                 "source_idx": "",
                 "type": "active",
