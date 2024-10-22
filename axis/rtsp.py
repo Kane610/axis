@@ -35,6 +35,7 @@ class State(enum.StrEnum):
 
 
 TIME_OUT_LIMIT = 5
+RTP_HEADER_SIZE = 12
 
 
 class RTSPClient(asyncio.Protocol):
@@ -191,6 +192,7 @@ class RTPClient:
             self.callback = callback
             self.data: deque[bytes] = deque()
             self.transport: asyncio.BaseTransport | None = None
+            self.fragment: bool = False
 
         def connection_made(self, transport: asyncio.BaseTransport) -> None:
             """Execute when port is up and listening.
@@ -207,8 +209,19 @@ class RTPClient:
         def datagram_received(self, data: bytes, addr: Any) -> None:
             """Signals when new data is available."""
             if self.callback:
-                self.data.append(data[12:])
-                self.callback(Signal.DATA)
+                payload = data[RTP_HEADER_SIZE:]
+
+                # if the previous packet was a fragment, then merge it
+                if self.fragment:
+                    previous = self.data.pop()
+                    self.data.append(previous + payload)
+                else:
+                    self.data.append(payload)
+
+                # check whether the RTP marker bit is set, if not it is a fragment
+                self.fragment = (data[1] & 0b1 << 7) == 0
+                if not self.fragment:
+                    self.callback(Signal.DATA)
 
 
 class RTSPSession:
