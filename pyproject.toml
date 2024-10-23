@@ -34,7 +34,7 @@ requirements = [
     "xmltodict==0.14.2",
 ]
 requirements_test = [
-    "mypy==1.12.1",
+    "mypy==1.13.0",
     "pytest==8.3.3",
     "pytest-aiohttp==1.0.5",
     "pytest-asyncio==0.24.0",
