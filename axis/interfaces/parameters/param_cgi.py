@@ -17,6 +17,11 @@ if TYPE_CHECKING:
     from ..vapix import Vapix
 
 
+import logging
+
+LOGGER = logging.getLogger(__name__)
+
+
 class Params(ApiHandler[Any]):
     """Represents all parameters of param.cgi."""
 
@@ -43,6 +48,7 @@ class Params(ApiHandler[Any]):
         objects = await self._api_request(group)
         self._items.update(objects)
         self.initialized = True
+        # LOGGER.info(f"******** {objects}")
         return list(self.keys())
 
     async def request_group(self, group: ParameterGroup | None = None) -> Sequence[str]:

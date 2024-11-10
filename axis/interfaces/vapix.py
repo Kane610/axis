@@ -23,6 +23,7 @@ from .applications.object_analytics import (
     ObjectAnalyticsHandler,
 )
 from .applications.vmd4 import Vmd4Handler
+from .audio import AudioHandler
 from .basic_device_info import BasicDeviceInfoHandler
 from .event_instances import EventInstanceHandler
 from .light_control import LightHandler
@@ -62,6 +63,7 @@ class Vapix:
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.params: Params = Params(self)
 
+        self.audio = AudioHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
         self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
@@ -153,6 +155,7 @@ class Vapix:
             return
 
         apis: tuple[ApiHandler[Any], ...] = (
+            self.audio,
             self.basic_device_info,
             self.io_port_management,
             self.light_control,
