@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import logging
 
+import ffmpeg
 from httpx import AsyncClient
 
 import axis
@@ -50,7 +51,13 @@ async def axis_device(
 
 
 async def main(
-    host: str, port: int, username: str, password: str, params: bool, events: bool
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    params: bool,
+    events: bool,
+    audio: bool,
 ) -> None:
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
@@ -63,6 +70,10 @@ async def main(
 
     if params:
         await device.vapix.initialize()
+
+    if audio:
+        mulaw = await ffmpeg.to_axis_mulaw(audio)
+        await device.vapix.audio.transmit(mulaw)
 
     if events:
         device.enable_events()
@@ -90,6 +101,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--port", type=int, default=80)
     parser.add_argument("--events", action="store_true")
     parser.add_argument("--params", action="store_true")
+    parser.add_argument("--audio", type=str)
     parser.add_argument("-D", "--debug", action="store_true")
     args = parser.parse_args()
 
@@ -99,13 +111,14 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(message)s", level=loglevel)
 
     LOGGER.info(
-        "%s, %s, %s, %s, %s, %s",
+        "%s, %s, %s, %s, %s, %s, %s",
         args.host,
         args.username,
         args.password,
         args.port,
         args.events,
         args.params,
+        args.audio,
     )
 
     try:
@@ -117,6 +130,7 @@ if __name__ == "__main__":
                 port=args.port,
                 params=args.params,
                 events=args.events,
+                audio=args.audio,
             )
         )
 
