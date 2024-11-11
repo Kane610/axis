@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from ...models.api_discovery import ApiId
 from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
 from ..api_handler import ApiHandler
+from .audio import AudioParameterHandler
 from .brand import BrandParameterHandler
 from .image import ImageParameterHandler
 from .io_port import IOPortParameterHandler
@@ -17,11 +18,6 @@ if TYPE_CHECKING:
     from ..vapix import Vapix
 
 
-import logging
-
-LOGGER = logging.getLogger(__name__)
-
-
 class Params(ApiHandler[Any]):
     """Represents all parameters of param.cgi."""
 
@@ -31,6 +27,7 @@ class Params(ApiHandler[Any]):
         """Initialize parameter classes."""
         super().__init__(vapix)
 
+        self.audio_handler = AudioParameterHandler(self)
         self.brand_handler = BrandParameterHandler(self)
         self.image_handler = ImageParameterHandler(self)
         self.io_port_handler = IOPortParameterHandler(self)
@@ -48,7 +45,6 @@ class Params(ApiHandler[Any]):
         objects = await self._api_request(group)
         self._items.update(objects)
         self.initialized = True
-        # LOGGER.info(f"******** {objects}")
         return list(self.keys())
 
     async def request_group(self, group: ParameterGroup | None = None) -> Sequence[str]:

@@ -46,7 +46,6 @@ class PropertyAudioParamT(TypedDict):
     """Represent an audio object."""
 
     Audio: bool
-    DuplexMode: str
     Format: str
 
 
