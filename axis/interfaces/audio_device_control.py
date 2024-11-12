@@ -33,6 +33,14 @@ class AudioDeviceControlHandler(ApiHandler[Any]):
         response = GetDevicesSettingsResponse.decode(bytes_data)
         return response.data
 
+    async def get_gain_mute(self) -> tuple[int, bool]:
+        """Shortcut to get the gain/mute of the output audio device."""
+        settings = await self.get_devices_settings()
+        channel = (
+            settings[0].outputs[0].connection_types[0].signaling_types[0].channels[0]
+        )
+        return (channel.gain, channel.mute)
+
     async def mute(self) -> None:
         """Shortcut to mute the output audio device."""
         await self._set_gain_mute(mute=True)
