@@ -5,6 +5,7 @@ https://www.axis.com/vapix-library/subjects/t10100065/section/t10036015/display
 The Audio API helps you transmit audio to your Axis device.
 """
 
+from ..errors import RequestError
 from ..models.api_discovery import ApiId
 from ..models.audio import API_VERSION, TransmitAudioRequest
 from ..models.parameters.audio import AudioParam
@@ -35,4 +36,9 @@ class AudioHandler(ApiHandler[AudioParam]):
 
     async def transmit(self, audio: bytes) -> None:
         """Transmit audio to play on the speaker."""
-        await self.vapix.api_request(TransmitAudioRequest(audio=audio))
+        try:
+            await self.vapix.api_request(TransmitAudioRequest(audio=audio))
+        except RequestError as e:
+            # the transmit.cgi API will not return a HTTP response until the audio has finished playing. therefore, if the audio is longer than the vapix request timeout, it will throw an exception, even when the request is successful. so, instead we set a short httpx read timeout, and then dampen that exception if it occurs, while preserving exceptions for other timeout conditions
+            if str(e) != "Read Timeout":
+                raise

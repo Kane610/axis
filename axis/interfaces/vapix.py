@@ -47,8 +47,6 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-TIME_OUT = 15
-
 
 class Vapix:
     """Vapix parameter request."""
@@ -255,12 +253,14 @@ class Vapix:
             data=api_request.data,
             headers=api_request.headers,
             params=api_request.params,
+            timeout=api_request.timeout,
         )
 
     async def request(
         self,
         method: str,
         path: str,
+        timeout: int | httpx.Timeout,  # noqa: ASYNC109
         content: bytes | None = None,
         data: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
@@ -268,19 +268,25 @@ class Vapix:
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path
-        LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
+        LOGGER.debug(
+            "%s, %s, '%s', '%s', '%s', %s", method, url, content, data, params, timeout
+        )
 
         try:
             response = await self.device.config.session.request(
                 method,
                 url,
+                timeout=timeout,
                 content=content,
                 data=data,
                 headers=headers,
                 params=params,
                 auth=self.auth,
-                timeout=TIME_OUT,
             )
+
+        except httpx.ReadTimeout as errt:
+            message = "Read Timeout"
+            raise RequestError(message) from errt
 
         except httpx.TimeoutException as errt:
             message = "Timeout"

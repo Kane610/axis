@@ -7,7 +7,9 @@ The Audio API helps you transmit audio to your Axis device.
 
 from dataclasses import dataclass
 
-from .api import ApiRequest
+import httpx
+
+from .api import DEFAULT_TIMEOUT, ApiRequest
 
 API_VERSION = "1.0"
 
@@ -19,6 +21,9 @@ class TransmitAudioRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/audio/transmit.cgi"
     content_type = "audio/axis-mulaw-128"
+
+    # short read timeout since the call will block until the audio is played
+    timeout = httpx.Timeout(DEFAULT_TIMEOUT, read=5)
 
     audio: bytes
 
