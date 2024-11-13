@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 RTSP_URL = (
-    "rtsp://{host}/axis-media/media.amp?video={video}&audio={audio}&event={event}&Axis-Orig-Sw=true"
+    "rtsp://{host}/axis-media/media.amp?video={video}&audio={audio}&event={event}{axis_orig_sw}"
 )
 
 RETRY_TIMER = 15
@@ -43,6 +43,7 @@ class StreamManager:
             video=self.video_query,
             audio=self.audio_query,
             event=self.event_query,
+            axis_orig_sw="&Axis-Orig-Sw=true" if self.device.config.is_companion else "",
         )
         _LOGGER.debug(rtsp_url)
         return rtsp_url
