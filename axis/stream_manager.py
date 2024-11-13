@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 RTSP_URL = (
-    "rtsp://{host}/axis-media/media.amp?video={video}&audio={audio}&event={event}"
+    "rtsp://{host}/axis-media/media.amp?video={video}&audio={audio}&event={event}&Axis-Orig-Sw=true"
 )
 
 RETRY_TIMER = 15
