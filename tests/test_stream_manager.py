@@ -20,6 +20,12 @@ def stream_manager(axis_device) -> StreamManager:
     return axis_device.stream
 
 
+@pytest.fixture
+def stream_manager_companion(axis_companion_device) -> StreamManager:
+    """Return the StreamManager mock object."""
+    return axis_companion_device.stream
+
+
 async def test_stream_url(stream_manager):
     """Verify stream url."""
     assert stream_manager.video_query == 0
@@ -35,6 +41,24 @@ async def test_stream_url(stream_manager):
     assert (
         stream_manager.stream_url
         == f"rtsp://{HOST}/axis-media/media.amp?video=0&audio=0&event=on"
+    )
+
+
+async def test_stream_url_companion(stream_manager_companion):
+    """Verify stream url."""
+    assert stream_manager_companion.video_query == 0
+    assert stream_manager_companion.audio_query == 0
+    assert stream_manager_companion.event_query == "off"
+    assert (
+        stream_manager_companion.stream_url
+        == f"rtsp://{HOST}/axis-media/media.amp?video=0&audio=0&event=off&Axis-Orig-Sw=true"
+    )
+
+    stream_manager_companion.event = True
+    assert stream_manager_companion.event_query == "on"
+    assert (
+        stream_manager_companion.stream_url
+        == f"rtsp://{HOST}/axis-media/media.amp?video=0&audio=0&event=on&Axis-Orig-Sw=true"
     )
 
 
