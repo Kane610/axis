@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from ...models.api_discovery import ApiId
 from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
 from ..api_handler import ApiHandler
+from .audio import AudioParameterHandler
 from .brand import BrandParameterHandler
 from .image import ImageParameterHandler
 from .io_port import IOPortParameterHandler
@@ -26,6 +27,7 @@ class Params(ApiHandler[Any]):
         """Initialize parameter classes."""
         super().__init__(vapix)
 
+        self.audio_handler = AudioParameterHandler(self)
         self.brand_handler = BrandParameterHandler(self)
         self.image_handler = ImageParameterHandler(self)
         self.io_port_handler = IOPortParameterHandler(self)
