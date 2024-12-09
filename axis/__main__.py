@@ -57,7 +57,7 @@ async def main(
     password: str,
     params: bool,
     events: bool,
-    audio: bool,
+    audio: str,
 ) -> None:
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")

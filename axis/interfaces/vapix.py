@@ -260,7 +260,7 @@ class Vapix:
         self,
         method: str,
         path: str,
-        timeout: int | type(httpx.Timeout),
+        timeout: int | httpx.Timeout,  # noqa: ASYNC109
         content: bytes | None = None,
         data: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
