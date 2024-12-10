@@ -12,8 +12,8 @@ repos:
       - id: mypy
         additional_dependencies: [
           "httpx==0.27.2",
+          "orjson==3.10.12",
           "packaging==24.2",
-          "types-orjson==3.6.2",
           "types-xmltodict==v0.14.0.20241009"
         ]
         exclude: ^tests/
