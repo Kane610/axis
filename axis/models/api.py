@@ -4,7 +4,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Generic, Self, TypeVar
 
+import httpx
+
 CONTEXT = "Axis library"
+DEFAULT_TIMEOUT = 15
 
 
 @dataclass(frozen=True)
@@ -64,6 +67,7 @@ class ApiRequest:
     method: str = field(init=False)
     path: str = field(init=False)
     content_type: str = field(init=False)
+    timeout: int | httpx.Timeout = field(init=False, default=DEFAULT_TIMEOUT)
 
     @property
     def content(self) -> bytes | None:
