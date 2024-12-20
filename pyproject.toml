@@ -39,7 +39,7 @@ requirements-test = [
     "pytest-aiohttp==1.0.5",
     "pytest-asyncio==0.25.0",
     "pytest-cov==6.0.0",
-    "respx==0.21.1",
+    "respx==0.22.0",
     "ruff==0.8.3",
     "types-xmltodict==v0.14.0.20241009",
 ]
