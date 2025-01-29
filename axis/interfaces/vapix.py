@@ -23,6 +23,8 @@ from .applications.object_analytics import (
     ObjectAnalyticsHandler,
 )
 from .applications.vmd4 import Vmd4Handler
+from .audio import AudioHandler
+from .audio_device_control import AudioDeviceControlHandler
 from .basic_device_info import BasicDeviceInfoHandler
 from .event_instances import EventInstanceHandler
 from .light_control import LightHandler
@@ -45,8 +47,6 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-TIME_OUT = 15
-
 
 class Vapix:
     """Vapix parameter request."""
@@ -62,6 +62,8 @@ class Vapix:
         self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.params: Params = Params(self)
 
+        self.audio = AudioHandler(self)
+        self.audio_device_control = AudioDeviceControlHandler(self)
         self.basic_device_info = BasicDeviceInfoHandler(self)
         self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
@@ -153,6 +155,8 @@ class Vapix:
             return
 
         apis: tuple[ApiHandler[Any], ...] = (
+            self.audio,
+            self.audio_device_control,
             self.basic_device_info,
             self.io_port_management,
             self.light_control,
@@ -249,12 +253,14 @@ class Vapix:
             data=api_request.data,
             headers=api_request.headers,
             params=api_request.params,
+            timeout=api_request.timeout,
         )
 
     async def request(
         self,
         method: str,
         path: str,
+        timeout: int | httpx.Timeout,  # noqa: ASYNC109
         content: bytes | None = None,
         data: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
@@ -262,19 +268,25 @@ class Vapix:
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path
-        LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
+        LOGGER.debug(
+            "%s, %s, '%s', '%s', '%s', %s", method, url, content, data, params, timeout
+        )
 
         try:
             response = await self.device.config.session.request(
                 method,
                 url,
+                timeout=timeout,
                 content=content,
                 data=data,
                 headers=headers,
                 params=params,
                 auth=self.auth,
-                timeout=TIME_OUT,
             )
+
+        except httpx.ReadTimeout as errt:
+            message = "Read Timeout"
+            raise RequestError(message) from errt
 
         except httpx.TimeoutException as errt:
             message = "Timeout"
