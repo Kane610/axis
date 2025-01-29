@@ -40,7 +40,7 @@ requirements-test = [
     "pytest-asyncio==0.25.3",
     "pytest-cov==6.0.0",
     "respx==0.22.0",
-    "ruff==0.8.6",
+    "ruff==0.9.3",
     "types-xmltodict==v0.14.0.20241009",
 ]
 requirements-dev = [
@@ -147,8 +147,6 @@ lint.select = [
 ]
 
 lint.ignore = [
-    "ANN101", # Missing type annotation for {name} in method
-    "ANN102", # Missing type annotation for {name} in classmethod
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in {name}
     "COM812", # Trailing comma missing
     "D203", # 1 blank line required before class docstring
