@@ -44,7 +44,7 @@ def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
         event_list = get_events(value)  # Recursive call
 
         for event in event_list:
-            event["topic"] = f'{key}/{event["topic"]}'  # Compose the topic
+            event["topic"] = f"{key}/{event['topic']}"  # Compose the topic
             events.append(event)
 
     return events
