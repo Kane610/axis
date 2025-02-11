@@ -32,6 +32,21 @@ async def axis_device(respx_mock: respx.router.MockRouter) -> AxisDevice:
     await session.aclose()
 
 
+@pytest.fixture
+async def axis_companion_device(respx_mock: respx.router.MockRouter) -> AxisDevice:
+    """Return the axis device.
+
+    Clean up sessions automatically at the end of each test.
+    """
+    respx_mock(base_url=f"http://{HOST}:80")
+    session = AsyncClient(verify=False)
+    axis_device = AxisDevice(
+        Configuration(session, HOST, username=USER, password=PASS, is_companion=True)
+    )
+    yield axis_device
+    await session.aclose()
+
+
 class TcpServerProtocol(asyncio.Protocol):
     """Simple socket server that responds with preset responses."""
 
