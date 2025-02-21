@@ -28,6 +28,7 @@ def test_configuration():
     assert config.web_proto == "https"
     assert config.verify_ssl is True
     assert config.url == "https://192.168.0.1:443"
+    assert config.is_companion is False
 
 
 def test_minimal_configuration():
@@ -47,3 +48,4 @@ def test_minimal_configuration():
     assert config.web_proto == "http"
     assert config.verify_ssl is False
     assert config.url == "http://192.168.1.1:80"
+    assert config.is_companion is False
