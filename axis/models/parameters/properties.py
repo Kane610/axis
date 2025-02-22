@@ -42,6 +42,13 @@ class PropertyApiParamT(TypedDict):
     PTZ: NotRequired[PropertyApiPtzParamT]
 
 
+class PropertyAudioParamT(TypedDict):
+    """Represent an audio object."""
+
+    Audio: bool
+    Format: str
+
+
 class PropertyEmbeddedDevelopmentRuleEngineParamT(TypedDict):
     """Represent an embedded development rule engine object."""
 
@@ -109,6 +116,7 @@ class PropertyParamT(TypedDict):
     """Represent a property object."""
 
     API: PropertyApiParamT
+    Audio: NotRequired[PropertyAudioParamT]
     EmbeddedDevelopment: NotRequired[PropertyEmbeddedDevelopmentParamT]
     Firmware: PropertyFirmwareParamT
     Image: NotRequired[PropertyImageParamT]
@@ -136,6 +144,9 @@ class PropertyParam(ParamItem):
     As of version 2.00 of the PTZ preset API Properties.API.PTZ.Presets.Version=2.00
     adding, updating and removing presets using param.cgi is no longer supported.
     """
+
+    audio: bool
+    """Support audio."""
 
     embedded_development: str
     """VAPIX® Application API is supported.
@@ -188,6 +199,7 @@ class PropertyParam(ParamItem):
             .get("PTZ", {})
             .get("Presets", {})
             .get("Version", False),
+            audio=data.get("Audio", {}).get("Audio", False),
             embedded_development=data.get("EmbeddedDevelopment", {}).get(
                 "Version", "0.0"
             ),
