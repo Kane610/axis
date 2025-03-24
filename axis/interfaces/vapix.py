@@ -236,7 +236,6 @@ class Vapix:
 
     async def api_request(self, api_request: ApiRequest) -> bytes:
         """Make a request to the device."""
-        # if is companion, join params with &Axis-Orig-Sw=true
         params = api_request.params or {}
         if self.device.config.is_companion:
             params["Axis-Orig-Sw"] = "true"
