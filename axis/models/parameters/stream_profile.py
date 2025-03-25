@@ -51,7 +51,7 @@ class StreamProfileParam(ParamItem):
                 description=profile["Description"],
                 parameters=profile["Parameters"],
             )
-            for profile in cast(dict[str, ProfileParamT], raw_profiles).values()
+            for profile in cast("dict[str, ProfileParamT]", raw_profiles).values()
         ]
 
         return cls(
