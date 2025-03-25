@@ -17,6 +17,7 @@ class Configuration:
     port: int = 80
     web_proto: str = "http"
     verify_ssl: bool = False
+    is_companion: bool = False
 
     @property
     def url(self) -> str:

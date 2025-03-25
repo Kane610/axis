@@ -49,6 +49,12 @@ def vapix(axis_device: AxisDevice) -> Vapix:
     return axis_device.vapix
 
 
+@pytest.fixture
+def vapix_companion_device(axis_companion_device: AxisDevice) -> Vapix:
+    """Return the vapix object."""
+    return axis_companion_device.vapix
+
+
 def test_vapix_not_initialized(vapix: Vapix) -> None:
     """Test Vapix class without initialising any data."""
     assert dict(vapix.basic_device_info.items()) == {}
@@ -227,6 +233,7 @@ async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
     )
     await vapix.initialize_param_cgi()
 
+    assert "Axis-Orig-Sw" not in respx_mock.calls.last.request.url.params
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -241,6 +248,37 @@ async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
     assert len(vapix.params.stream_profile_handler) == 1
 
     assert vapix.users.supported
+
+
+async def test_initialize_param_cgi_for_companion_device(
+    respx_mock, vapix_companion_device: Vapix
+):
+    """Verify that you can list parameters."""
+    respx_mock.post("/axis-cgi/param.cgi").respond(
+        text=PARAM_CGI_RESPONSE,
+        headers={"Content-Type": "text/plain"},
+    )
+    respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+        json=LIGHT_CONTROL_RESPONSE,
+    )
+    await vapix_companion_device.initialize_param_cgi()
+
+    assert "Axis-Orig-Sw" in respx_mock.calls.last.request.url.params
+
+    assert vapix_companion_device.firmware_version == "9.10.1"
+    assert vapix_companion_device.product_number == "M1065-LW"
+    assert vapix_companion_device.product_type == "Network Camera"
+    assert vapix_companion_device.serial_number == "ACCC12345678"
+    assert len(vapix_companion_device.streaming_profiles) == 2
+
+    assert len(vapix_companion_device.basic_device_info) == 0
+    assert len(vapix_companion_device.ports.values()) == 1
+    assert len(vapix_companion_device.light_control.values()) == 1
+    assert len(vapix_companion_device.mqtt) == 0
+    assert len(vapix_companion_device.stream_profiles) == 0
+    assert len(vapix_companion_device.params.stream_profile_handler) == 1
+
+    assert vapix_companion_device.users.supported
 
 
 async def test_initialize_params_no_data(respx_mock, vapix: Vapix):
