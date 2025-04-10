@@ -23,8 +23,13 @@ def event_handler(event: Event) -> None:
 
 
 async def axis_device(
-    host: str, port: int, username: str, password: str, is_companion: bool = False
-) -> AxisDevice:
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    web_proto: str,
+    is_companion: bool = False,
+) -> axis.device.AxisDevice:
     """Create a Axis device."""
     session = AsyncClient(verify=False)  # noqa: S501
     device = AxisDevice(
@@ -35,6 +40,7 @@ async def axis_device(
             username=username,
             password=password,
             is_companion=is_companion,
+            web_proto=web_proto,
         )
     )
 
@@ -61,12 +67,18 @@ async def axis_device(
 
 
 async def main(
-    host: str, port: int, username: str, password: str, params: bool, events: bool
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    params: bool,
+    events: bool,
+    web_proto: str,
 ) -> None:
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
 
-    device = await axis_device(host, port, username, password)
+    device = await axis_device(host, port, username, password, web_proto=web_proto)
 
     if not device:
         LOGGER.error("Couldn't connect to Axis device")
@@ -99,6 +111,7 @@ if __name__ == "__main__":
     parser.add_argument("username", type=str)
     parser.add_argument("password", type=str)
     parser.add_argument("-p", "--port", type=int, default=80)
+    parser.add_argument("--proto", type=str, default="http")
     parser.add_argument("--events", action="store_true")
     parser.add_argument("--params", action="store_true")
     parser.add_argument("-D", "--debug", action="store_true")
@@ -128,6 +141,7 @@ if __name__ == "__main__":
                 port=args.port,
                 params=args.params,
                 events=args.events,
+                web_proto=args.proto,
             )
         )
 
