@@ -42,12 +42,19 @@ LOGGER = logging.getLogger(__name__)
 TIME_OUT = 15
 
 
+class WrongAuthError(RequestError):
+    """Wrong authentication method response."""
+
+
 class Vapix:
     """Vapix parameter request."""
+
+    auth: httpx.BasicAuth | httpx.DigestAuth
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
+        # self.auth = httpx.BasicAuth(device.config.username, device.config.password)
         self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.users = Users(self)
@@ -258,6 +265,35 @@ class Vapix:
         params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
+        try:
+            return await self._request(
+                method=method,
+                path=path,
+                content=content,
+                data=data,
+                headers=headers,
+                params=params,
+            )
+        except WrongAuthError:
+            return await self._request(
+                method=method,
+                path=path,
+                content=content,
+                data=data,
+                headers=headers,
+                params=params,
+            )
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        content: bytes | None = None,
+        data: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+    ) -> bytes:
+        """Make a request to the device."""
         url = self.device.config.url + path
         LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
 
@@ -291,6 +327,12 @@ class Vapix:
             response.raise_for_status()
 
         except httpx.HTTPStatusError as errh:
+            self._evaluate_auth(response.headers)
+            # print(1, response, response.text, response.headers)
+            # auth: str = response.headers.get("www-authenticate", "")
+            # if auth.startswith("Basic"):
+            #     print("BASIC")
+            #     print(self.auth)
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
@@ -302,3 +344,18 @@ class Vapix:
         )
 
         return response.content
+
+    def _evaluate_auth(self, headers: httpx.Headers) -> None:
+        """Evaluate and reassign authentication method if needed."""
+        dev = self.device
+        expected_auth = headers.get("www-authenticate", "")
+        if expected_auth.lower().startswith("basic") and isinstance(
+            self.auth, httpx.DigestAuth
+        ):
+            self.auth = httpx.BasicAuth(dev.config.username, dev.config.password)
+            raise WrongAuthError
+        if expected_auth.lower().startswith("digest") and isinstance(
+            self.auth, httpx.BasicAuth
+        ):
+            self.auth = httpx.DigestAuth(dev.config.username, dev.config.password)
+            raise WrongAuthError
