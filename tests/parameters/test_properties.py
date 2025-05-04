@@ -192,8 +192,8 @@ async def test_property_handler(respx_mock, property_handler: PropertyParameterH
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Properties"},
     ).respond(
-        text=PROPERTY_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PROPERTY_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not property_handler.initialized
     await property_handler.update()
@@ -258,6 +258,9 @@ async def test_mixed_properties(
     """
     respx_mock.post(
         "/axis-cgi/param.cgi", data={"action": "list", "group": "root.Properties"}
-    ).respond(text=property_response, headers={"Content-Type": "text/plain"})
+    ).respond(
+        content=property_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
 
     await property_handler.update()

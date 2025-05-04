@@ -31,8 +31,8 @@ async def test_stream_profile_handler(
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.StreamProfile"},
     ).respond(
-        text=STREAM_PROFILE_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not stream_profile_handler.initialized
 

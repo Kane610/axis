@@ -43,8 +43,8 @@ async def test_param_handler(respx_mock, param_handler: Params):
         "/axis-cgi/param.cgi",
         data={"action": "list"},
     ).respond(
-        text=PARAM_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not param_handler.initialized
 
@@ -634,12 +634,12 @@ root.PTZ.Preset.P0.HomePosition=1
 root.PTZ.Preset.P0.ImageSource=0
 root.PTZ.Preset.P0.Name=
 root.PTZ.Preset.P0.Position.P1.Data=pan=0.000000:tilt=0.000000:zoom=1.000000
-root.PTZ.Preset.P0.Position.P1.Name=Home
+root.PTZ.Preset.P0.Position.P1.Name=Entrée
 root.PTZ.Preset.P1.HomePosition=1
 root.PTZ.Preset.P1.ImageSource=1
 root.PTZ.Preset.P1.Name=
 root.PTZ.Preset.P1.Position.P1.Data=pan=0.000000:tilt=0.000000:zoom=1.000000
-root.PTZ.Preset.P1.Position.P1.Name=Home
+root.PTZ.Preset.P1.Position.P1.Name=Haustür
 root.PTZ.PTZDriverStatuses.Driver1Status=3
 root.PTZ.PTZDriverStatuses.Driver2Status=3
 root.PTZ.Support.S1.AbsoluteBrightness=false
