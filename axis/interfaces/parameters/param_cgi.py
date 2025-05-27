@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from chardet import detect
+from cchardet import detect
 
 from ...models.api_discovery import ApiId
 from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
