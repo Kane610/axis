@@ -35,8 +35,8 @@ async def test_io_port_handler(respx_mock, io_port_handler: IOPortParameterHandl
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.IOPort"},
     ).respond(
-        text=PORT_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PORT_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not io_port_handler.initialized
 

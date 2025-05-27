@@ -34,8 +34,8 @@ async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Brand"},
     ).respond(
-        text=BRAND_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=BRAND_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not brand_handler.initialized
 
@@ -62,8 +62,8 @@ async def test_brand_handler_5_51(respx_mock, brand_handler: BrandParameterHandl
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Brand"},
     ).respond(
-        text=BRAND_5_51_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=BRAND_5_51_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     await brand_handler.update()
 

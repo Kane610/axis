@@ -22,7 +22,7 @@ root.Image.TimeFormat=24
 root.Image.TimeResolution=1
 root.Image.TriggerDataEnabled=no
 root.Image.I0.Enabled=yes
-root.Image.I0.Name=View Area 1
+root.Image.I0.Name=Fußgängerüberweg
 root.Image.I0.Source=0
 root.Image.I0.Appearance.ColorEnabled=yes
 root.Image.I0.Appearance.Compression=30
@@ -231,8 +231,8 @@ async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.Image"},
     ).respond(
-        text=IMAGE_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=IMAGE_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not image_handler.initialized
 
@@ -245,7 +245,7 @@ async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
     assert image_handler.initialized
     image_0 = image_handler["0"]
     assert image_0.enabled is True
-    assert image_0.name == "View Area 1"
+    assert image_0.name == "Fußgängerüberweg"
     assert image_0.source == 0
     assert image_0.appearance == {
         "ColorEnabled": True,
@@ -382,6 +382,8 @@ async def test_limited_image_data(
     """
     respx_mock.post(
         "/axis-cgi/param.cgi", data={"action": "list", "group": "root.Image"}
-    ).respond(text=image_response, headers={"Content-Type": "text/plain"})
-
+    ).respond(
+        content=image_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
     await image_handler.update()
