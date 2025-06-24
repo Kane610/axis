@@ -1,9 +1,19 @@
 """Axis Vapix parameter management."""
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
-from cchardet import detect
+if TYPE_CHECKING:
+
+    class _DetectResultType(TypedDict):
+        encoding: str
+        confidence: float
+
+    def detect(byte_str: bytes | bytearray) -> _DetectResultType:
+        """Typed interface for chardet detect method."""
+        ...
+else:
+    from cchardet import detect
 
 from ...models.api_discovery import ApiId
 from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
