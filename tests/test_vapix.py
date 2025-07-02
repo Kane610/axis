@@ -98,8 +98,10 @@ async def test_initialize(respx_mock, vapix: Vapix):
         }
     )
 
-    respx_mock.post("/axis-cgi/param.cgi").respond(text=PARAM_CGI_RESPONSE)
-
+    respx_mock.post("/axis-cgi/param.cgi").respond(
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
     respx_mock.post("/axis-cgi/applications/list.cgi").respond(
         text=APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
@@ -225,8 +227,8 @@ async def test_initialize_api_discovery_unsupported(respx_mock, vapix: Vapix):
 async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
     """Verify that you can list parameters."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -255,8 +257,8 @@ async def test_initialize_param_cgi_for_companion_device(
 ):
     """Verify that you can list parameters."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -283,9 +285,10 @@ async def test_initialize_param_cgi_for_companion_device(
 
 async def test_initialize_params_no_data(respx_mock, vapix: Vapix):
     """Verify that you can list parameters."""
-    param_route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-    ).respond(text="")
+    param_route = respx_mock.post("/axis-cgi/param.cgi").respond(
+        content="".encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
     await vapix.initialize_param_cgi(preload_data=False)
 
     assert param_route.call_count == 4
@@ -294,8 +297,8 @@ async def test_initialize_params_no_data(respx_mock, vapix: Vapix):
 async def test_initialize_applications(respx_mock, vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -334,8 +337,8 @@ async def test_initialize_applications(respx_mock, vapix: Vapix):
 async def test_initialize_applications_unauthorized(respx_mock, vapix: Vapix, code):
     """Verify initialize applications doesnt break on too low credentials."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -351,8 +354,8 @@ async def test_initialize_applications_unauthorized(respx_mock, vapix: Vapix, co
 async def test_initialize_applications_not_running(respx_mock, vapix: Vapix):
     """Verify you can list and retrieve descriptions of applications."""
     respx_mock.post("/axis-cgi/param.cgi").respond(
-        text=PARAM_CGI_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
@@ -389,10 +392,10 @@ async def test_initialize_event_instances(respx_mock, vapix: Vapix):
 
 async def test_applications_dont_load_without_params(respx_mock, vapix: Vapix):
     """Applications depends on param cgi to be loaded first."""
-    param_route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-    ).respond(text="key=value")
-
+    param_route = respx_mock.post("/axis-cgi/param.cgi").respond(
+        content="key=value".encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
     applications_route = respx_mock.post("/axis-cgi/applications/list.cgi")
 
     await vapix.initialize_param_cgi(preload_data=False)

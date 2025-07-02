@@ -29,7 +29,7 @@ root.PTZ.Preset.P0.HomePosition=1
 root.PTZ.Preset.P0.ImageSource=0
 root.PTZ.Preset.P0.Name=
 root.PTZ.Preset.P0.Position.P1.Data=tilt=0.000000:focus=32766.000000:pan=0.000000:iris=32766.000000:zoom=1.000000
-root.PTZ.Preset.P0.Position.P1.Name=Home
+root.PTZ.Preset.P0.Position.P1.Name=Entrée
 root.PTZ.PTZDriverStatuses.Driver1Status=3
 root.PTZ.SerDriverStatuses.Ser1Status=3
 root.PTZ.Support.S1.AbsoluteBrightness=true
@@ -1600,8 +1600,8 @@ async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
         "/axis-cgi/param.cgi",
         data={"action": "list", "group": "root.PTZ"},
     ).respond(
-        text=PTZ_RESPONSE,
-        headers={"Content-Type": "text/plain"},
+        content=PTZ_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
     assert not ptz_handler.initialized
 
@@ -1710,6 +1710,9 @@ async def test_ptz_5_51(respx_mock, ptz_handler: PtzParameterHandler, ptz_respon
     """
     respx_mock.post(
         "/axis-cgi/param.cgi", data={"action": "list", "group": "root.PTZ"}
-    ).respond(text=ptz_response, headers={"Content-Type": "text/plain"})
+    ).respond(
+        content=ptz_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
 
     await ptz_handler.update()

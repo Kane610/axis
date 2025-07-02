@@ -20,7 +20,7 @@ def ports(axis_device) -> Ports:
 async def test_ports(respx_mock, ports: Ports) -> None:
     """Test that different types of ports work."""
     update_ports_route = respx_mock.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
-        text="""root.Input.NbrOfInputs=3
+        content="""root.Input.NbrOfInputs=3
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
 root.IOPort.I1.Configurable=no
@@ -44,8 +44,8 @@ root.IOPort.I3.Output.Mode=bistable
 root.IOPort.I3.Output.Name=Tampering
 root.IOPort.I3.Output.PulseTime=0
 root.Output.NbrOfOutputs=1
-""",
-        headers={"Content-Type": "text/plain"},
+""".encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
 
     await ports.update()
@@ -99,8 +99,8 @@ root.Output.NbrOfOutputs=1
 async def test_no_ports(respx_mock, ports: Ports) -> None:
     """Test that no ports also work."""
     route = respx_mock.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
-        text="",
-        headers={"Content-Type": "text/plain"},
+        content="".encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
 
     await ports.update()
