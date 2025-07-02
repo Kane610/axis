@@ -49,7 +49,7 @@ class WrongAuthError(RequestError):
 class Vapix:
     """Vapix parameter request."""
 
-    auth: httpx.BasicAuth | httpx.DigestAuth
+    auth: httpx.Auth
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
@@ -328,11 +328,6 @@ class Vapix:
 
         except httpx.HTTPStatusError as errh:
             self._evaluate_auth(response.headers)
-            # print(1, response, response.text, response.headers)
-            # auth: str = response.headers.get("www-authenticate", "")
-            # if auth.startswith("Basic"):
-            #     print("BASIC")
-            #     print(self.auth)
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
@@ -348,14 +343,16 @@ class Vapix:
     def _evaluate_auth(self, headers: httpx.Headers) -> None:
         """Evaluate and reassign authentication method if needed."""
         dev = self.device
-        expected_auth = headers.get("www-authenticate", "")
-        if expected_auth.lower().startswith("basic") and isinstance(
-            self.auth, httpx.DigestAuth
-        ):
-            self.auth = httpx.BasicAuth(dev.config.username, dev.config.password)
-            raise WrongAuthError
-        if expected_auth.lower().startswith("digest") and isinstance(
-            self.auth, httpx.BasicAuth
-        ):
-            self.auth = httpx.DigestAuth(dev.config.username, dev.config.password)
-            raise WrongAuthError
+        expected_auth = headers.get("www-authenticate", "").lower()
+
+        auth_mapping = {
+            "basic": (httpx.DigestAuth, httpx.BasicAuth),
+            "digest": (httpx.BasicAuth, httpx.DigestAuth),
+        }
+
+        for auth_type, (current_auth, new_auth) in auth_mapping.items():
+            if expected_auth.startswith(auth_type) and isinstance(
+                self.auth, current_auth
+            ):
+                self.auth = new_auth(dev.config.username, dev.config.password)
+                raise WrongAuthError
