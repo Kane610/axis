@@ -674,7 +674,7 @@ def test_session_generate_digest_auth(rtsp_client):
     )
 
 
-def test_session_generate_basic_auth(event_loop, rtsp_client):
+def test_session_generate_basic_auth(rtsp_client):
     """Verify generate basic auth method."""
     session = rtsp_client.session
     session.update('WWW-Authenticate: Basic realm="AXIS_ACCC8E012345"\r\n')
