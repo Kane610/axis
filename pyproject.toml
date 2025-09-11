@@ -42,7 +42,7 @@ requirements-test = [
     "pytest-cov==7.0.0",
     "respx==0.22.0",
     "ruff==0.11.11",
-    "types-xmltodict==v0.14.0.20241009",
+    "types-xmltodict==v0.15.0.20250907",
 ]
 requirements-dev = [
     "pre-commit==4.3.0"
