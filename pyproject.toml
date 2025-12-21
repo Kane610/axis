@@ -41,7 +41,7 @@ requirements-test = [
     "pytest-asyncio==1.3.0",
     "pytest-cov==7.0.0",
     "respx==0.22.0",
-    "ruff==0.11.11",
+    "ruff==0.14.9",
     "types-xmltodict==v0.15.0.20250907",
 ]
 requirements-dev = [
@@ -160,6 +160,7 @@ lint.ignore = [
     "PLR0915", # Too many statements ({statements} > {max_statements})
     "PLR2004", # Magic value used in comparison, consider replacing {value} with a constant variable
     "S324", # Probable use of insecure hash functions in {library}: {string}
+    "UP046",  # 82 | class APIHandler(SubscriptionHandler, Generic[ApiItemT]):
 ]
 
 [tool.ruff.lint.flake8-pytest-style]

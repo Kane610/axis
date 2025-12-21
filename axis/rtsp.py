@@ -5,9 +5,11 @@
 # https://github.com/perexg/satip-axe/blob/master/tools/multicast-rtp
 
 import asyncio
+from base64 import b64encode
 from collections import deque
 from collections.abc import Callable
 import enum
+from hashlib import md5
 import logging
 import socket
 from typing import Any
@@ -372,8 +374,6 @@ class RTSPSession:
 
     def generate_digest(self) -> str:
         """RFC 2617."""
-        from hashlib import md5
-
         _ha1 = f"{self.username}:{self.realm}:{self.password}"
         ha1 = md5(_ha1.encode("UTF-8")).hexdigest()
         _ha2 = f"{self.method}:{self.url}"
@@ -392,8 +392,6 @@ class RTSPSession:
 
     def generate_basic(self) -> str:
         """RFC 2617."""
-        from base64 import b64encode
-
         if not self._basic_auth:
             creds = f"{self.username}:{self.password}"
             self._basic_auth = "Basic "
