@@ -160,6 +160,7 @@ lint.ignore = [
     "PLR0915", # Too many statements ({statements} > {max_statements})
     "PLR2004", # Magic value used in comparison, consider replacing {value} with a constant variable
     "S324", # Probable use of insecure hash functions in {library}: {string}
+    "UP046",  # 82 | class APIHandler(SubscriptionHandler, Generic[ApiItemT]):
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
