@@ -201,9 +201,13 @@ class Event:
         if raw.get("MetadataStream") is None:
             return cls._decode_from_dict({})
 
-        topic = traverse(raw, TOPIC)
+        topic = ""
+        if (match := traverse(raw, TOPIC)) != {}:
+            topic = str(match)
         # timestamp = traverse(raw, TIMESTAMP)
-        operation = traverse(raw, OPERATION)
+        operation = ""
+        if (match := traverse(raw, OPERATION)) != {}:
+            operation = str(match)
 
         source = source_idx = ""
         if match := traverse(raw, SOURCE):
