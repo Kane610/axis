@@ -7,22 +7,25 @@ import logging
 from httpx import AsyncClient
 
 import axis
+from axis.device import AxisDevice
+from axis.models.configuration import Configuration
+from axis.models.event import Event
 
 LOGGER = logging.getLogger(__name__)
 
 
-def event_handler(event: axis.models.event.Event) -> None:
+def event_handler(event: Event) -> None:
     """Receive and print events from RTSP stream."""
     LOGGER.info(event)
 
 
 async def axis_device(
     host: str, port: int, username: str, password: str, is_companion: bool = False
-) -> axis.device.AxisDevice:
+) -> AxisDevice:
     """Create a Axis device."""
     session = AsyncClient(verify=False)  # noqa: S501
-    device = axis.device.AxisDevice(
-        axis.models.configuration.Configuration(
+    device = AxisDevice(
+        Configuration(
             session,
             host,
             port=port,
