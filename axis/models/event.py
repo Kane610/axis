@@ -195,7 +195,7 @@ class Event:
             data,
             # attr_prefix="",
             process_namespaces=True,
-            namespaces=XML_NAMESPACES,
+            namespaces=XML_NAMESPACES,  # type: ignore[arg-type]
         )
 
         # Normalize the ONVIF metadata root: always use a dict, drop any stray
