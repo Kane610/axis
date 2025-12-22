@@ -195,10 +195,15 @@ class Event:
             data,
             # attr_prefix="",
             process_namespaces=True,
-            namespaces=XML_NAMESPACES,
+            namespaces=XML_NAMESPACES,  # type: ignore[arg-type]
         )
 
-        if raw.get("MetadataStream") is None:
+        # Normalize the ONVIF metadata root: always use a dict, drop any stray
+        # XML namespace attribute ("@xmlns") added by xmltodict, and bail out
+        # early if the payload is empty.
+        stream = raw.get("MetadataStream") or {}
+        stream.pop("@xmlns", None)
+        if not stream:
             return cls._decode_from_dict({})
 
         topic = traverse(raw, TOPIC)

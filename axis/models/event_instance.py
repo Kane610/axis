@@ -166,7 +166,7 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
             bytes_data,
             # attr_prefix="",
             dict_constructor=dict,  # Use dict rather than ordered_dict
-            namespaces=NAMESPACES,  # Replace or remove defined namespaces
+            namespaces=NAMESPACES,  # type: ignore[arg-type] # Replace or remove defined namespaces
             process_namespaces=True,
         )
         raw_events = traverse(data, EVENT_INSTANCE)  # Move past the irrelevant keys
