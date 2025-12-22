@@ -198,16 +198,17 @@ class Event:
             namespaces=XML_NAMESPACES,
         )
 
-        if raw.get("MetadataStream") is None:
+        # Normalize the ONVIF metadata root: always use a dict, drop any stray
+        # XML namespace attribute ("@xmlns") added by xmltodict, and bail out
+        # early if the payload is empty.
+        stream = raw.get("MetadataStream") or {}
+        stream.pop("@xmlns", None)
+        if not stream:
             return cls._decode_from_dict({})
 
-        topic = ""
-        if (match := traverse(raw, TOPIC)) != {}:
-            topic = str(match)
+        topic = traverse(raw, TOPIC)
         # timestamp = traverse(raw, TIMESTAMP)
-        operation = ""
-        if (match := traverse(raw, OPERATION)) != {}:
-            operation = str(match)
+        operation = traverse(raw, OPERATION)
 
         source = source_idx = ""
         if match := traverse(raw, SOURCE):

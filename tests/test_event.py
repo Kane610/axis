@@ -274,14 +274,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
     [
         (
             FIRST_MESSAGE,
-            {
-                "operation": "",
-                "topic": "",
-                "source": "",
-                "source_idx": "",
-                "type": "",
-                "value": "",
-            },
+            {},
         ),
         (
             PIR_INIT,
