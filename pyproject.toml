@@ -31,7 +31,7 @@ dependencies    = [
 requirements = [
     "httpx==0.28.1",
     "orjson==3.11.5",
-    "packaging==25.0",
+    "packaging==26.0",
     "xmltodict==1.0.2",
 ]
 requirements-test = [
