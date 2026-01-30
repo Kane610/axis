@@ -1,9 +1,12 @@
 """Test AXIS PTZ parameter management."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.parameters.ptz import PtzParameterHandler
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.parameters.ptz import PtzParameterHandler
 
 PTZ_RESPONSE = """root.PTZ.BoaProtPTZOperator=password
 root.PTZ.CameraDefault=1

@@ -4,10 +4,12 @@ pytest --cov-report term-missing --cov=axis.applications.vmd4 tests/applications
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.interfaces.applications.vmd4 import Vmd4Handler
+if TYPE_CHECKING:
+    from axis.interfaces.applications.vmd4 import Vmd4Handler
 
 
 @pytest.fixture

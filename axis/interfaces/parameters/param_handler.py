@@ -5,10 +5,11 @@ Generalises parameter specific handling like
 - Defining parameter group
 """
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from .param_cgi import Params
 
 from ...models.parameters.param_cgi import ParameterGroup, ParamItemT
@@ -21,7 +22,7 @@ class ParamHandler(ApiHandler[ParamItemT]):
     parameter_group: ParameterGroup
     parameter_item: type[ParamItemT]
 
-    def __init__(self, param_handler: "Params") -> None:
+    def __init__(self, param_handler: Params) -> None:
         """Initialize API items."""
         super().__init__(param_handler.vapix)
         param_handler.subscribe(self._update_params_callback, self.parameter_group)

@@ -1,9 +1,9 @@
 """Axis Vapix parameter management."""
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
 
     class _DetectResultType(TypedDict):
         encoding: str
@@ -34,7 +34,7 @@ class Params(ApiHandler[Any]):
 
     api_id = ApiId.PARAM_CGI
 
-    def __init__(self, vapix: "Vapix") -> None:
+    def __init__(self, vapix: Vapix) -> None:
         """Initialize parameter classes."""
         super().__init__(vapix)
 

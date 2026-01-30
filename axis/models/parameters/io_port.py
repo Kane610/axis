@@ -43,7 +43,7 @@ class PortAction(enum.StrEnum):
     UNKNOWN = "unknown"
 
     @classmethod
-    def _missing_(cls, value: object) -> "PortAction":
+    def _missing_(cls, value: object) -> PortAction:
         """Set default enum member if an unknown value is provided."""
         return cls.UNKNOWN
 
@@ -56,7 +56,7 @@ class PortDirection(enum.StrEnum):
     UNKNOWN = "unknown"
 
     @classmethod
-    def _missing_(cls, value: object) -> "PortDirection":
+    def _missing_(cls, value: object) -> PortDirection:
         """Set default enum member if an unknown value is provided."""
         return cls.UNKNOWN
 

@@ -4,10 +4,12 @@ pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/appl
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.interfaces.applications.motion_guard import MotionGuardHandler
+if TYPE_CHECKING:
+    from axis.interfaces.applications.motion_guard import MotionGuardHandler
 
 
 @pytest.fixture

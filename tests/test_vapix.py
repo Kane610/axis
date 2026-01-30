@@ -3,10 +3,11 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
+from typing import TYPE_CHECKING
+
 import httpx
 import pytest
 
-from axis.device import AxisDevice
 from axis.errors import (
     Forbidden,
     MethodNotAllowed,
@@ -14,7 +15,6 @@ from axis.errors import (
     RequestError,
     Unauthorized,
 )
-from axis.interfaces.vapix import Vapix
 from axis.models.applications.application import ApplicationStatus
 from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.models.stream_profile import StreamProfile
@@ -41,6 +41,10 @@ from .test_basic_device_info import (
 from .test_light_control import GET_LIGHT_INFORMATION_RESPONSE as LIGHT_CONTROL_RESPONSE
 from .test_port_management import GET_PORTS_RESPONSE as IO_PORT_MANAGEMENT_RESPONSE
 from .test_stream_profiles import LIST_RESPONSE as STREAM_PROFILE_RESPONSE
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.vapix import Vapix
 
 
 @pytest.fixture

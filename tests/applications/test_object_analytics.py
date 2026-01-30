@@ -4,13 +4,16 @@ pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.interfaces.applications.object_analytics import (
-    ObjectAnalyticsHandler,
-)
 from axis.models.applications.object_analytics import ScenarioType
+
+if TYPE_CHECKING:
+    from axis.interfaces.applications.object_analytics import (
+        ObjectAnalyticsHandler,
+    )
 
 
 @pytest.fixture

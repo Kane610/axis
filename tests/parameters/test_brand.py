@@ -1,9 +1,12 @@
 """Test Axis brand parameter management."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.parameters.brand import BrandParameterHandler
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.parameters.brand import BrandParameterHandler
 
 BRAND_RESPONSE = """root.Brand.Brand=AXIS
 root.Brand.ProdFullName=AXIS M1065-LW Network Camera

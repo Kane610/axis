@@ -3,12 +3,16 @@
 pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.interfaces.port_cgi import Ports
 from axis.models.parameters.io_port import PortAction, PortDirection
 
 from .conftest import HOST
+
+if TYPE_CHECKING:
+    from axis.interfaces.port_cgi import Ports
 
 
 @pytest.fixture

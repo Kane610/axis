@@ -3,9 +3,12 @@
 pytest --cov-report term-missing --cov=axis.applications.applications tests/applications/test_applications.py
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.interfaces.applications import ApplicationsHandler
+if TYPE_CHECKING:
+    from axis.interfaces.applications import ApplicationsHandler
 
 
 @pytest.fixture

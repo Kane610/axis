@@ -45,7 +45,7 @@ class ParameterGroup(enum.StrEnum):
     UNKNOWN = "unknown"
 
     @classmethod
-    def _missing_(cls, value: object) -> "ParameterGroup":
+    def _missing_(cls, value: object) -> ParameterGroup:
         """Set default enum member if an unknown value is provided."""
         LOGGER.warning("Unsupported parameter group %s", value)
         return ParameterGroup.UNKNOWN

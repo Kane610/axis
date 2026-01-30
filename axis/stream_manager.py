@@ -21,7 +21,7 @@ RETRY_TIMER = 15
 class StreamManager:
     """Setup, start, stop and retry stream."""
 
-    def __init__(self, device: "AxisDevice") -> None:
+    def __init__(self, device: AxisDevice) -> None:
         """Initialize stream manager."""
         self.device = device
         self.video = None  # Unsupported

@@ -1,9 +1,12 @@
 """Test Axis property parameter management."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.parameters.properties import PropertyParameterHandler
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.parameters.properties import PropertyParameterHandler
 
 PROPERTY_RESPONSE = """root.Properties.AlwaysMulticast.AlwaysMulticast=yes
 root.Properties.API.Browser.Language=yes

@@ -4,12 +4,14 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 """
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.basic_device_info import BasicDeviceInfoHandler
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.basic_device_info import BasicDeviceInfoHandler
 
 
 @pytest.fixture

@@ -1,11 +1,14 @@
 """Test Axis user management."""
 
+from typing import TYPE_CHECKING
 import urllib
 
 import pytest
 
-from axis.interfaces.pwdgrp_cgi import Users
 from axis.models.pwdgrp_cgi import SecondaryGroup, User
+
+if TYPE_CHECKING:
+    from axis.interfaces.pwdgrp_cgi import Users
 
 
 @pytest.fixture

@@ -4,12 +4,15 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.light_control import LightHandler
 from axis.models.api_discovery import Api
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.light_control import LightHandler
 
 
 @pytest.fixture

@@ -4,12 +4,14 @@ pytest --cov-report term-missing --cov=axis.interfaces.pir_sensor_configuration 
 """
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.pir_sensor_configuration import PirSensorConfigurationHandler
 
 
 @pytest.fixture

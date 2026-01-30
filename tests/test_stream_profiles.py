@@ -1,12 +1,14 @@
 """Test Axis stream profiles API."""
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.stream_profiles import StreamProfilesHandler
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.stream_profiles import StreamProfilesHandler
 
 
 @pytest.fixture

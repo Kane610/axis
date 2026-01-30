@@ -3,13 +3,16 @@
 import argparse
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from httpx import AsyncClient
 
 import axis
 from axis.device import AxisDevice
 from axis.models.configuration import Configuration
-from axis.models.event import Event
+
+if TYPE_CHECKING:
+    from axis.models.event import Event
 
 LOGGER = logging.getLogger(__name__)
 
