@@ -31,7 +31,7 @@ class EventOperation(enum.StrEnum):
     UNKNOWN = "Unknown"
 
     @classmethod
-    def _missing_(cls, value: object) -> "EventOperation":
+    def _missing_(cls, value: object) -> EventOperation:
         """Set default enum member if an unknown value is provided."""
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.warning("Unsupported operation %s", value)
@@ -60,7 +60,7 @@ class EventTopic(enum.StrEnum):
     UNKNOWN = "unknown"
 
     @classmethod
-    def _missing_(cls, value: object) -> "EventTopic":
+    def _missing_(cls, value: object) -> EventTopic:
         """Set default enum member if an unknown value is provided."""
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.warning("Unsupported topic %s", value)

@@ -4,12 +4,15 @@ pytest --cov-report term-missing --cov=axis.view_areas tests/test_view_areas.py
 """
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-from axis.device import AxisDevice
 from axis.interfaces.view_areas import Geometry, ViewAreaHandler
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
 
 
 @pytest.fixture

@@ -7,12 +7,14 @@
 import asyncio
 from base64 import b64encode
 from collections import deque
-from collections.abc import Callable
 import enum
 from hashlib import md5
 import logging
 import socket
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _LOGGER = logging.getLogger(__name__)
 

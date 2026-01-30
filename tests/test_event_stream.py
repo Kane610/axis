@@ -3,12 +3,11 @@
 pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
 """
 
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.event_manager import EventManager
 from axis.models.event import Event, EventGroup, EventOperation, EventTopic
 
 from .event_fixtures import (
@@ -40,6 +39,10 @@ from .event_fixtures import (
     VMD4_C1P2_CHANGE,
     VMD4_C1P2_INIT,
 )
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.event_manager import EventManager
 
 
 @pytest.fixture

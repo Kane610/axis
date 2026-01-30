@@ -4,12 +4,15 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.api_discovery import ApiDiscoveryHandler
 from axis.models.api_discovery import ApiId, ApiStatus
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.api_discovery import ApiDiscoveryHandler
 
 
 @pytest.fixture

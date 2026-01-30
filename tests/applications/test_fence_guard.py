@@ -4,10 +4,12 @@ pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/appli
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.interfaces.applications.fence_guard import FenceGuardHandler
+if TYPE_CHECKING:
+    from axis.interfaces.applications.fence_guard import FenceGuardHandler
 
 
 @pytest.fixture

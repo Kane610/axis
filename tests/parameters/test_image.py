@@ -1,9 +1,12 @@
 """Test Axis image parameter management."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.parameters.image import ImageParameterHandler
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.parameters.image import ImageParameterHandler
 
 IMAGE_RESPONSE = """root.Image.DateFormat=YYYY-MM-DD
 root.Image.MaxViewers=20

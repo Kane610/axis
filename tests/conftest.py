@@ -3,13 +3,16 @@
 import asyncio
 from collections import deque
 import logging
+from typing import TYPE_CHECKING
 
 from httpx import AsyncClient
 import pytest
-import respx
 
 from axis.device import AxisDevice
 from axis.models.configuration import Configuration
+
+if TYPE_CHECKING:
+    import respx
 
 LOGGER = logging.getLogger(__name__)
 

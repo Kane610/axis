@@ -4,13 +4,16 @@ pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-from axis.device import AxisDevice
 from axis.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
 from axis.models.mqtt import ClientConfig, Message, Server, ServerProtocol, Ssl
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
 
 
 @pytest.fixture

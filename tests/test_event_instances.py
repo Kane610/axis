@@ -3,9 +3,10 @@
 pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_instances.py
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.interfaces.event_instances import EventInstanceHandler
 from axis.models.event_instance import get_events
 
 from .event_fixtures import (
@@ -14,6 +15,9 @@ from .event_fixtures import (
     EVENT_INSTANCE_VMD4_PROFILE1,
     EVENT_INSTANCES,
 )
+
+if TYPE_CHECKING:
+    from axis.interfaces.event_instances import EventInstanceHandler
 
 
 @pytest.fixture

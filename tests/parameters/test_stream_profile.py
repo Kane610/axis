@@ -1,11 +1,14 @@
 """Test Axis stream profile parameter management."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.parameters.stream_profile import (
-    StreamProfileParameterHandler,
-)
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.parameters.stream_profile import (
+        StreamProfileParameterHandler,
+    )
 
 STREAM_PROFILE_RESPONSE = """root.StreamProfile.MaxGroups=26
 root.StreamProfile.S0.Description=profile_1_description

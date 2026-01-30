@@ -15,10 +15,10 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Home Automation",
 ]
-requires-python = ">=3.13.0"
+requires-python = ">=3.14.0"
 dependencies    = [
     "faust-cchardet>=2.1.18",
     "httpx>=0.26",
@@ -69,7 +69,7 @@ include = ["axis*"]
 "axis" = ["py.typed"]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
@@ -94,7 +94,7 @@ log_cli_level = "DEBUG"
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 lint.select = [
     # "A", # flake8-builtins
     "ANN", # flake8-annotations

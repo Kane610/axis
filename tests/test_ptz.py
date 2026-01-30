@@ -1,14 +1,17 @@
 """Test Axis PTZ control API."""
 
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.interfaces.ptz import PtzControl
 from axis.models.ptz_cgi import PtzMove, PtzQuery, PtzRotation, PtzState
 
 from .parameters.test_ptz import PTZ_RESPONSE
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.ptz import PtzControl
 
 
 @pytest.fixture

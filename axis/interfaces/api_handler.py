@@ -73,11 +73,11 @@ class SubscriptionHandler:
 class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     """Base class for a map of API Items."""
 
-    api_id: "ApiId | None" = None
+    api_id: ApiId | None = None
     default_api_version: str | None = None
     skip_support_check = False
 
-    def __init__(self, vapix: "Vapix") -> None:
+    def __init__(self, vapix: Vapix) -> None:
         """Initialize API items."""
         super().__init__()
         self.vapix = vapix

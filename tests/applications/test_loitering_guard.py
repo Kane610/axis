@@ -4,10 +4,12 @@ pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/a
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.interfaces.applications.loitering_guard import LoiteringGuardHandler
+if TYPE_CHECKING:
+    from axis.interfaces.applications.loitering_guard import LoiteringGuardHandler
 
 
 @pytest.fixture

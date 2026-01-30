@@ -1,8 +1,10 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 from dataclasses import KW_ONLY, dataclass
+from typing import TYPE_CHECKING
 
-from httpx import AsyncClient
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 
 @dataclass

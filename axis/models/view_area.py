@@ -100,7 +100,7 @@ class Geometry:
     vertical_size: int
 
     @classmethod
-    def from_dict(cls, data: GeometryT) -> "Geometry":
+    def from_dict(cls, data: GeometryT) -> Geometry:
         """Create geometry object from dict."""
         return Geometry(
             horizontal_offset=data["horizontalOffset"],
@@ -118,7 +118,7 @@ class Size:
     vertical: int
 
     @classmethod
-    def from_dict(cls, item: SizeT) -> "Size":
+    def from_dict(cls, item: SizeT) -> Size:
         """Create size object from dict."""
         return Size(horizontal=item["horizontal"], vertical=item["vertical"])
 
