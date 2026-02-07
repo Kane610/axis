@@ -30,7 +30,7 @@ dependencies    = [
 [project.optional-dependencies]
 requirements = [
     "httpx==0.28.1",
-    "orjson==3.11.5",
+    "orjson==3.11.7",
     "packaging==26.0",
     "xmltodict==1.0.2",
 ]
