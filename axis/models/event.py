@@ -102,8 +102,8 @@ EVENT_VALUE = "value"
 NOTIFICATION_MESSAGE = ("MetadataStream", "Event", "NotificationMessage")
 MESSAGE = (*NOTIFICATION_MESSAGE, "Message", "Message")
 TOPIC = (*NOTIFICATION_MESSAGE, "Topic", "#text")
-TIMESTAMP = (*MESSAGE, "@UtcTime")
-OPERATION = (*MESSAGE, "@PropertyOperation")
+TIMESTAMP = (*MESSAGE, "UtcTime")
+OPERATION = (*MESSAGE, "PropertyOperation")
 SOURCE = (*MESSAGE, "Source")
 DATA = (*MESSAGE, "Data")
 
@@ -127,14 +127,15 @@ def extract_name_value(
     """Extract name and value from a simple item, take first dictionary if it is a list."""
     item = data.get("SimpleItem", {})
     if isinstance(item, list):
+        if not item:
+            return "", ""
         if prefer is None:
             item = item[0]
         else:
             item = next(
-                (item for item in item if item.get("@Name", "") == prefer), item[0]
+                (item for item in item if item.get("Name", "") == prefer), item[0]
             )
-    return item.get("@Name", ""), item.get("@Value", "")
-    # return item.get("Name", ""), item.get("Value", "")
+    return item.get("Name", ""), item.get("Value", "")
 
 
 @dataclass
@@ -167,7 +168,7 @@ class Event:
         source_idx = data.get(EVENT_SOURCE_IDX, "")
         value = data.get(EVENT_VALUE, "")
 
-        if (topic_base := EventTopic(topic)) == EventTopic.UNKNOWN:
+        if (topic_base := EventTopic(topic)) is EventTopic.UNKNOWN:
             _topic_base, _, _source_idx = topic.rpartition("/")
             topic_base = EventTopic(_topic_base)
             if source_idx == "":
@@ -193,16 +194,16 @@ class Event:
         """Parse metadata xml."""
         raw = xmltodict.parse(
             data,
-            # attr_prefix="",
+            attr_prefix="",  # Remove "@" prefix from XML attributes for easier access
             process_namespaces=True,
             namespaces=XML_NAMESPACES,
         )
 
         # Normalize the ONVIF metadata root: always use a dict, drop any stray
-        # XML namespace attribute ("@xmlns") added by xmltodict, and bail out
+        # XML namespace attribute ("xmlns") added by xmltodict, and bail out
         # early if the payload is empty.
         stream = raw.get("MetadataStream") or {}
-        stream.pop("@xmlns", None)
+        stream.pop("xmlns", None)
         if not stream:
             return cls._decode_from_dict({})
 
