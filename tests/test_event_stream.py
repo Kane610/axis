@@ -8,7 +8,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from axis.models.event import Event, EventGroup, EventOperation, EventTopic
+from axis.device import AxisDevice
+from axis.interfaces.event_manager import EventManager
+from axis.models.event import Event, EventOperation, EventTopic
 
 from .event_fixtures import (
     AUDIO_INIT,
@@ -66,10 +68,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             AUDIO_INIT,
             {
-                "topic": "tns1:AudioSource/tnsaxis:TriggerLevel",
+                "topic": "onvif:AudioSource/axis:TriggerLevel",
                 "source": "channel",
                 "source_idx": "1",
-                "group": EventGroup.SOUND,
                 "type": "Sound",
                 "state": "0",
                 "tripped": False,
@@ -78,10 +79,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             DAYNIGHT_INIT,
             {
-                "topic": "tns1:VideoSource/tnsaxis:DayNightVision",
+                "topic": "onvif:VideoSource/axis:DayNightVision",
                 "source": "VideoSourceConfigurationToken",
                 "source_idx": "1",
-                "group": EventGroup.LIGHT,
                 "type": "DayNight",
                 "state": "1",
                 "tripped": True,
@@ -90,10 +90,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             FENCE_GUARD_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1",
+                "topic": "axis:CameraApplicationPlatform/FenceGuard/Camera1Profile1",
                 "source": "",
                 "source_idx": "Camera1Profile1",
-                "group": EventGroup.MOTION,
                 "type": "Fence Guard",
                 "state": "0",
                 "tripped": False,
@@ -102,10 +101,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             LIGHT_STATUS_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:Light/Status",
+                "topic": "onvif:Device/axis:Light/Status",
                 "source": "id",
                 "source_idx": "0",
-                "group": EventGroup.LIGHT,
                 "type": "Light",
                 "state": "OFF",
                 "tripped": False,
@@ -114,10 +112,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             LOITERING_GUARD_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1",
+                "topic": "axis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1",
                 "source": "",
                 "source_idx": "Camera1Profile1",
-                "group": EventGroup.MOTION,
                 "type": "Loitering Guard",
                 "state": "0",
                 "tripped": False,
@@ -126,10 +123,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             MOTION_GUARD_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY",
+                "topic": "axis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY",
                 "source": "",
                 "source_idx": "Camera1ProfileANY",
-                "group": EventGroup.MOTION,
                 "type": "Motion Guard",
                 "state": "0",
                 "tripped": False,
@@ -138,10 +134,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             OBJECT_ANALYTICS_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                "topic": "axis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
                 "source": "",
                 "source_idx": "Device1Scenario1",
-                "group": EventGroup.MOTION,
                 "type": "Object Analytics",
                 "state": "0",
                 "tripped": False,
@@ -150,10 +145,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             PIR_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "topic": "onvif:Device/axis:Sensor/PIR",
                 "source": "sensor",
                 "source_idx": "0",
-                "group": EventGroup.MOTION,
                 "type": "PIR",
                 "state": "0",
                 "tripped": False,
@@ -162,10 +156,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             PORT_0_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:IO/Port",
+                "topic": "onvif:Device/axis:IO/Port",
                 "source": "port",
                 "source_idx": "1",
-                "group": EventGroup.INPUT,
                 "type": "Input",
                 "state": "0",
                 "tripped": False,
@@ -174,10 +167,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             PORT_ANY_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:IO/Port",
+                "topic": "onvif:Device/axis:IO/Port",
                 "source": "port",
-                "source_idx": "",
-                "group": EventGroup.INPUT,
+                "source_idx": "ANY",
                 "type": "Input",
                 "state": "0",
                 "tripped": False,
@@ -186,10 +178,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             PTZ_MOVE_INIT,
             {
-                "topic": "tns1:PTZController/tnsaxis:Move/Channel_1",
+                "topic": "onvif:PTZController/axis:Move/Channel_1",
                 "source": "PTZConfigurationToken",
                 "source_idx": "1",
-                "group": EventGroup.PTZ,
                 "type": "is_moving",
                 "state": "0",
                 "tripped": False,
@@ -198,10 +189,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             PTZ_PRESET_INIT_1,
             {
-                "topic": "tns1:PTZController/tnsaxis:PTZPresets/Channel_1",
+                "topic": "onvif:PTZController/axis:PTZPresets/Channel_1",
                 "source": "PresetToken",
                 "source_idx": "1",
-                "group": EventGroup.PTZ,
                 "type": "on_preset",
                 "state": "1",
                 "tripped": True,
@@ -210,10 +200,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             RELAY_INIT,
             {
-                "topic": "tns1:Device/Trigger/Relay",
+                "topic": "onvif:Device/Trigger/Relay",
                 "source": "RelayToken",
                 "source_idx": "3",
-                "group": EventGroup.OUTPUT,
                 "type": "Relay",
                 "state": "inactive",
                 "tripped": False,
@@ -222,10 +211,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             VMD3_INIT,
             {
-                "topic": "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1",
+                "topic": "onvif:RuleEngine/axis:VMD3/vmd3_video_1",
                 "source": "areaid",
                 "source_idx": "0",
-                "group": EventGroup.MOTION,
                 "type": "VMD3",
                 "state": "0",
                 "tripped": False,
@@ -234,10 +222,9 @@ def subscriber(event_manager: EventManager) -> Mock:
         (
             VMD4_ANY_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "topic": "axis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
                 "source": "",
                 "source_idx": "Camera1ProfileANY",
-                "group": EventGroup.MOTION,
                 "type": "VMD4",
                 "state": "0",
                 "tripped": False,
@@ -256,7 +243,6 @@ def test_create_event(
     assert event.topic == expected["topic"]
     assert event.source == expected["source"]
     assert event.id == expected["source_idx"]
-    assert event.group == expected["group"]
     assert event.state == expected["state"]
     assert event.is_tripped is expected["tripped"]
 
@@ -282,7 +268,7 @@ def test_ptz_preset(event_manager: EventManager, subscriber: Mock) -> None:
     assert subscriber.call_count == 1
 
     event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
+    assert event.topic == "onvif:PTZController/axis:PTZPresets/Channel_1"
     assert event.id == "1"
     assert event.state == "1"
 
@@ -290,7 +276,7 @@ def test_ptz_preset(event_manager: EventManager, subscriber: Mock) -> None:
     assert subscriber.call_count == 2
 
     event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
+    assert event.topic == "onvif:PTZController/axis:PTZPresets/Channel_1"
     assert event.id == "2"
     assert event.state == "0"
 
@@ -298,7 +284,7 @@ def test_ptz_preset(event_manager: EventManager, subscriber: Mock) -> None:
     assert subscriber.call_count == 3
 
     event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:PTZPresets/Channel_1"
+    assert event.topic == "onvif:PTZController/axis:PTZPresets/Channel_1"
     assert event.id == "3"
     assert event.state == "0"
 
@@ -323,17 +309,16 @@ def test_ptz_move(event_manager: EventManager, subscriber: Mock) -> None:
     assert subscriber.call_count == 1
 
     event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:Move/Channel_1"
+    assert event.topic == "onvif:PTZController/axis:Move/Channel_1"
     assert event.source == "PTZConfigurationToken"
     assert event.id == "1"
-    assert event.group == EventGroup.PTZ
     assert event.state == "0"
 
     event_manager.handler(PTZ_MOVE_START)
     assert subscriber.call_count == 2
 
     event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:Move/Channel_1"
+    assert event.topic == "onvif:PTZController/axis:Move/Channel_1"
     assert event.id == "1"
     assert event.state == "1"
     assert event.is_tripped
@@ -342,7 +327,7 @@ def test_ptz_move(event_manager: EventManager, subscriber: Mock) -> None:
     assert subscriber.call_count == 3
 
     event: Event = subscriber.call_args[0][0]
-    assert event.topic == "tns1:PTZController/tnsaxis:Move/Channel_1"
+    assert event.topic == "onvif:PTZController/axis:Move/Channel_1"
     assert event.id == "1"
     assert event.state == "0"
     assert not event.is_tripped
@@ -351,7 +336,7 @@ def test_ptz_move(event_manager: EventManager, subscriber: Mock) -> None:
 def test_mqtt_event(event_manager: EventManager, subscriber: Mock) -> None:
     """Verify that unsupported events aren't signalled to subscribers."""
     mqtt_event = {
-        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+        "topic": "onvif:Device/axis:Sensor/PIR",
         "source": "sensor",
         "source_idx": "0",
         "type": "state",
@@ -362,7 +347,7 @@ def test_mqtt_event(event_manager: EventManager, subscriber: Mock) -> None:
 
     event: Event = subscriber.call_args[0][0]
     assert event.operation == EventOperation.INITIALIZED
-    assert event.topic == "tns1:Device/tnsaxis:Sensor/PIR"
+    assert event.topic == "onvif:Device/axis:Sensor/PIR"
     assert event.id == "0"
     assert event.state == "0"
     assert not event.is_tripped
