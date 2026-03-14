@@ -41,7 +41,10 @@ class WebProtocol(enum.StrEnum):
 
 @dataclass
 class Configuration:
-    """Device configuration."""
+    """Device configuration.
+
+    A port value of 0 means use the default port for the configured protocol.
+    """
 
     session: AsyncClient
     host: str
@@ -55,7 +58,7 @@ class Configuration:
     auth_scheme: AuthScheme = AuthScheme.AUTO
 
     def __post_init__(self) -> None:
-        """Normalize auth and protocol values to enums."""
+        """Normalize auth and protocol values to enums and resolve default port."""
         self.web_proto = WebProtocol(self.web_proto)
         if self.port == 0:
             self.port = 443 if self.web_proto == WebProtocol.HTTPS else 80
