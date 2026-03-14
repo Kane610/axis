@@ -203,8 +203,7 @@ class Event:
         # XML namespace attribute ("xmlns") added by xmltodict, and bail out
         # early if the payload is empty.
         stream = raw.get("MetadataStream") or {}
-        stream.pop("xmlns", None)
-        if not stream:
+        if not stream or not any(key != "xmlns" for key in stream):
             return cls._decode_from_dict({})
 
         topic = traverse(raw, TOPIC)
