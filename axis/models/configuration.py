@@ -26,6 +26,19 @@ class AuthScheme(enum.StrEnum):
         return AuthScheme.AUTO
 
 
+class WebProtocol(enum.StrEnum):
+    """Supported web protocols."""
+
+    HTTP = "http"
+    HTTPS = "https"
+
+    @classmethod
+    def _missing_(cls, value: object) -> WebProtocol:
+        """Set default enum member if an unknown value is provided."""
+        LOGGER.debug("Unsupported web protocol '%s'", value)
+        return WebProtocol.HTTP
+
+
 @dataclass
 class Configuration:
     """Device configuration."""
@@ -36,13 +49,14 @@ class Configuration:
     username: str
     password: str
     port: int = 80
-    web_proto: str = "http"
+    web_proto: WebProtocol = WebProtocol.HTTP
     verify_ssl: bool = False
     is_companion: bool = False
     auth_scheme: AuthScheme = AuthScheme.AUTO
 
     def __post_init__(self) -> None:
-        """Normalize auth scheme value to enum."""
+        """Normalize auth and protocol values to enums."""
+        self.web_proto = WebProtocol(self.web_proto)
         self.auth_scheme = AuthScheme(self.auth_scheme)
 
     @property

@@ -7,7 +7,7 @@ from typing import cast
 
 from httpx import AsyncClient
 
-from axis.models.configuration import AuthScheme, Configuration
+from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 
 
 def test_configuration() -> None:
@@ -27,7 +27,7 @@ def test_configuration() -> None:
     assert config.username == "root"
     assert config.password == "pass"
     assert config.port == 443
-    assert config.web_proto == "https"
+    assert config.web_proto == WebProtocol.HTTPS
     assert config.verify_ssl is True
     assert config.url == "https://192.168.0.1:443"
     assert config.is_companion is False
@@ -48,7 +48,7 @@ def test_minimal_configuration() -> None:
     assert config.username == "bill"
     assert config.password == "cipher"
     assert config.port == 80
-    assert config.web_proto == "http"
+    assert config.web_proto == WebProtocol.HTTP
     assert config.verify_ssl is False
     assert config.url == "http://192.168.1.1:80"
     assert config.is_companion is False
@@ -72,3 +72,22 @@ def test_configuration_auth_scheme_is_normalized_to_enum() -> None:
     )
 
     assert config.auth_scheme is AuthScheme.BASIC
+
+
+def test_unsupported_web_protocol_defaults_to_http() -> None:
+    """Test unsupported web protocol maps to HTTP."""
+    assert WebProtocol("unsupported") == WebProtocol.HTTP
+
+
+def test_configuration_web_protocol_is_normalized_to_enum() -> None:
+    """Test web protocol input is normalized to enum value."""
+    session = AsyncClient(verify=False)
+    config = Configuration(
+        session,
+        "192.168.1.3",
+        username="root",
+        password="pass",
+        web_proto=cast("WebProtocol", "https"),
+    )
+
+    assert config.web_proto is WebProtocol.HTTPS

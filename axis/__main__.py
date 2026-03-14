@@ -9,7 +9,7 @@ from httpx import AsyncClient
 
 import axis
 from axis.device import AxisDevice
-from axis.models.configuration import Configuration
+from axis.models.configuration import Configuration, WebProtocol
 
 if TYPE_CHECKING:
     from axis.models.event import Event
@@ -27,7 +27,7 @@ async def axis_device(
     port: int,
     username: str,
     password: str,
-    web_proto: str,
+    web_proto: WebProtocol,
     is_companion: bool = False,
 ) -> axis.device.AxisDevice:
     """Create a Axis device."""
@@ -73,7 +73,7 @@ async def main(
     password: str,
     params: bool,
     events: bool,
-    web_proto: str,
+    web_proto: WebProtocol,
 ) -> None:
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
@@ -141,7 +141,7 @@ if __name__ == "__main__":
                 port=args.port,
                 params=args.params,
                 events=args.events,
-                web_proto=args.proto,
+                web_proto=WebProtocol(args.proto),
             )
         )
 
