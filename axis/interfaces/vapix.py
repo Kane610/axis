@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..errors import RequestError, raise_error
+from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
 from .api_discovery import ApiDiscoveryHandler
 from .applications import ApplicationsHandler
@@ -45,10 +46,16 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
+    auth: httpx.Auth
+
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
-        self.auth = httpx.DigestAuth(device.config.username, device.config.password)
+
+        if device.config.auth_scheme == AuthScheme.BASIC:
+            self.auth = httpx.BasicAuth(device.config.username, device.config.password)
+        else:
+            self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
@@ -258,6 +265,27 @@ class Vapix:
         params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
+        return await self._request(
+            method=method,
+            path=path,
+            content=content,
+            data=data,
+            headers=headers,
+            params=params,
+            allow_auto_basic_retry=True,
+        )
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        content: bytes | None = None,
+        data: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        allow_auto_basic_retry: bool = False,
+    ) -> bytes:
+        """Make a request to the device."""
         url = self.device.config.url + path
         LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
 
@@ -291,6 +319,20 @@ class Vapix:
             response.raise_for_status()
 
         except httpx.HTTPStatusError as errh:
+            if self._should_retry_with_basic(response.headers, allow_auto_basic_retry):
+                self.auth = httpx.BasicAuth(
+                    self.device.config.username, self.device.config.password
+                )
+                return await self._request(
+                    method=method,
+                    path=path,
+                    content=content,
+                    data=data,
+                    headers=headers,
+                    params=params,
+                    allow_auto_basic_retry=False,
+                )
+
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
@@ -302,3 +344,19 @@ class Vapix:
         )
 
         return response.content
+
+    def _should_retry_with_basic(
+        self, headers: httpx.Headers, allow_auto_basic_retry: bool
+    ) -> bool:
+        """Return if request should retry once with basic authentication."""
+        if not allow_auto_basic_retry:
+            return False
+
+        if self.device.config.auth_scheme != AuthScheme.AUTO:
+            return False
+
+        if not isinstance(self.auth, httpx.DigestAuth):
+            return False
+
+        expected_auth = headers.get("www-authenticate", "").lower()
+        return "basic" in expected_auth
