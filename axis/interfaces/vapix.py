@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+import aiohttp
 import httpx
 
 from ..errors import RequestError, raise_error
@@ -33,6 +34,8 @@ from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
+    from aiohttp import BasicAuth as AiohttpBasicAuth, ClientSession
+
     from ..device import AxisDevice
     from ..models.api import ApiRequest
     from ..models.stream_profile import StreamProfile
@@ -46,13 +49,21 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
-    auth: httpx.Auth
+    auth: object
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
+        self._http_client = self._client_name()
+        self._aiohttp_digest_middleware: Any | None = None
 
-        if device.config.auth_scheme == AuthScheme.BASIC:
+        if self._http_client == "aiohttp":
+            if device.config.auth_scheme == AuthScheme.BASIC:
+                self.auth = self._aiohttp_basic_auth()
+            else:
+                self.auth = None
+                self._aiohttp_digest_middleware = self._aiohttp_digest_middleware_obj()
+        elif device.config.auth_scheme == AuthScheme.BASIC:
             self.auth = httpx.BasicAuth(device.config.username, device.config.password)
         else:
             self.auth = httpx.DigestAuth(device.config.username, device.config.password)
@@ -290,15 +301,17 @@ class Vapix:
         LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
 
         try:
-            response = await self.device.config.session.request(
-                method,
-                url,
+            (
+                status_code,
+                response_headers,
+                response_content,
+            ) = await self._perform_request(
+                method=method,
+                url=url,
                 content=content,
                 data=data,
                 headers=headers,
                 params=params,
-                auth=self.auth,
-                timeout=TIME_OUT,
             )
 
         except httpx.TimeoutException as errt:
@@ -315,14 +328,25 @@ class Vapix:
             message = f"Unknown error: {err}"
             raise RequestError(message) from err
 
-        try:
-            response.raise_for_status()
+        except TimeoutError as errt:
+            message = "Timeout"
+            raise RequestError(message) from errt
 
-        except httpx.HTTPStatusError as errh:
-            if self._should_retry_with_basic(response.headers, allow_auto_basic_retry):
-                self.auth = httpx.BasicAuth(
-                    self.device.config.username, self.device.config.password
-                )
+        except Exception as err:
+            if aiohttp is not None and isinstance(err, aiohttp.ClientConnectionError):
+                LOGGER.debug("%s", err)
+                message = f"Connection error: {err}"
+                raise RequestError(message) from err
+            if aiohttp is not None and isinstance(err, aiohttp.ClientError):
+                LOGGER.debug("%s", err)
+                message = f"Unknown error: {err}"
+                raise RequestError(message) from err
+            raise
+
+        if status_code >= 400:
+            if self._should_retry_with_basic(response_headers, allow_auto_basic_retry):
+                self.auth = self._basic_auth()
+                self._aiohttp_digest_middleware = None
                 return await self._request(
                     method=method,
                     path=path,
@@ -333,20 +357,154 @@ class Vapix:
                     allow_auto_basic_retry=False,
                 )
 
-            LOGGER.debug("%s, %s", response, errh)
-            raise_error(response.status_code)
+            LOGGER.debug("status=%s headers=%s", status_code, response_headers)
+            raise_error(status_code)
 
         LOGGER.debug(
             "Response (from %s %s): %s",
             self.device.config.host,
             path,
-            response.content,
+            response_content,
         )
 
-        return response.content
+        return response_content
+
+    async def _perform_request(
+        self,
+        method: str,
+        url: str,
+        content: bytes | None,
+        data: dict[str, str] | None,
+        headers: dict[str, str] | None,
+        params: dict[str, str] | None,
+    ) -> tuple[int, dict[str, str], bytes]:
+        """Execute request and normalize responses from supported HTTP clients."""
+        if self._http_client == "aiohttp":
+            return await self._perform_aiohttp_request(
+                method=method,
+                url=url,
+                content=content,
+                data=data,
+                headers=headers,
+                params=params,
+            )
+        return await self._perform_httpx_request(
+            method=method,
+            url=url,
+            content=content,
+            data=data,
+            headers=headers,
+            params=params,
+        )
+
+    async def _perform_httpx_request(
+        self,
+        method: str,
+        url: str,
+        content: bytes | None,
+        data: dict[str, str] | None,
+        headers: dict[str, str] | None,
+        params: dict[str, str] | None,
+    ) -> tuple[int, dict[str, str], bytes]:
+        """Execute request with a httpx session."""
+        session = self._httpx_session()
+        response = await session.request(
+            method,
+            url,
+            content=content,
+            data=data,
+            headers=headers,
+            params=params,
+            auth=self._httpx_auth(),
+            timeout=TIME_OUT,
+        )
+        return response.status_code, dict(response.headers), response.content
+
+    async def _perform_aiohttp_request(
+        self,
+        method: str,
+        url: str,
+        content: bytes | None,
+        data: dict[str, str] | None,
+        headers: dict[str, str] | None,
+        params: dict[str, str] | None,
+    ) -> tuple[int, dict[str, str], bytes]:
+        """Execute request with an aiohttp session."""
+        request_data: bytes | dict[str, str] | None = (
+            content if content is not None else data
+        )
+        session = self._aiohttp_session()
+        request_kwargs: dict[str, Any] = {
+            "data": request_data,
+            "headers": headers,
+            "params": params,
+            "auth": self._aiohttp_auth(),
+            "timeout": TIME_OUT,
+        }
+        if middlewares := self._aiohttp_middlewares():
+            request_kwargs["middlewares"] = middlewares
+
+        async with session.request(method, url, **request_kwargs) as response:
+            response_content = await response.read()
+            return response.status, dict(response.headers), response_content
+
+    def _httpx_session(self) -> httpx.AsyncClient:
+        """Return session cast to a httpx client."""
+        return cast("httpx.AsyncClient", self.device.config.session)
+
+    def _aiohttp_session(self) -> ClientSession:
+        """Return session cast to an aiohttp client."""
+        return cast("ClientSession", self.device.config.session)
+
+    def _httpx_auth(self) -> httpx.Auth | None:
+        """Return auth cast for httpx requests."""
+        return cast("httpx.Auth | None", self.auth)
+
+    def _aiohttp_auth(self) -> AiohttpBasicAuth | None:
+        """Return auth cast for aiohttp requests."""
+        return cast("AiohttpBasicAuth | None", self.auth)
+
+    def _aiohttp_middlewares(self) -> tuple[Any, ...] | None:
+        """Return aiohttp middlewares used for auth challenges."""
+        if self._aiohttp_digest_middleware is None:
+            return None
+        return (self._aiohttp_digest_middleware,)
+
+    def _aiohttp_digest_middleware_obj(self) -> Any | None:
+        """Create aiohttp digest middleware when available and relevant."""
+        if self.device.config.auth_scheme == AuthScheme.BASIC:
+            return None
+
+        middleware_cls = getattr(aiohttp, "DigestAuthMiddleware", None)
+        if middleware_cls is None:
+            LOGGER.debug("aiohttp DigestAuthMiddleware unavailable, digest disabled")
+            return None
+
+        return middleware_cls(
+            login=self.device.config.username,
+            password=self.device.config.password,
+        )
+
+    def _basic_auth(self) -> object:
+        """Create basic auth object for configured HTTP client."""
+        if self._http_client == "aiohttp":
+            return self._aiohttp_basic_auth()
+        return httpx.BasicAuth(self.device.config.username, self.device.config.password)
+
+    def _aiohttp_basic_auth(self) -> object:
+        """Create aiohttp basic auth object."""
+        return aiohttp.BasicAuth(
+            self.device.config.username, self.device.config.password
+        )
+
+    def _client_name(self) -> str:
+        """Return normalized client name from configured session object."""
+        if isinstance(self.device.config.session, aiohttp.ClientSession):
+            return "aiohttp"
+        return "httpx"
 
     def _should_retry_with_basic(
-        self, headers: httpx.Headers, allow_auto_basic_retry: bool
+        self, headers: dict[str, str], allow_auto_basic_retry: bool
     ) -> bool:
         """Return if request should retry once with basic authentication."""
         if not allow_auto_basic_retry:
@@ -355,8 +513,12 @@ class Vapix:
         if self.device.config.auth_scheme != AuthScheme.AUTO:
             return False
 
-        if not isinstance(self.auth, httpx.DigestAuth):
+        if self._http_client == "httpx" and not isinstance(self.auth, httpx.DigestAuth):
             return False
 
-        expected_auth = headers.get("www-authenticate", "").lower()
+        expected_auth = ""
+        for header_name, header_value in headers.items():
+            if header_name.lower() == "www-authenticate":
+                expected_auth = header_value.lower()
+                break
         return "basic" in expected_auth
