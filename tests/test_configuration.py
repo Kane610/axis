@@ -6,6 +6,7 @@ pytest --cov-report term-missing --cov=axis.configuration tests/test_configurati
 from typing import cast
 
 from httpx import AsyncClient
+import pytest
 
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 
@@ -122,3 +123,27 @@ def test_configuration_zero_port_uses_http_default() -> None:
 
     assert config.port == 80
     assert config.url == "http://192.168.1.5:80"
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "https://camera.local",
+        "camera.local/path",
+        "camera.local?foo=bar",
+        "camera.local#anchor",
+        "",
+        " camera.local ",
+    ],
+)
+def test_configuration_rejects_invalid_host_values(host: str) -> None:
+    """Test host must be a plain hostname or IP address."""
+    session = AsyncClient(verify=False)
+
+    with pytest.raises(ValueError, match="Host must"):
+        Configuration(
+            session,
+            host,
+            username="root",
+            password="pass",
+        )

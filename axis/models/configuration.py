@@ -60,9 +60,23 @@ class Configuration:
     def __post_init__(self) -> None:
         """Normalize auth and protocol values to enums and resolve default port."""
         self.web_proto = WebProtocol(self.web_proto)
+        self._validate_host()
         if self.port == 0:
             self.port = 443 if self.web_proto == WebProtocol.HTTPS else 80
         self.auth_scheme = AuthScheme(self.auth_scheme)
+
+    def _validate_host(self) -> None:
+        """Validate that host is a plain hostname or IP address."""
+        if not self.host or self.host.strip() != self.host:
+            msg = "Host must be a non-empty hostname or IP address"
+            raise ValueError(msg)
+
+        if "://" in self.host or any(char in self.host for char in ("/", "?", "#")):
+            msg = (
+                "Host must not include scheme, path, query, or fragment; "
+                "use host, web_proto, and port separately"
+            )
+            raise ValueError(msg)
 
     @property
     def url(self) -> str:
