@@ -110,7 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("host", type=str)
     parser.add_argument("username", type=str)
     parser.add_argument("password", type=str)
-    parser.add_argument("-p", "--port", type=int, default=80)
+    parser.add_argument("-p", "--port", type=int, default=0)
     parser.add_argument("--proto", type=str, default="http")
     parser.add_argument("--events", action="store_true")
     parser.add_argument("--params", action="store_true")

@@ -91,3 +91,34 @@ def test_configuration_web_protocol_is_normalized_to_enum() -> None:
     )
 
     assert config.web_proto is WebProtocol.HTTPS
+
+
+def test_configuration_default_https_port_is_443() -> None:
+    """Test default HTTPS configuration uses port 443."""
+    session = AsyncClient(verify=False)
+    config = Configuration(
+        session,
+        "192.168.1.4",
+        username="root",
+        password="pass",
+        web_proto=WebProtocol.HTTPS,
+    )
+
+    assert config.port == 443
+    assert config.url == "https://192.168.1.4:443"
+
+
+def test_configuration_zero_port_uses_http_default() -> None:
+    """Test port 0 uses HTTP default port."""
+    session = AsyncClient(verify=False)
+    config = Configuration(
+        session,
+        "192.168.1.5",
+        username="root",
+        password="pass",
+        port=0,
+        web_proto=WebProtocol.HTTP,
+    )
+
+    assert config.port == 80
+    assert config.url == "http://192.168.1.5:80"

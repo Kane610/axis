@@ -48,7 +48,7 @@ class Configuration:
     _: KW_ONLY
     username: str
     password: str
-    port: int = 80
+    port: int = 0
     web_proto: WebProtocol = WebProtocol.HTTP
     verify_ssl: bool = False
     is_companion: bool = False
@@ -57,6 +57,8 @@ class Configuration:
     def __post_init__(self) -> None:
         """Normalize auth and protocol values to enums."""
         self.web_proto = WebProtocol(self.web_proto)
+        if self.port == 0:
+            self.port = 443 if self.web_proto == WebProtocol.HTTPS else 80
         self.auth_scheme = AuthScheme(self.auth_scheme)
 
     @property
