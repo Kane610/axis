@@ -41,6 +41,10 @@ class Configuration:
     is_companion: bool = False
     auth_scheme: AuthScheme = AuthScheme.AUTO
 
+    def __post_init__(self) -> None:
+        """Normalize auth scheme value to enum."""
+        self.auth_scheme = AuthScheme(self.auth_scheme)
+
     @property
     def url(self) -> str:
         """Represent device base url."""

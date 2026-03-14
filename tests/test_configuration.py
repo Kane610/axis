@@ -3,12 +3,14 @@
 pytest --cov-report term-missing --cov=axis.configuration tests/test_configuration.py
 """
 
+from typing import cast
+
 from httpx import AsyncClient
 
 from axis.models.configuration import AuthScheme, Configuration
 
 
-def test_configuration():
+def test_configuration() -> None:
     """Test Configuration works."""
     session = AsyncClient(verify=False)
     config = Configuration(
@@ -32,7 +34,7 @@ def test_configuration():
     assert config.auth_scheme == AuthScheme.AUTO
 
 
-def test_minimal_configuration():
+def test_minimal_configuration() -> None:
     """Test Configuration works."""
     session = AsyncClient(verify=False)
     config = Configuration(
@@ -56,3 +58,17 @@ def test_minimal_configuration():
 def test_unsupported_auth_scheme_defaults_to_auto() -> None:
     """Test unsupported auth scheme maps to AUTO."""
     assert AuthScheme("unsupported") == AuthScheme.AUTO
+
+
+def test_configuration_auth_scheme_is_normalized_to_enum() -> None:
+    """Test auth scheme input is normalized to enum value."""
+    session = AsyncClient(verify=False)
+    config = Configuration(
+        session,
+        "192.168.1.2",
+        username="root",
+        password="pass",
+        auth_scheme=cast("AuthScheme", "basic"),
+    )
+
+    assert config.auth_scheme is AuthScheme.BASIC
