@@ -113,12 +113,14 @@ XML_NAMESPACES = {
 }
 
 
-def traverse(
-    data: dict[str, dict[str, Any]], keys: tuple[str, ...] | list[str]
-) -> dict[str, Any]:
+def traverse(data: Any, keys: tuple[str, ...] | list[str]) -> Any:
     """Traverse dictionary using keys to retrieve last item."""
+    if not isinstance(data, dict):
+        return {}
+
     head, *tail = keys
-    return traverse(data.get(head, {}), tail) if tail else data.get(head, {})
+    item = data.get(head, {})
+    return traverse(item, tail) if tail else item
 
 
 def extract_name_value(
