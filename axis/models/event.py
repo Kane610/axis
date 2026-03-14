@@ -94,7 +94,6 @@ TOPIC_TO_STATE = {
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
 EVENT_SOURCE_IDX = "source_idx"
-EVENT_TIMESTAMP = "timestamp"
 EVENT_TOPIC = "topic"
 EVENT_TYPE = "type"
 EVENT_VALUE = "value"
@@ -102,7 +101,6 @@ EVENT_VALUE = "value"
 NOTIFICATION_MESSAGE = ("MetadataStream", "Event", "NotificationMessage")
 MESSAGE = (*NOTIFICATION_MESSAGE, "Message", "Message")
 TOPIC = (*NOTIFICATION_MESSAGE, "Topic", "#text")
-TIMESTAMP = (*MESSAGE, "UtcTime")
 OPERATION = (*MESSAGE, "PropertyOperation")
 SOURCE = (*MESSAGE, "Source")
 DATA = (*MESSAGE, "Data")
@@ -210,7 +208,6 @@ class Event:
             return cls._decode_from_dict({})
 
         topic = traverse(raw, TOPIC)
-        # timestamp = traverse(raw, TIMESTAMP)
         operation = traverse(raw, OPERATION)
 
         source = source_idx = ""
