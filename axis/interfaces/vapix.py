@@ -59,12 +59,14 @@ class Vapix:
         """Store local reference to device config."""
         self.device = device
         self._http_client = self._client_name()
+        self._aiohttp_digest_middleware: Any | None = None
 
         if self._http_client == "aiohttp":
             if device.config.auth_scheme == AuthScheme.BASIC:
                 self.auth = self._aiohttp_basic_auth()
             else:
                 self.auth = None
+                self._aiohttp_digest_middleware = self._aiohttp_digest_middleware_obj()
         elif device.config.auth_scheme == AuthScheme.BASIC:
             self.auth = httpx.BasicAuth(device.config.username, device.config.password)
         else:
@@ -348,6 +350,7 @@ class Vapix:
         if status_code >= 400:
             if self._should_retry_with_basic(response_headers, allow_auto_basic_retry):
                 self.auth = self._basic_auth()
+                self._aiohttp_digest_middleware = None
                 return await self._request(
                     method=method,
                     path=path,
@@ -435,16 +438,17 @@ class Vapix:
             content if content is not None else data
         )
         session = self._aiohttp_session()
+        request_kwargs: dict[str, Any] = {
+            "data": request_data,
+            "headers": headers,
+            "params": params,
+            "auth": self._aiohttp_auth(),
+            "timeout": TIME_OUT,
+        }
+        if middlewares := self._aiohttp_middlewares():
+            request_kwargs["middlewares"] = middlewares
 
-        async with session.request(
-            method,
-            url,
-            data=request_data,
-            headers=headers,
-            params=params,
-            auth=self._aiohttp_auth(),
-            timeout=TIME_OUT,
-        ) as response:
+        async with session.request(method, url, **request_kwargs) as response:
             response_content = await response.read()
             return response.status, dict(response.headers), response_content
 
@@ -463,6 +467,29 @@ class Vapix:
     def _aiohttp_auth(self) -> AiohttpBasicAuth | None:
         """Return auth cast for aiohttp requests."""
         return cast("AiohttpBasicAuth | None", self.auth)
+
+    def _aiohttp_middlewares(self) -> tuple[Any, ...] | None:
+        """Return aiohttp middlewares used for auth challenges."""
+        if self._aiohttp_digest_middleware is None:
+            return None
+        return (self._aiohttp_digest_middleware,)
+
+    def _aiohttp_digest_middleware_obj(self) -> Any | None:
+        """Create aiohttp digest middleware when available and relevant."""
+        if aiohttp is None:  # pragma: no cover
+            return None
+        if self.device.config.auth_scheme == AuthScheme.BASIC:
+            return None
+
+        middleware_cls = getattr(aiohttp, "DigestAuthMiddleware", None)
+        if middleware_cls is None:
+            LOGGER.debug("aiohttp DigestAuthMiddleware unavailable, digest disabled")
+            return None
+
+        return middleware_cls(
+            login=self.device.config.username,
+            password=self.device.config.password,
+        )
 
     def _basic_auth(self) -> object:
         """Create basic auth object for configured HTTP client."""

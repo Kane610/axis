@@ -5,6 +5,11 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+try:
+    import aiohttp
+except ImportError:  # pragma: no cover
+    aiohttp = None
+
 from httpx import AsyncClient
 
 import axis
@@ -12,6 +17,7 @@ from axis.device import AxisDevice
 from axis.models.configuration import Configuration, WebProtocol
 
 if TYPE_CHECKING:
+    from axis.models.configuration import HTTPSession
     from axis.models.event import Event
 
 LOGGER = logging.getLogger(__name__)
@@ -28,10 +34,11 @@ async def axis_device(
     username: str,
     password: str,
     web_proto: WebProtocol,
+    http_client: str = "httpx",
     is_companion: bool = False,
 ) -> axis.device.AxisDevice:
     """Create a Axis device."""
-    session = AsyncClient(verify=False)  # noqa: S501
+    session = create_session(http_client)
     device = AxisDevice(
         Configuration(
             session,
@@ -74,11 +81,19 @@ async def main(
     params: bool,
     events: bool,
     web_proto: WebProtocol,
+    http_client: str,
 ) -> None:
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
 
-    device = await axis_device(host, port, username, password, web_proto=web_proto)
+    device = await axis_device(
+        host,
+        port,
+        username,
+        password,
+        web_proto=web_proto,
+        http_client=http_client,
+    )
 
     if not device:
         LOGGER.error("Couldn't connect to Axis device")
@@ -101,8 +116,29 @@ async def main(
         device.stream.stop()
 
     finally:
-        await device.config.session.aclose()
+        await close_session(device.config.session)
         device.stream.stop()
+
+
+def create_session(http_client: str) -> HTTPSession:
+    """Create HTTP session based on selected backend."""
+    if http_client == "aiohttp":
+        if aiohttp is None:  # pragma: no cover
+            message = "aiohttp is not installed"
+            raise RuntimeError(message)
+        connector = aiohttp.TCPConnector(ssl=False)
+        return aiohttp.ClientSession(connector=connector)
+
+    return AsyncClient(verify=False)  # noqa: S501
+
+
+async def close_session(session: HTTPSession) -> None:
+    """Close session regardless of selected HTTP backend."""
+    if aiohttp is not None and isinstance(session, aiohttp.ClientSession):
+        await session.close()
+        return
+
+    await session.aclose()
 
 
 if __name__ == "__main__":
@@ -114,6 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("--proto", type=str, default="http")
     parser.add_argument("--events", action="store_true")
     parser.add_argument("--params", action="store_true")
+    parser.add_argument("--http-client", choices=("httpx", "aiohttp"), default="httpx")
     parser.add_argument("-D", "--debug", action="store_true")
     args = parser.parse_args()
 
@@ -142,6 +179,7 @@ if __name__ == "__main__":
                 params=args.params,
                 events=args.events,
                 web_proto=WebProtocol(args.proto),
+                http_client=args.http_client,
             )
         )
 

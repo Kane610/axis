@@ -2,9 +2,10 @@
 
 import aiohttp
 from aiohttp import web
+import pytest
 
 from axis.device import AxisDevice
-from axis.models.configuration import Configuration
+from axis.models.configuration import AuthScheme, Configuration
 
 HOST = "127.0.0.1"
 USER = "root"
@@ -83,3 +84,78 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(aiohttp_server
     assert result == b"ok"
     assert calls == 2
     assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
+    assert axis_device.vapix._aiohttp_middlewares() is None
+
+
+@pytest.mark.skipif(
+    not hasattr(aiohttp, "DigestAuthMiddleware"),
+    reason="DigestAuthMiddleware is unavailable in installed aiohttp",
+)
+async def test_aiohttp_client_session_auto_initializes_digest_middleware(
+    aiohttp_server,
+):
+    """Verify AUTO mode sets up digest middleware for aiohttp sessions."""
+
+    async def handle(_request: web.Request) -> web.Response:
+        return web.Response(body=b"ok")
+
+    app = web.Application()
+    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
+    server = await aiohttp_server(app)
+
+    session = aiohttp.ClientSession()
+    axis_device = AxisDevice(
+        Configuration(
+            session,
+            HOST,
+            username=USER,
+            password=PASS,
+            port=server.port,
+            auth_scheme=AuthScheme.AUTO,
+        )
+    )
+
+    try:
+        assert axis_device.vapix.auth is None
+        middlewares = axis_device.vapix._aiohttp_middlewares()
+        assert middlewares is not None
+        assert len(middlewares) == 1
+    finally:
+        await session.close()
+
+
+@pytest.mark.skipif(
+    not hasattr(aiohttp, "DigestAuthMiddleware"),
+    reason="DigestAuthMiddleware is unavailable in installed aiohttp",
+)
+async def test_aiohttp_client_session_digest_initializes_digest_middleware(
+    aiohttp_server,
+):
+    """Verify DIGEST mode sets up digest middleware for aiohttp sessions."""
+
+    async def handle(_request: web.Request) -> web.Response:
+        return web.Response(body=b"ok")
+
+    app = web.Application()
+    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
+    server = await aiohttp_server(app)
+
+    session = aiohttp.ClientSession()
+    axis_device = AxisDevice(
+        Configuration(
+            session,
+            HOST,
+            username=USER,
+            password=PASS,
+            port=server.port,
+            auth_scheme=AuthScheme.DIGEST,
+        )
+    )
+
+    try:
+        assert axis_device.vapix.auth is None
+        middlewares = axis_device.vapix._aiohttp_middlewares()
+        assert middlewares is not None
+        assert len(middlewares) == 1
+    finally:
+        await session.close()

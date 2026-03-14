@@ -20,6 +20,7 @@ classifiers = [
 ]
 requires-python = ">=3.14.0"
 dependencies    = [
+    "aiohttp>=3.12",
     "faust-cchardet>=2.1.18",
     "httpx>=0.26",
     "orjson>3.9",
@@ -29,6 +30,7 @@ dependencies    = [
 
 [project.optional-dependencies]
 requirements = [
+    "aiohttp==3.13.1",
     "httpx==0.28.1",
     "orjson==3.11.7",
     "packaging==26.0",
