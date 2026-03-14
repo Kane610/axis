@@ -6,11 +6,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
-try:
-    import aiohttp
-except ImportError:  # pragma: no cover
-    aiohttp = None
-
+import aiohttp
 import httpx
 
 from ..errors import RequestError, raise_error
@@ -476,8 +472,6 @@ class Vapix:
 
     def _aiohttp_digest_middleware_obj(self) -> Any | None:
         """Create aiohttp digest middleware when available and relevant."""
-        if aiohttp is None:  # pragma: no cover
-            return None
         if self.device.config.auth_scheme == AuthScheme.BASIC:
             return None
 
@@ -499,18 +493,13 @@ class Vapix:
 
     def _aiohttp_basic_auth(self) -> object:
         """Create aiohttp basic auth object."""
-        if aiohttp is None:  # pragma: no cover
-            message = "aiohttp is not installed"
-            raise RuntimeError(message)
         return aiohttp.BasicAuth(
             self.device.config.username, self.device.config.password
         )
 
     def _client_name(self) -> str:
         """Return normalized client name from configured session object."""
-        if aiohttp is not None and isinstance(
-            self.device.config.session, aiohttp.ClientSession
-        ):
+        if isinstance(self.device.config.session, aiohttp.ClientSession):
             return "aiohttp"
         return "httpx"
 

@@ -3,13 +3,9 @@
 import argparse
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-try:
-    import aiohttp
-except ImportError:  # pragma: no cover
-    aiohttp = None
-
+import aiohttp
 from httpx import AsyncClient
 
 import axis
@@ -123,22 +119,19 @@ async def main(
 def create_session(http_client: str) -> HTTPSession:
     """Create HTTP session based on selected backend."""
     if http_client == "aiohttp":
-        if aiohttp is None:  # pragma: no cover
-            message = "aiohttp is not installed"
-            raise RuntimeError(message)
         connector = aiohttp.TCPConnector(ssl=False)
-        return aiohttp.ClientSession(connector=connector)
+        return cast("HTTPSession", aiohttp.ClientSession(connector=connector))
 
-    return AsyncClient(verify=False)  # noqa: S501
+    return cast("HTTPSession", AsyncClient(verify=False))  # noqa: S501
 
 
 async def close_session(session: HTTPSession) -> None:
     """Close session regardless of selected HTTP backend."""
-    if aiohttp is not None and isinstance(session, aiohttp.ClientSession):
+    if isinstance(session, aiohttp.ClientSession):
         await session.close()
         return
 
-    await session.aclose()
+    await cast("AsyncClient", session).aclose()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 """Test compatibility between supported HTTP clients."""
 
+from typing import Any
+
 import aiohttp
 from aiohttp import web
 import pytest
@@ -12,7 +14,7 @@ USER = "root"
 PASS = "pass"
 
 
-async def test_aiohttp_client_session_request(aiohttp_server):
+async def test_aiohttp_client_session_request(aiohttp_server: Any) -> None:
     """Verify requests work with aiohttp ClientSession."""
 
     async def handle(_request: web.Request) -> web.Response:
@@ -41,7 +43,9 @@ async def test_aiohttp_client_session_request(aiohttp_server):
     assert result == b"ok"
 
 
-async def test_aiohttp_client_session_auto_auth_fallback_to_basic(aiohttp_server):
+async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
+    aiohttp_server: Any,
+) -> None:
     """Verify AUTO retries once with basic auth when server requests it."""
     calls = 0
 
@@ -92,8 +96,8 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(aiohttp_server
     reason="DigestAuthMiddleware is unavailable in installed aiohttp",
 )
 async def test_aiohttp_client_session_auto_initializes_digest_middleware(
-    aiohttp_server,
-):
+    aiohttp_server: Any,
+) -> None:
     """Verify AUTO mode sets up digest middleware for aiohttp sessions."""
 
     async def handle(_request: web.Request) -> web.Response:
@@ -129,8 +133,8 @@ async def test_aiohttp_client_session_auto_initializes_digest_middleware(
     reason="DigestAuthMiddleware is unavailable in installed aiohttp",
 )
 async def test_aiohttp_client_session_digest_initializes_digest_middleware(
-    aiohttp_server,
-):
+    aiohttp_server: Any,
+) -> None:
     """Verify DIGEST mode sets up digest middleware for aiohttp sessions."""
 
     async def handle(_request: web.Request) -> web.Response:
