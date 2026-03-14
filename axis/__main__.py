@@ -131,7 +131,7 @@ async def close_session(session: HTTPSession) -> None:
         await session.close()
         return
 
-    await cast("AsyncClient", session).aclose()
+    await session.aclose()
 
 
 if __name__ == "__main__":
