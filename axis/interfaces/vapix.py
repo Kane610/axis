@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..errors import RequestError, raise_error
+from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
 from .api_discovery import ApiDiscoveryHandler
 from .applications import ApplicationsHandler
@@ -42,10 +43,6 @@ LOGGER = logging.getLogger(__name__)
 TIME_OUT = 15
 
 
-class WrongAuthError(RequestError):
-    """Wrong authentication method response."""
-
-
 class Vapix:
     """Vapix parameter request."""
 
@@ -54,8 +51,11 @@ class Vapix:
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
-        # self.auth = httpx.BasicAuth(device.config.username, device.config.password)
-        self.auth = httpx.DigestAuth(device.config.username, device.config.password)
+
+        if device.config.auth_scheme == AuthScheme.BASIC:
+            self.auth = httpx.BasicAuth(device.config.username, device.config.password)
+        else:
+            self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
         self.users = Users(self)
         self.user_groups = UserGroups(self)
@@ -265,24 +265,15 @@ class Vapix:
         params: dict[str, str] | None = None,
     ) -> bytes:
         """Make a request to the device."""
-        try:
-            return await self._request(
-                method=method,
-                path=path,
-                content=content,
-                data=data,
-                headers=headers,
-                params=params,
-            )
-        except WrongAuthError:
-            return await self._request(
-                method=method,
-                path=path,
-                content=content,
-                data=data,
-                headers=headers,
-                params=params,
-            )
+        return await self._request(
+            method=method,
+            path=path,
+            content=content,
+            data=data,
+            headers=headers,
+            params=params,
+            allow_auto_basic_retry=True,
+        )
 
     async def _request(
         self,
@@ -292,6 +283,7 @@ class Vapix:
         data: dict[str, str] | None = None,
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
+        allow_auto_basic_retry: bool = False,
     ) -> bytes:
         """Make a request to the device."""
         url = self.device.config.url + path
@@ -327,7 +319,20 @@ class Vapix:
             response.raise_for_status()
 
         except httpx.HTTPStatusError as errh:
-            self._evaluate_auth(response.headers)
+            if self._should_retry_with_basic(response.headers, allow_auto_basic_retry):
+                self.auth = httpx.BasicAuth(
+                    self.device.config.username, self.device.config.password
+                )
+                return await self._request(
+                    method=method,
+                    path=path,
+                    content=content,
+                    data=data,
+                    headers=headers,
+                    params=params,
+                    allow_auto_basic_retry=False,
+                )
+
             LOGGER.debug("%s, %s", response, errh)
             raise_error(response.status_code)
 
@@ -340,19 +345,18 @@ class Vapix:
 
         return response.content
 
-    def _evaluate_auth(self, headers: httpx.Headers) -> None:
-        """Evaluate and reassign authentication method if needed."""
-        dev = self.device
+    def _should_retry_with_basic(
+        self, headers: httpx.Headers, allow_auto_basic_retry: bool
+    ) -> bool:
+        """Return if request should retry once with basic authentication."""
+        if not allow_auto_basic_retry:
+            return False
+
+        if self.device.config.auth_scheme != AuthScheme.AUTO:
+            return False
+
+        if not isinstance(self.auth, httpx.DigestAuth):
+            return False
+
         expected_auth = headers.get("www-authenticate", "").lower()
-
-        auth_mapping = {
-            "basic": (httpx.DigestAuth, httpx.BasicAuth),
-            "digest": (httpx.BasicAuth, httpx.DigestAuth),
-        }
-
-        for auth_type, (current_auth, new_auth) in auth_mapping.items():
-            if expected_auth.startswith(auth_type) and isinstance(
-                self.auth, current_auth
-            ):
-                self.auth = new_auth(dev.config.username, dev.config.password)
-                raise WrongAuthError
+        return "basic" in expected_auth
