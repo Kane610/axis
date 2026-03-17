@@ -165,6 +165,9 @@ lint.ignore = [
     "UP046",  # 82 | class APIHandler(SubscriptionHandler, Generic[ApiItemT]):
 ]
 
+[tool.ruff.per-file-target-version]
+"axis/__main__.py" = "py313"
+
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
 

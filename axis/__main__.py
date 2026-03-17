@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
-def event_handler(event: Event) -> None:
+def event_handler(event: "Event") -> None:
     """Receive and print events from RTSP stream."""
     LOGGER.info(event)
 
