@@ -1,15 +1,18 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.9
+    rev: v0.15.6
     hooks:
       - id: ruff
         args:
           - --fix
       - id: ruff-format
+        args:
+          - --target-version=py313
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:
       - id: mypy
+        language_version: python3.14
         additional_dependencies: [
           "httpx==0.28.1",
           "orjson==3.11.5",
