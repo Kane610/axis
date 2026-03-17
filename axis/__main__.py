@@ -5,7 +5,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from httpx import AsyncClient
+import aiohttp
 
 import axis
 from axis.device import AxisDevice
@@ -31,7 +31,7 @@ async def axis_device(
     is_companion: bool = False,
 ) -> axis.device.AxisDevice:
     """Create a Axis device."""
-    session = AsyncClient(verify=False)  # noqa: S501
+    session = create_session()
     device = AxisDevice(
         Configuration(
             session,
@@ -78,7 +78,13 @@ async def main(
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
 
-    device = await axis_device(host, port, username, password, web_proto=web_proto)
+    device = await axis_device(
+        host,
+        port,
+        username,
+        password,
+        web_proto=web_proto,
+    )
 
     if not device:
         LOGGER.error("Couldn't connect to Axis device")
@@ -101,8 +107,23 @@ async def main(
         device.stream.stop()
 
     finally:
-        await device.config.session.aclose()
+        session = device.config.session
+        if not isinstance(session, aiohttp.ClientSession):
+            message = "Configured session is not an aiohttp ClientSession"
+            raise RuntimeError(message)
+        await close_session(session)
         device.stream.stop()
+
+
+def create_session() -> aiohttp.ClientSession:
+    """Create aiohttp session used for HTTP requests."""
+    connector = aiohttp.TCPConnector(ssl=False)
+    return aiohttp.ClientSession(connector=connector)
+
+
+async def close_session(session: aiohttp.ClientSession) -> None:
+    """Close aiohttp session."""
+    await session.close()
 
 
 if __name__ == "__main__":

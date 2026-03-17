@@ -6,7 +6,10 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from aiohttp import ClientSession
     from httpx import AsyncClient
+
+    type HTTPSession = AsyncClient | ClientSession
 
 
 LOGGER = logging.getLogger(__name__)
@@ -46,7 +49,7 @@ class Configuration:
     A port value of 0 means use the default port for the configured protocol.
     """
 
-    session: AsyncClient
+    session: HTTPSession
     host: str
     _: KW_ONLY
     username: str
