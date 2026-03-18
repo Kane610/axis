@@ -1,6 +1,9 @@
 """Test HTTP auth scheme behavior."""
 
-import httpx
+from typing import Any
+
+import aiohttp
+from aiohttp import web
 import pytest
 
 from axis.device import AxisDevice
@@ -12,58 +15,90 @@ USER = "root"
 PASS = "pass"
 
 
-async def test_auth_scheme_auto_fallback_to_basic(respx_mock, axis_device: AxisDevice):
-    """Verify AUTO starts with digest and retries with basic auth once."""
-    route = respx_mock.get("/axis-cgi/basicdeviceinfo.cgi").mock(
-        side_effect=[
-            httpx.Response(
-                status_code=401,
+async def test_auth_scheme_auto_fallback_to_basic(aiohttp_server: Any):
+    """Verify AUTO retries with basic auth once when server asks for basic auth."""
+    calls = 0
+    last_authorization = ""
+
+    async def handle(request: web.Request) -> web.Response:
+        nonlocal calls
+        nonlocal last_authorization
+
+        calls += 1
+        last_authorization = request.headers.get("Authorization", "")
+
+        if calls == 1:
+            return web.Response(
+                status=401,
                 headers={"WWW-Authenticate": 'Basic realm="AXIS"'},
-            ),
-            httpx.Response(status_code=200, content=b"ok"),
-        ]
-    )
+            )
 
-    assert isinstance(axis_device.vapix.auth, httpx.DigestAuth)
+        if last_authorization.lower().startswith("basic "):
+            return web.Response(body=b"ok")
 
-    result = await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
+        return web.Response(status=401)
 
-    assert result == b"ok"
-    assert isinstance(axis_device.vapix.auth, httpx.BasicAuth)
-    assert len(route.calls) == 2
-    assert (
-        route.calls.last.request.headers["authorization"].lower().startswith("basic ")
-    )
+    app = web.Application()
+    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
+    server = await aiohttp_server(app)
 
-
-async def test_auth_scheme_digest_does_not_fallback(respx_mock):
-    """Verify DIGEST does not switch auth method when basic is offered."""
-    respx_mock(base_url=f"http://{HOST}:80")
-
-    session = httpx.AsyncClient(verify=False)
+    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
             session,
             HOST,
             username=USER,
             password=PASS,
-            auth_scheme=AuthScheme.DIGEST,
+            port=server.port,
+            auth_scheme=AuthScheme.AUTO,
         )
     )
 
-    route = respx_mock.get("/axis-cgi/basicdeviceinfo.cgi").respond(
-        status_code=401,
-        headers={"WWW-Authenticate": 'Basic realm="AXIS"'},
+    try:
+        assert axis_device.vapix.auth is None
+
+        result = await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
+
+        assert result == b"ok"
+        assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
+        assert calls == 2
+        assert last_authorization.lower().startswith("basic ")
+    finally:
+        await session.close()
+
+
+async def test_auth_scheme_digest_does_not_fallback(aiohttp_server: Any):
+    """Verify DIGEST does not switch auth method when basic is offered."""
+
+    async def handle(_request: web.Request) -> web.Response:
+        return web.Response(
+            status=401,
+            headers={"WWW-Authenticate": 'Basic realm="AXIS"'},
+        )
+
+    app = web.Application()
+    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
+    server = await aiohttp_server(app)
+
+    session = aiohttp.ClientSession()
+    axis_device = AxisDevice(
+        Configuration(
+            session,
+            HOST,
+            username=USER,
+            password=PASS,
+            port=server.port,
+            auth_scheme=AuthScheme.DIGEST,
+        )
     )
 
     try:
         with pytest.raises(Unauthorized):
             await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
     finally:
-        await session.aclose()
+        await session.close()
 
-    assert isinstance(axis_device.vapix.auth, httpx.DigestAuth)
-    assert len(route.calls) == 1
+    assert axis_device.vapix.auth is None
 
 
 def test_auth_scheme_basic_initializes_basic_auth(axis_device: AxisDevice) -> None:
@@ -71,16 +106,16 @@ def test_auth_scheme_basic_initializes_basic_auth(axis_device: AxisDevice) -> No
     axis_device.config.auth_scheme = AuthScheme.BASIC
     axis_device.vapix = axis_device.vapix.__class__(axis_device)
 
-    assert isinstance(axis_device.vapix.auth, httpx.BasicAuth)
+    assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
 
 
 def test_auto_should_retry_guards(axis_device: AxisDevice) -> None:
     """Verify retry guard conditions short-circuit appropriately."""
-    headers = httpx.Headers({"WWW-Authenticate": 'Basic realm="AXIS"'})
+    headers = {"WWW-Authenticate": 'Basic realm="AXIS"'}
 
     # Retry disabled should always return False.
     assert not axis_device.vapix._should_retry_with_basic(headers, False)
 
-    # AUTO mode with basic auth should not retry.
-    axis_device.vapix.auth = httpx.BasicAuth(USER, PASS)
+    # BASIC mode should never trigger AUTO retry.
+    axis_device.config.auth_scheme = AuthScheme.BASIC
     assert not axis_device.vapix._should_retry_with_basic(headers, True)

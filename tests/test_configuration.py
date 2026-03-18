@@ -5,17 +5,24 @@ pytest --cov-report term-missing --cov=axis.configuration tests/test_configurati
 
 from typing import cast
 
-from httpx import AsyncClient
+import aiohttp
 import pytest
 
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 
 
-def test_configuration() -> None:
+@pytest.fixture
+async def aiohttp_session() -> aiohttp.ClientSession:
+    """Return an aiohttp session and close it after each test."""
+    session = aiohttp.ClientSession()
+    yield session
+    await session.close()
+
+
+async def test_configuration(aiohttp_session: aiohttp.ClientSession) -> None:
     """Test Configuration works."""
-    session = AsyncClient(verify=False)
     config = Configuration(
-        session,
+        aiohttp_session,
         "192.168.0.1",
         username="root",
         password="pass",
@@ -35,11 +42,10 @@ def test_configuration() -> None:
     assert config.auth_scheme == AuthScheme.AUTO
 
 
-def test_minimal_configuration() -> None:
+async def test_minimal_configuration(aiohttp_session: aiohttp.ClientSession) -> None:
     """Test Configuration works."""
-    session = AsyncClient(verify=False)
     config = Configuration(
-        session,
+        aiohttp_session,
         "192.168.1.1",
         username="bill",
         password="cipher",
@@ -61,11 +67,12 @@ def test_unsupported_auth_scheme_defaults_to_auto() -> None:
     assert AuthScheme("unsupported") == AuthScheme.AUTO
 
 
-def test_configuration_auth_scheme_is_normalized_to_enum() -> None:
+async def test_configuration_auth_scheme_is_normalized_to_enum(
+    aiohttp_session: aiohttp.ClientSession,
+) -> None:
     """Test auth scheme input is normalized to enum value."""
-    session = AsyncClient(verify=False)
     config = Configuration(
-        session,
+        aiohttp_session,
         "192.168.1.2",
         username="root",
         password="pass",
@@ -80,11 +87,12 @@ def test_unsupported_web_protocol_defaults_to_http() -> None:
     assert WebProtocol("unsupported") == WebProtocol.HTTP
 
 
-def test_configuration_web_protocol_is_normalized_to_enum() -> None:
+async def test_configuration_web_protocol_is_normalized_to_enum(
+    aiohttp_session: aiohttp.ClientSession,
+) -> None:
     """Test web protocol input is normalized to enum value."""
-    session = AsyncClient(verify=False)
     config = Configuration(
-        session,
+        aiohttp_session,
         "192.168.1.3",
         username="root",
         password="pass",
@@ -94,11 +102,12 @@ def test_configuration_web_protocol_is_normalized_to_enum() -> None:
     assert config.web_proto is WebProtocol.HTTPS
 
 
-def test_configuration_default_https_port_is_443() -> None:
+async def test_configuration_default_https_port_is_443(
+    aiohttp_session: aiohttp.ClientSession,
+) -> None:
     """Test default HTTPS configuration uses port 443."""
-    session = AsyncClient(verify=False)
     config = Configuration(
-        session,
+        aiohttp_session,
         "192.168.1.4",
         username="root",
         password="pass",
@@ -109,11 +118,12 @@ def test_configuration_default_https_port_is_443() -> None:
     assert config.url == "https://192.168.1.4:443"
 
 
-def test_configuration_zero_port_uses_http_default() -> None:
+async def test_configuration_zero_port_uses_http_default(
+    aiohttp_session: aiohttp.ClientSession,
+) -> None:
     """Test port 0 uses HTTP default port."""
-    session = AsyncClient(verify=False)
     config = Configuration(
-        session,
+        aiohttp_session,
         "192.168.1.5",
         username="root",
         password="pass",
@@ -136,13 +146,13 @@ def test_configuration_zero_port_uses_http_default() -> None:
         " camera.local ",
     ],
 )
-def test_configuration_rejects_invalid_host_values(host: str) -> None:
+async def test_configuration_rejects_invalid_host_values(
+    host: str, aiohttp_session: aiohttp.ClientSession
+) -> None:
     """Test host must be a plain hostname or IP address."""
-    session = AsyncClient(verify=False)
-
     with pytest.raises(ValueError, match="Host must"):
         Configuration(
-            session,
+            aiohttp_session,
             host,
             username="root",
             password="pass",
