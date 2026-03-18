@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 
 from typing import TYPE_CHECKING
 
-import httpx
+import aiohttp
 import pytest
 
 from axis.errors import (
@@ -221,7 +221,7 @@ async def test_initialize_api_discovery_unauthorized(respx_mock, vapix: Vapix):
 
 async def test_initialize_api_discovery_unsupported(respx_mock, vapix: Vapix):
     """Test initialize api discovery doesnt break due to exception."""
-    respx_mock.post("/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
+    respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(status_code=404)
 
     await vapix.initialize_api_discovery()
 
@@ -501,11 +501,16 @@ async def test_request_raises(respx_mock, vapix: Vapix, code, error):
 
 
 @pytest.mark.parametrize(
-    "side_effect", [httpx.TimeoutException, httpx.TransportError, httpx.RequestError]
+    "side_effect",
+    [TimeoutError(), aiohttp.ClientConnectionError(), aiohttp.ClientError()],
 )
-async def test_request_side_effects(respx_mock, vapix: Vapix, side_effect):
+async def test_request_side_effects(monkeypatch, vapix: Vapix, side_effect):
     """Test request side effects."""
-    respx_mock.get("").side_effect = side_effect
+
+    async def raise_side_effect(*args, **kwargs):
+        raise side_effect
+
+    monkeypatch.setattr(vapix, "_perform_request", raise_side_effect)
 
     with pytest.raises(RequestError):
         await vapix.request("get", "")
