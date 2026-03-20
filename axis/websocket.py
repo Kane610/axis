@@ -184,10 +184,11 @@ class WebSocketClient:
                     ),
                 )
 
+            timeout = aiohttp.ClientWSTimeout(ws_receive=TIME_OUT_LIMIT)
             self._ws = await self._ws_session.ws_connect(
                 connect_url,
                 heartbeat=TIME_OUT_LIMIT,
-                timeout=TIME_OUT_LIMIT,
+                timeout=timeout,
             )
         except (aiohttp.ClientError, TimeoutError, OSError) as err:
             _LOGGER.warning("Websocket connect failed: %s", err)

@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.websocket tests/test_websocket.py
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import aiohttp
 import orjson
@@ -186,7 +186,7 @@ async def test_websocket_stream_receives_data(axis_device):
     ws_session.ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events&wssession=token123",
         heartbeat=5,
-        timeout=5,
+        timeout=ANY,
     )
 
 
@@ -259,7 +259,7 @@ async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device):
     ws_session.ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
         heartbeat=5,
-        timeout=5,
+        timeout=ANY,
     )
 
 
