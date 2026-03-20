@@ -185,3 +185,67 @@ async def test_data_property_websocket_stream(stream_manager):
         session=SimpleNamespace(state=State.PLAYING),
     )
     assert stream_manager.data == ws_event
+
+
+async def test_data_property_without_stream_returns_empty_bytes(stream_manager):
+    """Verify data property returns empty bytes when stream is missing."""
+    stream_manager.stream = None
+    assert stream_manager.data == b""
+
+
+@patch("axis.stream_manager.RTSPClient")
+@patch("axis.stream_manager.WebSocketClient")
+async def test_start_returns_when_already_starting(
+    websocket_client, rtsp_client, stream_manager
+):
+    """Verify start() no-ops while a start is already in progress."""
+    stream_manager._starting = True
+
+    stream_manager.start()
+
+    websocket_client.assert_not_called()
+    rtsp_client.assert_not_called()
+
+
+async def test_cancel_retry_cancels_timer(stream_manager):
+    """Verify cancel_retry() cancels an existing retry timer."""
+    stream_manager.retry_timer = MagicMock()
+
+    stream_manager.cancel_retry()
+
+    stream_manager.retry_timer.cancel.assert_called_once()
+
+
+@patch("axis.stream_manager.RTSPClient")
+@patch("axis.stream_manager.WebSocketClient")
+async def test_start_noop_when_stream_already_active(
+    websocket_client, rtsp_client, stream_manager
+):
+    """Verify start() does nothing when an existing stream is already active."""
+    stream_manager._starting = False
+    stream_manager.stream = SimpleNamespace(
+        session=SimpleNamespace(state=State.PLAYING),
+        start=MagicMock(),
+    )
+
+    stream_manager.start()
+
+    websocket_client.assert_not_called()
+    rtsp_client.assert_not_called()
+
+
+async def test_retry_without_active_stream_does_not_call_stop(stream_manager):
+    """Verify retry() skips stop() when no stream is active."""
+    existing_stream = SimpleNamespace(
+        session=SimpleNamespace(state=State.STOPPED),
+        stop=MagicMock(),
+    )
+    stream_manager.stream = existing_stream
+    mock_loop = MagicMock()
+
+    with patch("axis.stream_manager.asyncio.get_running_loop", return_value=mock_loop):
+        stream_manager.retry()
+
+    existing_stream.stop.assert_not_called()
+    assert stream_manager.stream is None
+    mock_loop.call_later.assert_called_once_with(RETRY_TIMER, stream_manager.start)
