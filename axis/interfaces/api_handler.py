@@ -8,6 +8,7 @@ from collections.abc import (
     Sequence,
     ValuesView,
 )
+import enum
 from typing import TYPE_CHECKING, Generic, final
 
 from ..errors import Forbidden, PathNotFound, Unauthorized
@@ -23,6 +24,12 @@ SubscriptionType = CallbackType
 UnsubscribeType = Callable[[], None]
 
 ID_FILTER_ALL = "*"
+
+
+class HandlerGroup(enum.Enum):
+    """Group handlers by initialization strategy in Vapix."""
+
+    API_DISCOVERY = "api_discovery"
 
 
 class SubscriptionHandler:
@@ -75,6 +82,7 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
 
     api_id: ApiId | None = None
     default_api_version: str | None = None
+    handler_group: HandlerGroup | None = None
     skip_support_check = False
 
     def __init__(self, vapix: Vapix) -> None:

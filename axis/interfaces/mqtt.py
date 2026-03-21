@@ -20,7 +20,7 @@ from ..models.mqtt import (
     GetEventPublicationConfigRequest,
     GetEventPublicationConfigResponse,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 DEFAULT_TOPICS = ["//."]
 
@@ -52,6 +52,7 @@ class MqttClientHandler(ApiHandler[Any]):
 
     api_id = ApiId.MQTT_CLIENT
     default_api_version = API_VERSION
+    handler_group = HandlerGroup.API_DISCOVERY
 
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""

@@ -16,7 +16,7 @@ from ..models.pir_sensor_configuration import (
     PirSensorConfiguration,
     SetSensitivityRequest,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 
 class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
@@ -24,6 +24,7 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
 
     api_id = ApiId.PIR_SENSOR_CONFIGURATION
     default_api_version = API_VERSION
+    handler_group = HandlerGroup.API_DISCOVERY
 
     async def _api_request(self) -> dict[str, PirSensorConfiguration]:
         """Get default data of PIR sensor configuration."""

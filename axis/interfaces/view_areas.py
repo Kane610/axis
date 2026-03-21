@@ -19,13 +19,14 @@ from ..models.view_area import (
     SetGeometryRequest,
     ViewArea,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 
 class ViewAreaHandler(ApiHandler[ViewArea]):
     """View areas for Axis devices."""
 
     api_id = ApiId.VIEW_AREA
+    handler_group = HandlerGroup.API_DISCOVERY
 
     async def _api_request(self) -> dict[str, ViewArea]:
         """Get default data of stream profiles."""

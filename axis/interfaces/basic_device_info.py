@@ -14,7 +14,7 @@ from ..models.basic_device_info import (
     GetSupportedVersionsRequest,
     GetSupportedVersionsResponse,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 
 class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
@@ -22,6 +22,7 @@ class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
 
     api_id = ApiId.BASIC_DEVICE_INFO
     default_api_version = API_VERSION
+    handler_group = HandlerGroup.API_DISCOVERY
 
     async def _api_request(self) -> dict[str, DeviceInformation]:
         """Get default data of basic device information."""

@@ -45,7 +45,7 @@ from ..models.light_control import (
     SetManualAngleOfIlluminationModeRequest,
     SetManualIntensityRequest,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 
 class LightHandler(ApiHandler[LightInformation]):
@@ -53,6 +53,7 @@ class LightHandler(ApiHandler[LightInformation]):
 
     api_id = ApiId.LIGHT_CONTROL
     default_api_version = API_VERSION
+    handler_group = HandlerGroup.API_DISCOVERY
 
     @property
     def listed_in_parameters(self) -> bool:

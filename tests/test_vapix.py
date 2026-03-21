@@ -15,6 +15,7 @@ from axis.errors import (
     RequestError,
     Unauthorized,
 )
+from axis.interfaces.api_handler import HandlerGroup
 from axis.models.applications.application import ApplicationStatus
 from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.models.stream_profile import StreamProfile
@@ -74,6 +75,21 @@ def test_vapix_not_initialized(vapix: Vapix) -> None:
     assert vapix.serial_number == ""
     assert vapix.streaming_profiles == []
     assert not vapix.users.supported
+
+
+def test_api_discovery_handlers_registration(vapix: Vapix) -> None:
+    """Verify grouped API-discovery handlers matches the startup contract."""
+    handlers = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
+
+    assert handlers == (
+        vapix.basic_device_info,
+        vapix.io_port_management,
+        vapix.light_control,
+        vapix.mqtt,
+        vapix.pir_sensor_configuration,
+        vapix.stream_profiles,
+        vapix.view_areas,
+    )
 
 
 async def test_initialize(respx_mock, vapix: Vapix):
