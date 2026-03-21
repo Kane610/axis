@@ -28,10 +28,12 @@ async def axis_device(
     username: str,
     password: str,
     web_proto: WebProtocol,
+    stream_mode: str = "rtsp",
     is_companion: bool = False,
 ) -> axis.device.AxisDevice:
     """Create a Axis device."""
     session = create_session()
+    websocket_enabled, websocket_force = websocket_flags_from_mode(stream_mode)
     device = AxisDevice(
         Configuration(
             session,
@@ -41,6 +43,8 @@ async def axis_device(
             password=password,
             is_companion=is_companion,
             web_proto=web_proto,
+            websocket_enabled=websocket_enabled,
+            websocket_force=websocket_force,
         )
     )
 
@@ -74,6 +78,7 @@ async def main(
     params: bool,
     events: bool,
     web_proto: WebProtocol,
+    stream_mode: str,
 ) -> None:
     """CLI method for library."""
     LOGGER.info("Connecting to Axis device")
@@ -84,6 +89,7 @@ async def main(
         username,
         password,
         web_proto=web_proto,
+        stream_mode=stream_mode,
     )
 
     if not device:
@@ -126,6 +132,15 @@ async def close_session(session: aiohttp.ClientSession) -> None:
     await session.close()
 
 
+def websocket_flags_from_mode(stream_mode: str) -> tuple[bool, bool]:
+    """Translate CLI stream mode to websocket enable/force flags."""
+    if stream_mode == "auto":
+        return True, False
+    if stream_mode == "event":
+        return True, True
+    return False, False
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("host", type=str)
@@ -135,6 +150,11 @@ if __name__ == "__main__":
     parser.add_argument("--proto", type=str, default="http")
     parser.add_argument("--events", action="store_true")
     parser.add_argument("--params", action="store_true")
+    parser.add_argument(
+        "--stream-mode",
+        choices=["auto", "rtsp", "event"],
+        default="rtsp",
+    )
     parser.add_argument("-D", "--debug", action="store_true")
     args = parser.parse_args()
 
@@ -163,6 +183,7 @@ if __name__ == "__main__":
                 params=args.params,
                 events=args.events,
                 web_proto=WebProtocol(args.proto),
+                stream_mode=args.stream_mode,
             )
         )
 

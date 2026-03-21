@@ -2,18 +2,22 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from .models.configuration import WebProtocol
 from .rtsp import RTSPClient, Signal, State
+from .websocket import WebSocketClient
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from .device import AxisDevice
+    from .stream_transport import StreamTransport
 
 _LOGGER = logging.getLogger(__name__)
 
 RTSP_URL = "rtsp://{host}/axis-media/media.amp?video={video}&audio={audio}&event={event}{axis_orig_sw}"
+WEBSOCKET_PATH = "/vapix/ws-data-stream"
 
 RETRY_TIMER = 15
 
@@ -27,11 +31,12 @@ class StreamManager:
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = False
-        self.stream: RTSPClient | None = None
+        self.stream: StreamTransport | None = None
 
         self.connection_status_callback: list[Callable[[Signal], None]] = []
         self.background_tasks: set[asyncio.Task[None]] = set()
         self.retry_timer: asyncio.TimerHandle | None = None
+        self._starting = False
 
     @property
     def stream_url(self) -> str:
@@ -49,6 +54,17 @@ class StreamManager:
         return rtsp_url
 
     @property
+    def websocket_url(self) -> str:
+        """Build websocket URL for the VAPIX event stream endpoint."""
+        ws_proto = "wss" if self.device.config.web_proto == WebProtocol.HTTPS else "ws"
+        url = (
+            f"{ws_proto}://{self.device.config.host}:{self.device.config.port}"
+            f"{WEBSOCKET_PATH}?sources=events"
+        )
+        _LOGGER.debug(url)
+        return url
+
+    @property
     def video_query(self) -> int:
         """Generate video query, not supported."""
         return 0
@@ -63,6 +79,40 @@ class StreamManager:
         """Generate event query."""
         return "on" if self.event else "off"
 
+    @property
+    def use_websocket(self) -> bool:
+        """Use websocket transport when event websocket API is available."""
+        if not self.event:
+            return False
+        if self.device.config.websocket_force:
+            return True
+        return (
+            self.device.config.websocket_enabled
+            and WebSocketClient.supported_by_device(self.device)
+        )
+
+    @property
+    def _is_stream_stopped(self) -> bool:
+        """Return True when stream is missing or currently stopped."""
+        return not self.stream or self.stream.session.state == State.STOPPED
+
+    def _build_stream(self) -> StreamTransport:
+        """Build transport based on device capabilities and manager settings."""
+        if self.use_websocket:
+            return WebSocketClient(
+                self.device,
+                self.websocket_url,
+                self.session_callback,
+            )
+
+        return RTSPClient(
+            self.stream_url,
+            self.device.config.host,
+            self.device.config.username,
+            self.device.config.password,
+            self.session_callback,
+        )
+
     def session_callback(self, signal: Signal) -> None:
         """Signalling from stream session.
 
@@ -76,14 +126,16 @@ class StreamManager:
         elif signal == Signal.FAILED:
             self.retry()
 
-        if signal in [Signal.PLAYING, Signal.FAILED]:
+        if signal in (Signal.PLAYING, Signal.FAILED):
             for callback in self.connection_status_callback:
                 callback(signal)
 
     @property
-    def data(self) -> bytes:
+    def data(self) -> bytes | dict[str, Any]:
         """Get stream data."""
-        return self.stream.rtp.data  # type: ignore[union-attr]
+        if not self.stream:
+            return b""
+        return self.stream.data
 
     @property
     def state(self) -> State:
@@ -94,29 +146,37 @@ class StreamManager:
 
     def start(self) -> None:
         """Start stream."""
-        if not self.stream or self.stream.session.state == State.STOPPED:
-            self.stream = RTSPClient(
-                self.stream_url,
-                self.device.config.host,
-                self.device.config.username,
-                self.device.config.password,
-                self.session_callback,
-            )
+        if self._starting:
+            return
+
+        if self._is_stream_stopped:
+            self._starting = True
+            self.stream = self._build_stream()
             task = asyncio.create_task(self.stream.start())
             self.background_tasks.add(task)
-            task.add_done_callback(self.background_tasks.discard)
+
+            def _on_done(done_task: asyncio.Task[None]) -> None:
+                self.background_tasks.discard(done_task)
+                self._starting = False
+
+            task.add_done_callback(_on_done)
 
     def stop(self) -> None:
         """Stop stream."""
-        if self.stream and self.stream.session.state != State.STOPPED:
+        self._starting = False
+        if self.stream and not self._is_stream_stopped:
             self.stream.stop()
         self.cancel_retry()
 
     def retry(self) -> None:
         """No connection to device, retry connection after 15 seconds."""
         self.cancel_retry()
+        if self.stream and not self._is_stream_stopped:
+            self.stream.stop()
+
         loop = asyncio.get_running_loop()
         self.stream = None
+        self._starting = False
         self.retry_timer = loop.call_later(RETRY_TIMER, self.start)
         _LOGGER.debug("Reconnecting to %s", self.device.config.host)
 

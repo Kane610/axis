@@ -33,6 +33,8 @@ def test_configuration() -> None:
     assert config.url == "https://192.168.0.1:443"
     assert config.is_companion is False
     assert config.auth_scheme == AuthScheme.AUTO
+    assert config.websocket_enabled is False
+    assert config.websocket_force is False
 
 
 def test_minimal_configuration() -> None:
@@ -54,6 +56,23 @@ def test_minimal_configuration() -> None:
     assert config.url == "http://192.168.1.1:80"
     assert config.is_companion is False
     assert config.auth_scheme == AuthScheme.AUTO
+    assert config.websocket_enabled is False
+    assert config.websocket_force is False
+
+
+def test_configuration_websocket_can_be_enabled() -> None:
+    """Test websocket transport can be explicitly enabled."""
+    session = AsyncClient(verify=False)
+    config = Configuration(
+        session,
+        "192.168.1.10",
+        username="root",
+        password="pass",
+        websocket_enabled=True,
+    )
+
+    assert config.websocket_enabled is True
+    assert config.websocket_force is False
 
 
 def test_unsupported_auth_scheme_defaults_to_auto() -> None:
