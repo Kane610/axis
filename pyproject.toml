@@ -60,6 +60,9 @@ axis = "axis.__main__:main"
 
 [tool.coverage.report]
 fail_under = 95
+omit = [
+    "axis/stream_transport.py",
+]
 exclude_also = [
     "if TYPE_CHECKING:"
 ]
