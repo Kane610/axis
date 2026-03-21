@@ -86,6 +86,9 @@ async def test_use_websocket_supported_api(stream_manager):
     stream_manager.device.vapix.api_discovery._items[
         ApiId.EVENT_STREAMING_OVER_WEBSOCKET
     ] = MagicMock()
+    assert not stream_manager.use_websocket
+
+    stream_manager.device.config.websocket_enabled = True
     assert stream_manager.use_websocket
 
 
@@ -97,6 +100,7 @@ async def test_start_uses_websocket_when_supported(
     """Verify websocket transport is selected for supported event streams."""
     websocket_client.return_value.start = AsyncMock()
     stream_manager.event = True
+    stream_manager.device.config.websocket_enabled = True
     stream_manager.device.vapix.api_discovery._items[
         ApiId.EVENT_STREAMING_OVER_WEBSOCKET
     ] = MagicMock()

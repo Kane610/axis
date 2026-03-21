@@ -82,7 +82,11 @@ class StreamManager:
     @property
     def use_websocket(self) -> bool:
         """Use websocket transport when event websocket API is available."""
-        return self.event and WebSocketClient.supported_by_device(self.device)
+        return (
+            self.event
+            and self.device.config.websocket_enabled
+            and WebSocketClient.supported_by_device(self.device)
+        )
 
     @property
     def _is_stream_stopped(self) -> bool:
