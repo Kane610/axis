@@ -139,7 +139,7 @@ async def test_initialize_stream(websocket_client, rtsp_client, stream_manager):
     stream_manager.stream.stop.assert_called()  # RTSPClient stop can now be called
 
     # Data from rtspclient
-    stream_manager.stream.rtp.data = AUDIO_INIT
+    stream_manager.stream.data = AUDIO_INIT
     assert stream_manager.data == AUDIO_INIT
 
     # Session callback

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from .device import AxisDevice
+    from .stream_transport import StreamTransport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class StreamManager:
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = False
-        self.stream: RTSPClient | WebSocketClient | None = None
+        self.stream: StreamTransport | None = None
 
         self.connection_status_callback: list[Callable[[Signal], None]] = []
         self.background_tasks: set[asyncio.Task[None]] = set()
@@ -88,7 +89,7 @@ class StreamManager:
         """Return True when stream is missing or currently stopped."""
         return not self.stream or self.stream.session.state == State.STOPPED
 
-    def _build_stream(self) -> RTSPClient | WebSocketClient:
+    def _build_stream(self) -> StreamTransport:
         """Build transport based on device capabilities and manager settings."""
         if self.use_websocket:
             return WebSocketClient(
@@ -127,8 +128,6 @@ class StreamManager:
         """Get stream data."""
         if not self.stream:
             return b""
-        if hasattr(self.stream, "rtp"):
-            return self.stream.rtp.data
         return self.stream.data
 
     @property

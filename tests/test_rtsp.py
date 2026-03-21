@@ -529,6 +529,15 @@ def test_rtp_client(rtsp_client, caplog):
     mock_transport.close.assert_called()
 
 
+def test_rtsp_client_data_property(rtsp_client):
+    """Verify RTSPClient.data delegates to RTP buffered payload."""
+    payload = bytes.fromhex("DEADBEEF")
+    rtsp_client.rtp.client.data.append(payload)
+
+    assert rtsp_client.data == payload
+    assert rtsp_client.data == b""
+
+
 @pytest.mark.parametrize(
     ("packets"),
     [([RTP_PACKET1_FULL]), ([RTP_PACKET2_FRAGMENT1, RTP_PACKET2_FRAGMENT2])],

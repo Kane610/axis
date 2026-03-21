@@ -96,6 +96,11 @@ class RTSPClient(asyncio.Protocol):
         if self.time_out_handle is not None:
             self.time_out_handle.cancel()
 
+    @property
+    def data(self) -> bytes:
+        """Return latest RTP payload."""
+        return self.rtp.data
+
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         """Connect to device is successful.
 
