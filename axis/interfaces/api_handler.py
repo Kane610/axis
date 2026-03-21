@@ -30,6 +30,7 @@ class HandlerGroup(enum.Enum):
     """Group handlers by initialization strategy in Vapix."""
 
     API_DISCOVERY = "api_discovery"
+    APPLICATION = "application"
 
 
 class SubscriptionHandler:
