@@ -34,6 +34,7 @@ def test_configuration() -> None:
     assert config.is_companion is False
     assert config.auth_scheme == AuthScheme.AUTO
     assert config.websocket_enabled is False
+    assert config.websocket_force is False
 
 
 def test_minimal_configuration() -> None:
@@ -56,6 +57,7 @@ def test_minimal_configuration() -> None:
     assert config.is_companion is False
     assert config.auth_scheme == AuthScheme.AUTO
     assert config.websocket_enabled is False
+    assert config.websocket_force is False
 
 
 def test_configuration_websocket_can_be_enabled() -> None:
@@ -70,6 +72,7 @@ def test_configuration_websocket_can_be_enabled() -> None:
     )
 
     assert config.websocket_enabled is True
+    assert config.websocket_force is False
 
 
 def test_unsupported_auth_scheme_defaults_to_auto() -> None:

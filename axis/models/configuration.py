@@ -60,6 +60,7 @@ class Configuration:
     is_companion: bool = False
     auth_scheme: AuthScheme = AuthScheme.AUTO
     websocket_enabled: bool = False
+    websocket_force: bool = False
 
     def __post_init__(self) -> None:
         """Normalize auth and protocol values to enums and resolve default port."""

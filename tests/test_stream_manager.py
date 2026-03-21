@@ -92,6 +92,15 @@ async def test_use_websocket_supported_api(stream_manager):
     assert stream_manager.use_websocket
 
 
+async def test_use_websocket_forced_mode_ignores_discovery(stream_manager):
+    """Verify forced websocket mode bypasses API discovery gate."""
+    stream_manager.event = True
+    stream_manager.device.config.websocket_enabled = False
+    stream_manager.device.config.websocket_force = True
+
+    assert stream_manager.use_websocket
+
+
 @patch("axis.stream_manager.RTSPClient")
 @patch("axis.stream_manager.WebSocketClient")
 async def test_start_uses_websocket_when_supported(
