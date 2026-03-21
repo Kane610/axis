@@ -92,6 +92,19 @@ def test_api_discovery_handlers_registration(vapix: Vapix) -> None:
     )
 
 
+def test_application_handlers_registration(vapix: Vapix) -> None:
+    """Verify grouped application handlers matches the startup contract."""
+    handlers = vapix._handlers_by_group(HandlerGroup.APPLICATION)
+
+    assert handlers == (
+        vapix.fence_guard,
+        vapix.loitering_guard,
+        vapix.motion_guard,
+        vapix.object_analytics,
+        vapix.vmd4,
+    )
+
+
 async def test_initialize(respx_mock, vapix: Vapix):
     """Verify that you can initialize all APIs."""
     respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(

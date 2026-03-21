@@ -222,13 +222,7 @@ class Vapix:
         if not self.applications.supported or not await self.applications.update():
             return
 
-        apps: tuple[ApiHandler[Any], ...] = (
-            self.fence_guard,
-            self.loitering_guard,
-            self.motion_guard,
-            self.object_analytics,
-            self.vmd4,
-        )
+        apps = self._handlers_by_group(HandlerGroup.APPLICATION)
         await asyncio.gather(*[app.update() for app in apps if app.supported])
 
     async def initialize_event_instances(self) -> None:
