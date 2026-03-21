@@ -33,7 +33,9 @@ class IoPortManagement(ApiHandler[Port]):
 
     async def get_ports(self) -> dict[str, Port]:
         """List ports."""
-        bytes_data = await self.vapix.api_request(GetPortsRequest())
+        bytes_data = await self.vapix.api_request(
+            GetPortsRequest(api_version=self.api_version or API_VERSION)
+        )
         return GetPortsResponse.decode(bytes_data).data
 
     async def set_ports(
@@ -51,11 +53,19 @@ class IoPortManagement(ApiHandler[Port]):
         Devices with configurable ports can change the direction
           to either input or output.
         """
-        await self.vapix.api_request(SetPortsRequest(ports))
+        await self.vapix.api_request(
+            SetPortsRequest(ports, api_version=self.api_version or API_VERSION)
+        )
 
     async def set_state_sequence(self, port_id: str, sequence: list[Sequence]) -> None:
         """Apply a sequence of state changes with a delay in milliseconds between states."""
-        await self.vapix.api_request(SetStateSequenceRequest(port_id, sequence))
+        await self.vapix.api_request(
+            SetStateSequenceRequest(
+                port_id,
+                sequence,
+                api_version=self.api_version or API_VERSION,
+            )
+        )
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""

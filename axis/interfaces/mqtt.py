@@ -58,26 +58,26 @@ class MqttClientHandler(ApiHandler[Any]):
         """Configure MQTT Client."""
         await self.vapix.api_request(
             ConfigureClientRequest(
-                api_version=self.default_api_version, client_config=client_config
+                api_version=self.api_version or API_VERSION, client_config=client_config
             )
         )
 
     async def activate(self) -> None:
         """Activate MQTT Client."""
         await self.vapix.api_request(
-            ActivateClientRequest(api_version=self.default_api_version)
+            ActivateClientRequest(api_version=self.api_version or API_VERSION)
         )
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
         await self.vapix.api_request(
-            DeactivateClientRequest(api_version=self.default_api_version)
+            DeactivateClientRequest(api_version=self.api_version or API_VERSION)
         )
 
     async def get_client_status(self) -> ClientConfigStatus:
         """Get MQTT Client status."""
         bytes_data = await self.vapix.api_request(
-            GetClientStatusRequest(api_version=self.default_api_version)
+            GetClientStatusRequest(api_version=self.api_version or API_VERSION)
         )
         response = GetClientStatusResponse.decode(bytes_data)
         return response.data
@@ -85,7 +85,9 @@ class MqttClientHandler(ApiHandler[Any]):
     async def get_event_publication_config(self) -> EventPublicationConfig:
         """Get MQTT Client event publication config."""
         bytes_data = await self.vapix.api_request(
-            GetEventPublicationConfigRequest(api_version=self.default_api_version)
+            GetEventPublicationConfigRequest(
+                api_version=self.api_version or API_VERSION
+            )
         )
         response = GetEventPublicationConfigResponse.decode(bytes_data)
         return response.data
@@ -100,6 +102,6 @@ class MqttClientHandler(ApiHandler[Any]):
         config = EventPublicationConfig(event_filter_list=event_filters)
         await self.vapix.api_request(
             ConfigureEventPublicationRequest(
-                api_version=self.default_api_version, config=config
+                api_version=self.api_version or API_VERSION, config=config
             )
         )
