@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 import logging
+from time import time
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -40,7 +41,10 @@ WEBSOCKET_PATH = "/vapix/ws-data-stream"
 WSSESSION_PATH = "/axis-cgi/wssession.cgi"
 API_VERSION = "1.0"
 CONTEXT = "axis-py"
-TIME_OUT_LIMIT = 5
+HEARTBEAT_INTERVAL = 15  # Send ping every 15 seconds to keep connection fresh
+RECEIVE_TIMEOUT = (
+    60  # Allow 60 seconds for device to respond (heartbeat + network margin)
+)
 BUFFER_SIZE = 200
 
 
@@ -108,7 +112,7 @@ class WebSocketClient:
             url: Base websocket URL, e.g. ``ws://host/vapix/ws-data-stream?sources=events``.
             callback: Invoked on Signal events (PLAYING, DATA, FAILED).
             event_filter_list: ONVIF topic/content filter list sent with
-                ``events:configure``.  Defaults to ``[{"topicFilter": "//"}]``
+                ``events:configure``.  Defaults to ``[{"topicFilter": "//."}]``
                 which subscribes to all events.
 
         """
@@ -116,7 +120,7 @@ class WebSocketClient:
         self.url = url
         self.callback = callback
         self.event_filter_list: list[dict[str, str]] = event_filter_list or [
-            {"topicFilter": "//"}
+            {"topicFilter": "//."}
         ]
         self._configure_payload = {
             "apiVersion": API_VERSION,
@@ -124,7 +128,7 @@ class WebSocketClient:
             "method": "events:configure",
             "params": {"eventFilterList": self.event_filter_list},
         }
-        self._ws_timeout = aiohttp.ClientWSTimeout(ws_receive=TIME_OUT_LIMIT)
+        self._ws_timeout = aiohttp.ClientWSTimeout(ws_receive=RECEIVE_TIMEOUT)
 
         self.loop = asyncio.get_running_loop()
         self.session = WebSocketSession()
@@ -136,6 +140,7 @@ class WebSocketClient:
         self._close_task: asyncio.Task[None] | None = None
         self._stopped = False
         self._starting = False
+        self._start_time: float | None = None
 
     @classmethod
     def supported_by_device(cls, device: AxisDevice) -> bool:
@@ -172,6 +177,7 @@ class WebSocketClient:
         self._starting = True
         self._stopped = False
         self.session.state = State.STARTING
+        self._start_time = time()
 
         try:
             if self._close_task is not None:
@@ -193,7 +199,7 @@ class WebSocketClient:
 
             self._ws = await self._ws_session.ws_connect(
                 connect_url,
-                heartbeat=TIME_OUT_LIMIT,
+                heartbeat=HEARTBEAT_INTERVAL,
                 timeout=self._ws_timeout,
             )
         except (aiohttp.ClientError, TimeoutError, OSError) as err:
@@ -231,10 +237,17 @@ class WebSocketClient:
         if self._ws is None:
             return
 
-        await self._ws.send_json(self._configure_payload)
+        await self._send_configure_payload(self._configure_payload)
+
+    async def _send_configure_payload(self, payload: dict[str, Any]) -> None:
+        """Send a configure payload and validate the immediate response."""
+        if self._ws is None:
+            return
+
+        await self._ws.send_json(payload)
 
         response_msg = await asyncio.wait_for(
-            self._ws.receive(), timeout=TIME_OUT_LIMIT
+            self._ws.receive(), timeout=RECEIVE_TIMEOUT
         )
         if response_msg.type != aiohttp.WSMsgType.TEXT:
             err_msg = f"Expected TEXT websocket frame during configure, got {response_msg.type}"
@@ -287,9 +300,21 @@ class WebSocketClient:
                     break
 
         except (aiohttp.ClientError, TimeoutError, OSError) as err:
-            _LOGGER.debug("Websocket receive error: %s", err)
+            duration = (
+                f"{time() - self._start_time:.1f}s" if self._start_time else "unknown"
+            )
+            _LOGGER.warning(
+                "Websocket receive error (%s): %s | Connected for: %s | Buffered events: %d/%d",
+                type(err).__name__,
+                err,
+                duration,
+                len(self._data),
+                BUFFER_SIZE,
+                exc_info=True,
+            )
 
         finally:
+            self._start_time = None
             await self._close()
             self.session.state = State.STOPPED
             if not self._stopped:

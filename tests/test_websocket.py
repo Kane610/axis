@@ -95,7 +95,9 @@ def _configure_ok_msg() -> SimpleNamespace:
     return SimpleNamespace(type=aiohttp.WSMsgType.TEXT, data=payload.decode())
 
 
-def _configure_error_msg() -> SimpleNamespace:
+def _configure_error_msg(
+    code: int = 1100, message: str = "Internal Error"
+) -> SimpleNamespace:
     """Build a failing events:configure response message."""
     return SimpleNamespace(
         type=aiohttp.WSMsgType.TEXT,
@@ -104,7 +106,7 @@ def _configure_error_msg() -> SimpleNamespace:
                 "apiVersion": "1.0",
                 "context": "axis-py",
                 "method": "events:configure",
-                "error": {"code": 1100, "message": "Internal Error"},
+                "error": {"code": code, "message": message},
             }
         ).decode(),
     )
@@ -178,7 +180,7 @@ async def test_websocket_stream_receives_data(axis_device):
     ws.send_json.assert_called_once_with(client._configure_payload)
     ws_session.ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events&wssession=token123",
-        heartbeat=5,
+        heartbeat=15,
         timeout=ANY,
     )
 
@@ -275,7 +277,7 @@ async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device):
 
     ws_session.ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
-        heartbeat=5,
+        heartbeat=15,
         timeout=ANY,
     )
 
