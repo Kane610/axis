@@ -105,6 +105,7 @@ def test_application_handlers_registration(vapix: Vapix) -> None:
     )
 
 
+
 async def test_initialize(respx_mock, vapix: Vapix):
     """Verify that you can initialize all APIs."""
     respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
