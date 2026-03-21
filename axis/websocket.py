@@ -118,6 +118,13 @@ class WebSocketClient:
         self.event_filter_list: list[dict[str, str]] = event_filter_list or [
             {"topicFilter": "//"}
         ]
+        self._configure_payload = {
+            "apiVersion": API_VERSION,
+            "context": CONTEXT,
+            "method": "events:configure",
+            "params": {"eventFilterList": self.event_filter_list},
+        }
+        self._ws_timeout = aiohttp.ClientWSTimeout(ws_receive=TIME_OUT_LIMIT)
 
         self.loop = asyncio.get_running_loop()
         self.session = WebSocketSession()
@@ -184,11 +191,10 @@ class WebSocketClient:
                     ),
                 )
 
-            timeout = aiohttp.ClientWSTimeout(ws_receive=TIME_OUT_LIMIT)
             self._ws = await self._ws_session.ws_connect(
                 connect_url,
                 heartbeat=TIME_OUT_LIMIT,
-                timeout=timeout,
+                timeout=self._ws_timeout,
             )
         except (aiohttp.ClientError, TimeoutError, OSError) as err:
             _LOGGER.warning("Websocket connect failed: %s", err)
@@ -225,26 +231,16 @@ class WebSocketClient:
         if self._ws is None:
             return
 
-        await self._ws.send_json(
-            {
-                "apiVersion": API_VERSION,
-                "context": CONTEXT,
-                "method": "events:configure",
-                "params": {"eventFilterList": self.event_filter_list},
-            }
-        )
+        await self._ws.send_json(self._configure_payload)
 
         response_msg = await asyncio.wait_for(
             self._ws.receive(), timeout=TIME_OUT_LIMIT
         )
-        if response_msg.type not in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
-            err_msg = (
-                f"Unexpected WS message type during configure: {response_msg.type}"
-            )
+        if response_msg.type != aiohttp.WSMsgType.TEXT:
+            err_msg = f"Expected TEXT websocket frame during configure, got {response_msg.type}"
             raise aiohttp.ClientError(err_msg)
 
-        raw = response_msg.data
-        response = orjson.loads(raw if isinstance(raw, bytes) else raw.encode())
+        response = orjson.loads(response_msg.data)
         if "error" in response:
             err_info = response["error"]
             err_msg = (
@@ -274,12 +270,13 @@ class WebSocketClient:
 
         try:
             async for msg in self._ws:
-                if msg.type in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
-                    raw = msg.data
-                    self._handle_message(
-                        raw if isinstance(raw, bytes) else raw.encode("utf-8")
-                    )
+                if msg.type == aiohttp.WSMsgType.TEXT:
+                    self._handle_message(msg.data)
                     continue
+
+                if msg.type == aiohttp.WSMsgType.BINARY:
+                    _LOGGER.warning("Unexpected binary websocket frame")
+                    break
 
                 if msg.type in (
                     aiohttp.WSMsgType.CLOSE,
@@ -298,7 +295,7 @@ class WebSocketClient:
             if not self._stopped:
                 self._signal(Signal.FAILED)
 
-    def _handle_message(self, data: bytes) -> None:
+    def _handle_message(self, data: str) -> None:
         """Parse a JSON websocket frame and dispatch events:notify messages."""
         try:
             msg = orjson.loads(data)

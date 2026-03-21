@@ -84,17 +84,15 @@ class ErrorWebSocket:
 
 def _configure_ok_msg() -> SimpleNamespace:
     """Build a successful events:configure response message."""
-    return SimpleNamespace(
-        type=aiohttp.WSMsgType.TEXT,
-        data=orjson.dumps(
-            {
-                "apiVersion": "1.0",
-                "context": "axis-py",
-                "method": "events:configure",
-                "data": {},
-            }
-        ).decode(),
+    payload = orjson.dumps(
+        {
+            "apiVersion": "1.0",
+            "context": "axis-py",
+            "method": "events:configure",
+            "data": {},
+        }
     )
+    return SimpleNamespace(type=aiohttp.WSMsgType.TEXT, data=payload.decode())
 
 
 def _configure_error_msg() -> SimpleNamespace:
@@ -113,29 +111,31 @@ def _configure_error_msg() -> SimpleNamespace:
 
 
 def _notify_msg(
-    topic: str, source_key: str, source_idx: str, data_key: str, value: str
+    topic: str,
+    source_key: str,
+    source_idx: str,
+    data_key: str,
+    value: str,
 ):
     """Build an events:notify websocket message."""
-    return SimpleNamespace(
-        type=aiohttp.WSMsgType.TEXT,
-        data=orjson.dumps(
-            {
-                "apiVersion": "1.0",
-                "method": "events:notify",
-                "params": {
-                    "notification": {
-                        "timestamp": "2024-01-01T00:00:00Z",
-                        "topic": topic,
-                        "message": {
-                            "source": {source_key: source_idx},
-                            "key": {},
-                            "data": {data_key: value},
-                        },
-                    }
-                },
-            }
-        ).decode(),
+    payload = orjson.dumps(
+        {
+            "apiVersion": "1.0",
+            "method": "events:notify",
+            "params": {
+                "notification": {
+                    "timestamp": "2024-01-01T00:00:00Z",
+                    "topic": topic,
+                    "message": {
+                        "source": {source_key: source_idx},
+                        "key": {},
+                        "data": {data_key: value},
+                    },
+                }
+            },
+        }
     )
+    return SimpleNamespace(type=aiohttp.WSMsgType.TEXT, data=payload.decode())
 
 
 async def test_websocket_stream_receives_data(axis_device):
@@ -175,14 +175,7 @@ async def test_websocket_stream_receives_data(axis_device):
     }
     assert client.session.state == State.STOPPED
 
-    ws.send_json.assert_called_once_with(
-        {
-            "apiVersion": "1.0",
-            "context": "axis-py",
-            "method": "events:configure",
-            "params": {"eventFilterList": [{"topicFilter": "//"}]},
-        }
-    )
+    ws.send_json.assert_called_once_with(client._configure_payload)
     ws_session.ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events&wssession=token123",
         heartbeat=5,
@@ -197,6 +190,30 @@ async def test_websocket_configure_failure(axis_device):
     ws_session = AsyncMock()
     ws_session.ws_connect.return_value = ws
 
+    axis_device.vapix.request = AsyncMock(return_value=b"token123")
+
+    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+        client = WebSocketClient(
+            axis_device,
+            "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
+            callback,
+        )
+        await client.start()
+
+    callback.assert_called_once_with(Signal.FAILED)
+    assert client.session.state == State.STOPPED
+
+
+async def test_websocket_binary_configure_frame_is_rejected(axis_device):
+    """Verify non-text configure frames are rejected as protocol violations."""
+    callback = MagicMock()
+    ws = MockWebSocket(
+        SimpleNamespace(type=aiohttp.WSMsgType.BINARY, data=orjson.dumps({"data": {}})),
+        [],
+    )
+
+    ws_session = AsyncMock()
+    ws_session.ws_connect.return_value = ws
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
 
     with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
@@ -366,7 +383,7 @@ async def test_websocket_configure_with_no_ws(axis_device):
 
 
 async def test_websocket_configure_unexpected_message_type(axis_device):
-    """Verify configure fails on non text/binary response."""
+    """Verify configure fails on non-text response."""
     ws = AsyncMock()
     ws.send_json = AsyncMock()
     ws.receive = AsyncMock(
@@ -380,7 +397,7 @@ async def test_websocket_configure_unexpected_message_type(axis_device):
     )
     client._ws = ws
 
-    with pytest.raises(aiohttp.ClientError, match="Unexpected WS message type"):
+    with pytest.raises(aiohttp.ClientError, match="Expected TEXT websocket frame"):
         await client._configure()
 
 
@@ -422,9 +439,9 @@ async def test_websocket_receiver_exception_signals_failed(axis_device):
 @pytest.mark.parametrize(
     "payload",
     [
-        b"not-json",
-        orjson.dumps({"method": "events:other", "params": {}}),
-        orjson.dumps({"method": "events:notify", "params": {}}),
+        "not-json",
+        orjson.dumps({"method": "events:other", "params": {}}).decode(),
+        orjson.dumps({"method": "events:notify", "params": {}}).decode(),
     ],
 )
 async def test_websocket_handle_message_ignores_irrelevant_payloads(
@@ -460,13 +477,12 @@ async def test_websocket_stop_without_receiver_task(axis_device):
 
 
 async def test_websocket_receiver_ignores_non_close_non_text_message(axis_device):
-    """Verify receiver continues when message type is neither data nor close."""
+    """Verify unexpected binary frames are treated as protocol errors."""
     callback = MagicMock()
     ws = MockWebSocket(
         _configure_ok_msg(),
         [
-            SimpleNamespace(type=aiohttp.WSMsgType.PING, data=None),
-            SimpleNamespace(type=aiohttp.WSMsgType.CLOSED, data=None),
+            SimpleNamespace(type=aiohttp.WSMsgType.BINARY, data=orjson.dumps({})),
         ],
     )
 
@@ -481,6 +497,7 @@ async def test_websocket_receiver_ignores_non_close_non_text_message(axis_device
     await client._receiver()
 
     assert callback.call_args_list[-1].args[0] == Signal.FAILED
+    assert client.data == {}
 
 
 async def test_websocket_receiver_does_not_signal_failed_when_stopped(axis_device):
