@@ -145,13 +145,29 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     @property
     def api_version(self) -> str | None:
         """Latest API version supported."""
-        if (
-            self.api_id is not None
-            and (discovery_item := self.vapix.api_discovery.get(self.api_id))
-            is not None
-        ):
-            return discovery_item.version
+        if discovery_version := self._api_discovery_version():
+            return discovery_version
         return self.default_api_version
+
+    def _api_discovery_version(self) -> str | None:
+        """Get API version from discovery data when available."""
+        if self.api_id is None:
+            return None
+
+        discovery_item = self.vapix.api_discovery.get(self.api_id)
+        discovery_version = getattr(discovery_item, "version", None)
+        if isinstance(discovery_version, str):
+            return discovery_version
+
+        try:
+            discovery_item = self.vapix.api_discovery[self.api_id]
+        except (KeyError, TypeError):
+            return None
+
+        discovery_version = getattr(discovery_item, "version", None)
+        if isinstance(discovery_version, str):
+            return discovery_version
+        return None
 
     def items(self) -> ItemsView[str, ApiItemT]:
         """Return items."""
