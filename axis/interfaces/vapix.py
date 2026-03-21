@@ -13,6 +13,7 @@ from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
 from .api_discovery import ApiDiscoveryHandler
+from .api_handler import ApiHandler, HandlerGroup
 from .applications import ApplicationsHandler
 from .applications.fence_guard import FenceGuardHandler
 from .applications.loitering_guard import LoiteringGuardHandler
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
     from ..device import AxisDevice
     from ..models.api import ApiRequest
     from ..models.stream_profile import StreamProfile
-    from .api_handler import ApiHandler
 
 LOGGER = logging.getLogger(__name__)
 
@@ -164,16 +164,16 @@ class Vapix:
         if not await self.api_discovery.update():
             return
 
-        apis: tuple[ApiHandler[Any], ...] = (
-            self.basic_device_info,
-            self.io_port_management,
-            self.light_control,
-            self.mqtt,
-            self.pir_sensor_configuration,
-            self.stream_profiles,
-            self.view_areas,
-        )
+        apis = self._handlers_by_group(HandlerGroup.API_DISCOVERY)
         await asyncio.gather(*[api.update() for api in apis if api.supported])
+
+    def _handlers_by_group(self, group: HandlerGroup) -> tuple[ApiHandler[Any], ...]:
+        """Return handlers assigned to an initialization group."""
+        return tuple(
+            cast("ApiHandler[Any]", handler)
+            for handler in self.__dict__.values()
+            if getattr(handler, "handler_group", None) is group
+        )
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""

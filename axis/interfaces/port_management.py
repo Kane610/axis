@@ -17,7 +17,7 @@ from ..models.port_management import (
     SetPortsRequest,
     SetStateSequenceRequest,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 
 class IoPortManagement(ApiHandler[Port]):
@@ -25,6 +25,7 @@ class IoPortManagement(ApiHandler[Port]):
 
     api_id = ApiId.IO_PORT_MANAGEMENT
     default_api_version = API_VERSION
+    handler_group = HandlerGroup.API_DISCOVERY
 
     async def _api_request(self) -> dict[str, Port]:
         """Get default data of I/O port management."""
