@@ -65,6 +65,12 @@ class LightHandler(ApiHandler[LightInformation]):
             return prop.light_control
         return False
 
+    def should_initialize_in_group(self, group: HandlerGroup) -> bool:
+        """Return whether handler should initialize in the given group."""
+        if group is HandlerGroup.PARAM_CGI_FALLBACK:
+            return not self.listed_in_api_discovery and self.listed_in_parameters
+        return True
+
     async def _api_request(self) -> dict[str, LightInformation]:
         """Get default data of stream profiles."""
         return await self.get_light_information()

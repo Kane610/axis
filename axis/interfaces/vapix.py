@@ -35,8 +35,6 @@ from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from aiohttp import BasicAuth as AiohttpBasicAuth, ClientSession
 
     from ..device import AxisDevice
@@ -178,17 +176,15 @@ class Vapix:
             if group in getattr(handler, "initialization_groups", ())
         )
 
-    async def _initialize_handlers(
-        self,
-        group: HandlerGroup,
-        predicate: Callable[[ApiHandler[Any]], bool] | None = None,
-    ) -> None:
-        """Initialize handlers in a group, optionally filtered by predicate."""
+    async def _initialize_handlers(self, group: HandlerGroup) -> None:
+        """Initialize handlers in a group."""
         handlers = self._handlers_by_group(group)
-        if predicate is not None:
-            handlers = tuple(handler for handler in handlers if predicate(handler))
         await asyncio.gather(
-            *[handler.update() for handler in handlers if handler.supported]
+            *[
+                handler.update()
+                for handler in handlers
+                if handler.supported and handler.should_initialize_in_group(group)
+            ]
         )
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
@@ -221,12 +217,7 @@ class Vapix:
         if not self.params.property_handler.supported:
             return
 
-        await self._initialize_handlers(
-            HandlerGroup.PARAM_CGI_FALLBACK,
-            predicate=lambda handler: (
-                not handler.listed_in_api_discovery and handler.listed_in_parameters
-            ),
-        )
+        await self._initialize_handlers(HandlerGroup.PARAM_CGI_FALLBACK)
 
         if not self.io_port_management.supported and self.port_cgi.supported:
             self.port_cgi.load_ports()
