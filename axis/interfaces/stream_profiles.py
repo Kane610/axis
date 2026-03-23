@@ -25,7 +25,7 @@ class StreamProfilesHandler(ApiHandler[StreamProfile]):
 
     api_id = ApiId.STREAM_PROFILES
     default_api_version = API_VERSION
-    handler_group = HandlerGroup.API_DISCOVERY
+    handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, StreamProfile]:
         """Get default data of stream profiles."""

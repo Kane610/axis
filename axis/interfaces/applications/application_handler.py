@@ -11,7 +11,7 @@ class ApplicationHandler(ApiHandler[ApiItemT]):
     """Generic application handler."""
 
     app_name: ApplicationName
-    handler_group = HandlerGroup.APPLICATION
+    handler_groups = (HandlerGroup.APPLICATION,)
 
     @property
     def supported(self) -> bool:
