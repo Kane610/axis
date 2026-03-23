@@ -143,11 +143,25 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         return self.initialized
 
     @property
-    def api_version(self) -> str | None:
-        """Latest API version supported."""
+    def api_version(self) -> str:
+        """Latest API version supported.
+
+        Returns the API version in this order of precedence:
+        1. Version from device discovery (dynamic, device-specific)
+        2. Handler's default_api_version (static, library-defined)
+        3. Empty string "" (for handlers without discovery support)
+
+        Note: This property always returns a string (never None). Handlers that don't
+        support API versioning (no api_id) return empty string, which is safe because
+        they don't send api_version in their requests.
+
+        Returns:
+            str: API version (e.g., "1.0", "1.1") or empty string if not available.
+
+        """
         if discovery_version := self._api_discovery_version():
             return discovery_version
-        return self.default_api_version
+        return self.default_api_version or ""
 
     def _api_discovery_version(self) -> str | None:
         """Get API version from discovery data when available."""
@@ -155,18 +169,13 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
             return None
 
         discovery_item = self.vapix.api_discovery.get(self.api_id)
-        discovery_version = getattr(discovery_item, "version", None)
-        if isinstance(discovery_version, str):
-            return discovery_version
-
-        try:
-            discovery_item = self.vapix.api_discovery[self.api_id]
-        except (KeyError, TypeError):
+        if discovery_item is None:
             return None
 
         discovery_version = getattr(discovery_item, "version", None)
         if isinstance(discovery_version, str):
             return discovery_version
+
         return None
 
     def items(self) -> ItemsView[str, ApiItemT]:

@@ -34,7 +34,7 @@ class StreamProfilesHandler(ApiHandler[StreamProfile]):
     async def list_stream_profiles(self) -> dict[str, StreamProfile]:
         """List all stream profiles."""
         bytes_data = await self.vapix.api_request(
-            ListStreamProfilesRequest(api_version=self.api_version or API_VERSION)
+            ListStreamProfilesRequest(api_version=self.api_version)
         )
         response = ListStreamProfilesResponse.decode(bytes_data)
         return response.data

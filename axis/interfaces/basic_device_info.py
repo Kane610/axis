@@ -31,7 +31,7 @@ class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
     async def get_all_properties(self) -> dict[str, DeviceInformation]:
         """List all properties of basic device info."""
         bytes_data = await self.vapix.api_request(
-            GetAllPropertiesRequest(self.api_version or API_VERSION)
+            GetAllPropertiesRequest(self.api_version)
         )
         response = GetAllPropertiesResponse.decode(bytes_data)
         return {"0": response.data}

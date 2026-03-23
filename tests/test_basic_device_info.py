@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
     """Return the basic_device_info mock object."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    api_discovery_mock.get().version = "1.0"
     api_discovery_mock.__getitem__().version = "1.0"
     return axis_device.vapix.basic_device_info
 
