@@ -28,7 +28,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
 
     api_id = ApiId.VIEW_AREA
     default_api_version = API_VERSION
-    handler_group = HandlerGroup.API_DISCOVERY
+    handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, ViewArea]:
         """Get default data of stream profiles."""
