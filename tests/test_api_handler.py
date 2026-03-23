@@ -4,7 +4,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from axis.interfaces.api_handler import ApiHandler, SubscriptionHandler
+from axis.interfaces.api_handler import ApiHandler, HandlerGroup, SubscriptionHandler
+from axis.interfaces.light_control import LightHandler
 
 
 @pytest.fixture
@@ -122,3 +123,40 @@ def test_api_version_discovery_precedence() -> None:
 
     version = handler.api_version
     assert version == "2.0", "Discovery version should take precedence over default"
+
+
+def test_api_version_discovery_empty_string_precedence() -> None:
+    """Verify empty discovery version is still preferred over default."""
+    vapix = MagicMock()
+    vapix.api_discovery.get.return_value.version = ""
+
+    handler = ApiHandler(vapix=vapix)
+    handler.api_id = "test_id"
+    handler.default_api_version = "1.0"
+
+    version = handler.api_version
+    assert version == "", "Discovery version should be used even when empty"
+
+
+def test_should_initialize_in_group_default_true() -> None:
+    """Verify default initialization policy allows all groups."""
+    handler = ApiHandler(vapix=MagicMock())
+
+    assert handler.should_initialize_in_group(HandlerGroup.API_DISCOVERY)
+    assert handler.should_initialize_in_group(HandlerGroup.PARAM_CGI_FALLBACK)
+    assert handler.should_initialize_in_group(HandlerGroup.APPLICATION)
+
+
+def test_light_handler_param_fallback_policy() -> None:
+    """Verify light handler fallback policy is owned by the handler."""
+    vapix = MagicMock()
+    handler = LightHandler(vapix=vapix)
+
+    # Supported via params and not API discovery -> should initialize in fallback
+    vapix.params.property_handler.get.return_value.light_control = True
+    vapix.api_discovery.__contains__.return_value = False
+    assert handler.should_initialize_in_group(HandlerGroup.PARAM_CGI_FALLBACK)
+
+    # Supported via API discovery -> should not initialize in fallback
+    vapix.api_discovery.__contains__.return_value = True
+    assert not handler.should_initialize_in_group(HandlerGroup.PARAM_CGI_FALLBACK)
