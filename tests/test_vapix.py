@@ -105,10 +105,18 @@ def test_application_handlers_registration(vapix: Vapix) -> None:
     )
 
 
+def test_param_fallback_handlers_registration(vapix: Vapix) -> None:
+    """Verify grouped param.cgi fallback handlers matches startup contract."""
+    handlers = vapix._handlers_by_group(HandlerGroup.PARAM_CGI_FALLBACK)
+
+    assert handlers == (vapix.light_control,)
+
+
 def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
     """Verify handlers without matching group are not returned."""
     api_handlers = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
     app_handlers = vapix._handlers_by_group(HandlerGroup.APPLICATION)
+    param_fallback_handlers = vapix._handlers_by_group(HandlerGroup.PARAM_CGI_FALLBACK)
 
     assert vapix.api_discovery not in api_handlers
     assert vapix.params not in api_handlers
@@ -117,6 +125,10 @@ def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
     assert vapix.api_discovery not in app_handlers
     assert vapix.params not in app_handlers
     assert vapix.event_instances not in app_handlers
+
+    assert vapix.api_discovery not in param_fallback_handlers
+    assert vapix.params not in param_fallback_handlers
+    assert vapix.event_instances not in param_fallback_handlers
 
 
 async def test_initialize(respx_mock, vapix: Vapix):
