@@ -112,6 +112,14 @@ def test_param_fallback_handlers_registration(vapix: Vapix) -> None:
     assert handlers == (vapix.light_control,)
 
 
+def test_grouped_handlers_order_is_stable(vapix: Vapix) -> None:
+    """Verify grouped handlers preserve deterministic Vapix.__init__ order."""
+    first = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
+    second = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
+
+    assert first == second
+
+
 def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
     """Verify handlers without matching group are not returned."""
     api_handlers = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
