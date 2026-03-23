@@ -34,7 +34,7 @@ class IoPortManagement(ApiHandler[Port]):
     async def get_ports(self) -> dict[str, Port]:
         """List ports."""
         bytes_data = await self.vapix.api_request(
-            GetPortsRequest(api_version=self.api_version or API_VERSION)
+            GetPortsRequest(api_version=self.api_version)
         )
         return GetPortsResponse.decode(bytes_data).data
 
@@ -54,7 +54,7 @@ class IoPortManagement(ApiHandler[Port]):
           to either input or output.
         """
         await self.vapix.api_request(
-            SetPortsRequest(ports, api_version=self.api_version or API_VERSION)
+            SetPortsRequest(ports, api_version=self.api_version)
         )
 
     async def set_state_sequence(self, port_id: str, sequence: list[Sequence]) -> None:
@@ -63,7 +63,7 @@ class IoPortManagement(ApiHandler[Port]):
             SetStateSequenceRequest(
                 port_id,
                 sequence,
-                api_version=self.api_version or API_VERSION,
+                api_version=self.api_version,
             )
         )
 
