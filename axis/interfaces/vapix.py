@@ -35,6 +35,8 @@ from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from aiohttp import BasicAuth as AiohttpBasicAuth, ClientSession
 
     from ..device import AxisDevice
@@ -164,8 +166,7 @@ class Vapix:
         if not await self.api_discovery.update():
             return
 
-        apis = self._handlers_by_group(HandlerGroup.API_DISCOVERY)
-        await asyncio.gather(*[api.update() for api in apis if api.supported])
+        await self._initialize_handlers(HandlerGroup.API_DISCOVERY)
 
     def _handlers_by_group(self, group: HandlerGroup) -> tuple[ApiHandler[Any], ...]:
         """Return handlers assigned to an initialization group."""
@@ -174,7 +175,20 @@ class Vapix:
         return tuple(
             cast("ApiHandler[Any]", handler)
             for handler in self.__dict__.values()
-            if getattr(handler, "handler_group", None) is group
+            if group in getattr(handler, "initialization_groups", ())
+        )
+
+    async def _initialize_handlers(
+        self,
+        group: HandlerGroup,
+        predicate: Callable[[ApiHandler[Any]], bool] | None = None,
+    ) -> None:
+        """Initialize handlers in a group, optionally filtered by predicate."""
+        handlers = self._handlers_by_group(group)
+        if predicate is not None:
+            handlers = tuple(handler for handler in handlers if predicate(handler))
+        await asyncio.gather(
+            *[handler.update() for handler in handlers if handler.supported]
         )
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
@@ -207,11 +221,12 @@ class Vapix:
         if not self.params.property_handler.supported:
             return
 
-        if (
-            not self.light_control.listed_in_api_discovery
-            and self.light_control.listed_in_parameters
-        ):
-            await self.light_control.update()
+        await self._initialize_handlers(
+            HandlerGroup.PARAM_CGI_FALLBACK,
+            predicate=lambda handler: (
+                not handler.listed_in_api_discovery and handler.listed_in_parameters
+            ),
+        )
 
         if not self.io_port_management.supported and self.port_cgi.supported:
             self.port_cgi.load_ports()
@@ -224,8 +239,7 @@ class Vapix:
         if not self.applications.supported or not await self.applications.update():
             return
 
-        apps = self._handlers_by_group(HandlerGroup.APPLICATION)
-        await asyncio.gather(*[app.update() for app in apps if app.supported])
+        await self._initialize_handlers(HandlerGroup.APPLICATION)
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
