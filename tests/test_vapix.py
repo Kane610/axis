@@ -289,11 +289,12 @@ async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
-    respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+    light_control_route = respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
         json=LIGHT_CONTROL_RESPONSE,
     )
     await vapix.initialize_param_cgi()
 
+    assert light_control_route.called
     assert "Axis-Orig-Sw" not in respx_mock.calls.last.request.url.params
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
@@ -309,6 +310,45 @@ async def test_initialize_param_cgi(respx_mock, vapix: Vapix):
     assert len(vapix.params.stream_profile_handler) == 1
 
     assert vapix.users.supported
+
+
+async def test_initialize_param_cgi_skips_fallback_when_discovery_supports_api(
+    respx_mock, vapix: Vapix
+):
+    """Verify param fallback does not run for APIs supported by discovery."""
+    respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+        json=API_DISCOVERY_RESPONSE,
+    )
+    respx_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
+        json=BASIC_DEVICE_INFO_RESPONSE,
+    )
+    respx_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json=IO_PORT_MANAGEMENT_RESPONSE,
+    )
+    light_control_route = respx_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+        json=LIGHT_CONTROL_RESPONSE,
+    )
+    respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
+        json=STREAM_PROFILE_RESPONSE,
+    )
+    respx_mock.post("/axis-cgi/viewarea/info.cgi").respond(
+        json={
+            "apiVersion": "1.0",
+            "context": "",
+            "method": "list",
+            "data": {"viewAreas": []},
+        }
+    )
+    respx_mock.post("/axis-cgi/param.cgi").respond(
+        content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
+
+    await vapix.initialize_api_discovery()
+    assert light_control_route.call_count == 1
+
+    await vapix.initialize_param_cgi()
+    assert light_control_route.call_count == 1
 
 
 async def test_initialize_param_cgi_for_companion_device(
