@@ -121,6 +121,10 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
             return (self.handler_group,)
         return ()
 
+    def should_initialize_in_group(self, group: HandlerGroup) -> bool:
+        """Return whether handler should initialize in the given group."""
+        return True
+
     async def _api_request(self) -> dict[str, ApiItemT]:
         """Get API data method defined by subclass."""
         raise NotImplementedError
