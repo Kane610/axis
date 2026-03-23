@@ -178,12 +178,12 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
             str: API version (e.g., "1.0", "1.1") or empty string if not available.
 
         """
-        discovery_version = self._api_discovery_version()
+        discovery_version = self._get_api_discovery_version()
         if discovery_version is not None:
             return discovery_version
         return self.default_api_version or ""
 
-    def _api_discovery_version(self) -> str | None:
+    def _get_api_discovery_version(self) -> str | None:
         """Get API version from discovery data when available."""
         if self.api_id is None:
             return None
