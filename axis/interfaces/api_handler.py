@@ -84,8 +84,6 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
 
     api_id: ApiId | None = None
     default_api_version: str | None = None
-    # Deprecated: use handler_groups for new handlers.
-    handler_group: HandlerGroup | None = None
     handler_groups: tuple[HandlerGroup, ...] = ()
     skip_support_check = False
 
@@ -115,15 +113,8 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
 
     @property
     def initialization_groups(self) -> tuple[HandlerGroup, ...]:
-        """Initialization groups that this handler participates in.
-
-        Handlers should use ``handler_groups``.
-        """
-        if self.handler_groups:
-            return self.handler_groups
-        if self.handler_group is not None:
-            return (self.handler_group,)
-        return ()
+        """Initialization groups that this handler participates in."""
+        return self.handler_groups
 
     def should_initialize_in_group(self, group: HandlerGroup) -> bool:
         """Return whether handler should initialize in the given group."""
