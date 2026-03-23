@@ -169,6 +169,8 @@ class Vapix:
 
     def _handlers_by_group(self, group: HandlerGroup) -> tuple[ApiHandler[Any], ...]:
         """Return handlers assigned to an initialization group."""
+        # Handler order follows Vapix.__init__ assignment order via instance __dict__,
+        # which is insertion-ordered on supported Python versions.
         return tuple(
             cast("ApiHandler[Any]", handler)
             for handler in self.__dict__.values()

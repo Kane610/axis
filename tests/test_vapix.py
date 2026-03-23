@@ -105,6 +105,19 @@ def test_application_handlers_registration(vapix: Vapix) -> None:
     )
 
 
+def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
+    """Verify handlers without matching group are not returned."""
+    api_handlers = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
+    app_handlers = vapix._handlers_by_group(HandlerGroup.APPLICATION)
+
+    assert vapix.api_discovery not in api_handlers
+    assert vapix.params not in api_handlers
+    assert vapix.event_instances not in api_handlers
+
+    assert vapix.api_discovery not in app_handlers
+    assert vapix.params not in app_handlers
+    assert vapix.event_instances not in app_handlers
+
 
 async def test_initialize(respx_mock, vapix: Vapix):
     """Verify that you can initialize all APIs."""
