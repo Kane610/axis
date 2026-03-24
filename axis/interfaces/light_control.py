@@ -53,7 +53,10 @@ class LightHandler(ApiHandler[LightInformation]):
 
     api_id = ApiId.LIGHT_CONTROL
     default_api_version = API_VERSION
-    handler_group = HandlerGroup.API_DISCOVERY
+    handler_groups = (
+        HandlerGroup.API_DISCOVERY,
+        HandlerGroup.PARAM_CGI_FALLBACK,
+    )
 
     @property
     def listed_in_parameters(self) -> bool:

@@ -27,9 +27,10 @@ ID_FILTER_ALL = "*"
 
 
 class HandlerGroup(enum.Enum):
-    """Group handlers by initialization strategy in Vapix."""
+    """Group handlers by initialization phase in Vapix."""
 
     API_DISCOVERY = "api_discovery"
+    PARAM_CGI_FALLBACK = "param_cgi_fallback"
     APPLICATION = "application"
 
 
@@ -84,6 +85,7 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     api_id: ApiId | None = None
     default_api_version: str | None = None
     handler_group: HandlerGroup | None = None
+    handler_groups: tuple[HandlerGroup, ...] = ()
     skip_support_check = False
 
     def __init__(self, vapix: Vapix) -> None:
@@ -109,6 +111,15 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     def listed_in_parameters(self) -> bool:
         """Is API listed in parameters."""
         return False
+
+    @property
+    def initialization_groups(self) -> tuple[HandlerGroup, ...]:
+        """Initialization groups that this handler participates in."""
+        if self.handler_groups:
+            return self.handler_groups
+        if self.handler_group is not None:
+            return (self.handler_group,)
+        return ()
 
     async def _api_request(self) -> dict[str, ApiItemT]:
         """Get API data method defined by subclass."""
