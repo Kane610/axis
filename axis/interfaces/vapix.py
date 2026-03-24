@@ -68,6 +68,10 @@ class Vapix:
         else:
             self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
+        self._handler_registry: dict[HandlerGroup, list[ApiHandler[Any]]] = {
+            group: [] for group in HandlerGroup
+        }
+
         self.users = Users(self)
         self.user_groups = UserGroups(self)
 
@@ -93,6 +97,25 @@ class Vapix:
         self.vmd4 = Vmd4Handler(self)
 
         self.event_instances = EventInstanceHandler(self)
+
+        for handler in (
+            self.api_discovery,
+            self.basic_device_info,
+            self.io_port_management,
+            self.light_control,
+            self.mqtt,
+            self.pir_sensor_configuration,
+            self.stream_profiles,
+            self.view_areas,
+            self.applications,
+            self.fence_guard,
+            self.loitering_guard,
+            self.motion_guard,
+            self.object_analytics,
+            self.vmd4,
+            self.event_instances,
+        ):
+            self._register_handler(handler)
 
     @property
     def firmware_version(self) -> str:
@@ -166,15 +189,14 @@ class Vapix:
 
         await self._initialize_handlers(HandlerGroup.API_DISCOVERY)
 
+    def _register_handler(self, handler: ApiHandler[Any]) -> None:
+        """Register a handler for its initialization groups."""
+        for group in handler.handler_groups:
+            self._handler_registry[group].append(handler)
+
     def _handlers_by_group(self, group: HandlerGroup) -> tuple[ApiHandler[Any], ...]:
         """Return handlers assigned to an initialization group."""
-        # Handler order follows Vapix.__init__ assignment order via instance __dict__,
-        # which is insertion-ordered on supported Python versions.
-        return tuple(
-            handler
-            for handler in self.__dict__.values()
-            if isinstance(handler, ApiHandler) and group in handler.handler_groups
-        )
+        return tuple(self._handler_registry[group])
 
     async def _initialize_handlers(self, group: HandlerGroup) -> None:
         """Initialize handlers in a group."""
