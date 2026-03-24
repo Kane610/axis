@@ -9,6 +9,7 @@ process by fine tuning an area digitally after the camera has been manually poin
 
 from ..models.api_discovery import ApiId
 from ..models.view_area import (
+    API_VERSION,
     Geometry,
     GetSupportedConfigVersionsRequest,
     GetSupportedVersionsRequest,
@@ -19,13 +20,15 @@ from ..models.view_area import (
     SetGeometryRequest,
     ViewArea,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 
 class ViewAreaHandler(ApiHandler[ViewArea]):
     """View areas for Axis devices."""
 
     api_id = ApiId.VIEW_AREA
+    default_api_version = API_VERSION
+    handler_group = HandlerGroup.API_DISCOVERY
 
     async def _api_request(self) -> dict[str, ViewArea]:
         """Get default data of stream profiles."""
@@ -33,9 +36,8 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
 
     async def list_view_areas(self) -> dict[str, ViewArea]:
         """List all view areas of device."""
-        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
-            ListViewAreasRequest(discovery_item.version)
+            ListViewAreasRequest(self.api_version)
         )
         response = ListViewAreasResponse.decode(bytes_data)
         return response.data
@@ -46,12 +48,11 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
             SetGeometryRequest(
                 id=id,
                 geometry=geometry,
-                api_version=discovery_item.version,
+                api_version=self.api_version,
             )
         )
         response = ListViewAreasResponse.decode(bytes_data)
@@ -63,9 +64,8 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
-            ResetGeometryRequest(id=id, api_version=discovery_item.version)
+            ResetGeometryRequest(id=id, api_version=self.api_version)
         )
         response = ListViewAreasResponse.decode(bytes_data)
         return response.data

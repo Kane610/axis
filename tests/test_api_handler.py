@@ -1,10 +1,10 @@
 """Validate API handler and its subsription handling."""
 
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from axis.interfaces.api_handler import SubscriptionHandler
+from axis.interfaces.api_handler import ApiHandler, SubscriptionHandler
 
 
 @pytest.fixture
@@ -81,3 +81,44 @@ def test_unsub_missing_subscription(test_class) -> None:
     unsub = test_class.subscribe(Mock())
     test_class._subscribers["*"].clear()
     unsub()
+
+
+def test_api_version_always_returns_string() -> None:
+    """Verify api_version property always returns str, never None.
+
+    This is a contract guarantee: even handlers without discovery
+    or default_api_version must return a string.
+    """
+    # Create a minimal handler without discovery data
+    handler = ApiHandler(vapix=MagicMock())
+    handler.api_id = None  # No discovery for this handler
+    handler.default_api_version = None  # No default set
+
+    # Property must ALWAYS return a string, never None
+    version = handler.api_version
+    assert isinstance(version, str), "api_version must always be a string"
+    assert version == "", "Handlers without api_id/default return empty string"
+
+
+def test_api_version_with_default() -> None:
+    """Verify api_version returns default_api_version when available."""
+    handler = ApiHandler(vapix=MagicMock())
+    handler.api_id = None
+    handler.default_api_version = "1.0"
+
+    version = handler.api_version
+    assert version == "1.0", "Should return default_api_version when set"
+
+
+def test_api_version_discovery_precedence() -> None:
+    """Verify discovery version takes precedence over default."""
+    # Mock discovery with a version
+    vapix = MagicMock()
+    vapix.api_discovery.get.return_value.version = "2.0"
+
+    handler = ApiHandler(vapix=vapix)
+    handler.api_id = "test_id"
+    handler.default_api_version = "1.0"
+
+    version = handler.api_version
+    assert version == "2.0", "Discovery version should take precedence over default"

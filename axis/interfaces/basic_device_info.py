@@ -14,7 +14,7 @@ from ..models.basic_device_info import (
     GetSupportedVersionsRequest,
     GetSupportedVersionsResponse,
 )
-from .api_handler import ApiHandler
+from .api_handler import ApiHandler, HandlerGroup
 
 
 class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
@@ -22,6 +22,7 @@ class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
 
     api_id = ApiId.BASIC_DEVICE_INFO
     default_api_version = API_VERSION
+    handler_group = HandlerGroup.API_DISCOVERY
 
     async def _api_request(self) -> dict[str, DeviceInformation]:
         """Get default data of basic device information."""
@@ -29,9 +30,8 @@ class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
 
     async def get_all_properties(self) -> dict[str, DeviceInformation]:
         """List all properties of basic device info."""
-        discovery_item = self.vapix.api_discovery[self.api_id]
         bytes_data = await self.vapix.api_request(
-            GetAllPropertiesRequest(discovery_item.version)
+            GetAllPropertiesRequest(self.api_version)
         )
         response = GetAllPropertiesResponse.decode(bytes_data)
         return {"0": response.data}
