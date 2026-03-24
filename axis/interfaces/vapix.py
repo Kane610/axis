@@ -173,7 +173,7 @@ class Vapix:
         return tuple(
             cast("ApiHandler[Any]", handler)
             for handler in self.__dict__.values()
-            if group in getattr(handler, "initialization_groups", ())
+            if group in getattr(handler, "handler_groups", ())
         )
 
     async def _initialize_handlers(self, group: HandlerGroup) -> None:

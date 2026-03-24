@@ -111,11 +111,6 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         """Is API listed in parameters."""
         return False
 
-    @property
-    def initialization_groups(self) -> tuple[HandlerGroup, ...]:
-        """Initialization groups that this handler participates in."""
-        return self.handler_groups
-
     def should_initialize_in_group(self, group: HandlerGroup) -> bool:
         """Return whether handler should initialize in the given group."""
         return True

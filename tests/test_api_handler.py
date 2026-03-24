@@ -148,16 +148,16 @@ def test_should_initialize_in_group_default_true() -> None:
 
 
 def test_initialization_groups_returns_handler_groups() -> None:
-    """Verify initialization_groups is sourced from handler_groups."""
+    """Verify handlers expose no initialization groups by default."""
     handler = ApiHandler(vapix=MagicMock())
 
-    assert handler.initialization_groups == ()
+    assert handler.handler_groups == ()
 
     handler.handler_groups = (
         HandlerGroup.API_DISCOVERY,
         HandlerGroup.PARAM_CGI_FALLBACK,
     )
-    assert handler.initialization_groups == (
+    assert handler.handler_groups == (
         HandlerGroup.API_DISCOVERY,
         HandlerGroup.PARAM_CGI_FALLBACK,
     )
