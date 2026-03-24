@@ -171,9 +171,9 @@ class Vapix:
         # Handler order follows Vapix.__init__ assignment order via instance __dict__,
         # which is insertion-ordered on supported Python versions.
         return tuple(
-            cast("ApiHandler[Any]", handler)
+            handler
             for handler in self.__dict__.values()
-            if group in getattr(handler, "initialization_groups", ())
+            if isinstance(handler, ApiHandler) and group in handler.handler_groups
         )
 
     async def _initialize_handlers(self, group: HandlerGroup) -> None:

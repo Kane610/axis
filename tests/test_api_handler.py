@@ -147,6 +147,22 @@ def test_should_initialize_in_group_default_true() -> None:
     assert handler.should_initialize_in_group(HandlerGroup.APPLICATION)
 
 
+def test_initialization_groups_returns_handler_groups() -> None:
+    """Verify handlers expose no initialization groups by default."""
+    handler = ApiHandler(vapix=MagicMock())
+
+    assert handler.handler_groups == ()
+
+    handler.handler_groups = (
+        HandlerGroup.API_DISCOVERY,
+        HandlerGroup.PARAM_CGI_FALLBACK,
+    )
+    assert handler.handler_groups == (
+        HandlerGroup.API_DISCOVERY,
+        HandlerGroup.PARAM_CGI_FALLBACK,
+    )
+
+
 def test_light_handler_param_fallback_policy() -> None:
     """Verify light handler fallback policy is owned by the handler."""
     vapix = MagicMock()

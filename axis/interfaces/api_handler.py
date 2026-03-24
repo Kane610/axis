@@ -84,8 +84,6 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
 
     api_id: ApiId | None = None
     default_api_version: str | None = None
-    # Deprecated: use handler_groups for new handlers.
-    handler_group: HandlerGroup | None = None
     handler_groups: tuple[HandlerGroup, ...] = ()
     skip_support_check = False
 
@@ -112,18 +110,6 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     def listed_in_parameters(self) -> bool:
         """Is API listed in parameters."""
         return False
-
-    @property
-    def initialization_groups(self) -> tuple[HandlerGroup, ...]:
-        """Initialization groups that this handler participates in.
-
-        Handlers should use ``handler_groups``.
-        """
-        if self.handler_groups:
-            return self.handler_groups
-        if self.handler_group is not None:
-            return (self.handler_group,)
-        return ()
 
     def should_initialize_in_group(self, group: HandlerGroup) -> bool:
         """Return whether handler should initialize in the given group."""
@@ -178,12 +164,12 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
             str: API version (e.g., "1.0", "1.1") or empty string if not available.
 
         """
-        discovery_version = self._api_discovery_version()
+        discovery_version = self._get_api_discovery_version()
         if discovery_version is not None:
             return discovery_version
         return self.default_api_version or ""
 
-    def _api_discovery_version(self) -> str | None:
+    def _get_api_discovery_version(self) -> str | None:
         """Get API version from discovery data when available."""
         if self.api_id is None:
             return None
