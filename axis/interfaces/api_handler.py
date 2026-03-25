@@ -91,6 +91,7 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
         """Initialize API items."""
         super().__init__()
         self.vapix = vapix
+        self.vapix._register_handler(self)
         self._items: dict[str, ApiItemT] = {}
         self.initialized = False
 

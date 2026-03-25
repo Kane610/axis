@@ -98,25 +98,6 @@ class Vapix:
 
         self.event_instances = EventInstanceHandler(self)
 
-        for handler in (
-            self.api_discovery,
-            self.basic_device_info,
-            self.io_port_management,
-            self.light_control,
-            self.mqtt,
-            self.pir_sensor_configuration,
-            self.stream_profiles,
-            self.view_areas,
-            self.applications,
-            self.fence_guard,
-            self.loitering_guard,
-            self.motion_guard,
-            self.object_analytics,
-            self.vmd4,
-            self.event_instances,
-        ):
-            self._register_handler(handler)
-
     @property
     def firmware_version(self) -> str:
         """Firmware version of device."""
