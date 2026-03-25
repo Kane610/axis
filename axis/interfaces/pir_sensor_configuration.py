@@ -22,6 +22,7 @@ from .api_handler import ApiHandler, HandlerGroup
 class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     """PIR sensor configuration for Axis devices."""
 
+    vapix_property_name = "pir_sensor_configuration"
     api_id = ApiId.PIR_SENSOR_CONFIGURATION
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)

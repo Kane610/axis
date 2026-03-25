@@ -49,7 +49,40 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
+    _API_HANDLER_CLASSES: tuple[type[ApiHandler[Any]], ...] = (
+        ApiDiscoveryHandler,
+        BasicDeviceInfoHandler,
+        IoPortManagement,
+        LightHandler,
+        MqttClientHandler,
+        PirSensorConfigurationHandler,
+        StreamProfilesHandler,
+        ViewAreaHandler,
+        ApplicationsHandler,
+        FenceGuardHandler,
+        LoiteringGuardHandler,
+        MotionGuardHandler,
+        ObjectAnalyticsHandler,
+        Vmd4Handler,
+        EventInstanceHandler,
+    )
+
     auth: object
+    api_discovery: ApiDiscoveryHandler
+    basic_device_info: BasicDeviceInfoHandler
+    io_port_management: IoPortManagement
+    light_control: LightHandler
+    mqtt: MqttClientHandler
+    pir_sensor_configuration: PirSensorConfigurationHandler
+    stream_profiles: StreamProfilesHandler
+    view_areas: ViewAreaHandler
+    applications: ApplicationsHandler
+    fence_guard: FenceGuardHandler
+    loitering_guard: LoiteringGuardHandler
+    motion_guard: MotionGuardHandler
+    object_analytics: ObjectAnalyticsHandler
+    vmd4: Vmd4Handler
+    event_instances: EventInstanceHandler
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
@@ -77,28 +110,24 @@ class Vapix:
         self.users = Users(self)
         self.user_groups = UserGroups(self)
 
-        self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
         self.params: Params = Params(self)
-
-        self.basic_device_info = BasicDeviceInfoHandler(self)
-        self.io_port_management = IoPortManagement(self)
-        self.light_control = LightHandler(self)
-        self.mqtt = MqttClientHandler(self)
-        self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
-        self.stream_profiles = StreamProfilesHandler(self)
-        self.view_areas = ViewAreaHandler(self)
 
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
 
-        self.applications: ApplicationsHandler = ApplicationsHandler(self)
-        self.fence_guard = FenceGuardHandler(self)
-        self.loitering_guard = LoiteringGuardHandler(self)
-        self.motion_guard = MotionGuardHandler(self)
-        self.object_analytics = ObjectAnalyticsHandler(self)
-        self.vmd4 = Vmd4Handler(self)
+        self._initialize_api_handlers()
 
-        self.event_instances = EventInstanceHandler(self)
+    def _initialize_api_handlers(self) -> None:
+        """Create and expose API handlers using class metadata."""
+        for handler_class in self._API_HANDLER_CLASSES:
+            property_name = handler_class.vapix_property_name
+            if property_name is None:
+                msg = f"{handler_class.__name__} missing vapix_property_name"
+                raise ValueError(msg)
+            if hasattr(self, property_name):
+                msg = f"Duplicate Vapix handler property: {property_name}"
+                raise ValueError(msg)
+            setattr(self, property_name, handler_class(self))
 
     @property
     def firmware_version(self) -> str:

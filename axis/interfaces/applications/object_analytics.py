@@ -15,6 +15,7 @@ from .application_handler import ApplicationHandler
 class ObjectAnalyticsHandler(ApplicationHandler[Configuration]):
     """Object analytics handler for Axis devices."""
 
+    vapix_property_name = "object_analytics"
     app_name = ApplicationName.OBJECT_ANALYTICS
 
     async def get_configuration(self) -> Configuration:

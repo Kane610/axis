@@ -12,6 +12,7 @@ from .application_handler import ApplicationHandler
 class Vmd4Handler(ApplicationHandler[Configuration]):
     """VMD4 handler for Axis devices."""
 
+    vapix_property_name = "vmd4"
     app_name = ApplicationName.VMD4
 
     async def get_configuration(self) -> Configuration:

@@ -23,6 +23,7 @@ from .api_handler import ApiHandler, HandlerGroup
 class StreamProfilesHandler(ApiHandler[StreamProfile]):
     """API Discovery for Axis devices."""
 
+    vapix_property_name = "stream_profiles"
     api_id = ApiId.STREAM_PROFILES
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)

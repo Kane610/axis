@@ -23,6 +23,7 @@ from .api_handler import ApiHandler, HandlerGroup
 class IoPortManagement(ApiHandler[Port]):
     """I/O port management for Axis devices."""
 
+    vapix_property_name = "io_port_management"
     api_id = ApiId.IO_PORT_MANAGEMENT
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)

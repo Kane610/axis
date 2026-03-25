@@ -19,6 +19,8 @@ MINIMUM_VERSION = "1.20"
 class ApplicationsHandler(ApiHandler[Application]):
     """API Discovery for Axis devices."""
 
+    vapix_property_name = "applications"
+
     @property
     def listed_in_parameters(self) -> bool:
         """Is application supported and in a usable state."""

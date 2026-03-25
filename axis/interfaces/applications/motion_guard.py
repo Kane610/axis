@@ -17,6 +17,7 @@ from .application_handler import ApplicationHandler
 class MotionGuardHandler(ApplicationHandler[Configuration]):
     """Motion guard handler for Axis devices."""
 
+    vapix_property_name = "motion_guard"
     app_name = ApplicationName.MOTION_GUARD
 
     async def get_configuration(self) -> Configuration:
