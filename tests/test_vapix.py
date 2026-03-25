@@ -112,6 +112,15 @@ def test_param_fallback_handlers_registration(vapix: Vapix) -> None:
     assert handlers == (vapix.light_control,)
 
 
+def test_register_handler_is_idempotent(vapix: Vapix) -> None:
+    """Verify duplicate registration does not change group membership."""
+    before = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
+
+    vapix._register_handler(vapix.basic_device_info)
+
+    assert vapix._handlers_by_group(HandlerGroup.API_DISCOVERY) == before
+
+
 def test_grouped_handlers_order_is_stable(vapix: Vapix) -> None:
     """Verify grouped handlers preserve deterministic Vapix.__init__ order."""
     first = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)

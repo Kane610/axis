@@ -68,6 +68,12 @@ class Vapix:
         else:
             self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
+        # Grouped handlers are registered in handler-construction order.
+        # Handlers with empty handler_groups are intentionally excluded.
+        self._handler_registry: dict[HandlerGroup, list[ApiHandler[Any]]] = {
+            group: [] for group in HandlerGroup
+        }
+
         self.users = Users(self)
         self.user_groups = UserGroups(self)
 
@@ -166,15 +172,19 @@ class Vapix:
 
         await self._initialize_handlers(HandlerGroup.API_DISCOVERY)
 
+    def _register_handler(self, handler: ApiHandler[Any]) -> None:
+        """Register a handler for grouped initialization.
+
+        Registration order is the effective initialization order for each group.
+        Handlers with empty ``handler_groups`` remain excluded by design.
+        """
+        for group in handler.handler_groups:
+            if handler not in self._handler_registry[group]:
+                self._handler_registry[group].append(handler)
+
     def _handlers_by_group(self, group: HandlerGroup) -> tuple[ApiHandler[Any], ...]:
         """Return handlers assigned to an initialization group."""
-        # Handler order follows Vapix.__init__ assignment order via instance __dict__,
-        # which is insertion-ordered on supported Python versions.
-        return tuple(
-            handler
-            for handler in self.__dict__.values()
-            if isinstance(handler, ApiHandler) and group in handler.handler_groups
-        )
+        return tuple(self._handler_registry[group])
 
     async def _initialize_handlers(self, group: HandlerGroup) -> None:
         """Initialize handlers in a group."""
