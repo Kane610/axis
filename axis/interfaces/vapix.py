@@ -173,7 +173,8 @@ class Vapix:
     def _register_handler(self, handler: ApiHandler[Any]) -> None:
         """Register a handler for its initialization groups."""
         for group in handler.handler_groups:
-            self._handler_registry[group].append(handler)
+            if handler not in self._handler_registry[group]:
+                self._handler_registry[group].append(handler)
 
     def _handlers_by_group(self, group: HandlerGroup) -> tuple[ApiHandler[Any], ...]:
         """Return handlers assigned to an initialization group."""
