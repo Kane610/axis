@@ -258,6 +258,106 @@ class Vapix:
 
         await self._initialize_handlers(HandlerGroup.APPLICATION)
 
+    async def initialize_wanted(self, wanted: set[str]) -> None:
+        """Initialize only wanted handlers with dependency resolution.
+
+        Args:
+            wanted: Set of handler names to initialize. Supported: api_discovery,
+                basic_device_info, light_control, mqtt, pir_sensor_configuration,
+                stream_profiles, view_area, applications, fence_guard,
+                loitering_guard, motion_guard, object_analytics, vmd4,
+                event_instance, port_cgi, ptz, params, users, user_groups,
+                io_port_management.
+
+        Note:
+            Dependencies are automatically resolved:
+            - Application handlers require applications to be initialized first.
+            - Param-backed handlers require params to be initialized first.
+            - api_discovery is always initialized if any api-backed handler is wanted.
+
+        """
+        # Normalize wanted set
+        wanted_set = set(wanted)
+
+        # Handler dependency map: handler_name -> set of prerequisite handler names
+        dependencies = {
+            "fence_guard": {"applications"},
+            "loitering_guard": {"applications"},
+            "motion_guard": {"applications"},
+            "object_analytics": {"applications"},
+            "vmd4": {"applications"},
+            "light_control": {"api_discovery"},
+            "pir_sensor_configuration": {"api_discovery"},
+            "stream_profiles": {"api_discovery"},
+            "view_area": {"api_discovery"},
+            "port_cgi": {"params"},
+            "ptz": {"params"},
+        }
+
+        # Resolve transitive dependencies
+        resolved = set(wanted_set)
+        changed = True
+        while changed:
+            changed = False
+            for handler in list(resolved):
+                if handler in dependencies:
+                    for dep in dependencies[handler]:
+                        if dep not in resolved:
+                            resolved.add(dep)
+                            changed = True
+
+        # If params is needed but any api handler is wanted, also need api_discovery
+        if "params" in resolved or any(
+            h in resolved
+            for h in (
+                "basic_device_info",
+                "light_control",
+                "pir_sensor_configuration",
+                "stream_profiles",
+                "view_area",
+            )
+        ):
+            resolved.add("api_discovery")
+
+        # Bootstrap discovery if needed
+        if "api_discovery" in resolved:
+            await self.initialize_api_discovery()
+
+        # Initialize param if needed
+        if "params" in resolved:
+            await self.initialize_param_cgi(preload_data=False)
+
+        # Initialize applications if needed
+        if "applications" in resolved:
+            await self.initialize_applications()
+
+        # Initialize wanted non-discovery handlers
+        handler_names = [
+            "basic_device_info",
+            "io_port_management",
+            "light_control",
+            "mqtt",
+            "pir_sensor_configuration",
+            "stream_profiles",
+            "view_area",
+            "fence_guard",
+            "loitering_guard",
+            "motion_guard",
+            "object_analytics",
+            "vmd4",
+            "event_instance",
+            "port_cgi",
+            "ptz",
+            "users",
+            "user_groups",
+        ]
+
+        for handler_name in handler_names:
+            if handler_name in resolved:
+                handler = cast("ApiHandler[Any]", getattr(self, handler_name))  # type: ignore[assignment]
+                if handler.supported:  # type: ignore[attr-defined]
+                    await handler.update()  # type: ignore[attr-defined]
+
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
         await self.event_instance.update()
