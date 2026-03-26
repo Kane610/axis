@@ -85,8 +85,6 @@ class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
     api_id: ApiId | None = None
     default_api_version: str | None = None
     handler_groups: tuple[HandlerGroup, ...] = ()
-    expose_on_vapix = True
-    vapix_property_name: str | None = None
     skip_support_check = False
 
     def __init__(self, vapix: Vapix) -> None:
