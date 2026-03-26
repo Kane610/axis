@@ -49,6 +49,8 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
+    auth: object
+
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
@@ -66,30 +68,37 @@ class Vapix:
         else:
             self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
+        # Grouped handlers are registered in handler-construction order.
+        # Handlers with empty handler_groups are intentionally excluded.
         self._handler_registry: dict[HandlerGroup, list[ApiHandler[Any]]] = {
             group: [] for group in HandlerGroup
         }
 
-        self.params = Params(self)
         self.users = Users(self)
         self.user_groups = UserGroups(self)
-        self.api_discovery = ApiDiscoveryHandler(self)
+
+        self.api_discovery: ApiDiscoveryHandler = ApiDiscoveryHandler(self)
+        self.params: Params = Params(self)
+
         self.basic_device_info = BasicDeviceInfoHandler(self)
         self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
         self.mqtt = MqttClientHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
         self.stream_profiles = StreamProfilesHandler(self)
-        self.view_area = ViewAreaHandler(self)
-        self.applications = ApplicationsHandler(self)
+        self.view_areas = ViewAreaHandler(self)
+
+        self.port_cgi = Ports(self)
+        self.ptz = PtzControl(self)
+
+        self.applications: ApplicationsHandler = ApplicationsHandler(self)
         self.fence_guard = FenceGuardHandler(self)
         self.loitering_guard = LoiteringGuardHandler(self)
         self.motion_guard = MotionGuardHandler(self)
         self.object_analytics = ObjectAnalyticsHandler(self)
         self.vmd4 = Vmd4Handler(self)
-        self.event_instance = EventInstanceHandler(self)
-        self.port_cgi = Ports(self)
-        self.ptz = PtzControl(self)
+
+        self.event_instances = EventInstanceHandler(self)
 
     @property
     def firmware_version(self) -> str:
@@ -210,7 +219,7 @@ class Vapix:
             if not self.stream_profiles.supported:
                 tasks.append(self.params.stream_profile_handler.update())
 
-            if self.view_area.supported:
+            if self.view_areas.supported:
                 tasks.append(self.params.image_handler.update())
 
         await asyncio.gather(*tasks)
@@ -239,9 +248,9 @@ class Vapix:
         Args:
             wanted: Set of handler names to initialize. Supported: api_discovery,
                 basic_device_info, light_control, mqtt, pir_sensor_configuration,
-                stream_profiles, view_area, applications, fence_guard,
+                stream_profiles, view_areas, applications, fence_guard,
                 loitering_guard, motion_guard, object_analytics, vmd4,
-                event_instance, port_cgi, ptz, params, users, user_groups,
+                event_instances, port_cgi, ptz, params, users, user_groups,
                 io_port_management.
 
         Note:
@@ -264,7 +273,7 @@ class Vapix:
             "light_control": {"api_discovery"},
             "pir_sensor_configuration": {"api_discovery"},
             "stream_profiles": {"api_discovery"},
-            "view_area": {"api_discovery"},
+            "view_areas": {"api_discovery"},
             "port_cgi": {"params"},
             "ptz": {"params"},
         }
@@ -289,7 +298,7 @@ class Vapix:
                 "light_control",
                 "pir_sensor_configuration",
                 "stream_profiles",
-                "view_area",
+                "view_areas",
             )
         ):
             resolved.add("api_discovery")
@@ -314,13 +323,13 @@ class Vapix:
             "mqtt",
             "pir_sensor_configuration",
             "stream_profiles",
-            "view_area",
+            "view_areas",
             "fence_guard",
             "loitering_guard",
             "motion_guard",
             "object_analytics",
             "vmd4",
-            "event_instance",
+            "event_instances",
             "port_cgi",
             "ptz",
             "users",
@@ -335,7 +344,7 @@ class Vapix:
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self.event_instance.update()
+        await self.event_instances.update()
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
