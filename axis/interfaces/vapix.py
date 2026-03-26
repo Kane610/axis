@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from typing import TYPE_CHECKING, Any, cast
 
 import aiohttp
@@ -49,36 +48,6 @@ TIME_OUT = 15
 
 class Vapix:
     """Vapix parameter request."""
-
-    _HANDLER_PROPERTY_OVERRIDES: tuple[tuple[type[ApiHandler[Any]], str], ...] = (
-        (LightHandler, "light_control"),
-        (MqttClientHandler, "mqtt"),
-        (Ports, "port_cgi"),
-        (PtzControl, "ptz"),
-    )
-
-    _API_HANDLER_CLASSES: tuple[type[ApiHandler[Any]], ...] = (
-        Params,
-        Users,
-        UserGroups,
-        ApiDiscoveryHandler,
-        BasicDeviceInfoHandler,
-        IoPortManagement,
-        LightHandler,
-        MqttClientHandler,
-        PirSensorConfigurationHandler,
-        StreamProfilesHandler,
-        ViewAreaHandler,
-        ApplicationsHandler,
-        FenceGuardHandler,
-        LoiteringGuardHandler,
-        MotionGuardHandler,
-        ObjectAnalyticsHandler,
-        Vmd4Handler,
-        EventInstanceHandler,
-        Ports,
-        PtzControl,
-    )
 
     auth: object
     params: Params
@@ -125,28 +94,27 @@ class Vapix:
             group: [] for group in HandlerGroup
         }
 
-        self._initialize_api_handlers()
-
-    def _initialize_api_handlers(self) -> None:
-        """Create and expose API handlers using class metadata."""
-        for handler_class in self._API_HANDLER_CLASSES:
-            property_name = self._handler_property_name(handler_class)
-            if hasattr(self, property_name):
-                msg = f"Duplicate Vapix handler property: {property_name}"
-                raise ValueError(msg)
-            setattr(self, property_name, handler_class(self))
-
-    def _handler_property_name(self, handler_class: type[ApiHandler[Any]]) -> str:
-        """Return the exposed Vapix property name for a handler class."""
-        for override_class, override_name in self._HANDLER_PROPERTY_OVERRIDES:
-            if handler_class is override_class:
-                return override_name
-
-        name = handler_class.__name__
-        if name.endswith("Handler"):
-            name = name[: -len("Handler")]
-
-        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+        # Explicit handler initialization (single source of truth).
+        self.params = Params(self)
+        self.users = Users(self)
+        self.user_groups = UserGroups(self)
+        self.api_discovery = ApiDiscoveryHandler(self)
+        self.basic_device_info = BasicDeviceInfoHandler(self)
+        self.io_port_management = IoPortManagement(self)
+        self.light_control = LightHandler(self)
+        self.mqtt = MqttClientHandler(self)
+        self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
+        self.stream_profiles = StreamProfilesHandler(self)
+        self.view_area = ViewAreaHandler(self)
+        self.applications = ApplicationsHandler(self)
+        self.fence_guard = FenceGuardHandler(self)
+        self.loitering_guard = LoiteringGuardHandler(self)
+        self.motion_guard = MotionGuardHandler(self)
+        self.object_analytics = ObjectAnalyticsHandler(self)
+        self.vmd4 = Vmd4Handler(self)
+        self.event_instance = EventInstanceHandler(self)
+        self.port_cgi = Ports(self)
+        self.ptz = PtzControl(self)
 
     @property
     def firmware_version(self) -> str:
