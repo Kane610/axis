@@ -53,6 +53,8 @@ class Vapix:
     _HANDLER_PROPERTY_OVERRIDES: tuple[tuple[type[ApiHandler[Any]], str], ...] = (
         (LightHandler, "light_control"),
         (MqttClientHandler, "mqtt"),
+        (Ports, "port_cgi"),
+        (PtzControl, "ptz"),
     )
 
     _API_HANDLER_CLASSES: tuple[type[ApiHandler[Any]], ...] = (
@@ -71,12 +73,16 @@ class Vapix:
         ObjectAnalyticsHandler,
         Vmd4Handler,
         EventInstanceHandler,
+        Ports,
+        PtzControl,
     )
 
     auth: object
     api_discovery: ApiDiscoveryHandler
     basic_device_info: BasicDeviceInfoHandler
     io_port_management: IoPortManagement
+    port_cgi: Ports
+    ptz: PtzControl
     light_control: LightHandler
     mqtt: MqttClientHandler
     pir_sensor_configuration: PirSensorConfigurationHandler
@@ -117,9 +123,6 @@ class Vapix:
         self.user_groups = UserGroups(self)
 
         self.params: Params = Params(self)
-
-        self.port_cgi = Ports(self)
-        self.ptz = PtzControl(self)
 
         self._initialize_api_handlers()
 
