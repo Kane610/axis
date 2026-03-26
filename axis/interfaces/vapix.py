@@ -58,6 +58,9 @@ class Vapix:
     )
 
     _API_HANDLER_CLASSES: tuple[type[ApiHandler[Any]], ...] = (
+        Params,
+        Users,
+        UserGroups,
         ApiDiscoveryHandler,
         BasicDeviceInfoHandler,
         IoPortManagement,
@@ -78,6 +81,9 @@ class Vapix:
     )
 
     auth: object
+    params: Params
+    users: Users
+    user_groups: UserGroups
     api_discovery: ApiDiscoveryHandler
     basic_device_info: BasicDeviceInfoHandler
     io_port_management: IoPortManagement
@@ -118,11 +124,6 @@ class Vapix:
         self._handler_registry: dict[HandlerGroup, list[ApiHandler[Any]]] = {
             group: [] for group in HandlerGroup
         }
-
-        self.users = Users(self)
-        self.user_groups = UserGroups(self)
-
-        self.params: Params = Params(self)
 
         self._initialize_api_handlers()
 
