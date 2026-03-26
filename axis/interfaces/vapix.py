@@ -49,28 +49,6 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
-    auth: object
-    params: Params
-    users: Users
-    user_groups: UserGroups
-    api_discovery: ApiDiscoveryHandler
-    basic_device_info: BasicDeviceInfoHandler
-    io_port_management: IoPortManagement
-    port_cgi: Ports
-    ptz: PtzControl
-    light_control: LightHandler
-    mqtt: MqttClientHandler
-    pir_sensor_configuration: PirSensorConfigurationHandler
-    stream_profiles: StreamProfilesHandler
-    view_area: ViewAreaHandler
-    applications: ApplicationsHandler
-    fence_guard: FenceGuardHandler
-    loitering_guard: LoiteringGuardHandler
-    motion_guard: MotionGuardHandler
-    object_analytics: ObjectAnalyticsHandler
-    vmd4: Vmd4Handler
-    event_instance: EventInstanceHandler
-
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
@@ -88,13 +66,10 @@ class Vapix:
         else:
             self.auth = httpx.DigestAuth(device.config.username, device.config.password)
 
-        # Grouped handlers are registered in handler-construction order.
-        # Handlers with empty handler_groups are intentionally excluded.
         self._handler_registry: dict[HandlerGroup, list[ApiHandler[Any]]] = {
             group: [] for group in HandlerGroup
         }
 
-        # Explicit handler initialization (single source of truth).
         self.params = Params(self)
         self.users = Users(self)
         self.user_groups = UserGroups(self)
