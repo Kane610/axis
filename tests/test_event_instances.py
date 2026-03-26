@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def event_instances(axis_device) -> EventInstanceHandler:
     """Return the event_instances mock object."""
-    return axis_device.vapix.event_instances
+    return axis_device.vapix.event_instance
 
 
 async def test_full_list_of_event_instances(respx_mock, event_instances):

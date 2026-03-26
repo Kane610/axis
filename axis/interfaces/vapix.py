@@ -53,8 +53,6 @@ class Vapix:
     _HANDLER_PROPERTY_OVERRIDES: tuple[tuple[type[ApiHandler[Any]], str], ...] = (
         (LightHandler, "light_control"),
         (MqttClientHandler, "mqtt"),
-        (ViewAreaHandler, "view_areas"),
-        (EventInstanceHandler, "event_instances"),
     )
 
     _API_HANDLER_CLASSES: tuple[type[ApiHandler[Any]], ...] = (
@@ -83,14 +81,14 @@ class Vapix:
     mqtt: MqttClientHandler
     pir_sensor_configuration: PirSensorConfigurationHandler
     stream_profiles: StreamProfilesHandler
-    view_areas: ViewAreaHandler
+    view_area: ViewAreaHandler
     applications: ApplicationsHandler
     fence_guard: FenceGuardHandler
     loitering_guard: LoiteringGuardHandler
     motion_guard: MotionGuardHandler
     object_analytics: ObjectAnalyticsHandler
     vmd4: Vmd4Handler
-    event_instances: EventInstanceHandler
+    event_instance: EventInstanceHandler
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
@@ -265,7 +263,7 @@ class Vapix:
             if not self.stream_profiles.supported:
                 tasks.append(self.params.stream_profile_handler.update())
 
-            if self.view_areas.supported:
+            if self.view_area.supported:
                 tasks.append(self.params.image_handler.update())
 
         await asyncio.gather(*tasks)
@@ -290,7 +288,7 @@ class Vapix:
 
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
-        await self.event_instances.update()
+        await self.event_instance.update()
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

@@ -88,7 +88,7 @@ def test_api_discovery_handlers_registration(vapix: Vapix) -> None:
         vapix.mqtt,
         vapix.pir_sensor_configuration,
         vapix.stream_profiles,
-        vapix.view_areas,
+        vapix.view_area,
     )
 
 
@@ -137,15 +137,15 @@ def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
 
     assert vapix.api_discovery not in api_handlers
     assert vapix.params not in api_handlers
-    assert vapix.event_instances not in api_handlers
+    assert vapix.event_instance not in api_handlers
 
     assert vapix.api_discovery not in app_handlers
     assert vapix.params not in app_handlers
-    assert vapix.event_instances not in app_handlers
+    assert vapix.event_instance not in app_handlers
 
     assert vapix.api_discovery not in param_fallback_handlers
     assert vapix.params not in param_fallback_handlers
-    assert vapix.event_instances not in param_fallback_handlers
+    assert vapix.event_instance not in param_fallback_handlers
 
 
 async def test_initialize(respx_mock, vapix: Vapix):
@@ -202,7 +202,7 @@ async def test_initialize(respx_mock, vapix: Vapix):
     assert vapix.light_control.initialized
     assert not vapix.mqtt.initialized
     assert vapix.stream_profiles.initialized
-    assert vapix.view_areas.initialized
+    assert vapix.view_area.initialized
 
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
@@ -249,7 +249,7 @@ async def test_initialize_api_discovery(respx_mock, vapix: Vapix):
     assert vapix.light_control
     assert vapix.mqtt is not None
     assert vapix.stream_profiles
-    assert len(vapix.view_areas) == 0
+    assert len(vapix.view_area) == 0
 
     assert vapix.firmware_version == "9.80.1"
     assert vapix.product_number == "M1065-LW"
@@ -502,8 +502,8 @@ async def test_initialize_event_instances(respx_mock, vapix: Vapix):
 
     await vapix.initialize_event_instances()
 
-    assert vapix.event_instances
-    assert len(vapix.event_instances) == 44
+    assert vapix.event_instance
+    assert len(vapix.event_instance) == 44
 
 
 async def test_applications_dont_load_without_params(respx_mock, vapix: Vapix):
