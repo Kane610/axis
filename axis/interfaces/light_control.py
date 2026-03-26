@@ -51,7 +51,6 @@ from .api_handler import ApiHandler, HandlerGroup
 class LightHandler(ApiHandler[LightInformation]):
     """Light control for Axis devices."""
 
-    vapix_property_name = "light_control"
     api_id = ApiId.LIGHT_CONTROL
     default_api_version = API_VERSION
     handler_groups = (

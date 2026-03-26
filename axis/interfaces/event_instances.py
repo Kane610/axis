@@ -12,8 +12,6 @@ from .api_handler import ApiHandler
 class EventInstanceHandler(ApiHandler[Any]):
     """Event instances for Axis devices."""
 
-    vapix_property_name = "event_instances"
-
     async def _api_request(self) -> dict[str, Any]:
         """Get default data of API discovery."""
         return await self.get_event_instances()

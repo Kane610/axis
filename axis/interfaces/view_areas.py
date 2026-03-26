@@ -26,7 +26,6 @@ from .api_handler import ApiHandler, HandlerGroup
 class ViewAreaHandler(ApiHandler[ViewArea]):
     """View areas for Axis devices."""
 
-    vapix_property_name = "view_areas"
     api_id = ApiId.VIEW_AREA
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)

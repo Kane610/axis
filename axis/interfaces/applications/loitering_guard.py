@@ -16,7 +16,6 @@ from .application_handler import ApplicationHandler
 class LoiteringGuardHandler(ApplicationHandler[Configuration]):
     """Loitering guard handler for Axis devices."""
 
-    vapix_property_name = "loitering_guard"
     app_name = ApplicationName.LOITERING_GUARD
 
     async def get_configuration(self) -> Configuration:

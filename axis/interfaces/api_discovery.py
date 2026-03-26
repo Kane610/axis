@@ -19,7 +19,6 @@ from .api_handler import ApiHandler
 class ApiDiscoveryHandler(ApiHandler[Api]):
     """API Discovery for Axis devices."""
 
-    vapix_property_name = "api_discovery"
     api_id = ApiId.API_DISCOVERY
     default_api_version = API_VERSION
 

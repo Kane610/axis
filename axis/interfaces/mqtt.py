@@ -50,7 +50,6 @@ def mqtt_json_to_event(msg: bytes | bytearray | memoryview | str) -> dict[str, A
 class MqttClientHandler(ApiHandler[Any]):
     """MQTT Client for Axis devices."""
 
-    vapix_property_name = "mqtt"
     api_id = ApiId.MQTT_CLIENT
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)

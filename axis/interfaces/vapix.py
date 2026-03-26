@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import TYPE_CHECKING, Any, cast
 
 import aiohttp
@@ -48,6 +49,13 @@ TIME_OUT = 15
 
 class Vapix:
     """Vapix parameter request."""
+
+    _HANDLER_PROPERTY_OVERRIDES: tuple[tuple[type[ApiHandler[Any]], str], ...] = (
+        (LightHandler, "light_control"),
+        (MqttClientHandler, "mqtt"),
+        (ViewAreaHandler, "view_areas"),
+        (EventInstanceHandler, "event_instances"),
+    )
 
     _API_HANDLER_CLASSES: tuple[type[ApiHandler[Any]], ...] = (
         ApiDiscoveryHandler,
@@ -120,14 +128,23 @@ class Vapix:
     def _initialize_api_handlers(self) -> None:
         """Create and expose API handlers using class metadata."""
         for handler_class in self._API_HANDLER_CLASSES:
-            property_name = handler_class.vapix_property_name
-            if property_name is None:
-                msg = f"{handler_class.__name__} missing vapix_property_name"
-                raise ValueError(msg)
+            property_name = self._handler_property_name(handler_class)
             if hasattr(self, property_name):
                 msg = f"Duplicate Vapix handler property: {property_name}"
                 raise ValueError(msg)
             setattr(self, property_name, handler_class(self))
+
+    def _handler_property_name(self, handler_class: type[ApiHandler[Any]]) -> str:
+        """Return the exposed Vapix property name for a handler class."""
+        for override_class, override_name in self._HANDLER_PROPERTY_OVERRIDES:
+            if handler_class is override_class:
+                return override_name
+
+        name = handler_class.__name__
+        if name.endswith("Handler"):
+            name = name[: -len("Handler")]
+
+        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
     @property
     def firmware_version(self) -> str:

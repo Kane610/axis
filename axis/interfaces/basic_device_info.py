@@ -20,7 +20,6 @@ from .api_handler import ApiHandler, HandlerGroup
 class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
     """Basic device information for Axis devices."""
 
-    vapix_property_name = "basic_device_info"
     api_id = ApiId.BASIC_DEVICE_INFO
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)

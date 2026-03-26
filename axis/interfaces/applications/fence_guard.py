@@ -18,7 +18,6 @@ from .application_handler import ApplicationHandler
 class FenceGuardHandler(ApplicationHandler[Configuration]):
     """Fence guard handler for Axis devices."""
 
-    vapix_property_name = "fence_guard"
     app_name = ApplicationName.FENCE_GUARD
 
     async def get_configuration(self) -> Configuration:
