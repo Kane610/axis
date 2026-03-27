@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from axis.models.event import Event, EventGroup, EventOperation
+from axis.models.event import Event, EventOperation
 
 from .event_fixtures import (
     AUDIO_INIT,
@@ -44,7 +44,6 @@ from .event_fixtures import (
                 "topic": "",
                 "source": "",
                 "source_idx": "",
-                "group": EventGroup.NONE,
                 "type": "",
                 "state": "",
                 "tripped": False,
@@ -53,10 +52,9 @@ from .event_fixtures import (
         (
             AUDIO_INIT,
             {
-                "topic": "tns1:AudioSource/tnsaxis:TriggerLevel",
+                "topic": "onvif:AudioSource/axis:TriggerLevel",
                 "source": "channel",
                 "source_idx": "1",
-                "group": EventGroup.SOUND,
                 "type": "Sound",
                 "state": "0",
                 "tripped": False,
@@ -65,10 +63,9 @@ from .event_fixtures import (
         (
             DAYNIGHT_INIT,
             {
-                "topic": "tns1:VideoSource/tnsaxis:DayNightVision",
+                "topic": "onvif:VideoSource/axis:DayNightVision",
                 "source": "VideoSourceConfigurationToken",
                 "source_idx": "1",
-                "group": EventGroup.LIGHT,
                 "type": "DayNight",
                 "state": "1",
                 "tripped": True,
@@ -77,10 +74,9 @@ from .event_fixtures import (
         (
             FENCE_GUARD_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/FenceGuard/Camera1Profile1",
+                "topic": "axis:CameraApplicationPlatform/FenceGuard/Camera1Profile1",
                 "source": "",
                 "source_idx": "Camera1Profile1",
-                "group": EventGroup.MOTION,
                 "type": "Fence Guard",
                 "state": "0",
                 "tripped": False,
@@ -89,10 +85,9 @@ from .event_fixtures import (
         (
             LIGHT_STATUS_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:Light/Status",
+                "topic": "onvif:Device/axis:Light/Status",
                 "source": "id",
                 "source_idx": "0",
-                "group": EventGroup.LIGHT,
                 "type": "Light",
                 "state": "OFF",
                 "tripped": False,
@@ -101,10 +96,9 @@ from .event_fixtures import (
         (
             LOITERING_GUARD_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1",
+                "topic": "axis:CameraApplicationPlatform/LoiteringGuard/Camera1Profile1",
                 "source": "",
                 "source_idx": "Camera1Profile1",
-                "group": EventGroup.MOTION,
                 "type": "Loitering Guard",
                 "state": "0",
                 "tripped": False,
@@ -113,10 +107,9 @@ from .event_fixtures import (
         (
             MOTION_GUARD_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY",
+                "topic": "axis:CameraApplicationPlatform/MotionGuard/Camera1ProfileANY",
                 "source": "",
                 "source_idx": "Camera1ProfileANY",
-                "group": EventGroup.MOTION,
                 "type": "Motion Guard",
                 "state": "0",
                 "tripped": False,
@@ -125,10 +118,9 @@ from .event_fixtures import (
         (
             OBJECT_ANALYTICS_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                "topic": "axis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
                 "source": "",
                 "source_idx": "Device1Scenario1",
-                "group": EventGroup.MOTION,
                 "type": "Object Analytics",
                 "state": "0",
                 "tripped": False,
@@ -140,7 +132,6 @@ from .event_fixtures import (
                 "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
                 "source": "",
                 "source_idx": "Device1Scenario1",
-                "group": EventGroup.MOTION,
                 "type": "Object Analytics",
                 "state": "1",
                 "tripped": True,
@@ -149,10 +140,9 @@ from .event_fixtures import (
         (
             PIR_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "topic": "onvif:Device/axis:Sensor/PIR",
                 "source": "sensor",
                 "source_idx": "0",
-                "group": EventGroup.MOTION,
                 "type": "PIR",
                 "state": "0",
                 "tripped": False,
@@ -161,10 +151,9 @@ from .event_fixtures import (
         (
             PORT_0_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:IO/Port",
+                "topic": "onvif:Device/axis:IO/Port",
                 "source": "port",
                 "source_idx": "1",
-                "group": EventGroup.INPUT,
                 "type": "Input",
                 "state": "0",
                 "tripped": False,
@@ -173,10 +162,9 @@ from .event_fixtures import (
         (
             PORT_ANY_INIT,
             {
-                "topic": "tns1:Device/tnsaxis:IO/Port",
+                "topic": "onvif:Device/axis:IO/Port",
                 "source": "port",
-                "source_idx": "",
-                "group": EventGroup.INPUT,
+                "source_idx": "ANY",
                 "type": "Input",
                 "state": "0",
                 "tripped": False,
@@ -185,10 +173,9 @@ from .event_fixtures import (
         (
             PTZ_MOVE_INIT,
             {
-                "topic": "tns1:PTZController/tnsaxis:Move/Channel_1",
+                "topic": "onvif:PTZController/axis:Move/Channel_1",
                 "source": "PTZConfigurationToken",
                 "source_idx": "1",
-                "group": EventGroup.PTZ,
                 "type": "is_moving",
                 "state": "0",
                 "tripped": False,
@@ -197,10 +184,9 @@ from .event_fixtures import (
         (
             PTZ_PRESET_INIT_1,
             {
-                "topic": "tns1:PTZController/tnsaxis:PTZPresets/Channel_1",
+                "topic": "onvif:PTZController/axis:PTZPresets/Channel_1",
                 "source": "PresetToken",
                 "source_idx": "1",
-                "group": EventGroup.PTZ,
                 "type": "on_preset",
                 "state": "1",
                 "tripped": True,
@@ -209,10 +195,9 @@ from .event_fixtures import (
         (
             RELAY_INIT,
             {
-                "topic": "tns1:Device/Trigger/Relay",
+                "topic": "onvif:Device/Trigger/Relay",
                 "source": "RelayToken",
                 "source_idx": "3",
-                "group": EventGroup.OUTPUT,
                 "type": "Relay",
                 "state": "inactive",
                 "tripped": False,
@@ -221,10 +206,9 @@ from .event_fixtures import (
         (
             VMD3_INIT,
             {
-                "topic": "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1",
+                "topic": "onvif:RuleEngine/axis:VMD3/vmd3_video_1",
                 "source": "areaid",
                 "source_idx": "0",
-                "group": EventGroup.MOTION,
                 "type": "VMD3",
                 "state": "0",
                 "tripped": False,
@@ -233,10 +217,9 @@ from .event_fixtures import (
         (
             VMD4_ANY_INIT,
             {
-                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "topic": "axis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
                 "source": "",
                 "source_idx": "Camera1ProfileANY",
-                "group": EventGroup.MOTION,
                 "type": "VMD4",
                 "state": "0",
                 "tripped": False,
@@ -246,10 +229,9 @@ from .event_fixtures import (
         (
             GLOBAL_SCENE_CHANGE,
             {
-                "topic": "tns1:VideoSource/GlobalSceneChange/ImagingService",
+                "topic": "onvif:VideoSource/GlobalSceneChange/ImagingService",
                 "source": "Source",
                 "source_idx": "0",
-                "group": EventGroup.NONE,
                 "type": "VMD4",
                 "state": "0",
                 "tripped": False,
@@ -264,7 +246,6 @@ def test_create_event(input: bytes, expected: tuple) -> None:
     assert event.topic == expected["topic"]
     assert event.source == expected["source"]
     assert event.id == expected["source_idx"]
-    assert event.group == expected["group"]
     assert event.state == expected["state"]
     assert event.is_tripped is expected["tripped"]
 
@@ -280,7 +261,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
             PIR_INIT,
             {
                 "operation": "Initialized",
-                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "topic": "onvif:Device/axis:Sensor/PIR",
                 "source": "sensor",
                 "source_idx": "0",
                 "type": "state",
@@ -291,7 +272,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
             PIR_CHANGE,
             {
                 "operation": "Changed",
-                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "topic": "onvif:Device/axis:Sensor/PIR",
                 "source": "sensor",
                 "source_idx": "0",
                 "type": "state",
@@ -304,7 +285,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
                 "operation": "Initialized",
                 "source": "VideoSource",
                 "source_idx": "0",
-                "topic": "tns1:RuleEngine/MotionRegionDetector/Motion",
+                "topic": "onvif:RuleEngine/MotionRegionDetector/Motion",
                 "type": "State",
                 "value": "0",
             },
@@ -315,7 +296,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
                 "operation": "Initialized",
                 "source": "disk_id",
                 "source_idx": "NetworkShare",
-                "topic": "tnsaxis:Storage/Alert",
+                "topic": "axis:Storage/Alert",
                 "type": "overall_health",
                 "value": "-3",
             },
@@ -324,7 +305,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
             VMD4_ANY_INIT,
             {
                 "operation": "Initialized",
-                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "topic": "axis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
                 "source": "",
                 "source_idx": "",
                 "type": "active",
@@ -335,7 +316,7 @@ def test_create_event(input: bytes, expected: tuple) -> None:
             VMD4_ANY_CHANGE,
             {
                 "operation": "Changed",
-                "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
+                "topic": "axis:CameraApplicationPlatform/VMD/Camera1ProfileANY",
                 "source": "",
                 "source_idx": "",
                 "type": "active",
