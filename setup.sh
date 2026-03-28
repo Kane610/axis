@@ -6,6 +6,8 @@ set -e
 
 cd "$(dirname "$0")"
 
+REQUIRED_PYTHON="3.14"
+
 UV_BIN=""
 if command -v uv >/dev/null 2>&1; then
     UV_BIN="$(command -v uv)"
@@ -28,5 +30,6 @@ else
     fi
 fi
 
-"$UV_BIN" sync --all-extras
+"$UV_BIN" python install "$REQUIRED_PYTHON"
+"$UV_BIN" sync --python "$REQUIRED_PYTHON" --all-extras
 "$UV_BIN" run pre-commit install

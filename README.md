@@ -7,7 +7,14 @@ Python project to set up a connection towards Axis Communications devices and to
 `uv` is required for development setup:
 
 ```bash
-uv sync --all-extras
+uv python install 3.14
+uv sync --python 3.14 --all-extras
+```
+
+Or run the bootstrap script, which installs `uv` if needed and provisions Python 3.14 automatically:
+
+```bash
+./setup.sh
 ```
 
 Dependencies are locked via `uv.lock`. Regenerate lock data when dependency inputs change:
