@@ -91,6 +91,9 @@ warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
+[tool.ty]
+# Keep ty opt-in while mypy remains the primary type checker.
+
 [tool.pytest.ini_options]
 addopts = "--cov=axis --cov-report term-missing"
 asyncio_mode = "auto"
