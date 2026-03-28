@@ -1,22 +1,18 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.8
+  - repo: local
     hooks:
-      - id: ruff
-        args:
-          - --fix
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --extra requirements-test ruff check --fix
+        language: system
+        types_or: [python, pyi]
       - id: ruff-format
-        args:
-          - --target-version=py314
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
-    hooks:
+        name: ruff format
+        entry: uv run --extra requirements-test ruff format
+        language: system
+        types_or: [python, pyi]
       - id: mypy
-        language_version: python3.14
-        additional_dependencies: [
-          "httpx==0.28.1",
-          "orjson==3.11.5",
-          "packaging==25.0",
-          "types-xmltodict==v1.0.1.20260113"
-        ]
-        exclude: ^tests/
+        name: mypy
+        entry: uv run --extra requirements-test mypy axis
+        language: system
+        pass_filenames: false
