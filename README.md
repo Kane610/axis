@@ -1,4 +1,42 @@
+# axis
+
 Python project to set up a connection towards Axis Communications devices and to subscribe to specific events on the metadatastream.
+
+## Development setup
+
+`uv` is required for development setup:
+
+```bash
+uv python install 3.14
+uv sync --python 3.14 --all-extras
+```
+
+Or run the bootstrap script, which installs `uv` if needed and provisions Python 3.14 automatically:
+
+```bash
+./setup.sh
+```
+
+Dependencies are locked via `uv.lock`. Regenerate lock data when dependency inputs change:
+
+```bash
+uv lock
+```
+
+Run checks with `uv`:
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy axis
+uv run pytest
+```
+
+Initial `ty` support is configured as an opt-in check and does not replace `mypy`:
+
+```bash
+uvx ty check
+```
 
 ## Initialization architecture
 
