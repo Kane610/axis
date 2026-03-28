@@ -8,8 +8,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.models.api_discovery import ApiId, ApiStatus
-from axis.vapix.models.api_discovery import GetSupportedVersionsRequest, ListApisRequest
+from axis.models.api_discovery import (
+    ApiId,
+    ApiStatus,
+    GetSupportedVersionsRequest,
+    ListApisRequest,
+)
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
