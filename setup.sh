@@ -6,7 +6,14 @@ set -e
 
 cd "$(dirname "$0")"
 
-REQUIRED_PYTHON="3.14"
+REQUIRED_PYTHON="$(
+    grep -E '^requires-python[[:space:]]*=' pyproject.toml | head -n1 | grep -Eo '[0-9]+\.[0-9]+' | head -n1
+)"
+
+if [ -z "$REQUIRED_PYTHON" ]; then
+    echo "Could not derive requires-python from pyproject.toml"
+    exit 1
+fi
 
 UV_BIN=""
 if command -v uv >/dev/null 2>&1; then
