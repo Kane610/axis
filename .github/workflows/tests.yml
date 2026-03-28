@@ -23,13 +23,13 @@ jobs:
           python-version: "3.14"
       - name: Install dependencies
         run: |
-          uv sync --extra requirements --extra requirements-test
+          uv sync --frozen --extra requirements --extra requirements-test
       - name: Check lint with Ruff
         run: |
-          uv run ruff check axis tests
+          uv run ruff check .
       - name: Check format with Ruff
         run: |
-          uv run ruff format --check axis tests
+          uv run ruff format --check .
       - name: Check typing with mypy
         run: |
           uv run mypy axis

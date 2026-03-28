@@ -10,6 +10,12 @@ Preferred setup uses `uv`:
 uv sync --all-extras
 ```
 
+Dependencies are locked via `uv.lock`. Regenerate lock data when dependency inputs change:
+
+```bash
+uv lock
+```
+
 Run checks with `uv`:
 
 ```bash
