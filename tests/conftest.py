@@ -14,8 +14,7 @@ from axis.device import AxisDevice
 from axis.models.api import ApiRequest
 from axis.models.configuration import Configuration
 
-from tests.http_route_mock import HttpRouteMock, start_http_route_mock_server
-from tests.http_route_mock import Route
+from tests.http_route_mock import HttpRouteMock, Route, start_http_route_mock_server
 from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
 
@@ -87,6 +86,7 @@ def api_request_fixture(
     http_route_mock: HttpRouteMock,
 ) -> Callable[[type[ApiRequest], Any], Route]:
     """Mock API request."""
+
     def _register_route(
         api_request: type[ApiRequest], response_data: Any
     ) -> Route:
