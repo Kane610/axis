@@ -3,16 +3,18 @@ repos:
     hooks:
       - id: ruff-check
         name: ruff check
-        entry: uv run --extra requirements-test ruff check --fix
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ruff check --fix'
         language: system
         types_or: [python, pyi]
+        pass_filenames: false
       - id: ruff-format
         name: ruff format
-        entry: uv run --extra requirements-test ruff format
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ruff format'
         language: system
         types_or: [python, pyi]
+        pass_filenames: false
       - id: mypy
         name: mypy
-        entry: uv run --extra requirements-test mypy axis
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m mypy axis'
         language: system
         pass_filenames: false

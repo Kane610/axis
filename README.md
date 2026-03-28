@@ -4,7 +4,7 @@ Python project to set up a connection towards Axis Communications devices and to
 
 ## Development setup
 
-Preferred setup uses `uv`:
+`uv` is required for development setup:
 
 ```bash
 uv sync --all-extras
