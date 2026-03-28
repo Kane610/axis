@@ -15,22 +15,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
       - name: Install dependencies
         run: |
-          pip install ".[requirements, requirements-test]"
+          uv sync --extra requirements --extra requirements-test
       - name: Check lint with Ruff
         run: |
-          ruff check axis tests
+          uv run ruff check axis tests
       - name: Check format with Ruff
         run: |
-          ruff format --check axis tests
+          uv run ruff format --check axis tests
       - name: Check typing with mypy
         run: |
-          mypy axis
+          uv run mypy axis
       - name: Test with pytest
         run: |
-          pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=axis --cov-report=xml --cov-report=html
+          uv run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=axis --cov-report=xml --cov-report=html
