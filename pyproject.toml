@@ -30,7 +30,7 @@ dependencies    = [
 
 [project.optional-dependencies]
 requirements = [
-    "aiohttp==3.13.3",
+    "aiohttp==3.13.4",
     "httpx==0.28.1",
     "orjson==3.11.7",
     "packaging==26.0",
