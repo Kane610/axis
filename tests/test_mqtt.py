@@ -320,6 +320,42 @@ async def test_convert_json_to_event():
     }
 
 
+def test_mqtt_json_to_event_missing_keys(caplog):
+    """Test mqtt_json_to_event returns None and logs warning if keys are missing."""
+    # Missing 'topic'
+    msg = b'{"message": {"source": {"sensor": "0"}, "data": {"state": "0"}}}'
+    result = mqtt_json_to_event(msg)
+    assert result == {
+        "topic": "",
+        "source": "sensor",
+        "source_idx": "0",
+        "type": "state",
+        "value": "0",
+    }
+
+    # Missing 'message' now returns dict with empty values
+    msg = b'{"topic": "onvif:Device/axis:Sensor/PIR"}'
+    result = mqtt_json_to_event(msg)
+    assert result == {
+        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+        "source": "",
+        "source_idx": "",
+        "type": "",
+        "value": "",
+    }
+
+    # 'message' not a dict
+    msg = b'{"topic": "onvif:Device/axis:Sensor/PIR", "message": 123}'
+    result = mqtt_json_to_event(msg)
+    assert result == {
+        "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+        "source": "",
+        "source_idx": "",
+        "type": "",
+        "value": "",
+    }
+
+
 GET_CLIENT_STATUS_RESPONSE = {
     "apiVersion": "1.0",
     "context": "some context",
