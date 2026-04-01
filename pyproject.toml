@@ -32,7 +32,7 @@ dependencies    = [
 requirements = [
     "aiohttp==3.13.5",
     "httpx==0.28.1",
-    "orjson==3.11.7",
+    "orjson==3.11.8",
     "packaging==26.0",
     "xmltodict==1.0.4",
 ]
