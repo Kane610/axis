@@ -57,7 +57,7 @@ async def axis_companion_device(respx_mock: respx.router.MockRouter) -> AxisDevi
 @pytest.fixture(name="mock_api_request")
 def api_request_fixture(
     respx_mock: respx.router.MockRouter,
-) -> Callable[[type[ApiRequest], Any], respx.router.MockRouter]:
+) -> Callable[[type[ApiRequest], dict[str, Any] | str], respx.router.MockRouter]:
     """Mock API request."""
     content_type_to_keyword = {
         "application/json": "json",
@@ -66,7 +66,7 @@ def api_request_fixture(
     }
 
     def _register_route(
-        api_request: type[ApiRequest], response_data: Any
+        api_request: type[ApiRequest], response_data: dict[str, Any] | str
     ) -> respx.router.MockRouter:
         if api_request.content_type not in content_type_to_keyword:
             msg = f"Unsupported content type: {api_request.content_type}"
