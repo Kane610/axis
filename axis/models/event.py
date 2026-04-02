@@ -10,18 +10,6 @@ import xmltodict
 LOGGER = logging.getLogger(__name__)
 
 
-class EventGroup(enum.StrEnum):
-    """Logical grouping of events."""
-
-    INPUT = "input"
-    LIGHT = "light"
-    MOTION = "motion"
-    OUTPUT = "output"
-    PTZ = "ptz"
-    SOUND = "sound"
-    NONE = "none"
-
-
 class EventOperation(enum.StrEnum):
     """Possible operations of an event."""
 
@@ -41,22 +29,22 @@ class EventOperation(enum.StrEnum):
 class EventTopic(enum.StrEnum):
     """Supported event topics."""
 
-    DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
-    FENCE_GUARD = "tnsaxis:CameraApplicationPlatform/FenceGuard"
-    LIGHT_STATUS = "tns1:Device/tnsaxis:Light/Status"
-    LOITERING_GUARD = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
-    MOTION_DETECTION = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
-    MOTION_DETECTION_3 = "tns1:RuleEngine/tnsaxis:VMD3/vmd3_video_1"
-    MOTION_DETECTION_4 = "tnsaxis:CameraApplicationPlatform/VMD"
-    MOTION_GUARD = "tnsaxis:CameraApplicationPlatform/MotionGuard"
-    OBJECT_ANALYTICS = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics"
-    PIR = "tns1:Device/tnsaxis:Sensor/PIR"
-    PORT_INPUT = "tns1:Device/tnsaxis:IO/Port"
-    PORT_SUPERVISED_INPUT = "tns1:Device/tnsaxis:IO/SupervisedPort"
-    PTZ_IS_MOVING = "tns1:PTZController/tnsaxis:Move"
-    PTZ_ON_PRESET = "tns1:PTZController/tnsaxis:PTZPresets"
-    RELAY = "tns1:Device/Trigger/Relay"
-    SOUND_TRIGGER_LEVEL = "tns1:AudioSource/tnsaxis:TriggerLevel"
+    DAY_NIGHT_VISION = "onvif:VideoSource/axis:DayNightVision"
+    FENCE_GUARD = "axis:CameraApplicationPlatform/FenceGuard"
+    LIGHT_STATUS = "onvif:Device/axis:Light/Status"
+    LOITERING_GUARD = "axis:CameraApplicationPlatform/LoiteringGuard"
+    MOTION_DETECTION = "onvif:VideoAnalytics/axis:MotionDetection"
+    MOTION_DETECTION_3 = "onvif:RuleEngine/axis:VMD3/vmd3_video_1"
+    MOTION_DETECTION_4 = "axis:CameraApplicationPlatform/VMD"
+    MOTION_GUARD = "axis:CameraApplicationPlatform/MotionGuard"
+    OBJECT_ANALYTICS = "axis:CameraApplicationPlatform/ObjectAnalytics"
+    PIR = "onvif:Device/axis:Sensor/PIR"
+    PORT_INPUT = "onvif:Device/axis:IO/Port"
+    PORT_SUPERVISED_INPUT = "onvif:Device/axis:IO/SupervisedPort"
+    PTZ_IS_MOVING = "onvif:PTZController/axis:Move"
+    PTZ_ON_PRESET = "onvif:PTZController/axis:PTZPresets"
+    RELAY = "onvif:Device/Trigger/Relay"
+    SOUND_TRIGGER_LEVEL = "onvif:AudioSource/axis:TriggerLevel"
     UNKNOWN = "unknown"
 
     @classmethod
@@ -66,25 +54,6 @@ class EventTopic(enum.StrEnum):
             LOGGER.warning("Unsupported topic %s", value)
         return EventTopic.UNKNOWN
 
-
-TOPIC_TO_GROUP = {
-    EventTopic.DAY_NIGHT_VISION: EventGroup.LIGHT,
-    EventTopic.FENCE_GUARD: EventGroup.MOTION,
-    EventTopic.LIGHT_STATUS: EventGroup.LIGHT,
-    EventTopic.LOITERING_GUARD: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION_3: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION_4: EventGroup.MOTION,
-    EventTopic.MOTION_GUARD: EventGroup.MOTION,
-    EventTopic.OBJECT_ANALYTICS: EventGroup.MOTION,
-    EventTopic.PIR: EventGroup.MOTION,
-    EventTopic.PORT_INPUT: EventGroup.INPUT,
-    EventTopic.PORT_SUPERVISED_INPUT: EventGroup.INPUT,
-    EventTopic.PTZ_IS_MOVING: EventGroup.PTZ,
-    EventTopic.PTZ_ON_PRESET: EventGroup.PTZ,
-    EventTopic.RELAY: EventGroup.OUTPUT,
-    EventTopic.SOUND_TRIGGER_LEVEL: EventGroup.SOUND,
-}
 
 TOPIC_TO_STATE = {
     EventTopic.LIGHT_STATUS: "ON",
@@ -142,8 +111,6 @@ def extract_name_value(
 class Event:
     """Event data from Axis device."""
 
-    data: dict[str, Any]
-    group: EventGroup
     id: str
     is_tripped: bool
     operation: EventOperation
@@ -151,6 +118,7 @@ class Event:
     state: str
     topic: str
     topic_base: EventTopic
+    data: dict[str, Any]
 
     @classmethod
     def decode(cls, data: bytes | dict[str, Any]) -> Self:
@@ -175,11 +143,9 @@ class Event:
                 source_idx = _source_idx
 
         if source_idx == "-1":
-            source_idx = "ANY" if source != "port" else ""
+            source_idx = "ANY"
 
         return cls(
-            data=data,
-            group=TOPIC_TO_GROUP.get(topic_base, EventGroup.NONE),
             id=source_idx,
             is_tripped=value == TOPIC_TO_STATE.get(topic_base, "1"),
             operation=operation,
@@ -187,6 +153,7 @@ class Event:
             state=value,
             topic=topic,
             topic_base=topic_base,
+            data=data,
         )
 
     @classmethod
@@ -206,7 +173,12 @@ class Event:
         if not stream or not any(key != "xmlns" for key in stream):
             return cls._decode_from_dict({})
 
-        topic = traverse(raw, TOPIC)
+        topic = (
+            str(traverse(raw, TOPIC))
+            .replace("tns1", "onvif")
+            .replace("tnsaxis", "axis")
+        )
+        # timestamp = traverse(raw, TIMESTAMP)
         operation = traverse(raw, OPERATION)
 
         source = source_idx = ""
