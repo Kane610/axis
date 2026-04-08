@@ -3,7 +3,7 @@
 import asyncio
 from collections import deque
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from httpx import AsyncClient
 import pytest
@@ -12,7 +12,11 @@ from axis.device import AxisDevice
 from axis.models.configuration import Configuration
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import respx
+
+    from axis.models.api import ApiRequest
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +52,32 @@ async def axis_companion_device(respx_mock: respx.router.MockRouter) -> AxisDevi
     )
     yield axis_device
     await session.aclose()
+
+
+@pytest.fixture(name="mock_api_request")
+def api_request_fixture(
+    respx_mock: respx.router.MockRouter,
+) -> Callable[[type[ApiRequest], dict[str, Any] | str], respx.router.MockRouter]:
+    """Mock API request."""
+    content_type_to_keyword = {
+        "application/json": "json",
+        "text/plain": "text",
+        "text/xml": "text",
+    }
+
+    def _register_route(
+        api_request: type[ApiRequest], response_data: dict[str, Any] | str
+    ) -> respx.router.MockRouter:
+        if api_request.content_type not in content_type_to_keyword:
+            msg = f"Unsupported content type: {api_request.content_type}"
+            raise ValueError(msg)
+        kwargs = {content_type_to_keyword[api_request.content_type]: response_data}
+        return respx_mock.request(
+            method=api_request.method,
+            url=api_request.path,
+        ).respond(**kwargs)
+
+    return _register_route
 
 
 class TcpServerProtocol(asyncio.Protocol):
