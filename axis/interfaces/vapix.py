@@ -12,6 +12,7 @@ import httpx
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
+from .aiohttp_digest import AiohttpDigestAuth
 from .api_discovery import ApiDiscoveryHandler
 from .api_handler import ApiHandler, HandlerGroup
 from .applications import ApplicationsHandler
@@ -56,6 +57,7 @@ class Vapix:
         self.device = device
         self._http_client = self._client_name()
         self._aiohttp_digest_middleware: Any | None = None
+        self._aiohttp_digest_auth = AiohttpDigestAuth(device)
 
         if self._http_client == "aiohttp":
             if device.config.auth_scheme == AuthScheme.BASIC:
@@ -445,6 +447,16 @@ class Vapix:
             content if content is not None else data
         )
         session = self._aiohttp_session()
+
+        if (
+            self._http_client == "aiohttp"
+            and not self._aiohttp_auth()
+            and self.device.config.auth_scheme != AuthScheme.BASIC
+        ):
+            return await self._aiohttp_digest_auth.perform_request(
+                session, method, url, request_data, headers, params
+            )
+
         request_kwargs: dict[str, Any] = {
             "data": request_data,
             "headers": headers,
