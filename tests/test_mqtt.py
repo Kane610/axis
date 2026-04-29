@@ -6,7 +6,6 @@ pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from aiohttp import web
 import pytest
 
 from axis.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
@@ -25,36 +24,27 @@ def mqtt_client(axis_device_aiohttp: AxisDevice) -> MqttClientHandler:
 
 
 async def _setup_mqtt_route(
-    aiohttp_server,
+    aiohttp_mock_server,
     mqtt_client: MqttClientHandler,
     path: str,
     response_json: dict[str, object] | None = None,
 ) -> list[dict[str, object]]:
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        if response_json is None:
-            return web.json_response({})
-        return web.json_response(response_json)
-
-    app = web.Application()
-    app.router.add_post(path, handle_request)
-    server = await aiohttp_server(app)
-    mqtt_client.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        path,
+        method="POST",
+        response=response_json if response_json is not None else {},
+        device=mqtt_client,
+        capture_payload=True,
+    )
     return requests
 
 
-async def test_client_config_simple(aiohttp_server, mqtt_client: MqttClientHandler):
+async def test_client_config_simple(
+    aiohttp_mock_server, mqtt_client: MqttClientHandler
+):
     """Test simple MQTT client configuration."""
     requests = await _setup_mqtt_route(
-        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+        aiohttp_mock_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
     )
 
     client_config = ClientConfig(Server("192.168.0.1"))
@@ -74,10 +64,12 @@ async def test_client_config_simple(aiohttp_server, mqtt_client: MqttClientHandl
     }
 
 
-async def test_client_config_advanced(aiohttp_server, mqtt_client: MqttClientHandler):
+async def test_client_config_advanced(
+    aiohttp_mock_server, mqtt_client: MqttClientHandler
+):
     """Test advanced MQTT client configuration."""
     requests = await _setup_mqtt_route(
-        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+        aiohttp_mock_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
     )
 
     client_config = ClientConfig(
@@ -179,10 +171,10 @@ async def test_client_config_advanced(aiohttp_server, mqtt_client: MqttClientHan
     }
 
 
-async def test_activate_client(aiohttp_server, mqtt_client: MqttClientHandler):
+async def test_activate_client(aiohttp_mock_server, mqtt_client: MqttClientHandler):
     """Test activate client method."""
     requests = await _setup_mqtt_route(
-        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+        aiohttp_mock_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
     )
 
     await mqtt_client.activate()
@@ -197,10 +189,10 @@ async def test_activate_client(aiohttp_server, mqtt_client: MqttClientHandler):
     }
 
 
-async def test_deactivate_client(aiohttp_server, mqtt_client: MqttClientHandler):
+async def test_deactivate_client(aiohttp_mock_server, mqtt_client: MqttClientHandler):
     """Test deactivate client method."""
     requests = await _setup_mqtt_route(
-        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+        aiohttp_mock_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
     )
 
     await mqtt_client.deactivate()
@@ -215,10 +207,10 @@ async def test_deactivate_client(aiohttp_server, mqtt_client: MqttClientHandler)
     }
 
 
-async def test_get_client_status(aiohttp_server, mqtt_client: MqttClientHandler):
+async def test_get_client_status(aiohttp_mock_server, mqtt_client: MqttClientHandler):
     """Test get client status method."""
     requests = await _setup_mqtt_route(
-        aiohttp_server,
+        aiohttp_mock_server,
         mqtt_client,
         "/axis-cgi/mqtt/client.cgi",
         GET_CLIENT_STATUS_RESPONSE,
@@ -240,11 +232,11 @@ async def test_get_client_status(aiohttp_server, mqtt_client: MqttClientHandler)
 
 
 async def test_get_event_publication_config_small(
-    aiohttp_server, mqtt_client: MqttClientHandler
+    aiohttp_mock_server, mqtt_client: MqttClientHandler
 ):
     """Test get event publication config method."""
     requests = await _setup_mqtt_route(
-        aiohttp_server,
+        aiohttp_mock_server,
         mqtt_client,
         "/axis-cgi/mqtt/event.cgi",
         {
@@ -297,11 +289,11 @@ async def test_get_event_publication_config_small(
 
 
 async def test_configure_event_publication_all_topics(
-    aiohttp_server, mqtt_client: MqttClientHandler
+    aiohttp_mock_server, mqtt_client: MqttClientHandler
 ):
     """Test configure event publication method with all topics."""
     requests = await _setup_mqtt_route(
-        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/event.cgi"
+        aiohttp_mock_server, mqtt_client, "/axis-cgi/mqtt/event.cgi"
     )
 
     await mqtt_client.configure_event_publication()
@@ -318,12 +310,12 @@ async def test_configure_event_publication_all_topics(
 
 
 async def test_configure_event_publication_specific_topics(
-    aiohttp_server,
+    aiohttp_mock_server,
     mqtt_client: MqttClientHandler,
 ):
     """Test configure event publication method with specific topics."""
     requests = await _setup_mqtt_route(
-        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/event.cgi"
+        aiohttp_mock_server, mqtt_client, "/axis-cgi/mqtt/event.cgi"
     )
 
     topics = [
