@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -230,23 +229,21 @@ def image_handler(axis_device_aiohttp: AxisDevice) -> ImageParameterHandler:
 
 
 async def _setup_param_route(
-    aiohttp_server, image_handler: ImageParameterHandler, image_response: str
+    aiohttp_mock_server,
+    image_handler: ImageParameterHandler,
+    image_response: str,
 ) -> None:
-    async def handle_param(_: web.Request) -> web.Response:
-        return web.Response(
-            body=image_response.encode("iso-8859-1"),
-            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-        )
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/param.cgi", handle_param)
-    server = await aiohttp_server(app)
-    image_handler.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/param.cgi",
+        response=image_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=image_handler,
+    )
 
 
-async def test_image_handler(aiohttp_server, image_handler: ImageParameterHandler):
+async def test_image_handler(aiohttp_mock_server, image_handler: ImageParameterHandler):
     """Verify that update image works."""
-    await _setup_param_route(aiohttp_server, image_handler, IMAGE_RESPONSE)
+    await _setup_param_route(aiohttp_mock_server, image_handler, IMAGE_RESPONSE)
     assert not image_handler.initialized
 
     await image_handler.update()
@@ -383,11 +380,11 @@ async def test_image_handler(aiohttp_server, image_handler: ImageParameterHandle
     ],
 )
 async def test_limited_image_data(
-    aiohttp_server, image_handler: ImageParameterHandler, image_response
+    aiohttp_mock_server, image_handler: ImageParameterHandler, image_response
 ):
     """Verify that update image works.
 
     ImageParam missing Overlay, RateControl, SizeControl and Text.
     """
-    await _setup_param_route(aiohttp_server, image_handler, image_response)
+    await _setup_param_route(aiohttp_mock_server, image_handler, image_response)
     await image_handler.update()
