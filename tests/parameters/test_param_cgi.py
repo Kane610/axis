@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from aiohttp import web
 import pytest
 
 from axis.models.parameters.param_cgi import ParameterGroup, ParamRequest
@@ -41,19 +40,14 @@ async def test_param_handler_request_signalling(param_handler: Params):
         signal_mock.assert_called_with("obj_id")
 
 
-async def test_param_handler(aiohttp_server, param_handler: Params):
+async def test_param_handler(aiohttp_mock_server, param_handler: Params):
     """Verify that you can list parameters."""
-
-    async def handle_param(_: web.Request) -> web.Response:
-        return web.Response(
-            body=PARAM_RESPONSE.encode("iso-8859-1"),
-            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-        )
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/param.cgi", handle_param)
-    server = await aiohttp_server(app)
-    param_handler.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/param.cgi",
+        response=PARAM_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=param_handler,
+    )
 
     assert not param_handler.initialized
 
