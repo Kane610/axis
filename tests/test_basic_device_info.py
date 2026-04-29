@@ -6,7 +6,6 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 from unittest.mock import MagicMock
 
 import aiohttp
-from aiohttp import web
 
 from axis.device import AxisDevice
 from axis.models.configuration import Configuration
@@ -14,31 +13,14 @@ from axis.models.configuration import Configuration
 from .conftest import HOST, PASS, USER
 
 
-async def test_get_all_properties(aiohttp_server):
+async def test_get_all_properties(aiohttp_mock_server):
     """Test get all properties api."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_basic_device_info(request: web.Request) -> web.Response:
-        payload = await request.json()
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": payload,
-            }
-        )
-        return web.json_response(GET_ALL_PROPERTIES_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/basicdeviceinfo.cgi", handle_basic_device_info)
-    server = await aiohttp_server(app)
-
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
             session,
             HOST,
-            port=server.port,
+            port=80,
             username=USER,
             password=PASS,
         )
@@ -46,6 +28,13 @@ async def test_get_all_properties(aiohttp_server):
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.get().version = "1.0"
     basic_device_info = axis_device.vapix.basic_device_info
+
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        response=GET_ALL_PROPERTIES_RESPONSE,
+        device=axis_device,
+        capture_payload=True,
+    )
 
     try:
         await basic_device_info.update()
@@ -80,38 +69,14 @@ async def test_get_all_properties(aiohttp_server):
     assert device_info.web_url == "http://www.axis.com"
 
 
-async def test_get_supported_versions(aiohttp_server):
+async def test_get_supported_versions(aiohttp_mock_server):
     """Test get supported versions api."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_basic_device_info(request: web.Request) -> web.Response:
-        payload = await request.json()
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": payload,
-            }
-        )
-        return web.json_response(
-            {
-                "apiVersion": "1.1",
-                "context": "Axis library",
-                "method": "getSupportedVersions",
-                "data": {"apiVersions": ["1.1"]},
-            }
-        )
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/basicdeviceinfo.cgi", handle_basic_device_info)
-    server = await aiohttp_server(app)
-
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
             session,
             HOST,
-            port=server.port,
+            port=80,
             username=USER,
             password=PASS,
         )
@@ -119,6 +84,18 @@ async def test_get_supported_versions(aiohttp_server):
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.get().version = "1.0"
     basic_device_info = axis_device.vapix.basic_device_info
+
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        response={
+            "apiVersion": "1.1",
+            "context": "Axis library",
+            "method": "getSupportedVersions",
+            "data": {"apiVersions": ["1.1"]},
+        },
+        device=axis_device,
+        capture_payload=True,
+    )
 
     try:
         response = await basic_device_info.get_supported_versions()
