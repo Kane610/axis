@@ -4,8 +4,10 @@ pytest --cov-report term-missing --cov=axis.light_control tests/test_light_contr
 """
 
 import json
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 from axis.models.api_discovery import Api
@@ -15,10 +17,109 @@ if TYPE_CHECKING:
     from axis.interfaces.light_control import LightHandler
 
 
+class _CallList(list):
+    @property
+    def last(self):
+        return self[-1]
+
+
+class _Route:
+    def __init__(self, path: str) -> None:
+        self.path = path
+        self.called = False
+        self.calls = _CallList()
+        self._json: dict | list | None = None
+        self._text: str | None = None
+        self._content: bytes | None = None
+        self._status_code = 200
+        self._headers: dict[str, str] | None = None
+
+    def respond(
+        self,
+        *,
+        json: dict | list | None = None,
+        text: str | None = None,
+        content: bytes | None = None,
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ):
+        self._json = json
+        self._text = text
+        self._content = content
+        self._status_code = status_code
+        self._headers = headers
+        return self
+
+    def make_response(self) -> web.Response:
+        if self._json is not None:
+            return web.json_response(
+                self._json,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        if self._text is not None:
+            return web.Response(
+                text=self._text,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        if self._content is not None:
+            return web.Response(
+                body=self._content,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        return web.Response(status=self._status_code, headers=self._headers)
+
+
+class _RespxMockShim:
+    def __init__(self) -> None:
+        self._routes: dict[tuple[str, str], _Route] = {}
+
+    def post(self, path: str) -> _Route:
+        route = _Route(path)
+        self._routes[("POST", path)] = route
+        return route
+
+    def resolve(self, method: str, path: str) -> _Route | None:
+        return self._routes.get((method, path))
+
+
 @pytest.fixture
-async def light_control(axis_device: AxisDevice) -> LightHandler:
+async def respx_mock(aiohttp_server, axis_device_aiohttp: AxisDevice):
+    """Return a minimal respx-compatible shim backed by aiohttp_server."""
+    mock = _RespxMockShim()
+
+    async def handle_request(request: web.Request) -> web.Response:
+        route = mock.resolve(request.method, request.path)
+        if route is None:
+            return web.Response(status=404)
+
+        route.called = True
+        content = await request.read()
+        route.calls.append(
+            SimpleNamespace(
+                request=SimpleNamespace(
+                    method=request.method,
+                    url=SimpleNamespace(path=request.path),
+                    content=content,
+                )
+            )
+        )
+        return route.make_response()
+
+    app = web.Application()
+    app.router.add_route("*", "/{tail:.*}", handle_request)
+    server = await aiohttp_server(app)
+    axis_device_aiohttp.vapix.device.config.port = server.port
+
+    return mock
+
+
+@pytest.fixture
+async def light_control(axis_device_aiohttp: AxisDevice) -> LightHandler:
     """Return the light_control mock object."""
-    axis_device.vapix.api_discovery._items = {
+    axis_device_aiohttp.vapix.api_discovery._items = {
         api.id: api
         for api in [
             Api.decode(
@@ -31,7 +132,7 @@ async def light_control(axis_device: AxisDevice) -> LightHandler:
             )
         ]
     }
-    return axis_device.vapix.light_control
+    return axis_device_aiohttp.vapix.light_control
 
 
 async def test_update(respx_mock, light_control):
