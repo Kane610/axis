@@ -4,7 +4,6 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 """
 
 import aiohttp
-from aiohttp import web
 
 from axis.device import AxisDevice
 from axis.models.api_discovery import ApiId, ApiStatus
@@ -23,36 +22,26 @@ async def test_api_status_enum():
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
-async def test_get_api_list(aiohttp_server):
+async def test_get_api_list(aiohttp_mock_server):
     """Test get_api_list call."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_api_discovery(request: web.Request) -> web.Response:
-        payload = await request.json()
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": payload,
-            }
-        )
-        return web.json_response(GET_API_LIST_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/apidiscovery.cgi", handle_api_discovery)
-    server = await aiohttp_server(app)
-
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
             session,
             HOST,
-            port=server.port,
+            port=80,
             username=USER,
             password=PASS,
         )
     )
     api_discovery = axis_device.vapix.api_discovery
+
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/apidiscovery.cgi",
+        response=GET_API_LIST_RESPONSE,
+        device=axis_device,
+        capture_payload=True,
+    )
 
     assert api_discovery.supported
     try:
@@ -80,36 +69,26 @@ async def test_get_api_list(aiohttp_server):
     assert item.version == "1.0"
 
 
-async def test_get_supported_versions(aiohttp_server):
+async def test_get_supported_versions(aiohttp_mock_server):
     """Test get_supported_versions."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_api_discovery(request: web.Request) -> web.Response:
-        payload = await request.json()
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": payload,
-            }
-        )
-        return web.json_response(GET_SUPPORTED_VERSIONS_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/apidiscovery.cgi", handle_api_discovery)
-    server = await aiohttp_server(app)
-
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
             session,
             HOST,
-            port=server.port,
+            port=80,
             username=USER,
             password=PASS,
         )
     )
     api_discovery = axis_device.vapix.api_discovery
+
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/apidiscovery.cgi",
+        response=GET_SUPPORTED_VERSIONS_RESPONSE,
+        device=axis_device,
+        capture_payload=True,
+    )
 
     try:
         response = await api_discovery.get_supported_versions()
