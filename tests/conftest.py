@@ -5,6 +5,7 @@ from collections import deque
 import logging
 from typing import TYPE_CHECKING
 
+from aiohttp import ClientSession, web
 from httpx import AsyncClient
 import pytest
 
@@ -12,6 +13,8 @@ from axis.device import AxisDevice
 from axis.models.configuration import Configuration
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import respx
 
 LOGGER = logging.getLogger(__name__)
@@ -20,6 +23,68 @@ HOST = "127.0.0.1"
 USER = "root"
 PASS = "pass"
 RTSP_PORT = 8888
+
+
+@pytest.fixture
+async def aiohttp_session() -> ClientSession:
+    """Return a reusable aiohttp session for tests."""
+    session = ClientSession()
+    yield session
+    await session.close()
+
+
+@pytest.fixture
+async def axis_device_aiohttp(aiohttp_session: ClientSession) -> AxisDevice:
+    """Return an AxisDevice backed by aiohttp ClientSession."""
+    return AxisDevice(
+        Configuration(aiohttp_session, HOST, username=USER, password=PASS)
+    )
+
+
+@pytest.fixture
+async def axis_companion_device_aiohttp(aiohttp_session: ClientSession) -> AxisDevice:
+    """Return a companion AxisDevice backed by aiohttp ClientSession."""
+    return AxisDevice(
+        Configuration(
+            aiohttp_session,
+            HOST,
+            username=USER,
+            password=PASS,
+            is_companion=True,
+        )
+    )
+
+
+@pytest.fixture
+def aiohttp_request_capture() -> tuple[
+    list[dict[str, str]], Callable[..., Callable[[web.Request], web.Response]]
+]:
+    """Return request log and a handler factory for aiohttp_server routes."""
+    requests: list[dict[str, str]] = []
+
+    def make_handler(
+        *,
+        status: int = 200,
+        body: bytes = b"",
+        text: str | None = None,
+        headers: dict[str, str] | None = None,
+    ):
+        async def _handler(request: web.Request) -> web.Response:
+            requests.append(
+                {
+                    "method": request.method,
+                    "path": request.path,
+                    "query": request.query_string,
+                }
+            )
+            if text is not None:
+                return web.Response(status=status, text=text, headers=headers)
+
+            return web.Response(status=status, body=body, headers=headers)
+
+        return _handler
+
+    return requests, make_handler
 
 
 @pytest.fixture
