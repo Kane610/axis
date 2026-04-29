@@ -1,0 +1,240 @@
+"""Minimal respx-like shim backed by aiohttp_server for migrated tests."""
+
+from types import SimpleNamespace
+
+from aiohttp import web
+import httpx
+
+from axis.errors import Forbidden, MethodNotAllowed, PathNotFound, Unauthorized
+
+
+class CallList(list):
+    """List of captured calls with a respx-like `.last` shortcut."""
+
+    @property
+    def last(self):
+        """Return the most recent captured call."""
+        return self[-1]
+
+
+class Route:
+    """Single route registration and response behavior."""
+
+    def __init__(self, method: str, path: str) -> None:
+        """Initialize a route registration for one method/path pair."""
+        self.method = method
+        self.path = path
+        self.called = False
+        self.calls = CallList()
+        self.side_effect: object | None = None
+        self._json: dict | list | None = None
+        self._text: str | None = None
+        self._content: bytes | None = None
+        self._status_code = 200
+        self._headers: dict[str, str] | None = None
+
+    @property
+    def call_count(self) -> int:
+        """Return number of times this route was invoked."""
+        return len(self.calls)
+
+    def respond(
+        self,
+        *args: object,
+        json: dict | list | None = None,
+        text: str | None = None,
+        content: bytes | None = None,
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+        **_: object,
+    ):
+        """Configure static response for route.
+
+        Supports `.respond(401)` shorthand and keyword args.
+        """
+        if args:
+            status_code = int(args[0])
+        self._json = json
+        self._text = text
+        self._content = content
+        self._status_code = status_code
+        self._headers = headers
+        return self
+
+    def make_response(self) -> web.Response:
+        """Build aiohttp response from configured route state."""
+        if self._json is not None:
+            return web.json_response(
+                self._json,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        if self._text is not None:
+            return web.Response(
+                text=self._text,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        if self._content is not None:
+            return web.Response(
+                body=self._content,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        return web.Response(status=self._status_code, headers=self._headers)
+
+
+class MultiRoute:
+    """Route bundle used for path__in registrations."""
+
+    def __init__(self, routes: list[Route]) -> None:
+        """Initialize grouped routes for bulk response configuration."""
+        self._routes = routes
+
+    def respond(self, *args: object, **kwargs: object):
+        """Apply same response configuration to all grouped routes."""
+        for route in self._routes:
+            route.respond(*args, **kwargs)
+        return self
+
+
+class RespxMockShim:
+    """Small subset of respx behavior used by migrated test suites."""
+
+    def __init__(self) -> None:
+        """Initialize shim route registry and global call history."""
+        self._routes: dict[tuple[str, str], Route] = {}
+        self.calls = CallList()
+
+    def _add_route(self, method: str, path: str) -> Route:
+        if path == "":
+            path = "/"
+        key = (method, path)
+        if key in self._routes:
+            return self._routes[key]
+        route = Route(method, path)
+        self._routes[key] = route
+        return route
+
+    def _register(
+        self,
+        method: str,
+        path: str,
+        *,
+        path__in: tuple[str, ...] | None = None,
+        **_: object,
+    ) -> Route | MultiRoute:
+        if path__in:
+            routes = [self._add_route(method, alt_path) for alt_path in path__in]
+            return MultiRoute(routes)
+        return self._add_route(method, path)
+
+    def post(
+        self,
+        path: str,
+        *,
+        path__in: tuple[str, ...] | None = None,
+        **kwargs: object,
+    ) -> Route | MultiRoute:
+        """Register POST route."""
+        return self._register("POST", path, path__in=path__in, **kwargs)
+
+    def get(self, path: str, **kwargs: object) -> Route:
+        """Register GET route."""
+        route = self._register("GET", path, **kwargs)
+        assert isinstance(route, Route)
+        return route
+
+    def resolve(self, method: str, path: str) -> Route | None:
+        """Resolve route for incoming request."""
+        return self._routes.get((method, path))
+
+
+def _raise_side_effect(side_effect: object, request: web.Request) -> None:
+    if isinstance(side_effect, BaseException):
+        if isinstance(
+            side_effect,
+            (httpx.TimeoutException, httpx.TransportError, httpx.RequestError),
+        ):
+            if request.transport is not None:
+                request.transport.close()
+            message = "request failed"
+            raise ConnectionResetError(message)
+        if isinstance(side_effect, Unauthorized):
+            raise web.HTTPUnauthorized
+        if isinstance(side_effect, Forbidden):
+            raise web.HTTPForbidden
+        if isinstance(side_effect, PathNotFound):
+            raise web.HTTPNotFound
+        if isinstance(side_effect, MethodNotAllowed):
+            raise web.HTTPMethodNotAllowed(
+                method=request.method, allowed_methods=[request.method]
+            )
+        raise side_effect
+
+    if isinstance(side_effect, type) and issubclass(side_effect, BaseException):
+        if issubclass(
+            side_effect,
+            (httpx.TimeoutException, httpx.TransportError, httpx.RequestError),
+        ):
+            if request.transport is not None:
+                request.transport.close()
+            message = "request failed"
+            raise ConnectionResetError(message)
+        if issubclass(side_effect, Unauthorized):
+            raise web.HTTPUnauthorized
+        if issubclass(side_effect, Forbidden):
+            raise web.HTTPForbidden
+        if issubclass(side_effect, PathNotFound):
+            raise web.HTTPNotFound
+        if issubclass(side_effect, MethodNotAllowed):
+            raise web.HTTPMethodNotAllowed(
+                method=request.method, allowed_methods=[request.method]
+            )
+        try:
+            raise side_effect()
+        except TypeError as err:
+            message = "request failed"
+            raise side_effect(message) from err
+
+    if callable(side_effect):
+        raise side_effect()
+
+
+async def start_respx_shim_server(
+    aiohttp_server,
+    *devices,
+) -> RespxMockShim:
+    """Start catch-all aiohttp server that dispatches to RespxMockShim routes."""
+    mock = RespxMockShim()
+
+    async def handle_request(request: web.Request) -> web.Response:
+        route = mock.resolve(request.method, request.path)
+        if route is None:
+            return web.Response(status=404)
+
+        if route.side_effect is not None:
+            _raise_side_effect(route.side_effect, request)
+
+        route.called = True
+        content = await request.read()
+        params = dict(request.rel_url.query)
+        call = SimpleNamespace(
+            request=SimpleNamespace(
+                method=request.method,
+                url=SimpleNamespace(path=request.path, params=params),
+                content=content,
+            )
+        )
+        route.calls.append(call)
+        mock.calls.append(call)
+        return route.make_response()
+
+    app = web.Application()
+    app.router.add_route("*", "/{tail:.*}", handle_request)
+    server = await aiohttp_server(app)
+
+    for device in devices:
+        device.vapix.device.config.port = server.port
+
+    return mock
