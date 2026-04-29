@@ -16,7 +16,7 @@ def io_port_management(axis_device_aiohttp) -> IoPortManagement:
     return IoPortManagement(axis_device_aiohttp.vapix)
 
 
-async def test_get_ports(aiohttp_server, io_port_management):
+async def test_get_ports(aiohttp_mock_server, io_port_management):
     """Test get_ports call."""
     requests: list[dict[str, object]] = []
 
@@ -33,10 +33,12 @@ async def test_get_ports(aiohttp_server, io_port_management):
             return web.json_response(GET_PORTS_RESPONSE)
         return web.json_response({"apiVersion": "1.0", "context": "Axis library"})
 
-    app = web.Application()
-    app.router.add_post("/axis-cgi/io/portmanagement.cgi", handle_request)
-    server = await aiohttp_server(app)
-    io_port_management.vapix.device.config.port = server.port
+    _server, _captured = await aiohttp_mock_server(
+        "/axis-cgi/io/portmanagement.cgi",
+        handler=handle_request,
+        method="POST",
+        device=io_port_management,
+    )
 
     await io_port_management.update()
 
@@ -84,40 +86,29 @@ async def test_get_ports(aiohttp_server, io_port_management):
     }
 
 
-async def test_get_empty_ports_response(aiohttp_server, io_port_management):
+async def test_get_empty_ports_response(aiohttp_mock_server, io_port_management):
     """Test get_ports call."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(GET_EMPTY_PORTS_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/io/portmanagement.cgi", handle_request)
-    server = await aiohttp_server(app)
-    io_port_management.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/io/portmanagement.cgi",
+        response=GET_EMPTY_PORTS_RESPONSE,
+        device=io_port_management,
+    )
 
     await io_port_management.update()
     assert io_port_management.initialized
     assert len(io_port_management.values()) == 0
 
 
-async def test_set_ports(aiohttp_server, io_port_management):
+async def test_set_ports(aiohttp_mock_server, io_port_management):
     """Test set_ports call."""
     requests: list[dict[str, object]] = []
 
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response({"apiVersion": "1.0", "context": "Axis library"})
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/io/portmanagement.cgi", handle_request)
-    server = await aiohttp_server(app)
-    io_port_management.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/io/portmanagement.cgi",
+        response={"apiVersion": "1.0", "context": "Axis library"},
+        device=io_port_management,
+        capture_payload=True,
+    )
 
     await io_port_management.set_ports(
         [
@@ -154,24 +145,16 @@ async def test_set_ports(aiohttp_server, io_port_management):
     }
 
 
-async def test_set_state_sequence(aiohttp_server, io_port_management):
+async def test_set_state_sequence(aiohttp_mock_server, io_port_management):
     """Test setting state sequence call."""
     requests: list[dict[str, object]] = []
 
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response({"apiVersion": "1.0", "context": "Axis library"})
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/io/portmanagement.cgi", handle_request)
-    server = await aiohttp_server(app)
-    io_port_management.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/io/portmanagement.cgi",
+        response={"apiVersion": "1.0", "context": "Axis library"},
+        device=io_port_management,
+        capture_payload=True,
+    )
 
     await io_port_management.set_state_sequence(
         "0", [Sequence("open", 3000), Sequence("closed", 5000)]
@@ -194,24 +177,16 @@ async def test_set_state_sequence(aiohttp_server, io_port_management):
     }
 
 
-async def test_get_supported_versions(aiohttp_server, io_port_management):
+async def test_get_supported_versions(aiohttp_mock_server, io_port_management):
     """Test get_supported_versions."""
     requests: list[dict[str, object]] = []
 
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(GET_SUPPORTED_VERSIONS_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/io/portmanagement.cgi", handle_request)
-    server = await aiohttp_server(app)
-    io_port_management.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/io/portmanagement.cgi",
+        response=GET_SUPPORTED_VERSIONS_RESPONSE,
+        device=io_port_management,
+        capture_payload=True,
+    )
 
     response = await io_port_management.get_supported_versions()
 
