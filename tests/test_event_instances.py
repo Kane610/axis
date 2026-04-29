@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_ins
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 from axis.models.event_instance import get_events
@@ -27,19 +26,14 @@ def event_instances(axis_device_aiohttp) -> EventInstanceHandler:
     return axis_device_aiohttp.vapix.event_instances
 
 
-async def test_full_list_of_event_instances(aiohttp_server, event_instances):
+async def test_full_list_of_event_instances(aiohttp_mock_server, event_instances):
     """Test loading of event instances work."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.Response(
-            text=EVENT_INSTANCES,
-            headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-        )
-
-    app = web.Application()
-    app.router.add_post("/vapix/services", handle_request)
-    server = await aiohttp_server(app)
-    event_instances.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/vapix/services",
+        response=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+        device=event_instances,
+    )
 
     await event_instances.update()
 
@@ -137,23 +131,18 @@ async def test_full_list_of_event_instances(aiohttp_server, event_instances):
     ],
 )
 async def test_single_event_instance(
-    aiohttp_server,
+    aiohttp_mock_server,
     event_instances: EventInstanceHandler,
     response: str,
     expected: dict,
 ):
     """Verify expected outcome from different event instances."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.Response(
-            text=response,
-            headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-        )
-
-    app = web.Application()
-    app.router.add_post("/vapix/services", handle_request)
-    server = await aiohttp_server(app)
-    event_instances.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/vapix/services",
+        response=response,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+        device=event_instances,
+    )
 
     await event_instances.update()
 
