@@ -5,6 +5,7 @@ pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_ins
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 from axis.models.event_instance import get_events
@@ -21,17 +22,25 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def event_instances(axis_device) -> EventInstanceHandler:
+def event_instances(axis_device_aiohttp) -> EventInstanceHandler:
     """Return the event_instances mock object."""
-    return axis_device.vapix.event_instances
+    return axis_device_aiohttp.vapix.event_instances
 
 
-async def test_full_list_of_event_instances(respx_mock, event_instances):
+async def test_full_list_of_event_instances(aiohttp_server, event_instances):
     """Test loading of event instances work."""
-    respx_mock.post("/vapix/services").respond(
-        text=EVENT_INSTANCES,
-        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.Response(
+            text=EVENT_INSTANCES,
+            headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/vapix/services", handle_request)
+    server = await aiohttp_server(app)
+    event_instances.vapix.device.config.port = server.port
+
     await event_instances.update()
 
     assert len(event_instances) == 44
@@ -128,12 +137,24 @@ async def test_full_list_of_event_instances(respx_mock, event_instances):
     ],
 )
 async def test_single_event_instance(
-    respx_mock, event_instances: EventInstanceHandler, response: str, expected: dict
+    aiohttp_server,
+    event_instances: EventInstanceHandler,
+    response: str,
+    expected: dict,
 ):
     """Verify expected outcome from different event instances."""
-    respx_mock.post("/vapix/services").respond(
-        text=response, headers={"Content-Type": "application/soap+xml; charset=utf-8"}
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.Response(
+            text=response,
+            headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/vapix/services", handle_request)
+    server = await aiohttp_server(app)
+    event_instances.vapix.device.config.port = server.port
+
     await event_instances.update()
 
     assert not event_instances.supported

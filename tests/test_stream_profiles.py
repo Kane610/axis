@@ -1,9 +1,9 @@
 """Test Axis stream profiles API."""
 
-import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -12,26 +12,40 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
+def stream_profiles(axis_device_aiohttp: AxisDevice) -> StreamProfilesHandler:
     """Return the stream_profiles mock object."""
-    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    axis_device_aiohttp.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
-    return axis_device.vapix.stream_profiles
+    return axis_device_aiohttp.vapix.stream_profiles
 
 
 async def test_list_stream_profiles(
-    respx_mock, stream_profiles: StreamProfilesHandler
+    aiohttp_server, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
-        json=LIST_RESPONSE,
-    )
+    requests: list[dict[str, object]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": await request.json(),
+            }
+        )
+        return web.json_response(LIST_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/streamprofile.cgi", handle_request)
+    server = await aiohttp_server(app)
+    stream_profiles.vapix.device.config.port = server.port
+
     await stream_profiles.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/streamprofile.cgi"
+    assert requests[-1]["payload"] == {
         "method": "list",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -49,38 +63,60 @@ async def test_list_stream_profiles(
 
 
 async def test_list_stream_profiles_no_profiles(
-    respx_mock,
+    aiohttp_server,
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-    respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
-        json={
-            "method": "list",
-            "apiVersion": "1.0",
-            "context": "",
-            "data": {
-                "maxProfiles": 0,
-            },
-        },
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.json_response(
+            {
+                "method": "list",
+                "apiVersion": "1.0",
+                "context": "",
+                "data": {
+                    "maxProfiles": 0,
+                },
+            }
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/streamprofile.cgi", handle_request)
+    server = await aiohttp_server(app)
+    stream_profiles.vapix.device.config.port = server.port
+
     await stream_profiles.update()
 
     assert len(stream_profiles.values()) == 0
 
 
 async def test_get_supported_versions(
-    respx_mock, stream_profiles: StreamProfilesHandler
+    aiohttp_server, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
-        json=GET_SUPPORTED_VERSIONS_RESPONSE,
-    )
+    requests: list[dict[str, object]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": await request.json(),
+            }
+        )
+        return web.json_response(GET_SUPPORTED_VERSIONS_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/streamprofile.cgi", handle_request)
+    server = await aiohttp_server(app)
+    stream_profiles.vapix.device.config.port = server.port
+
     response = await stream_profiles.get_supported_versions()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/streamprofile.cgi"
+    assert requests[-1]["payload"] == {
         "context": "Axis library",
         "method": "getSupportedVersions",
     }
