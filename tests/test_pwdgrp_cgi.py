@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 import urllib
 
+from aiohttp import web
 import pytest
 
 from axis.models.pwdgrp_cgi import SecondaryGroup, User
@@ -12,9 +13,37 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def users(axis_device) -> Users:
+def users(axis_device_aiohttp) -> Users:
     """Return the api_discovery mock object."""
-    return axis_device.vapix.users
+    return axis_device_aiohttp.vapix.users
+
+
+async def _setup_pwdgrp_route(
+    aiohttp_server,
+    users: Users,
+    *,
+    text: str = "",
+    content: bytes | None = None,
+) -> list[dict[str, object]]:
+    requests: list[dict[str, object]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "body": await request.read(),
+            }
+        )
+        if content is not None:
+            return web.Response(body=content)
+        return web.Response(text=text)
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/pwdgrp.cgi", handle_request)
+    server = await aiohttp_server(app)
+    users.vapix.device.config.port = server.port
+    return requests
 
 
 def test_user_class_privileges() -> None:
@@ -32,9 +61,9 @@ def test_user_class_privileges() -> None:
     assert bad_user.privileges == SecondaryGroup.UNKNOWN
 
 
-async def test_users(respx_mock, users):
+async def test_users(aiohttp_server, users):
     """Verify that you can list users."""
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
+    await _setup_pwdgrp_route(aiohttp_server, users, text=GET_USERS_RESPONSE)
     await users.update()
 
     assert users.initialized
@@ -80,10 +109,10 @@ async def test_users(respx_mock, users):
     assert users["usera"].privileges == SecondaryGroup.ADMIN_PTZ
 
 
-async def test_users_new_response(respx_mock, users):
+async def test_users_new_response(aiohttp_server, users):
     """Verify that you can list users."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(content=response)
+    await _setup_pwdgrp_route(aiohttp_server, users, content=response)
     await users.update()
 
     assert users["root"]
@@ -94,17 +123,17 @@ async def test_users_new_response(respx_mock, users):
     assert users["root"].ptz
 
 
-async def test_create(respx_mock, users):
+async def test_create(aiohttp_server, users):
     """Verify that you can create users."""
-    route = respx_mock.post("/axis-cgi/pwdgrp.cgi")
+    requests = await _setup_pwdgrp_route(aiohttp_server, users)
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
     assert (
-        route.calls.last.request.content
+        requests[-1]["body"]
         == urllib.parse.urlencode(
             {
                 "action": "add",
@@ -118,11 +147,10 @@ async def test_create(respx_mock, users):
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
     assert (
-        route.calls.last.request.content
+        requests[-1]["body"]
         == urllib.parse.urlencode(
             {
                 "action": "add",
@@ -136,17 +164,17 @@ async def test_create(respx_mock, users):
     )
 
 
-async def test_modify(respx_mock, users):
+async def test_modify(aiohttp_server, users):
     """Verify that you can modify users."""
-    route = respx_mock.post("/axis-cgi/pwdgrp.cgi")
+    requests = await _setup_pwdgrp_route(aiohttp_server, users)
 
     await users.modify("joe", pwd="abcd")
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
     assert (
-        route.calls.last.request.content
+        requests[-1]["body"]
         == urllib.parse.urlencode(
             {"action": "update", "user": "joe", "pwd": "abcd"}
         ).encode()
@@ -154,11 +182,10 @@ async def test_modify(respx_mock, users):
 
     await users.modify("joe", sgrp=SecondaryGroup.ADMIN)
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
     assert (
-        route.calls.last.request.content
+        requests[-1]["body"]
         == urllib.parse.urlencode(
             {"action": "update", "user": "joe", "sgrp": "viewer:operator:admin"}
         ).encode()
@@ -166,11 +193,10 @@ async def test_modify(respx_mock, users):
 
     await users.modify("joe", comment="comment")
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
     assert (
-        route.calls.last.request.content
+        requests[-1]["body"]
         == urllib.parse.urlencode(
             {"action": "update", "user": "joe", "comment": "comment"}
         ).encode()
@@ -178,11 +204,10 @@ async def test_modify(respx_mock, users):
 
     await users.modify("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
     assert (
-        route.calls.last.request.content
+        requests[-1]["body"]
         == urllib.parse.urlencode(
             {
                 "action": "update",
@@ -195,32 +220,32 @@ async def test_modify(respx_mock, users):
     )
 
 
-async def test_delete(respx_mock, users):
+async def test_delete(aiohttp_server, users):
     """Verify that you can delete users."""
-    route = respx_mock.post("/axis-cgi/pwdgrp.cgi")
+    requests = await _setup_pwdgrp_route(aiohttp_server, users)
 
     await users.delete("joe")
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
     assert (
-        route.calls.last.request.content
+        requests[-1]["body"]
         == urllib.parse.urlencode({"action": "remove", "user": "joe"}).encode()
     )
 
 
-async def test_equals_in_value(respx_mock, users):
+async def test_equals_in_value(aiohttp_server, users):
     """Verify that values containing `=` are parsed correctly."""
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(
-        text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
+    await _setup_pwdgrp_route(
+        aiohttp_server, users, text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
     )
     await users.update()
 
 
-async def test_no_equals_in_value(respx_mock, users):
+async def test_no_equals_in_value(aiohttp_server, users):
     """Verify that values containing `=` are parsed correctly."""
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
+    await _setup_pwdgrp_route(aiohttp_server, users, text="")
     await users.update()
 
 

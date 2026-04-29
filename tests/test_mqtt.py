@@ -3,10 +3,10 @@
 pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
 
-import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+from aiohttp import web
 import pytest
 
 from axis.interfaces.mqtt import MqttClientHandler, mqtt_json_to_event
@@ -17,25 +17,54 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def mqtt_client(axis_device: AxisDevice) -> MqttClientHandler:
+def mqtt_client(axis_device_aiohttp: AxisDevice) -> MqttClientHandler:
     """Return the mqtt_client mock object."""
-    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    axis_device_aiohttp.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
-    return axis_device.vapix.mqtt
+    return axis_device_aiohttp.vapix.mqtt
 
 
-async def test_client_config_simple(respx_mock, mqtt_client: MqttClientHandler):
+async def _setup_mqtt_route(
+    aiohttp_server,
+    mqtt_client: MqttClientHandler,
+    path: str,
+    response_json: dict[str, object] | None = None,
+) -> list[dict[str, object]]:
+    requests: list[dict[str, object]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": await request.json(),
+            }
+        )
+        if response_json is None:
+            return web.json_response({})
+        return web.json_response(response_json)
+
+    app = web.Application()
+    app.router.add_post(path, handle_request)
+    server = await aiohttp_server(app)
+    mqtt_client.vapix.device.config.port = server.port
+    return requests
+
+
+async def test_client_config_simple(aiohttp_server, mqtt_client: MqttClientHandler):
     """Test simple MQTT client configuration."""
-    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
+    requests = await _setup_mqtt_route(
+        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+    )
 
     client_config = ClientConfig(Server("192.168.0.1"))
 
     await mqtt_client.configure_client(client_config)
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/client.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/client.cgi"
+    assert requests[-1]["payload"] == {
         "method": "configureClient",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -45,9 +74,11 @@ async def test_client_config_simple(respx_mock, mqtt_client: MqttClientHandler):
     }
 
 
-async def test_client_config_advanced(respx_mock, mqtt_client: MqttClientHandler):
+async def test_client_config_advanced(aiohttp_server, mqtt_client: MqttClientHandler):
     """Test advanced MQTT client configuration."""
-    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
+    requests = await _setup_mqtt_route(
+        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+    )
 
     client_config = ClientConfig(
         Server(
@@ -95,10 +126,10 @@ async def test_client_config_advanced(respx_mock, mqtt_client: MqttClientHandler
 
     await mqtt_client.configure_client(client_config)
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/client.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/client.cgi"
+    assert requests[-1]["payload"] == {
         "method": "configureClient",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -148,50 +179,57 @@ async def test_client_config_advanced(respx_mock, mqtt_client: MqttClientHandler
     }
 
 
-async def test_activate_client(respx_mock, mqtt_client: MqttClientHandler):
+async def test_activate_client(aiohttp_server, mqtt_client: MqttClientHandler):
     """Test activate client method."""
-    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
+    requests = await _setup_mqtt_route(
+        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+    )
 
     await mqtt_client.activate()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/client.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/client.cgi"
+    assert requests[-1]["payload"] == {
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "activateClient",
     }
 
 
-async def test_deactivate_client(respx_mock, mqtt_client: MqttClientHandler):
+async def test_deactivate_client(aiohttp_server, mqtt_client: MqttClientHandler):
     """Test deactivate client method."""
-    route = respx_mock.post("/axis-cgi/mqtt/client.cgi")
+    requests = await _setup_mqtt_route(
+        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/client.cgi"
+    )
 
     await mqtt_client.deactivate()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/client.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/client.cgi"
+    assert requests[-1]["payload"] == {
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "deactivateClient",
     }
 
 
-async def test_get_client_status(respx_mock, mqtt_client: MqttClientHandler):
+async def test_get_client_status(aiohttp_server, mqtt_client: MqttClientHandler):
     """Test get client status method."""
-    route = respx_mock.post("/axis-cgi/mqtt/client.cgi").respond(
-        json=GET_CLIENT_STATUS_RESPONSE,
+    requests = await _setup_mqtt_route(
+        aiohttp_server,
+        mqtt_client,
+        "/axis-cgi/mqtt/client.cgi",
+        GET_CLIENT_STATUS_RESPONSE,
     )
 
     client_status = await mqtt_client.get_client_status()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/client.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/client.cgi"
+    assert requests[-1]["payload"] == {
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "getClientStatus",
@@ -202,11 +240,14 @@ async def test_get_client_status(respx_mock, mqtt_client: MqttClientHandler):
 
 
 async def test_get_event_publication_config_small(
-    respx_mock, mqtt_client: MqttClientHandler
+    aiohttp_server, mqtt_client: MqttClientHandler
 ):
     """Test get event publication config method."""
-    route = respx_mock.post("/axis-cgi/mqtt/event.cgi").respond(
-        json={
+    requests = await _setup_mqtt_route(
+        aiohttp_server,
+        mqtt_client,
+        "/axis-cgi/mqtt/event.cgi",
+        {
             "apiVersion": "1.0",
             "context": "Axis lib",
             "method": "getEventPublicationConfig",
@@ -227,10 +268,10 @@ async def test_get_event_publication_config_small(
 
     response = await mqtt_client.get_event_publication_config()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/event.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/event.cgi"
+    assert requests[-1]["payload"] == {
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "getEventPublicationConfig",
@@ -256,17 +297,19 @@ async def test_get_event_publication_config_small(
 
 
 async def test_configure_event_publication_all_topics(
-    respx_mock, mqtt_client: MqttClientHandler
+    aiohttp_server, mqtt_client: MqttClientHandler
 ):
     """Test configure event publication method with all topics."""
-    route = respx_mock.post("/axis-cgi/mqtt/event.cgi")
+    requests = await _setup_mqtt_route(
+        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/event.cgi"
+    )
 
     await mqtt_client.configure_event_publication()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/event.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/event.cgi"
+    assert requests[-1]["payload"] == {
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "configureEventPublication",
@@ -275,11 +318,13 @@ async def test_configure_event_publication_all_topics(
 
 
 async def test_configure_event_publication_specific_topics(
-    respx_mock,
+    aiohttp_server,
     mqtt_client: MqttClientHandler,
 ):
     """Test configure event publication method with specific topics."""
-    route = respx_mock.post("/axis-cgi/mqtt/event.cgi")
+    requests = await _setup_mqtt_route(
+        aiohttp_server, mqtt_client, "/axis-cgi/mqtt/event.cgi"
+    )
 
     topics = [
         "onvif:Device/axis:IO/VirtualPort",
@@ -288,10 +333,10 @@ async def test_configure_event_publication_specific_topics(
     ]
     await mqtt_client.configure_event_publication(topics)
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/mqtt/event.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/mqtt/event.cgi"
+    assert requests[-1]["payload"] == {
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "configureEventPublication",
