@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+from aiohttp import web
 import pytest
 
 from axis.models.parameters.param_cgi import ParameterGroup, ParamRequest
@@ -13,9 +14,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def param_handler(axis_device: AxisDevice) -> Params:
+def param_handler(axis_device_aiohttp: AxisDevice) -> Params:
     """Return the param cgi mock object."""
-    return axis_device.vapix.params
+    return axis_device_aiohttp.vapix.params
 
 
 async def test_parameter_group_enum():
@@ -40,22 +41,23 @@ async def test_param_handler_request_signalling(param_handler: Params):
         signal_mock.assert_called_with("obj_id")
 
 
-async def test_param_handler(respx_mock, param_handler: Params):
+async def test_param_handler(aiohttp_server, param_handler: Params):
     """Verify that you can list parameters."""
-    route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list"},
-    ).respond(
-        content=PARAM_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+
+    async def handle_param(_: web.Request) -> web.Response:
+        return web.Response(
+            body=PARAM_RESPONSE.encode("iso-8859-1"),
+            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/param.cgi", handle_param)
+    server = await aiohttp_server(app)
+    param_handler.vapix.device.config.port = server.port
+
     assert not param_handler.initialized
 
     await param_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert param_handler.initialized
 

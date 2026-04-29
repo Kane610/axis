@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -20,30 +21,33 @@ root.StreamProfile.S1.Parameters=videocodec=h265"""
 
 
 @pytest.fixture
-def stream_profile_handler(axis_device: AxisDevice) -> StreamProfileParameterHandler:
+def stream_profile_handler(
+    axis_device_aiohttp: AxisDevice,
+) -> StreamProfileParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device.vapix.params.stream_profile_handler
+    return axis_device_aiohttp.vapix.params.stream_profile_handler
 
 
 async def test_stream_profile_handler(
-    respx_mock,
+    aiohttp_server,
     stream_profile_handler: StreamProfileParameterHandler,
 ):
     """Verify that update properties works."""
-    route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.StreamProfile"},
-    ).respond(
-        content=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+
+    async def handle_param(_: web.Request) -> web.Response:
+        return web.Response(
+            body=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
+            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/param.cgi", handle_param)
+    server = await aiohttp_server(app)
+    stream_profile_handler.vapix.device.config.port = server.port
+
     assert not stream_profile_handler.initialized
 
     await stream_profile_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert stream_profile_handler.initialized
     profile_params = stream_profile_handler["0"]

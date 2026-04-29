@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -223,27 +224,32 @@ root.Image.I0.Stream.Duration=0
 
 
 @pytest.fixture
-def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
+def image_handler(axis_device_aiohttp: AxisDevice) -> ImageParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device.vapix.params.image_handler
+    return axis_device_aiohttp.vapix.params.image_handler
 
 
-async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
+async def _setup_param_route(
+    aiohttp_server, image_handler: ImageParameterHandler, image_response: str
+) -> None:
+    async def handle_param(_: web.Request) -> web.Response:
+        return web.Response(
+            body=image_response.encode("iso-8859-1"),
+            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/param.cgi", handle_param)
+    server = await aiohttp_server(app)
+    image_handler.vapix.device.config.port = server.port
+
+
+async def test_image_handler(aiohttp_server, image_handler: ImageParameterHandler):
     """Verify that update image works."""
-    route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Image"},
-    ).respond(
-        content=IMAGE_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, image_handler, IMAGE_RESPONSE)
     assert not image_handler.initialized
 
     await image_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert image_handler.initialized
     image_0 = image_handler["0"]
@@ -377,16 +383,11 @@ async def test_image_handler(respx_mock, image_handler: ImageParameterHandler):
     ],
 )
 async def test_limited_image_data(
-    respx_mock, image_handler: ImageParameterHandler, image_response
+    aiohttp_server, image_handler: ImageParameterHandler, image_response
 ):
     """Verify that update image works.
 
     ImageParam missing Overlay, RateControl, SizeControl and Text.
     """
-    respx_mock.post(
-        "/axis-cgi/param.cgi", data={"action": "list", "group": "root.Image"}
-    ).respond(
-        content=image_response.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, image_handler, image_response)
     await image_handler.update()

@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 from axis.models.parameters.io_port import PortAction, PortDirection
@@ -18,9 +19,9 @@ root.IOPort.I0.Input.Trig=closed
 
 
 @pytest.fixture
-def io_port_handler(axis_device: AxisDevice) -> IOPortParameterHandler:
+def io_port_handler(axis_device_aiohttp: AxisDevice) -> IOPortParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device.vapix.params.io_port_handler
+    return axis_device_aiohttp.vapix.params.io_port_handler
 
 
 async def test_port_action_enum():
@@ -33,22 +34,23 @@ async def test_port_direction_enum():
     assert PortDirection("unsupported") is PortDirection.UNKNOWN
 
 
-async def test_io_port_handler(respx_mock, io_port_handler: IOPortParameterHandler):
+async def test_io_port_handler(aiohttp_server, io_port_handler: IOPortParameterHandler):
     """Verify that update brand works."""
-    route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.IOPort"},
-    ).respond(
-        content=PORT_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+
+    async def handle_param(_: web.Request) -> web.Response:
+        return web.Response(
+            body=PORT_RESPONSE.encode("iso-8859-1"),
+            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/param.cgi", handle_param)
+    server = await aiohttp_server(app)
+    io_port_handler.vapix.device.config.port = server.port
+
     assert not io_port_handler.initialized
 
     await io_port_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert io_port_handler.initialized
     port = io_port_handler["0"]

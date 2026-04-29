@@ -3,9 +3,9 @@
 pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/applications/test_motion_guard.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -13,22 +13,38 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def motion_guard(axis_device) -> MotionGuardHandler:
+def motion_guard(axis_device_aiohttp) -> MotionGuardHandler:
     """Return the motion guard mock object."""
-    return axis_device.vapix.motion_guard
+    return axis_device_aiohttp.vapix.motion_guard
 
 
-async def test_get_empty_configuration(respx_mock, motion_guard: MotionGuardHandler):
+async def test_get_empty_configuration(
+    aiohttp_server, motion_guard: MotionGuardHandler
+):
     """Test empty get_configuration."""
-    route = respx_mock.post("/local/motionguard/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
-    )
+    requests: list[dict[str, object]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": await request.json(),
+            }
+        )
+        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/local/motionguard/control.cgi", handle_request)
+    server = await aiohttp_server(app)
+    motion_guard.vapix.device.config.port = server.port
+
     await motion_guard.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/motionguard/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/motionguard/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.3",
         "context": "Axis library",
@@ -37,11 +53,17 @@ async def test_get_empty_configuration(respx_mock, motion_guard: MotionGuardHand
     assert len(motion_guard.values()) == 1
 
 
-async def test_get_configuration(respx_mock, motion_guard: MotionGuardHandler):
+async def test_get_configuration(aiohttp_server, motion_guard: MotionGuardHandler):
     """Test get_configuration."""
-    respx_mock.post("/local/motionguard/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.json_response(GET_CONFIGURATION_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/local/motionguard/control.cgi", handle_request)
+    server = await aiohttp_server(app)
+    motion_guard.vapix.device.config.port = server.port
+
     await motion_guard.update()
 
     assert motion_guard.initialized

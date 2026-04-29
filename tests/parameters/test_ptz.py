@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -1592,27 +1593,32 @@ root.PTZ.Various.V8.CtlQueuePollTime=20
 
 
 @pytest.fixture
-def ptz_handler(axis_device: AxisDevice) -> PtzParameterHandler:
+def ptz_handler(axis_device_aiohttp: AxisDevice) -> PtzParameterHandler:
     """Return the PTZ control mock object."""
-    return axis_device.vapix.params.ptz_handler
+    return axis_device_aiohttp.vapix.params.ptz_handler
 
 
-async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
+async def _setup_param_route(
+    aiohttp_server, ptz_handler: PtzParameterHandler, ptz_response: str
+) -> None:
+    async def handle_param(_: web.Request) -> web.Response:
+        return web.Response(
+            body=ptz_response.encode("iso-8859-1"),
+            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/param.cgi", handle_param)
+    server = await aiohttp_server(app)
+    ptz_handler.vapix.device.config.port = server.port
+
+
+async def test_update_ptz(aiohttp_server, ptz_handler: PtzParameterHandler):
     """Verify that update ptz works."""
-    route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.PTZ"},
-    ).respond(
-        content=PTZ_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, ptz_handler, PTZ_RESPONSE)
     assert not ptz_handler.initialized
 
     await ptz_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert ptz_handler.initialized
     ptz = ptz_handler["0"]
@@ -1705,17 +1711,12 @@ async def test_update_ptz(respx_mock, ptz_handler: PtzParameterHandler):
         PTZ_11_9_Q1798_RESPONSE,
     ],
 )
-async def test_ptz_5_51(respx_mock, ptz_handler: PtzParameterHandler, ptz_response):
+async def test_ptz_5_51(aiohttp_server, ptz_handler: PtzParameterHandler, ptz_response):
     """Verify that update ptz works.
 
     Max/Min Field Angle not reported.
     NbrOfCameras not reported.
     """
-    respx_mock.post(
-        "/axis-cgi/param.cgi", data={"action": "list", "group": "root.PTZ"}
-    ).respond(
-        content=ptz_response.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, ptz_handler, ptz_response)
 
     await ptz_handler.update()

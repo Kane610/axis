@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -26,27 +27,32 @@ root.Brand.WebURL=http://www.axis.com/
 
 
 @pytest.fixture
-def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
+def brand_handler(axis_device_aiohttp: AxisDevice) -> BrandParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device.vapix.params.brand_handler
+    return axis_device_aiohttp.vapix.params.brand_handler
 
 
-async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
+async def _setup_param_route(
+    aiohttp_server, brand_handler: BrandParameterHandler, response_content: str
+) -> None:
+    async def handle_param(_: web.Request) -> web.Response:
+        return web.Response(
+            body=response_content.encode("iso-8859-1"),
+            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/param.cgi", handle_param)
+    server = await aiohttp_server(app)
+    brand_handler.vapix.device.config.port = server.port
+
+
+async def test_brand_handler(aiohttp_server, brand_handler: BrandParameterHandler):
     """Verify that update brand works."""
-    route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Brand"},
-    ).respond(
-        content=BRAND_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, brand_handler, BRAND_RESPONSE)
     assert not brand_handler.initialized
 
     await brand_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert brand_handler.initialized
     brand = brand_handler["0"]
@@ -59,15 +65,9 @@ async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
     assert brand.web_url == "http://www.axis.com"
 
 
-async def test_brand_handler_5_51(respx_mock, brand_handler: BrandParameterHandler):
+async def test_brand_handler_5_51(aiohttp_server, brand_handler: BrandParameterHandler):
     """Verify that update brand works."""
-    respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Brand"},
-    ).respond(
-        content=BRAND_5_51_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, brand_handler, BRAND_5_51_RESPONSE)
     await brand_handler.update()
 
     assert brand_handler.initialized

@@ -3,9 +3,9 @@
 pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/applications/test_fence_guard.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -13,22 +13,36 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def fence_guard(axis_device) -> FenceGuardHandler:
+def fence_guard(axis_device_aiohttp) -> FenceGuardHandler:
     """Return the fence guard mock object."""
-    return axis_device.vapix.fence_guard
+    return axis_device_aiohttp.vapix.fence_guard
 
 
-async def test_get_empty_configuration(respx_mock, fence_guard: FenceGuardHandler):
+async def test_get_empty_configuration(aiohttp_server, fence_guard: FenceGuardHandler):
     """Test empty get_configuration."""
-    route = respx_mock.post("/local/fenceguard/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
-    )
+    requests: list[dict[str, object]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": await request.json(),
+            }
+        )
+        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/local/fenceguard/control.cgi", handle_request)
+    server = await aiohttp_server(app)
+    fence_guard.vapix.device.config.port = server.port
+
     await fence_guard.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/fenceguard/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/fenceguard/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.3",
         "context": "Axis library",
@@ -37,11 +51,17 @@ async def test_get_empty_configuration(respx_mock, fence_guard: FenceGuardHandle
     assert len(fence_guard.values()) == 1
 
 
-async def test_get_configuration(respx_mock, fence_guard: FenceGuardHandler):
+async def test_get_configuration(aiohttp_server, fence_guard: FenceGuardHandler):
     """Test get_configuration."""
-    respx_mock.post("/local/fenceguard/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.json_response(GET_CONFIGURATION_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/local/fenceguard/control.cgi", handle_request)
+    server = await aiohttp_server(app)
+    fence_guard.vapix.device.config.port = server.port
+
     await fence_guard.update()
 
     assert fence_guard.initialized

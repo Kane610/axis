@@ -3,9 +3,9 @@
 pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/applications/test_loitering_guard.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -13,24 +13,38 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def loitering_guard(axis_device) -> LoiteringGuardHandler:
+def loitering_guard(axis_device_aiohttp) -> LoiteringGuardHandler:
     """Return the loitering guard mock object."""
-    return axis_device.vapix.loitering_guard
+    return axis_device_aiohttp.vapix.loitering_guard
 
 
 async def test_get_empty_configuration(
-    respx_mock, loitering_guard: LoiteringGuardHandler
+    aiohttp_server, loitering_guard: LoiteringGuardHandler
 ):
     """Test empty get_configuration."""
-    route = respx_mock.post("/local/loiteringguard/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
-    )
+    requests: list[dict[str, object]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": await request.json(),
+            }
+        )
+        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/local/loiteringguard/control.cgi", handle_request)
+    server = await aiohttp_server(app)
+    loitering_guard.vapix.device.config.port = server.port
+
     await loitering_guard.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/loiteringguard/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/loiteringguard/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.3",
         "context": "Axis library",
@@ -39,11 +53,19 @@ async def test_get_empty_configuration(
     assert len(loitering_guard.values()) == 1
 
 
-async def test_get_configuration(respx_mock, loitering_guard: LoiteringGuardHandler):
+async def test_get_configuration(
+    aiohttp_server, loitering_guard: LoiteringGuardHandler
+):
     """Test get_configuration."""
-    respx_mock.post("/local/loiteringguard/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.json_response(GET_CONFIGURATION_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/local/loiteringguard/control.cgi", handle_request)
+    server = await aiohttp_server(app)
+    loitering_guard.vapix.device.config.port = server.port
+
     await loitering_guard.update()
 
     assert loitering_guard.initialized

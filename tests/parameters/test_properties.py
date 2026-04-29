@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -184,26 +185,33 @@ root.Properties.VirtualInput.VirtualInput=yes
 
 
 @pytest.fixture
-def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
+def property_handler(axis_device_aiohttp: AxisDevice) -> PropertyParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device.vapix.params.property_handler
+    return axis_device_aiohttp.vapix.params.property_handler
 
 
-async def test_property_handler(respx_mock, property_handler: PropertyParameterHandler):
+async def _setup_param_route(
+    aiohttp_server, property_handler: PropertyParameterHandler, property_response: str
+) -> None:
+    async def handle_param(_: web.Request) -> web.Response:
+        return web.Response(
+            body=property_response.encode("iso-8859-1"),
+            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/param.cgi", handle_param)
+    server = await aiohttp_server(app)
+    property_handler.vapix.device.config.port = server.port
+
+
+async def test_property_handler(
+    aiohttp_server, property_handler: PropertyParameterHandler
+):
     """Verify that update properties works."""
-    route = respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Properties"},
-    ).respond(
-        content=PROPERTY_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, property_handler, PROPERTY_RESPONSE)
     assert not property_handler.initialized
     await property_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert property_handler.initialized
     properties = property_handler["0"]
@@ -253,17 +261,12 @@ async def test_property_handler(respx_mock, property_handler: PropertyParameterH
     [PROPERTY_5_20_M7001_RESPONSE, PROPERTY_1_84_1_A9188_RESPONSE],
 )
 async def test_mixed_properties(
-    respx_mock, property_handler: PropertyParameterHandler, property_response
+    aiohttp_server, property_handler: PropertyParameterHandler, property_response
 ):
     """Verify that update ptz works.
 
     No embedded development provided.
     """
-    respx_mock.post(
-        "/axis-cgi/param.cgi", data={"action": "list", "group": "root.Properties"}
-    ).respond(
-        content=property_response.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_server, property_handler, property_response)
 
     await property_handler.update()

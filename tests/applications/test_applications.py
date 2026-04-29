@@ -5,6 +5,7 @@ pytest --cov-report term-missing --cov=axis.applications.applications tests/appl
 
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -12,30 +13,56 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def applications(axis_device) -> ApplicationsHandler:
+def applications(axis_device_aiohttp) -> ApplicationsHandler:
     """Return the applications mock object."""
-    return axis_device.vapix.applications
+    return axis_device_aiohttp.vapix.applications
 
 
-async def test_update_no_application(respx_mock, applications: ApplicationsHandler):
+async def test_update_no_application(aiohttp_server, applications: ApplicationsHandler):
     """Test update applicatios call."""
-    route = respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=LIST_APPLICATION_EMPTY_RESPONSE,
-        headers={"Content-Type": "text/xml"},
-    )
+    requests: list[dict[str, str]] = []
+
+    async def handle_request(request: web.Request) -> web.Response:
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+            }
+        )
+        return web.Response(
+            text=LIST_APPLICATION_EMPTY_RESPONSE,
+            headers={"Content-Type": "text/xml"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/applications/list.cgi", handle_request)
+    server = await aiohttp_server(app)
+    applications.vapix.device.config.port = server.port
 
     await applications.update()
 
-    assert route.called
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/applications/list.cgi"
     assert len(applications.values()) == 0
 
 
-async def test_update_single_application(respx_mock, applications: ApplicationsHandler):
+async def test_update_single_application(
+    aiohttp_server, applications: ApplicationsHandler
+):
     """Test update applications call."""
-    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=LIST_APPLICATION_RESPONSE,
-        headers={"Content-Type": "text/xml"},
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.Response(
+            text=LIST_APPLICATION_RESPONSE,
+            headers={"Content-Type": "text/xml"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/applications/list.cgi", handle_request)
+    server = await aiohttp_server(app)
+    applications.vapix.device.config.port = server.port
+
     await applications.update()
 
     assert applications.initialized
@@ -57,13 +84,21 @@ async def test_update_single_application(respx_mock, applications: ApplicationsH
 
 
 async def test_update_multiple_applications(
-    respx_mock, applications: ApplicationsHandler
+    aiohttp_server, applications: ApplicationsHandler
 ):
     """Test update applicatios call."""
-    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=LIST_APPLICATIONS_RESPONSE,
-        headers={"Content-Type": "text/xml"},
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.Response(
+            text=LIST_APPLICATIONS_RESPONSE,
+            headers={"Content-Type": "text/xml"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/applications/list.cgi", handle_request)
+    server = await aiohttp_server(app)
+    applications.vapix.device.config.port = server.port
+
     await applications.update()
 
     assert len(applications.values()) == 7
@@ -170,13 +205,21 @@ async def test_update_multiple_applications(
 
 
 async def test_responses_with_with_limitations(
-    respx_mock, applications: ApplicationsHandler
+    aiohttp_server, applications: ApplicationsHandler
 ):
     """Test update applications call."""
-    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,
-        headers={"Content-Type": "text/xml"},
-    )
+
+    async def handle_request(_: web.Request) -> web.Response:
+        return web.Response(
+            text=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,
+            headers={"Content-Type": "text/xml"},
+        )
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/applications/list.cgi", handle_request)
+    server = await aiohttp_server(app)
+    applications.vapix.device.config.port = server.port
+
     await applications.update()
 
 
