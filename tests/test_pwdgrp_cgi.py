@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING
 import urllib
 
-from aiohttp import web
 import pytest
 
 from axis.models.pwdgrp_cgi import SecondaryGroup, User
@@ -25,25 +24,12 @@ async def _setup_pwdgrp_route(
     text: str = "",
     content: bytes | None = None,
 ) -> list[dict[str, object]]:
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "body": await request.read(),
-            }
-        )
-        if content is not None:
-            return web.Response(body=content)
-        return web.Response(text=text)
-
-    _server, _captured = await aiohttp_mock_server(
+    _server, requests = await aiohttp_mock_server(
         "/axis-cgi/pwdgrp.cgi",
-        handler=handle_request,
         method="POST",
+        response=content if content is not None else text,
         device=users,
+        capture_body=True,
     )
     return requests
 

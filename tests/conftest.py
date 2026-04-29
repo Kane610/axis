@@ -2,6 +2,7 @@
 
 import asyncio
 from collections import deque
+from contextlib import suppress
 import logging
 from typing import TYPE_CHECKING
 
@@ -216,6 +217,7 @@ def aiohttp_mock_server(aiohttp_server):
         device: object | None = None,
         capture_requests: bool = True,
         capture_payload: bool = False,
+        capture_body: bool = False,
     ):
         """Create consolidated mock server with route specs and optional request capture.
 
@@ -229,6 +231,7 @@ def aiohttp_mock_server(aiohttp_server):
             device: optional AxisDevice or Vapix to auto-bind server.port
             capture_requests: if True, return captured requests list
             capture_payload: if True, capture request body/JSON (eliminates manual payload reading)
+            capture_body: if True, capture raw request bytes as "body"
 
         Returns:
             (server, requests_list) or (server, None) if capture_requests=False
@@ -246,6 +249,9 @@ def aiohttp_mock_server(aiohttp_server):
                         "path": request.path,
                         "query": request.query_string or "",
                     }
+                    if capture_body and request.method in ("POST", "PUT", "PATCH"):
+                        with suppress(ValueError, RuntimeError):
+                            req_entry["body"] = await request.read()
                     # Capture request payload if enabled
                     if capture_payload and request.method in ("POST", "PUT", "PATCH"):
                         try:
