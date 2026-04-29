@@ -19,7 +19,7 @@ def users(axis_device_aiohttp) -> Users:
 
 
 async def _setup_pwdgrp_route(
-    aiohttp_server,
+    aiohttp_mock_server,
     users: Users,
     *,
     text: str = "",
@@ -39,10 +39,12 @@ async def _setup_pwdgrp_route(
             return web.Response(body=content)
         return web.Response(text=text)
 
-    app = web.Application()
-    app.router.add_post("/axis-cgi/pwdgrp.cgi", handle_request)
-    server = await aiohttp_server(app)
-    users.vapix.device.config.port = server.port
+    _server, _captured = await aiohttp_mock_server(
+        "/axis-cgi/pwdgrp.cgi",
+        handler=handle_request,
+        method="POST",
+        device=users,
+    )
     return requests
 
 
@@ -61,9 +63,9 @@ def test_user_class_privileges() -> None:
     assert bad_user.privileges == SecondaryGroup.UNKNOWN
 
 
-async def test_users(aiohttp_server, users):
+async def test_users(aiohttp_mock_server, users):
     """Verify that you can list users."""
-    await _setup_pwdgrp_route(aiohttp_server, users, text=GET_USERS_RESPONSE)
+    await _setup_pwdgrp_route(aiohttp_mock_server, users, text=GET_USERS_RESPONSE)
     await users.update()
 
     assert users.initialized
@@ -109,10 +111,10 @@ async def test_users(aiohttp_server, users):
     assert users["usera"].privileges == SecondaryGroup.ADMIN_PTZ
 
 
-async def test_users_new_response(aiohttp_server, users):
+async def test_users_new_response(aiohttp_mock_server, users):
     """Verify that you can list users."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
-    await _setup_pwdgrp_route(aiohttp_server, users, content=response)
+    await _setup_pwdgrp_route(aiohttp_mock_server, users, content=response)
     await users.update()
 
     assert users["root"]
@@ -123,9 +125,9 @@ async def test_users_new_response(aiohttp_server, users):
     assert users["root"].ptz
 
 
-async def test_create(aiohttp_server, users):
+async def test_create(aiohttp_mock_server, users):
     """Verify that you can create users."""
-    requests = await _setup_pwdgrp_route(aiohttp_server, users)
+    requests = await _setup_pwdgrp_route(aiohttp_mock_server, users)
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
@@ -164,9 +166,9 @@ async def test_create(aiohttp_server, users):
     )
 
 
-async def test_modify(aiohttp_server, users):
+async def test_modify(aiohttp_mock_server, users):
     """Verify that you can modify users."""
-    requests = await _setup_pwdgrp_route(aiohttp_server, users)
+    requests = await _setup_pwdgrp_route(aiohttp_mock_server, users)
 
     await users.modify("joe", pwd="abcd")
 
@@ -220,9 +222,9 @@ async def test_modify(aiohttp_server, users):
     )
 
 
-async def test_delete(aiohttp_server, users):
+async def test_delete(aiohttp_mock_server, users):
     """Verify that you can delete users."""
-    requests = await _setup_pwdgrp_route(aiohttp_server, users)
+    requests = await _setup_pwdgrp_route(aiohttp_mock_server, users)
 
     await users.delete("joe")
 
@@ -235,17 +237,17 @@ async def test_delete(aiohttp_server, users):
     )
 
 
-async def test_equals_in_value(aiohttp_server, users):
+async def test_equals_in_value(aiohttp_mock_server, users):
     """Verify that values containing `=` are parsed correctly."""
     await _setup_pwdgrp_route(
-        aiohttp_server, users, text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
+        aiohttp_mock_server, users, text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
     )
     await users.update()
 
 
-async def test_no_equals_in_value(aiohttp_server, users):
+async def test_no_equals_in_value(aiohttp_mock_server, users):
     """Verify that values containing `=` are parsed correctly."""
-    await _setup_pwdgrp_route(aiohttp_server, users, text="")
+    await _setup_pwdgrp_route(aiohttp_mock_server, users, text="")
     await users.update()
 
 
