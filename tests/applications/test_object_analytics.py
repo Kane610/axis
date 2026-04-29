@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 from axis.models.applications.object_analytics import ScenarioType
@@ -22,24 +21,14 @@ def object_analytics(axis_device_aiohttp) -> ObjectAnalyticsHandler:
     return axis_device_aiohttp.vapix.object_analytics
 
 
-async def test_get_no_configuration(aiohttp_server, object_analytics):
+async def test_get_no_configuration(aiohttp_mock_server, object_analytics):
     """Test no response from get_configuration."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response({})
-
-    app = web.Application()
-    app.router.add_post("/local/objectanalytics/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    object_analytics.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/local/objectanalytics/control.cgi",
+        response={},
+        device=object_analytics,
+        capture_payload=True,
+    )
 
     with pytest.raises(KeyError):
         await object_analytics.update()
@@ -57,32 +46,26 @@ async def test_get_no_configuration(aiohttp_server, object_analytics):
     assert len(object_analytics.values()) == 0
 
 
-async def test_get_empty_configuration(aiohttp_server, object_analytics):
+async def test_get_empty_configuration(aiohttp_mock_server, object_analytics):
     """Test empty get_configuration."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/objectanalytics/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    object_analytics.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/local/objectanalytics/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=object_analytics,
+    )
 
     await object_analytics.update()
 
     assert len(object_analytics.values()) == 1
 
 
-async def test_get_configuration(aiohttp_server, object_analytics):
+async def test_get_configuration(aiohttp_mock_server, object_analytics):
     """Test get_configuration."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(GET_CONFIGURATION_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/objectanalytics/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    object_analytics.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/local/objectanalytics/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=object_analytics,
+    )
 
     await object_analytics.update()
 
