@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/a
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -19,25 +18,15 @@ def loitering_guard(axis_device_aiohttp) -> LoiteringGuardHandler:
 
 
 async def test_get_empty_configuration(
-    aiohttp_server, loitering_guard: LoiteringGuardHandler
+    aiohttp_mock_server, loitering_guard: LoiteringGuardHandler
 ):
     """Test empty get_configuration."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/loiteringguard/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    loitering_guard.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/local/loiteringguard/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=loitering_guard,
+        capture_payload=True,
+    )
 
     await loitering_guard.update()
 
@@ -54,17 +43,14 @@ async def test_get_empty_configuration(
 
 
 async def test_get_configuration(
-    aiohttp_server, loitering_guard: LoiteringGuardHandler
+    aiohttp_mock_server, loitering_guard: LoiteringGuardHandler
 ):
     """Test get_configuration."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(GET_CONFIGURATION_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/loiteringguard/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    loitering_guard.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/local/loiteringguard/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=loitering_guard,
+    )
 
     await loitering_guard.update()
 
