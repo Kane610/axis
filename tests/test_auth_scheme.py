@@ -11,7 +11,7 @@ from axis.models.configuration import AuthScheme, Configuration
 from .conftest import HOST, PASS, USER
 
 
-async def test_auth_scheme_auto_fallback_to_basic(aiohttp_server):
+async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server):
     """Verify AUTO starts with digest and retries with basic auth once."""
     auth_headers: list[str] = []
 
@@ -24,19 +24,22 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_server):
             )
         return web.Response(status=200, body=b"ok")
 
-    app = web.Application()
-    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle_basic_device_info)
-    server = await aiohttp_server(app)
-
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
             session,
             HOST,
-            port=server.port,
+            port=80,
             username=USER,
             password=PASS,
         )
+    )
+
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        handler=handle_basic_device_info,
+        method="GET",
+        device=axis_device,
     )
 
     assert axis_device.vapix.auth is None
@@ -52,7 +55,7 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_server):
     assert auth_headers[-1].lower().startswith("basic ")
 
 
-async def test_auth_scheme_digest_does_not_fallback(aiohttp_server):
+async def test_auth_scheme_digest_does_not_fallback(aiohttp_mock_server):
     """Verify DIGEST does not switch auth method when basic is offered."""
     calls = 0
 
@@ -64,20 +67,23 @@ async def test_auth_scheme_digest_does_not_fallback(aiohttp_server):
             headers={"WWW-Authenticate": 'Basic realm="AXIS"'},
         )
 
-    app = web.Application()
-    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle_basic_device_info)
-    server = await aiohttp_server(app)
-
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
             session,
             HOST,
-            port=server.port,
+            port=80,
             username=USER,
             password=PASS,
             auth_scheme=AuthScheme.DIGEST,
         )
+    )
+
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        handler=handle_basic_device_info,
+        method="GET",
+        device=axis_device,
     )
 
     try:
