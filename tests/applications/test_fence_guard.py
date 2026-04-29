@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/appli
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -18,24 +17,16 @@ def fence_guard(axis_device_aiohttp) -> FenceGuardHandler:
     return axis_device_aiohttp.vapix.fence_guard
 
 
-async def test_get_empty_configuration(aiohttp_server, fence_guard: FenceGuardHandler):
+async def test_get_empty_configuration(
+    aiohttp_mock_server, fence_guard: FenceGuardHandler
+):
     """Test empty get_configuration."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/fenceguard/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    fence_guard.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/local/fenceguard/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=fence_guard,
+        capture_payload=True,
+    )
 
     await fence_guard.update()
 
@@ -51,16 +42,13 @@ async def test_get_empty_configuration(aiohttp_server, fence_guard: FenceGuardHa
     assert len(fence_guard.values()) == 1
 
 
-async def test_get_configuration(aiohttp_server, fence_guard: FenceGuardHandler):
+async def test_get_configuration(aiohttp_mock_server, fence_guard: FenceGuardHandler):
     """Test get_configuration."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(GET_CONFIGURATION_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/fenceguard/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    fence_guard.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/local/fenceguard/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=fence_guard,
+    )
 
     await fence_guard.update()
 

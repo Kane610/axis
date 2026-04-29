@@ -215,6 +215,7 @@ def aiohttp_mock_server(aiohttp_server):
         headers: dict[str, str] | None = None,
         device: object | None = None,
         capture_requests: bool = True,
+        capture_payload: bool = False,
     ):
         """Create consolidated mock server with route specs and optional request capture.
 
@@ -227,6 +228,7 @@ def aiohttp_mock_server(aiohttp_server):
             headers: response headers
             device: optional AxisDevice or Vapix to auto-bind server.port
             capture_requests: if True, return captured requests list
+            capture_payload: if True, capture request body/JSON (eliminates manual payload reading)
 
         Returns:
             (server, requests_list) or (server, None) if capture_requests=False
@@ -239,13 +241,24 @@ def aiohttp_mock_server(aiohttp_server):
 
             async def _auto_handler(request: web.Request) -> web.Response:
                 if requests is not None:
-                    requests.append(
-                        {
-                            "method": request.method,
-                            "path": request.path,
-                            "query": request.query_string or "",
-                        }
-                    )
+                    req_entry: dict[str, object] = {
+                        "method": request.method,
+                        "path": request.path,
+                        "query": request.query_string or "",
+                    }
+                    # Capture request payload if enabled
+                    if capture_payload and request.method in ("POST", "PUT", "PATCH"):
+                        try:
+                            if request.content_type == "application/json":
+                                req_entry["payload"] = await request.json()
+                            else:
+                                # For other content types, capture as text
+                                req_entry["payload"] = await request.text()
+                        except ValueError, RuntimeError:
+                            # Skip payload if reading fails (e.g., already consumed)
+                            pass
+                    requests.append(req_entry)
+
                 if isinstance(resp_data, dict):
                     return web.json_response(resp_data, status=resp_status)
                 if isinstance(resp_data, str):
