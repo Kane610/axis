@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.user_groups tests/test_user_groups.py
 """
 
-from aiohttp import web
 import pytest
 
 from axis.interfaces.user_groups import UserGroups
@@ -16,35 +15,30 @@ def user_groups(axis_device_aiohttp) -> UserGroups:
     return UserGroups(axis_device_aiohttp.vapix)
 
 
-async def test_empty_response(aiohttp_server, user_groups):
+async def test_empty_response(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.Response(text="", headers={"Content-Type": "text/plain"})
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/usergroup.cgi", handle_request)
-    server = await aiohttp_server(app)
-    user_groups.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="",
+        headers={"Content-Type": "text/plain"},
+        device=user_groups,
+    )
 
     await user_groups.update()
 
     assert user_groups.get("0") is None
 
 
-async def test_root_user(aiohttp_server, user_groups):
+async def test_root_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.Response(
-            text="root\nroot admin operator ptz viewer\n",
-            headers={"Content-Type": "text/plain"},
-        )
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/usergroup.cgi", handle_request)
-    server = await aiohttp_server(app)
-    user_groups.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="root\nroot admin operator ptz viewer\n",
+        headers={"Content-Type": "text/plain"},
+        device=user_groups,
+    )
 
     await user_groups.update()
 
@@ -58,19 +52,15 @@ async def test_root_user(aiohttp_server, user_groups):
     assert user.ptz
 
 
-async def test_admin_user(aiohttp_server, user_groups):
+async def test_admin_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.Response(
-            text="administrator\nusers admin operator viewer\n",
-            headers={"Content-Type": "text/plain"},
-        )
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/usergroup.cgi", handle_request)
-    server = await aiohttp_server(app)
-    user_groups.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="administrator\nusers admin operator viewer\n",
+        headers={"Content-Type": "text/plain"},
+        device=user_groups,
+    )
 
     await user_groups.update()
 
@@ -83,19 +73,15 @@ async def test_admin_user(aiohttp_server, user_groups):
     assert not user.ptz
 
 
-async def test_operator_user(aiohttp_server, user_groups):
+async def test_operator_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.Response(
-            text="operator\nusers operator viewer\n",
-            headers={"Content-Type": "text/plain"},
-        )
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/usergroup.cgi", handle_request)
-    server = await aiohttp_server(app)
-    user_groups.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="operator\nusers operator viewer\n",
+        headers={"Content-Type": "text/plain"},
+        device=user_groups,
+    )
 
     await user_groups.update()
 
@@ -108,19 +94,15 @@ async def test_operator_user(aiohttp_server, user_groups):
     assert not user.ptz
 
 
-async def test_viewer_user(aiohttp_server, user_groups):
+async def test_viewer_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.Response(
-            text="viewer\nusers viewer\n",
-            headers={"Content-Type": "text/plain"},
-        )
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/usergroup.cgi", handle_request)
-    server = await aiohttp_server(app)
-    user_groups.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="viewer\nusers viewer\n",
+        headers={"Content-Type": "text/plain"},
+        device=user_groups,
+    )
 
     await user_groups.update()
 
