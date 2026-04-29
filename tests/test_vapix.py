@@ -3,8 +3,10 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+from aiohttp import web
 import httpx
 import pytest
 
@@ -48,16 +50,227 @@ if TYPE_CHECKING:
     from axis.interfaces.vapix import Vapix
 
 
-@pytest.fixture
-def vapix(axis_device: AxisDevice) -> Vapix:
-    """Return the vapix object."""
-    return axis_device.vapix
+class _CallList(list):
+    @property
+    def last(self):
+        return self[-1]
+
+
+class _Route:
+    def __init__(self, method: str, path: str) -> None:
+        self.method = method
+        self.path = path
+        self.called = False
+        self.calls = _CallList()
+        self.side_effect: object | None = None
+        self._json: dict | list | None = None
+        self._text: str | None = None
+        self._content: bytes | None = None
+        self._status_code = 200
+        self._headers: dict[str, str] | None = None
+
+    @property
+    def call_count(self) -> int:
+        return len(self.calls)
+
+    def respond(
+        self,
+        *args: object,
+        json: dict | list | None = None,
+        text: str | None = None,
+        content: bytes | None = None,
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ):
+        if args:
+            # Supports patterns like .respond(401)
+            status_code = int(args[0])
+        self._json = json
+        self._text = text
+        self._content = content
+        self._status_code = status_code
+        self._headers = headers
+        return self
+
+    def make_response(self) -> web.Response:
+        if self._json is not None:
+            return web.json_response(
+                self._json,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        if self._text is not None:
+            return web.Response(
+                text=self._text,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        if self._content is not None:
+            return web.Response(
+                body=self._content,
+                status=self._status_code,
+                headers=self._headers,
+            )
+        return web.Response(status=self._status_code, headers=self._headers)
+
+
+class _MultiRoute:
+    def __init__(self, routes: list[_Route]) -> None:
+        self._routes = routes
+
+    def respond(self, *args: object, **kwargs: object):
+        for route in self._routes:
+            route.respond(*args, **kwargs)
+        return self
+
+
+class _RespxMockShim:
+    def __init__(self) -> None:
+        self._routes: dict[tuple[str, str], _Route] = {}
+        self.calls = _CallList()
+
+    def _add_route(self, method: str, path: str) -> _Route:
+        if path == "":
+            path = "/"
+        key = (method, path)
+        if key in self._routes:
+            return self._routes[key]
+        route = _Route(method, path)
+        self._routes[key] = route
+        return route
+
+    def _register(
+        self,
+        method: str,
+        path: str,
+        *,
+        path__in: tuple[str, ...] | None = None,
+        **_: object,
+    ) -> _Route | _MultiRoute:
+        if path__in:
+            routes = [self._add_route(method, alt_path) for alt_path in path__in]
+            return _MultiRoute(routes)
+        return self._add_route(method, path)
+
+    def post(
+        self,
+        path: str,
+        *,
+        path__in: tuple[str, ...] | None = None,
+        **kwargs: object,
+    ) -> _Route | _MultiRoute:
+        return self._register("POST", path, path__in=path__in, **kwargs)
+
+    def get(self, path: str, **kwargs: object) -> _Route:
+        route = self._register("GET", path, **kwargs)
+        assert isinstance(route, _Route)
+        return route
+
+    def resolve(self, method: str, path: str) -> _Route | None:
+        return self._routes.get((method, path))
+
+
+def _raise_side_effect(side_effect: object, request: web.Request) -> None:
+
+    if isinstance(side_effect, BaseException):
+        if isinstance(
+            side_effect,
+            (httpx.TimeoutException, httpx.TransportError, httpx.RequestError),
+        ):
+            if request.transport is not None:
+                request.transport.close()
+            message = "request failed"
+            raise ConnectionResetError(message)
+        if isinstance(side_effect, Unauthorized):
+            raise web.HTTPUnauthorized
+        if isinstance(side_effect, Forbidden):
+            raise web.HTTPForbidden
+        if isinstance(side_effect, PathNotFound):
+            raise web.HTTPNotFound
+        if isinstance(side_effect, MethodNotAllowed):
+            raise web.HTTPMethodNotAllowed(
+                method=request.method, allowed_methods=[request.method]
+            )
+        raise side_effect
+    if isinstance(side_effect, type) and issubclass(side_effect, BaseException):
+        if issubclass(
+            side_effect,
+            (httpx.TimeoutException, httpx.TransportError, httpx.RequestError),
+        ):
+            if request.transport is not None:
+                request.transport.close()
+            message = "request failed"
+            raise ConnectionResetError(message)
+        if issubclass(side_effect, Unauthorized):
+            raise web.HTTPUnauthorized
+        if issubclass(side_effect, Forbidden):
+            raise web.HTTPForbidden
+        if issubclass(side_effect, PathNotFound):
+            raise web.HTTPNotFound
+        if issubclass(side_effect, MethodNotAllowed):
+            raise web.HTTPMethodNotAllowed(
+                method=request.method, allowed_methods=[request.method]
+            )
+        try:
+            raise side_effect()
+        except TypeError as err:
+            message = "request failed"
+            raise side_effect(message) from err
+    if callable(side_effect):
+        raise side_effect()
 
 
 @pytest.fixture
-def vapix_companion_device(axis_companion_device: AxisDevice) -> Vapix:
+async def respx_mock(
+    aiohttp_server,
+    axis_device_aiohttp: AxisDevice,
+    axis_companion_device_aiohttp: AxisDevice,
+):
+    """Return a minimal respx-compatible shim backed by aiohttp_server."""
+    mock = _RespxMockShim()
+
+    async def handle_request(request: web.Request) -> web.Response:
+        path = request.path
+        route = mock.resolve(request.method, path)
+        if route is None:
+            return web.Response(status=404)
+
+        if route.side_effect is not None:
+            _raise_side_effect(route.side_effect, request)
+
+        route.called = True
+        content = await request.read()
+        params = dict(request.rel_url.query)
+        call = SimpleNamespace(
+            request=SimpleNamespace(
+                method=request.method,
+                url=SimpleNamespace(path=path, params=params),
+                content=content,
+            )
+        )
+        route.calls.append(call)
+        mock.calls.append(call)
+        return route.make_response()
+
+    app = web.Application()
+    app.router.add_route("*", "/{tail:.*}", handle_request)
+    server = await aiohttp_server(app)
+    axis_device_aiohttp.vapix.device.config.port = server.port
+    axis_companion_device_aiohttp.vapix.device.config.port = server.port
+
+    return mock
+
+
+@pytest.fixture
+def vapix(axis_device_aiohttp: AxisDevice) -> Vapix:
     """Return the vapix object."""
-    return axis_companion_device.vapix
+    return axis_device_aiohttp.vapix
+
+
+@pytest.fixture
+def vapix_companion_device(axis_companion_device_aiohttp: AxisDevice) -> Vapix:
+    """Return the vapix object."""
+    return axis_companion_device_aiohttp.vapix
 
 
 def test_vapix_not_initialized(vapix: Vapix) -> None:
