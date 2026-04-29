@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.applications.vmd4 tests/applications
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -18,24 +17,14 @@ def vmd4(axis_device_aiohttp) -> Vmd4Handler:
     return axis_device_aiohttp.vapix.vmd4
 
 
-async def test_get_empty_configuration(aiohttp_server, vmd4: Vmd4Handler):
+async def test_get_empty_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
     """Test empty get_configuration."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/vmd/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    vmd4.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/local/vmd/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=vmd4,
+        capture_payload=True,
+    )
 
     await vmd4.update()
 
@@ -51,16 +40,13 @@ async def test_get_empty_configuration(aiohttp_server, vmd4: Vmd4Handler):
     assert len(vmd4.values()) == 1
 
 
-async def test_get_configuration(aiohttp_server, vmd4: Vmd4Handler):
+async def test_get_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
     """Test get_supported_versions."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(GET_CONFIGURATION_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/vmd/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    vmd4.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/local/vmd/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=vmd4,
+    )
 
     await vmd4.update()
 
