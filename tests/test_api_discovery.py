@@ -3,22 +3,14 @@
 pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discovery.py
 """
 
-import json
-from typing import TYPE_CHECKING
+import aiohttp
+from aiohttp import web
 
-import pytest
-
+from axis.device import AxisDevice
 from axis.models.api_discovery import ApiId, ApiStatus
+from axis.models.configuration import Configuration
 
-if TYPE_CHECKING:
-    from axis.device import AxisDevice
-    from axis.interfaces.api_discovery import ApiDiscoveryHandler
-
-
-@pytest.fixture
-def api_discovery(axis_device: AxisDevice) -> ApiDiscoveryHandler:
-    """Return the api_discovery mock object."""
-    return axis_device.vapix.api_discovery
+from .conftest import HOST, PASS, USER
 
 
 async def test_api_id_enum():
@@ -31,18 +23,47 @@ async def test_api_status_enum():
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
-async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
+async def test_get_api_list(aiohttp_server):
     """Test get_api_list call."""
-    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
-        json=GET_API_LIST_RESPONSE,
-    )
-    assert api_discovery.supported
-    await api_discovery.update()
+    requests: list[dict[str, object]] = []
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/apidiscovery.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    async def handle_api_discovery(request: web.Request) -> web.Response:
+        payload = await request.json()
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": payload,
+            }
+        )
+        return web.json_response(GET_API_LIST_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/apidiscovery.cgi", handle_api_discovery)
+    server = await aiohttp_server(app)
+
+    session = aiohttp.ClientSession()
+    axis_device = AxisDevice(
+        Configuration(
+            session,
+            HOST,
+            port=server.port,
+            username=USER,
+            password=PASS,
+        )
+    )
+    api_discovery = axis_device.vapix.api_discovery
+
+    assert api_discovery.supported
+    try:
+        await api_discovery.update()
+    finally:
+        await session.close()
+
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/apidiscovery.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getApiList",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -59,17 +80,46 @@ async def test_get_api_list(respx_mock, api_discovery: ApiDiscoveryHandler):
     assert item.version == "1.0"
 
 
-async def test_get_supported_versions(respx_mock, api_discovery: ApiDiscoveryHandler):
+async def test_get_supported_versions(aiohttp_server):
     """Test get_supported_versions."""
-    route = respx_mock.post("/axis-cgi/apidiscovery.cgi").respond(
-        json=GET_SUPPORTED_VERSIONS_RESPONSE,
-    )
-    response = await api_discovery.get_supported_versions()
+    requests: list[dict[str, object]] = []
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/apidiscovery.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    async def handle_api_discovery(request: web.Request) -> web.Response:
+        payload = await request.json()
+        requests.append(
+            {
+                "method": request.method,
+                "path": request.path,
+                "payload": payload,
+            }
+        )
+        return web.json_response(GET_SUPPORTED_VERSIONS_RESPONSE)
+
+    app = web.Application()
+    app.router.add_post("/axis-cgi/apidiscovery.cgi", handle_api_discovery)
+    server = await aiohttp_server(app)
+
+    session = aiohttp.ClientSession()
+    axis_device = AxisDevice(
+        Configuration(
+            session,
+            HOST,
+            port=server.port,
+            username=USER,
+            password=PASS,
+        )
+    )
+    api_discovery = axis_device.vapix.api_discovery
+
+    try:
+        response = await api_discovery.get_supported_versions()
+    finally:
+        await session.close()
+
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/apidiscovery.cgi"
+    assert requests[-1]["payload"] == {
         "context": "Axis library",
         "method": "getSupportedVersions",
     }
