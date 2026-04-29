@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -20,25 +19,15 @@ def stream_profiles(axis_device_aiohttp: AxisDevice) -> StreamProfilesHandler:
 
 
 async def test_list_stream_profiles(
-    aiohttp_server, stream_profiles: StreamProfilesHandler
+    aiohttp_mock_server, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(LIST_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/streamprofile.cgi", handle_request)
-    server = await aiohttp_server(app)
-    stream_profiles.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/streamprofile.cgi",
+        response=LIST_RESPONSE,
+        device=stream_profiles,
+        capture_payload=True,
+    )
 
     await stream_profiles.update()
 
@@ -63,27 +52,22 @@ async def test_list_stream_profiles(
 
 
 async def test_list_stream_profiles_no_profiles(
-    aiohttp_server,
+    aiohttp_mock_server,
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(
-            {
-                "method": "list",
-                "apiVersion": "1.0",
-                "context": "",
-                "data": {
-                    "maxProfiles": 0,
-                },
-            }
-        )
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/streamprofile.cgi", handle_request)
-    server = await aiohttp_server(app)
-    stream_profiles.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/streamprofile.cgi",
+        response={
+            "method": "list",
+            "apiVersion": "1.0",
+            "context": "",
+            "data": {
+                "maxProfiles": 0,
+            },
+        },
+        device=stream_profiles,
+    )
 
     await stream_profiles.update()
 
@@ -91,25 +75,15 @@ async def test_list_stream_profiles_no_profiles(
 
 
 async def test_get_supported_versions(
-    aiohttp_server, stream_profiles: StreamProfilesHandler
+    aiohttp_mock_server, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(GET_SUPPORTED_VERSIONS_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/streamprofile.cgi", handle_request)
-    server = await aiohttp_server(app)
-    stream_profiles.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/streamprofile.cgi",
+        response=GET_SUPPORTED_VERSIONS_RESPONSE,
+        device=stream_profiles,
+        capture_payload=True,
+    )
 
     response = await stream_profiles.get_supported_versions()
 
