@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/appl
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -19,25 +18,15 @@ def motion_guard(axis_device_aiohttp) -> MotionGuardHandler:
 
 
 async def test_get_empty_configuration(
-    aiohttp_server, motion_guard: MotionGuardHandler
+    aiohttp_mock_server, motion_guard: MotionGuardHandler
 ):
     """Test empty get_configuration."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(GET_CONFIGURATION_EMPTY_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/motionguard/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    motion_guard.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/local/motionguard/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=motion_guard,
+        capture_payload=True,
+    )
 
     await motion_guard.update()
 
@@ -53,16 +42,13 @@ async def test_get_empty_configuration(
     assert len(motion_guard.values()) == 1
 
 
-async def test_get_configuration(aiohttp_server, motion_guard: MotionGuardHandler):
+async def test_get_configuration(aiohttp_mock_server, motion_guard: MotionGuardHandler):
     """Test get_configuration."""
-
-    async def handle_request(_: web.Request) -> web.Response:
-        return web.json_response(GET_CONFIGURATION_RESPONSE)
-
-    app = web.Application()
-    app.router.add_post("/local/motionguard/control.cgi", handle_request)
-    server = await aiohttp_server(app)
-    motion_guard.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/local/motionguard/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=motion_guard,
+    )
 
     await motion_guard.update()
 
