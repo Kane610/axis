@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -29,21 +28,16 @@ def stream_profile_handler(
 
 
 async def test_stream_profile_handler(
-    aiohttp_server,
+    aiohttp_mock_server,
     stream_profile_handler: StreamProfileParameterHandler,
 ):
     """Verify that update properties works."""
-
-    async def handle_param(_: web.Request) -> web.Response:
-        return web.Response(
-            body=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
-            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-        )
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/param.cgi", handle_param)
-    server = await aiohttp_server(app)
-    stream_profile_handler.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/param.cgi",
+        response=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=stream_profile_handler,
+    )
 
     assert not stream_profile_handler.initialized
 
