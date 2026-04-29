@@ -6,7 +6,6 @@ pytest --cov-report term-missing --cov=axis.interfaces.pir_sensor_configuration 
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -25,36 +24,27 @@ def pir_sensor_configuration(
 
 
 async def _setup_pirsensor_route(
-    aiohttp_server,
+    aiohttp_mock_server,
     pir_sensor_configuration: PirSensorConfigurationHandler,
     response_json: dict[str, object],
 ) -> list[dict[str, object]]:
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": await request.json(),
-            }
-        )
-        return web.json_response(response_json)
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/pirsensor.cgi", handle_request)
-    server = await aiohttp_server(app)
-    pir_sensor_configuration.vapix.device.config.port = server.port
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/pirsensor.cgi",
+        method="POST",
+        response=response_json,
+        device=pir_sensor_configuration,
+        capture_payload=True,
+    )
     return requests
 
 
 async def test_get_api_list(
-    aiohttp_server,
+    aiohttp_mock_server,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
     requests = await _setup_pirsensor_route(
-        aiohttp_server,
+        aiohttp_mock_server,
         pir_sensor_configuration,
         {
             "apiVersion": "1.0",
@@ -90,12 +80,12 @@ async def test_get_api_list(
 
 
 async def test_get_sensitivity(
-    aiohttp_server,
+    aiohttp_mock_server,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
     requests = await _setup_pirsensor_route(
-        aiohttp_server,
+        aiohttp_mock_server,
         pir_sensor_configuration,
         {
             "apiVersion": "1.0",
@@ -122,12 +112,12 @@ async def test_get_sensitivity(
 
 
 async def test_set_sensitivity(
-    aiohttp_server,
+    aiohttp_mock_server,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
     requests = await _setup_pirsensor_route(
-        aiohttp_server,
+        aiohttp_mock_server,
         pir_sensor_configuration,
         {
             "apiVersion": "1.0",
@@ -152,12 +142,12 @@ async def test_set_sensitivity(
 
 
 async def test_supported_versions(
-    aiohttp_server,
+    aiohttp_mock_server,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
     requests = await _setup_pirsensor_route(
-        aiohttp_server,
+        aiohttp_mock_server,
         pir_sensor_configuration,
         {
             "apiVersion": "1.0",
