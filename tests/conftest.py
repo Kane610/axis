@@ -6,7 +6,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from aiohttp import ClientSession, web
-from httpx import AsyncClient
 import pytest
 
 from axis.device import AxisDevice
@@ -14,8 +13,6 @@ from axis.models.configuration import Configuration
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    import respx
 
 LOGGER = logging.getLogger(__name__)
 
@@ -88,31 +85,31 @@ def aiohttp_request_capture() -> tuple[
 
 
 @pytest.fixture
-async def axis_device(respx_mock: respx.router.MockRouter) -> AxisDevice:
+async def axis_device(aiohttp_session: ClientSession) -> AxisDevice:
     """Return the axis device.
 
     Clean up sessions automatically at the end of each test.
     """
-    respx_mock(base_url=f"http://{HOST}:80")
-    session = AsyncClient(verify=False)
-    axis_device = AxisDevice(Configuration(session, HOST, username=USER, password=PASS))
-    yield axis_device
-    await session.aclose()
+    return AxisDevice(
+        Configuration(aiohttp_session, HOST, username=USER, password=PASS)
+    )
 
 
 @pytest.fixture
-async def axis_companion_device(respx_mock: respx.router.MockRouter) -> AxisDevice:
+async def axis_companion_device(aiohttp_session: ClientSession) -> AxisDevice:
     """Return the axis device.
 
     Clean up sessions automatically at the end of each test.
     """
-    respx_mock(base_url=f"http://{HOST}:80")
-    session = AsyncClient(verify=False)
-    axis_device = AxisDevice(
-        Configuration(session, HOST, username=USER, password=PASS, is_companion=True)
+    return AxisDevice(
+        Configuration(
+            aiohttp_session,
+            HOST,
+            username=USER,
+            password=PASS,
+            is_companion=True,
+        )
     )
-    yield axis_device
-    await session.aclose()
 
 
 class TcpServerProtocol(asyncio.Protocol):
