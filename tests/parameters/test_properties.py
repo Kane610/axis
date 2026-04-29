@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -191,25 +190,23 @@ def property_handler(axis_device_aiohttp: AxisDevice) -> PropertyParameterHandle
 
 
 async def _setup_param_route(
-    aiohttp_server, property_handler: PropertyParameterHandler, property_response: str
+    aiohttp_mock_server,
+    property_handler: PropertyParameterHandler,
+    property_response: str,
 ) -> None:
-    async def handle_param(_: web.Request) -> web.Response:
-        return web.Response(
-            body=property_response.encode("iso-8859-1"),
-            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-        )
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/param.cgi", handle_param)
-    server = await aiohttp_server(app)
-    property_handler.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/param.cgi",
+        response=property_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=property_handler,
+    )
 
 
 async def test_property_handler(
-    aiohttp_server, property_handler: PropertyParameterHandler
+    aiohttp_mock_server, property_handler: PropertyParameterHandler
 ):
     """Verify that update properties works."""
-    await _setup_param_route(aiohttp_server, property_handler, PROPERTY_RESPONSE)
+    await _setup_param_route(aiohttp_mock_server, property_handler, PROPERTY_RESPONSE)
     assert not property_handler.initialized
     await property_handler.update()
 
@@ -261,12 +258,12 @@ async def test_property_handler(
     [PROPERTY_5_20_M7001_RESPONSE, PROPERTY_1_84_1_A9188_RESPONSE],
 )
 async def test_mixed_properties(
-    aiohttp_server, property_handler: PropertyParameterHandler, property_response
+    aiohttp_mock_server, property_handler: PropertyParameterHandler, property_response
 ):
     """Verify that update ptz works.
 
     No embedded development provided.
     """
-    await _setup_param_route(aiohttp_server, property_handler, property_response)
+    await _setup_param_route(aiohttp_mock_server, property_handler, property_response)
 
     await property_handler.update()
