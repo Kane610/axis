@@ -16,15 +16,11 @@ USER = "root"
 PASS = "pass"
 
 
-async def test_aiohttp_client_session_request(aiohttp_server: Any) -> None:
+async def test_aiohttp_client_session_request(aiohttp_mock_server: Any) -> None:
     """Verify requests work with aiohttp ClientSession."""
 
     async def handle(_request: web.Request) -> web.Response:
         return web.Response(body=b"ok")
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
-    server = await aiohttp_server(app)
 
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
@@ -33,8 +29,15 @@ async def test_aiohttp_client_session_request(aiohttp_server: Any) -> None:
             HOST,
             username=USER,
             password=PASS,
-            port=server.port,
+            port=80,
         )
+    )
+
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        handler=handle,
+        method="GET",
+        device=axis_device,
     )
 
     try:
@@ -46,7 +49,7 @@ async def test_aiohttp_client_session_request(aiohttp_server: Any) -> None:
 
 
 async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
-    aiohttp_server: Any,
+    aiohttp_mock_server: Any,
 ) -> None:
     """Verify AUTO retries once with basic auth when server requests it."""
     calls = 0
@@ -67,10 +70,6 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
 
         return web.Response(status=401)
 
-    app = web.Application()
-    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
-    server = await aiohttp_server(app)
-
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
@@ -78,8 +77,15 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
             HOST,
             username=USER,
             password=PASS,
-            port=server.port,
+            port=80,
         )
+    )
+
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        handler=handle,
+        method="GET",
+        device=axis_device,
     )
 
     try:
@@ -98,16 +104,12 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
     reason="DigestAuthMiddleware is unavailable in installed aiohttp",
 )
 async def test_aiohttp_client_session_auto_initializes_digest_middleware(
-    aiohttp_server: Any,
+    aiohttp_mock_server: Any,
 ) -> None:
     """Verify AUTO mode sets up digest middleware for aiohttp sessions."""
 
     async def handle(_request: web.Request) -> web.Response:
         return web.Response(body=b"ok")
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
-    server = await aiohttp_server(app)
 
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
@@ -116,9 +118,16 @@ async def test_aiohttp_client_session_auto_initializes_digest_middleware(
             HOST,
             username=USER,
             password=PASS,
-            port=server.port,
+            port=80,
             auth_scheme=AuthScheme.AUTO,
         )
+    )
+
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        handler=handle,
+        method="GET",
+        device=axis_device,
     )
 
     try:
@@ -135,16 +144,12 @@ async def test_aiohttp_client_session_auto_initializes_digest_middleware(
     reason="DigestAuthMiddleware is unavailable in installed aiohttp",
 )
 async def test_aiohttp_client_session_digest_initializes_digest_middleware(
-    aiohttp_server: Any,
+    aiohttp_mock_server: Any,
 ) -> None:
     """Verify DIGEST mode sets up digest middleware for aiohttp sessions."""
 
     async def handle(_request: web.Request) -> web.Response:
         return web.Response(body=b"ok")
-
-    app = web.Application()
-    app.router.add_get("/axis-cgi/basicdeviceinfo.cgi", handle)
-    server = await aiohttp_server(app)
 
     session = aiohttp.ClientSession()
     axis_device = AxisDevice(
@@ -153,9 +158,16 @@ async def test_aiohttp_client_session_digest_initializes_digest_middleware(
             HOST,
             username=USER,
             password=PASS,
-            port=server.port,
+            port=80,
             auth_scheme=AuthScheme.DIGEST,
         )
+    )
+
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/basicdeviceinfo.cgi",
+        handler=handle,
+        method="GET",
+        device=axis_device,
     )
 
     try:
