@@ -129,3 +129,36 @@ async def test_multi_route_responds_all(http_route_mock):
         route = http_route_mock.resolve("POST", path)
         assert route is not None
         assert route._json == {"ok": True}
+
+
+async def test_route_data_match_requires_expected_body(http_route_mock, axis_device):
+    """Routes registered with data only match requests with the same body."""
+    route = http_route_mock.post(
+        "/axis-cgi/body.cgi", data={"key": "expected"}
+    ).respond(text="ok")
+
+    async with axis_device.config.session.post(
+        f"{axis_device.config.url}/axis-cgi/body.cgi",
+        data={"key": "other"},
+    ) as response:
+        assert response.status == 404
+
+    assert not route.called
+    assert route.call_count == 0
+
+
+async def test_route_data_match_accepts_expected_body(http_route_mock, axis_device):
+    """Routes registered with data match and capture calls for matching bodies."""
+    route = http_route_mock.post(
+        "/axis-cgi/body.cgi", data={"key": "expected"}
+    ).respond(text="ok")
+
+    async with axis_device.config.session.post(
+        f"{axis_device.config.url}/axis-cgi/body.cgi",
+        data={"key": "expected"},
+    ) as response:
+        assert response.status == 200
+        assert await response.text() == "ok"
+
+    assert route.called
+    assert route.call_count == 1
