@@ -13,6 +13,7 @@ from axis.device import AxisDevice
 from axis.models.configuration import Configuration
 
 from tests.http_route_mock import HttpRouteMock, start_http_route_mock_server
+from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
 
 if TYPE_CHECKING:
@@ -271,16 +272,7 @@ def aiohttp_mock_server(aiohttp_server):
         server = await aiohttp_server(app)
 
         if device is not None:
-            # Support AxisDevice, Vapix, and ApiHandler (handlers have .vapix.device)
-            if hasattr(device, "vapix"):
-                # It's an ApiHandler → device.vapix.device.config
-                device.vapix.device.config.port = server.port
-            elif hasattr(device, "device"):
-                # It's a Vapix → device.device.config
-                device.device.config.port = server.port
-            else:
-                # It's an AxisDevice → device.config
-                device.config.port = server.port
+            bind_device_port(device, server.port)
 
         return server, requests
 

@@ -11,6 +11,7 @@ import httpx
 
 from axis.errors import Forbidden, MethodNotAllowed, PathNotFound, Unauthorized
 
+from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
 
 
@@ -235,6 +236,6 @@ async def start_http_route_mock_server(
     )
 
     for device in devices:
-        device.vapix.device.config.port = server.port
+        bind_device_port(device, server.port)
 
     return mock
