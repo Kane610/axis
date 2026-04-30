@@ -54,7 +54,12 @@ async def http_route_mock(
     axis_device: AxisDevice,
     axis_companion_device: AxisDevice,
 ):
-    """Return an HTTP route mock for two devices backed by aiohttp_mock_server."""
+    """Return a two-device route mock for this module.
+
+    This fixture intentionally overrides the default single-device
+    ``http_route_mock`` fixture from conftest.py so vapix initialization tests can
+    exercise companion-device behavior with a shared mock server.
+    """
     return await http_route_mock_factory(
         axis_device,
         axis_companion_device,
