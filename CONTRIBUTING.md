@@ -143,6 +143,11 @@ Reuse the async device fixtures from [`tests/conftest.py`](tests/conftest.py):
 
 Choose the fixture layer based on test scope and assertion needs:
 
+- Prefer `aiohttp_mock_server` for most new direct endpoint tests.
+- Prefer `http_route_mock` for single-device route-registration tests.
+- Use `http_route_mock_factory` only when you need explicit multi-device binding.
+- Use `aiohttp_request_capture` only for low-level/manual aiohttp handler tests.
+
 | Fixture | Use when | Avoid when |
 |---|---|---|
 | `aiohttp_request_capture` | Low-level request/response handler tests where you need manual aiohttp setup | Standard VAPIX handler tests with normal route registration |
@@ -167,10 +172,9 @@ Use `http_route_mock` for route-registration tests:
 
 ```python
 async def test_handler(http_route_mock):
-    route = http_route_mock.post("/axis-cgi/example.cgi").respond(
+    http_route_mock.post("/axis-cgi/example.cgi").respond(
         json={"apiVersion": "1.0", "data": []}
     )
-    assert route.called is False
 ```
 
 Use `http_route_mock_factory` for multi-device tests:
