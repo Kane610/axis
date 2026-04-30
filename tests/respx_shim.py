@@ -1,4 +1,4 @@
-"""Minimal respx-like shim backed by aiohttp_server for migrated tests."""
+"""Minimal respx-like shim backed by aiohttp_mock_server for migrated tests."""
 
 from types import SimpleNamespace
 
@@ -202,7 +202,7 @@ def _raise_side_effect(side_effect: object, request: web.Request) -> None:
 
 
 async def start_respx_shim_server(
-    aiohttp_server,
+    aiohttp_mock_server,
     *devices,
 ) -> RespxMockShim:
     """Start catch-all aiohttp server that dispatches to RespxMockShim routes."""
@@ -230,9 +230,12 @@ async def start_respx_shim_server(
         mock.calls.append(call)
         return route.make_response()
 
-    app = web.Application()
-    app.router.add_route("*", "/{tail:.*}", handle_request)
-    server = await aiohttp_server(app)
+    server, _requests = await aiohttp_mock_server(
+        "/{tail:.*}",
+        handler=handle_request,
+        method="*",
+        capture_requests=False,
+    )
 
     for device in devices:
         device.vapix.device.config.port = server.port

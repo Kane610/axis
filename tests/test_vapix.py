@@ -51,13 +51,13 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 async def respx_mock(
-    aiohttp_server,
+    aiohttp_mock_server,
     axis_device_aiohttp: AxisDevice,
     axis_companion_device_aiohttp: AxisDevice,
 ):
-    """Return a minimal respx-compatible shim backed by aiohttp_server."""
+    """Return a minimal respx-compatible shim backed by aiohttp_mock_server."""
     return await start_respx_shim_server(
-        aiohttp_server,
+        aiohttp_mock_server,
         axis_device_aiohttp,
         axis_companion_device_aiohttp,
     )
