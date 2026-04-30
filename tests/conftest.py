@@ -31,7 +31,7 @@ RTSP_PORT = 8888
 
 
 @pytest.fixture
-async def aiohttp_session() -> ClientSession:
+async def session() -> ClientSession:
     """Return a reusable aiohttp session for tests."""
     session = ClientSession()
     yield session
@@ -44,19 +44,17 @@ async def aiohttp_session() -> ClientSession:
 
 
 @pytest.fixture
-async def axis_device(aiohttp_session: ClientSession) -> AxisDevice:
+async def axis_device(session: ClientSession) -> AxisDevice:
     """Return an AxisDevice backed by aiohttp ClientSession."""
-    return AxisDevice(
-        Configuration(aiohttp_session, HOST, username=USER, password=PASS)
-    )
+    return AxisDevice(Configuration(session, HOST, username=USER, password=PASS))
 
 
 @pytest.fixture
-async def axis_companion_device(aiohttp_session: ClientSession) -> AxisDevice:
+async def axis_companion_device(session: ClientSession) -> AxisDevice:
     """Return a companion AxisDevice backed by aiohttp ClientSession."""
     return AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,

@@ -14,11 +14,11 @@ from axis.models.parameters.io_port import PortAction, PortDirection
 from .conftest import HOST, PASS, USER
 
 
-async def test_ports(aiohttp_mock_server, aiohttp_session) -> None:
+async def test_ports(aiohttp_mock_server, session) -> None:
     """Test that different types of ports work."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,
@@ -127,11 +127,11 @@ root.Output.NbrOfOutputs=1
     assert io_requests[-1]["query"] == "action=4:\\"
 
 
-async def test_no_ports(aiohttp_mock_server, aiohttp_session) -> None:
+async def test_no_ports(aiohttp_mock_server, session) -> None:
     """Test that no ports also work."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,

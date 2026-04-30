@@ -20,11 +20,11 @@ async def test_api_status_enum():
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
-async def test_get_api_list(aiohttp_mock_server, aiohttp_session):
+async def test_get_api_list(aiohttp_mock_server, session):
     """Test get_api_list call."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,
@@ -63,11 +63,11 @@ async def test_get_api_list(aiohttp_mock_server, aiohttp_session):
     assert item.version == "1.0"
 
 
-async def test_get_supported_versions(aiohttp_mock_server, aiohttp_session):
+async def test_get_supported_versions(aiohttp_mock_server, session):
     """Test get_supported_versions."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,

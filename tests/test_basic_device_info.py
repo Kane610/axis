@@ -11,11 +11,11 @@ from axis.models.configuration import Configuration
 from .conftest import HOST, PASS, USER
 
 
-async def test_get_all_properties(aiohttp_mock_server, aiohttp_session):
+async def test_get_all_properties(aiohttp_mock_server, session):
     """Test get all properties api."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,
@@ -63,11 +63,11 @@ async def test_get_all_properties(aiohttp_mock_server, aiohttp_session):
     assert device_info.web_url == "http://www.axis.com"
 
 
-async def test_get_supported_versions(aiohttp_mock_server, aiohttp_session):
+async def test_get_supported_versions(aiohttp_mock_server, session):
     """Test get supported versions api."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,

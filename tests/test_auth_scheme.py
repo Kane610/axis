@@ -11,7 +11,7 @@ from axis.models.configuration import AuthScheme, Configuration
 from .conftest import HOST, PASS, USER
 
 
-async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server, aiohttp_session):
+async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server, session):
     """Verify AUTO starts with digest and retries with basic auth once."""
     auth_headers: list[str] = []
 
@@ -26,7 +26,7 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server, aiohttp_s
 
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,
@@ -52,9 +52,7 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server, aiohttp_s
     assert auth_headers[-1].lower().startswith("basic ")
 
 
-async def test_auth_scheme_digest_does_not_fallback(
-    aiohttp_mock_server, aiohttp_session
-):
+async def test_auth_scheme_digest_does_not_fallback(aiohttp_mock_server, session):
     """Verify DIGEST does not switch auth method when basic is offered."""
     calls = 0
 
@@ -68,7 +66,7 @@ async def test_auth_scheme_digest_does_not_fallback(
 
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             port=80,
             username=USER,
@@ -92,11 +90,11 @@ async def test_auth_scheme_digest_does_not_fallback(
     assert calls == 1
 
 
-async def test_auth_scheme_basic_initializes_basic_auth(aiohttp_session) -> None:
+async def test_auth_scheme_basic_initializes_basic_auth(session) -> None:
     """Verify BASIC starts with basic auth immediately."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -106,13 +104,13 @@ async def test_auth_scheme_basic_initializes_basic_auth(aiohttp_session) -> None
     assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
 
 
-async def test_auto_should_retry_guards(aiohttp_session) -> None:
+async def test_auto_should_retry_guards(session) -> None:
     """Verify retry guard conditions short-circuit appropriately."""
     headers = {"WWW-Authenticate": 'Basic realm="AXIS"'}
 
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,

@@ -17,7 +17,7 @@ PASS = "pass"
 
 
 async def test_aiohttp_client_session_request(
-    aiohttp_mock_server: Any, aiohttp_session
+    aiohttp_mock_server: Any, session
 ) -> None:
     """Verify requests work with aiohttp ClientSession."""
 
@@ -26,7 +26,7 @@ async def test_aiohttp_client_session_request(
 
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -49,7 +49,7 @@ async def test_aiohttp_client_session_request(
 
 async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
     aiohttp_mock_server: Any,
-    aiohttp_session,
+    session,
 ) -> None:
     """Verify AUTO retries once with basic auth when server requests it."""
     calls = 0
@@ -72,7 +72,7 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
 
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -102,7 +102,7 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
 )
 async def test_aiohttp_client_session_auto_initializes_digest_middleware(
     aiohttp_mock_server: Any,
-    aiohttp_session,
+    session,
 ) -> None:
     """Verify AUTO mode sets up digest middleware for aiohttp sessions."""
 
@@ -111,7 +111,7 @@ async def test_aiohttp_client_session_auto_initializes_digest_middleware(
 
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -140,7 +140,7 @@ async def test_aiohttp_client_session_auto_initializes_digest_middleware(
 )
 async def test_aiohttp_client_session_digest_initializes_digest_middleware(
     aiohttp_mock_server: Any,
-    aiohttp_session,
+    session,
 ) -> None:
     """Verify DIGEST mode sets up digest middleware for aiohttp sessions."""
 
@@ -149,7 +149,7 @@ async def test_aiohttp_client_session_digest_initializes_digest_middleware(
 
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -173,12 +173,12 @@ async def test_aiohttp_client_session_digest_initializes_digest_middleware(
 
 
 async def test_aiohttp_digest_request_target_preencodes_query_params(
-    aiohttp_session,
+    session,
 ) -> None:
     """Ensure library-managed digest requests sign escaped query URI."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -206,11 +206,11 @@ async def test_aiohttp_digest_request_target_preencodes_query_params(
     assert no_params is None
 
 
-async def test_aiohttp_digest_challenge_header_selection(aiohttp_session) -> None:
+async def test_aiohttp_digest_challenge_header_selection(session) -> None:
     """Select digest challenge from WWW-Authenticate headers."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -236,12 +236,12 @@ async def test_aiohttp_digest_challenge_header_selection(aiohttp_session) -> Non
 
 
 async def test_aiohttp_digest_authorization_contains_required_fields(
-    aiohttp_session,
+    session,
 ) -> None:
     """Build digest authorization header with required auth fields."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -268,12 +268,12 @@ async def test_aiohttp_digest_authorization_contains_required_fields(
 
 
 async def test_aiohttp_digest_signature_validation_known_values(
-    aiohttp_session,
+    session,
 ) -> None:
     """Validate digest signature against known correct value (RFC 2617)."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -310,11 +310,11 @@ async def test_aiohttp_digest_signature_validation_known_values(
     assert "response=" in authorization
 
 
-async def test_aiohttp_digest_special_characters_encoding(aiohttp_session) -> None:
+async def test_aiohttp_digest_special_characters_encoding(session) -> None:
     """Validate proper encoding of various special characters in query params."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
@@ -347,11 +347,11 @@ async def test_aiohttp_digest_special_characters_encoding(aiohttp_session) -> No
         )
 
 
-async def test_aiohttp_digest_multiple_params_encoding(aiohttp_session) -> None:
+async def test_aiohttp_digest_multiple_params_encoding(session) -> None:
     """Validate encoding of multiple query parameters."""
     axis_device = AxisDevice(
         Configuration(
-            aiohttp_session,
+            session,
             HOST,
             username=USER,
             password=PASS,
