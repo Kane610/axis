@@ -4,9 +4,9 @@
 
 The aiohttp-first migration architecture is approved for completion based on:
 
-1. Test-layer migration from respx/httpx coupling to aiohttp_server parity coverage.
+1. Test-layer migration from dual-client coupling to aiohttp_server parity coverage.
 2. Consolidated shared shim utilities for migrated suites.
-3. Runtime httpx-removal implementation plan documented and scoped.
+3. Runtime client-simplification implementation plan documented and scoped.
 4. Performance matrix confirming stable runtime behavior on representative suites.
 
 ## Signed-Off Architecture State
@@ -37,13 +37,12 @@ All gates must be green before rollout:
 3. Typing: `uv run mypy axis`
 4. Tests: `uv run pytest`
 5. Migration docs current:
-- `.github/httpx-removal-implementation-plan.md`
 - `.github/aiohttp-performance-matrix.md`
 
 ## Rollback Gates And Triggers
 
 Rollback to pre-change baseline is required if any trigger occurs after runtime
-httpx removal implementation begins:
+client simplification implementation begins:
 
 1. Functional trigger:
 - auth negotiation failures or increased 401/403 responses in supported devices.
