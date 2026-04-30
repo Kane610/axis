@@ -8,12 +8,23 @@ from types import SimpleNamespace
 from urllib.parse import urlencode
 
 from aiohttp import web
-import httpx
 
 from axis.errors import Forbidden, MethodNotAllowed, PathNotFound, Unauthorized
 
 from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
+
+
+class SimulateTimeout(TimeoutError):
+    """Sentinel: simulate an httpx-style timeout on a mock route."""
+
+
+class SimulateConnectionError(ConnectionError):
+    """Sentinel: simulate an httpx-style transport/connection error on a mock route."""
+
+
+class SimulateRequestError(ConnectionError):
+    """Sentinel: simulate an httpx-style generic request error on a mock route."""
 
 
 class CallList(list):
@@ -194,12 +205,9 @@ def _raise_known_http_error(side_effect: object, request: web.Request) -> bool:
 
 def _raise_transport_failure(side_effect: object, request: web.Request) -> bool:
     if (
-        _matches_exception_type(side_effect, httpx.TimeoutException)
-        or _matches_exception_type(
-            side_effect,
-            httpx.TransportError,
-        )
-        or _matches_exception_type(side_effect, httpx.RequestError)
+        _matches_exception_type(side_effect, SimulateTimeout)
+        or _matches_exception_type(side_effect, SimulateConnectionError)
+        or _matches_exception_type(side_effect, SimulateRequestError)
     ):
         if request.transport is not None:
             request.transport.close()
