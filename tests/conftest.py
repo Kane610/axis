@@ -72,6 +72,13 @@ async def axis_companion_device(session: ClientSession) -> AxisDevice:
 #   aiohttp_mock_server      - direct handler or static-payload tests
 #   http_route_mock          - route-registration tests (single device)
 #   http_route_mock_factory  - route-registration tests (multi-device or explicit)
+#
+# Selection guidance:
+#   - Prefer http_route_mock when tests interact through vapix route methods.
+#   - Use http_route_mock_factory when a test needs explicit mock lifetime control
+#     or binds routes to more than one AxisDevice instance.
+#   - Use aiohttp_mock_server for low-level handler assertions, payload capture,
+#     or custom request processing not modeled by route registration.
 # ---------------------------------------------------------------------------
 
 
