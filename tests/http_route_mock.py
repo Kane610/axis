@@ -148,47 +148,50 @@ class HttpRouteMock:
         return self._routes.get((method, path))
 
 
-def _raise_side_effect(side_effect: object, request: web.Request) -> None:
-    if isinstance(side_effect, BaseException):
-        if isinstance(
+def _matches_exception_type(candidate: object, exc_type: type[BaseException]) -> bool:
+    return isinstance(candidate, exc_type) or (
+        isinstance(candidate, type) and issubclass(candidate, exc_type)
+    )
+
+
+def _raise_known_http_error(side_effect: object, request: web.Request) -> bool:
+    if _matches_exception_type(side_effect, Unauthorized):
+        raise web.HTTPUnauthorized
+    if _matches_exception_type(side_effect, Forbidden):
+        raise web.HTTPForbidden
+    if _matches_exception_type(side_effect, PathNotFound):
+        raise web.HTTPNotFound
+    if _matches_exception_type(side_effect, MethodNotAllowed):
+        raise web.HTTPMethodNotAllowed(
+            method=request.method, allowed_methods=[request.method]
+        )
+    return False
+
+
+def _raise_transport_failure(side_effect: object, request: web.Request) -> bool:
+    if (
+        _matches_exception_type(side_effect, httpx.TimeoutException)
+        or _matches_exception_type(
             side_effect,
-            (httpx.TimeoutException, httpx.TransportError, httpx.RequestError),
-        ):
-            if request.transport is not None:
-                request.transport.close()
-            message = "request failed"
-            raise ConnectionResetError(message)
-        if isinstance(side_effect, Unauthorized):
-            raise web.HTTPUnauthorized
-        if isinstance(side_effect, Forbidden):
-            raise web.HTTPForbidden
-        if isinstance(side_effect, PathNotFound):
-            raise web.HTTPNotFound
-        if isinstance(side_effect, MethodNotAllowed):
-            raise web.HTTPMethodNotAllowed(
-                method=request.method, allowed_methods=[request.method]
-            )
+            httpx.TransportError,
+        )
+        or _matches_exception_type(side_effect, httpx.RequestError)
+    ):
+        if request.transport is not None:
+            request.transport.close()
+        message = "request failed"
+        raise ConnectionResetError(message)
+    return False
+
+
+def _raise_side_effect(side_effect: object, request: web.Request) -> None:
+    _raise_transport_failure(side_effect, request)
+    _raise_known_http_error(side_effect, request)
+
+    if isinstance(side_effect, BaseException):
         raise side_effect
 
     if isinstance(side_effect, type) and issubclass(side_effect, BaseException):
-        if issubclass(
-            side_effect,
-            (httpx.TimeoutException, httpx.TransportError, httpx.RequestError),
-        ):
-            if request.transport is not None:
-                request.transport.close()
-            message = "request failed"
-            raise ConnectionResetError(message)
-        if issubclass(side_effect, Unauthorized):
-            raise web.HTTPUnauthorized
-        if issubclass(side_effect, Forbidden):
-            raise web.HTTPForbidden
-        if issubclass(side_effect, PathNotFound):
-            raise web.HTTPNotFound
-        if issubclass(side_effect, MethodNotAllowed):
-            raise web.HTTPMethodNotAllowed(
-                method=request.method, allowed_methods=[request.method]
-            )
         try:
             raise side_effect()
         except TypeError as err:
