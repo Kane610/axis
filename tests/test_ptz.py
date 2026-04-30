@@ -9,17 +9,9 @@ from axis.models.ptz_cgi import PtzMove, PtzQuery, PtzRotation, PtzState
 
 from .parameters.test_ptz import PTZ_RESPONSE
 
-from tests.http_route_mock import start_http_route_mock_server
-
 if TYPE_CHECKING:
     from axis.device import AxisDevice
     from axis.interfaces.ptz import PtzControl
-
-
-@pytest.fixture
-async def http_route_mock(aiohttp_mock_server, axis_device_aiohttp: AxisDevice):
-    """Return an HTTP route mock backed by aiohttp_mock_server."""
-    return await start_http_route_mock_server(aiohttp_mock_server, axis_device_aiohttp)
 
 
 @pytest.fixture
