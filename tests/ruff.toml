@@ -16,7 +16,6 @@ known-first-party = [
 ]
 known-third-party = [
     "aiohttp",
-    "httpx",
     "pytest",
 ]
 forced-separate = [

@@ -16,15 +16,15 @@ from tests.mock_response_builder import build_response
 
 
 class SimulateTimeout(TimeoutError):
-    """Sentinel: simulate an httpx-style timeout on a mock route."""
+    """Sentinel: simulate a timeout on a mock route."""
 
 
 class SimulateConnectionError(ConnectionError):
-    """Sentinel: simulate an httpx-style transport/connection error on a mock route."""
+    """Sentinel: simulate a transport or connection error on a mock route."""
 
 
 class SimulateRequestError(ConnectionError):
-    """Sentinel: simulate an httpx-style generic request error on a mock route."""
+    """Sentinel: simulate a generic request error on a mock route."""
 
 
 class CallList(list):
