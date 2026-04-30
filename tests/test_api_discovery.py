@@ -3,11 +3,9 @@
 pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discovery.py
 """
 
-from axis.device import AxisDevice
-from axis.models.api_discovery import ApiId, ApiStatus
-from axis.models.configuration import Configuration
+import json
 
-from .conftest import HOST, PASS, USER
+from axis.models.api_discovery import ApiId, ApiStatus
 
 
 async def test_api_id_enum():
@@ -20,33 +18,20 @@ async def test_api_status_enum():
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
-async def test_get_api_list(aiohttp_mock_server, session):
+async def test_get_api_list(http_route_mock, axis_device):
     """Test get_api_list call."""
-    axis_device = AxisDevice(
-        Configuration(
-            session,
-            HOST,
-            port=80,
-            username=USER,
-            password=PASS,
-        )
+    route = http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+        json=GET_API_LIST_RESPONSE,
     )
     api_discovery = axis_device.vapix.api_discovery
-
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/apidiscovery.cgi",
-        response=GET_API_LIST_RESPONSE,
-        device=axis_device,
-        capture_payload=True,
-    )
 
     assert api_discovery.supported
     await api_discovery.update()
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/apidiscovery.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/apidiscovery.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "method": "getApiList",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -63,32 +48,19 @@ async def test_get_api_list(aiohttp_mock_server, session):
     assert item.version == "1.0"
 
 
-async def test_get_supported_versions(aiohttp_mock_server, session):
+async def test_get_supported_versions(http_route_mock, axis_device):
     """Test get_supported_versions."""
-    axis_device = AxisDevice(
-        Configuration(
-            session,
-            HOST,
-            port=80,
-            username=USER,
-            password=PASS,
-        )
+    route = http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
     api_discovery = axis_device.vapix.api_discovery
 
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/apidiscovery.cgi",
-        response=GET_SUPPORTED_VERSIONS_RESPONSE,
-        device=axis_device,
-        capture_payload=True,
-    )
-
     response = await api_discovery.get_supported_versions()
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/apidiscovery.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/apidiscovery.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "context": "Axis library",
         "method": "getSupportedVersions",
     }
