@@ -13,6 +13,7 @@ from axis.device import AxisDevice
 from axis.models.configuration import Configuration
 
 from tests.http_route_mock import HttpRouteMock, start_http_route_mock_server
+from tests.mock_response_builder import build_response
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -225,21 +226,11 @@ def aiohttp_mock_server(aiohttp_server):
                             pass
                     requests.append(req_entry)
 
-                if isinstance(resp_data, dict):
-                    return web.json_response(resp_data, status=resp_status)
-                if isinstance(resp_data, str):
-                    return web.Response(
-                        text=resp_data,
-                        status=resp_status,
-                        headers=resp_headers,
-                    )
-                if isinstance(resp_data, bytes):
-                    return web.Response(
-                        body=resp_data,
-                        status=resp_status,
-                        headers=resp_headers,
-                    )
-                return web.Response(status=resp_status, headers=resp_headers)
+                return build_response(
+                    resp_data,
+                    status=resp_status,
+                    headers=resp_headers,
+                )
 
             return _auto_handler
 

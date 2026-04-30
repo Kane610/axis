@@ -11,6 +11,8 @@ import httpx
 
 from axis.errors import Forbidden, MethodNotAllowed, PathNotFound, Unauthorized
 
+from tests.mock_response_builder import build_response
+
 
 class CallList(list):
     """List of captured calls with a respx-like `.last` shortcut."""
@@ -67,25 +69,16 @@ class Route:
 
     def make_response(self) -> web.Response:
         """Build aiohttp response from configured route state."""
-        if self._json is not None:
-            return web.json_response(
-                self._json,
-                status=self._status_code,
-                headers=self._headers,
-            )
-        if self._text is not None:
-            return web.Response(
-                text=self._text,
-                status=self._status_code,
-                headers=self._headers,
-            )
-        if self._content is not None:
-            return web.Response(
-                body=self._content,
-                status=self._status_code,
-                headers=self._headers,
-            )
-        return web.Response(status=self._status_code, headers=self._headers)
+        response_data = self._json
+        if response_data is None:
+            response_data = self._text
+        if response_data is None:
+            response_data = self._content
+        return build_response(
+            response_data,
+            status=self._status_code,
+            headers=self._headers,
+        )
 
 
 class MultiRoute:
