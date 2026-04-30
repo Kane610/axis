@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 
 from typing import TYPE_CHECKING
 
-import httpx
 import pytest
 
 from axis.errors import (
@@ -34,6 +33,11 @@ from .applications.test_motion_guard import (
 )
 from .applications.test_vmd4 import GET_CONFIGURATION_RESPONSE as VMD4_RESPONSE
 from .event_fixtures import EVENT_INSTANCES
+from .http_route_mock import (
+    SimulateConnectionError,
+    SimulateRequestError,
+    SimulateTimeout,
+)
 from .parameters.test_param_cgi import PARAM_RESPONSE as PARAM_CGI_RESPONSE
 from .test_api_discovery import GET_API_LIST_RESPONSE as API_DISCOVERY_RESPONSE
 from .test_basic_device_info import (
@@ -635,7 +639,7 @@ async def test_request_raises(http_route_mock, vapix: Vapix, code, error):
 
 
 @pytest.mark.parametrize(
-    "side_effect", [httpx.TimeoutException, httpx.TransportError, httpx.RequestError]
+    "side_effect", [SimulateTimeout, SimulateConnectionError, SimulateRequestError]
 )
 async def test_request_side_effects(http_route_mock, vapix: Vapix, side_effect):
     """Test request side effects."""
