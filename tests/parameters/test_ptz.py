@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-from aiohttp import web
 import pytest
 
 if TYPE_CHECKING:
@@ -1599,23 +1598,21 @@ def ptz_handler(axis_device_aiohttp: AxisDevice) -> PtzParameterHandler:
 
 
 async def _setup_param_route(
-    aiohttp_server, ptz_handler: PtzParameterHandler, ptz_response: str
+    aiohttp_mock_server,
+    ptz_handler: PtzParameterHandler,
+    ptz_response: str,
 ) -> None:
-    async def handle_param(_: web.Request) -> web.Response:
-        return web.Response(
-            body=ptz_response.encode("iso-8859-1"),
-            headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-        )
-
-    app = web.Application()
-    app.router.add_post("/axis-cgi/param.cgi", handle_param)
-    server = await aiohttp_server(app)
-    ptz_handler.vapix.device.config.port = server.port
+    _server, _requests = await aiohttp_mock_server(
+        "/axis-cgi/param.cgi",
+        response=ptz_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=ptz_handler,
+    )
 
 
-async def test_update_ptz(aiohttp_server, ptz_handler: PtzParameterHandler):
+async def test_update_ptz(aiohttp_mock_server, ptz_handler: PtzParameterHandler):
     """Verify that update ptz works."""
-    await _setup_param_route(aiohttp_server, ptz_handler, PTZ_RESPONSE)
+    await _setup_param_route(aiohttp_mock_server, ptz_handler, PTZ_RESPONSE)
     assert not ptz_handler.initialized
 
     await ptz_handler.update()
@@ -1711,12 +1708,14 @@ async def test_update_ptz(aiohttp_server, ptz_handler: PtzParameterHandler):
         PTZ_11_9_Q1798_RESPONSE,
     ],
 )
-async def test_ptz_5_51(aiohttp_server, ptz_handler: PtzParameterHandler, ptz_response):
+async def test_ptz_5_51(
+    aiohttp_mock_server, ptz_handler: PtzParameterHandler, ptz_response
+):
     """Verify that update ptz works.
 
     Max/Min Field Angle not reported.
     NbrOfCameras not reported.
     """
-    await _setup_param_route(aiohttp_server, ptz_handler, ptz_response)
+    await _setup_param_route(aiohttp_mock_server, ptz_handler, ptz_response)
 
     await ptz_handler.update()
