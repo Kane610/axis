@@ -15,12 +15,12 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def pir_sensor_configuration(
-    axis_device_aiohttp: AxisDevice,
+    axis_device: AxisDevice,
 ) -> PirSensorConfigurationHandler:
     """Return the pir_sensor_configuration mock object."""
-    axis_device_aiohttp.vapix.api_discovery = api_discovery_mock = MagicMock()
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
-    return axis_device_aiohttp.vapix.pir_sensor_configuration
+    return axis_device.vapix.pir_sensor_configuration
 
 
 async def _setup_pirsensor_route(

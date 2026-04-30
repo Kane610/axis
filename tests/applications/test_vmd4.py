@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def vmd4(axis_device_aiohttp) -> Vmd4Handler:
+def vmd4(axis_device) -> Vmd4Handler:
     """Return the vmd4 mock object."""
-    return axis_device_aiohttp.vapix.vmd4
+    return axis_device.vapix.vmd4
 
 
 async def test_get_empty_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):

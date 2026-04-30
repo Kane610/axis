@@ -18,9 +18,9 @@ root.IOPort.I0.Input.Trig=closed
 
 
 @pytest.fixture
-def io_port_handler(axis_device_aiohttp: AxisDevice) -> IOPortParameterHandler:
+def io_port_handler(axis_device: AxisDevice) -> IOPortParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device_aiohttp.vapix.params.io_port_handler
+    return axis_device.vapix.params.io_port_handler
 
 
 async def test_port_action_enum():

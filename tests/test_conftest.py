@@ -17,11 +17,9 @@ class TestHttpRouteMock:
         """http_route_mock returns an HttpRouteMock."""
         assert isinstance(http_route_mock, HttpRouteMock)
 
-    async def test_device_port_is_bound(
-        self, http_route_mock, axis_device_aiohttp: AxisDevice
-    ):
-        """http_route_mock binds the mock server port to axis_device_aiohttp."""
-        assert axis_device_aiohttp.config.port != 0
+    async def test_device_port_is_bound(self, http_route_mock, axis_device: AxisDevice):
+        """http_route_mock binds the mock server port to axis_device."""
+        assert axis_device.config.port != 0
 
     async def test_post_route_can_be_registered(self, http_route_mock):
         """Routes registered via .post() are resolvable."""
@@ -53,47 +51,43 @@ class TestHttpRouteMockFactory:
     """Validate the multi-device http_route_mock_factory fixture contract."""
 
     async def test_single_device_binding(
-        self, http_route_mock_factory, axis_device_aiohttp: AxisDevice
+        self, http_route_mock_factory, axis_device: AxisDevice
     ):
         """Factory with one device binds that device's port."""
-        mock = await http_route_mock_factory(axis_device_aiohttp)
+        mock = await http_route_mock_factory(axis_device)
         assert isinstance(mock, HttpRouteMock)
-        assert axis_device_aiohttp.config.port != 0
+        assert axis_device.config.port != 0
 
     async def test_multi_device_binding_shares_server(
         self,
         http_route_mock_factory,
-        axis_device_aiohttp: AxisDevice,
-        axis_companion_device_aiohttp: AxisDevice,
+        axis_device: AxisDevice,
+        axis_companion_device: AxisDevice,
     ):
         """Factory with two devices binds both to the same mock server port."""
-        mock = await http_route_mock_factory(
-            axis_device_aiohttp, axis_companion_device_aiohttp
-        )
+        mock = await http_route_mock_factory(axis_device, axis_companion_device)
         assert isinstance(mock, HttpRouteMock)
-        assert axis_device_aiohttp.config.port != 0
-        assert axis_companion_device_aiohttp.config.port != 0
-        assert (
-            axis_device_aiohttp.config.port == axis_companion_device_aiohttp.config.port
-        )
+        assert axis_device.config.port != 0
+        assert axis_companion_device.config.port != 0
+        assert axis_device.config.port == axis_companion_device.config.port
 
     async def test_factory_returns_independent_mocks(
         self,
         http_route_mock_factory,
-        axis_device_aiohttp: AxisDevice,
-        axis_companion_device_aiohttp: AxisDevice,
+        axis_device: AxisDevice,
+        axis_companion_device: AxisDevice,
     ):
         """Each factory call returns a fresh HttpRouteMock with empty route registry."""
-        mock_a = await http_route_mock_factory(axis_device_aiohttp)
-        mock_b = await http_route_mock_factory(axis_companion_device_aiohttp)
+        mock_a = await http_route_mock_factory(axis_device)
+        mock_b = await http_route_mock_factory(axis_companion_device)
         mock_a.post("/axis-cgi/a.cgi").respond(json={})
         assert mock_b.resolve("POST", "/axis-cgi/a.cgi") is None
 
     async def test_route_mock_api_surface(
-        self, http_route_mock_factory, axis_device_aiohttp: AxisDevice
+        self, http_route_mock_factory, axis_device: AxisDevice
     ):
         """HttpRouteMock exposes the expected public API surface."""
-        mock = await http_route_mock_factory(axis_device_aiohttp)
+        mock = await http_route_mock_factory(axis_device)
         assert hasattr(mock, "post")
         assert hasattr(mock, "get")
         assert hasattr(mock, "resolve")

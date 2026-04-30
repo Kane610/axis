@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def loitering_guard(axis_device_aiohttp) -> LoiteringGuardHandler:
+def loitering_guard(axis_device) -> LoiteringGuardHandler:
     """Return the loitering guard mock object."""
-    return axis_device_aiohttp.vapix.loitering_guard
+    return axis_device.vapix.loitering_guard
 
 
 async def test_get_empty_configuration(

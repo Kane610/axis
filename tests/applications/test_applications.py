@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def applications(axis_device_aiohttp) -> ApplicationsHandler:
+def applications(axis_device) -> ApplicationsHandler:
     """Return the applications mock object."""
-    return axis_device_aiohttp.vapix.applications
+    return axis_device.vapix.applications
 
 
 async def test_update_no_application(

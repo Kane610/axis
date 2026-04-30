@@ -21,9 +21,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def event_instances(axis_device_aiohttp) -> EventInstanceHandler:
+def event_instances(axis_device) -> EventInstanceHandler:
     """Return the event_instances mock object."""
-    return axis_device_aiohttp.vapix.event_instances
+    return axis_device.vapix.event_instances
 
 
 async def test_full_list_of_event_instances(aiohttp_mock_server, event_instances):

@@ -16,11 +16,11 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def mqtt_client(axis_device_aiohttp: AxisDevice) -> MqttClientHandler:
+def mqtt_client(axis_device: AxisDevice) -> MqttClientHandler:
     """Return the mqtt_client mock object."""
-    axis_device_aiohttp.vapix.api_discovery = api_discovery_mock = MagicMock()
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
-    return axis_device_aiohttp.vapix.mqtt
+    return axis_device.vapix.mqtt
 
 
 async def _setup_mqtt_route(

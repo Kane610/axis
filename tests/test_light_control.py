@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-async def light_control(axis_device_aiohttp: AxisDevice) -> LightHandler:
+async def light_control(axis_device: AxisDevice) -> LightHandler:
     """Return the light_control mock object."""
-    axis_device_aiohttp.vapix.api_discovery._items = {
+    axis_device.vapix.api_discovery._items = {
         api.id: api
         for api in [
             Api.decode(
@@ -31,7 +31,7 @@ async def light_control(axis_device_aiohttp: AxisDevice) -> LightHandler:
             )
         ]
     }
-    return axis_device_aiohttp.vapix.light_control
+    return axis_device.vapix.light_control
 
 
 async def test_update(http_route_mock, light_control):

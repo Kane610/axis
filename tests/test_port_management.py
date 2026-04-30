@@ -10,9 +10,9 @@ from axis.models.port_management import PortConfiguration, Sequence
 
 
 @pytest.fixture
-def io_port_management(axis_device_aiohttp) -> IoPortManagement:
+def io_port_management(axis_device) -> IoPortManagement:
     """Return the io_port_management mock object."""
-    return IoPortManagement(axis_device_aiohttp.vapix)
+    return IoPortManagement(axis_device.vapix)
 
 
 async def test_get_ports(aiohttp_mock_server, io_port_management):

@@ -16,11 +16,11 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def view_areas(axis_device_aiohttp: AxisDevice) -> ViewAreaHandler:
+def view_areas(axis_device: AxisDevice) -> ViewAreaHandler:
     """Return the view_areas mock object."""
-    axis_device_aiohttp.vapix.api_discovery = api_discovery_mock = MagicMock()
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
-    return axis_device_aiohttp.vapix.view_areas
+    return axis_device.vapix.view_areas
 
 
 async def test_list_view_areas(http_route_mock, view_areas: ViewAreaHandler):

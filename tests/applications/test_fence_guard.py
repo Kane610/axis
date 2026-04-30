@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def fence_guard(axis_device_aiohttp) -> FenceGuardHandler:
+def fence_guard(axis_device) -> FenceGuardHandler:
     """Return the fence guard mock object."""
-    return axis_device_aiohttp.vapix.fence_guard
+    return axis_device.vapix.fence_guard
 
 
 async def test_get_empty_configuration(

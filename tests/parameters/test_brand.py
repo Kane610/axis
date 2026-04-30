@@ -26,9 +26,9 @@ root.Brand.WebURL=http://www.axis.com/
 
 
 @pytest.fixture
-def brand_handler(axis_device_aiohttp: AxisDevice) -> BrandParameterHandler:
+def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device_aiohttp.vapix.params.brand_handler
+    return axis_device.vapix.params.brand_handler
 
 
 async def _setup_param_route(

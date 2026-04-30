@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def ptz_control_handler(axis_device_aiohttp: AxisDevice) -> PtzControl:
+def ptz_control_handler(axis_device: AxisDevice) -> PtzControl:
     """Return the PTZ control mock object."""
-    return axis_device_aiohttp.vapix.ptz
+    return axis_device.vapix.ptz
 
 
 async def test_ptz_control_handler(http_route_mock, ptz_control_handler: PtzControl):

@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def users(axis_device_aiohttp) -> Users:
+def users(axis_device) -> Users:
     """Return the api_discovery mock object."""
-    return axis_device_aiohttp.vapix.users
+    return axis_device.vapix.users
 
 
 async def _setup_pwdgrp_route(

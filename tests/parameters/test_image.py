@@ -223,9 +223,9 @@ root.Image.I0.Stream.Duration=0
 
 
 @pytest.fixture
-def image_handler(axis_device_aiohttp: AxisDevice) -> ImageParameterHandler:
+def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device_aiohttp.vapix.params.image_handler
+    return axis_device.vapix.params.image_handler
 
 
 async def _setup_param_route(

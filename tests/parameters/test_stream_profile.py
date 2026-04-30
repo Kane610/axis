@@ -21,10 +21,10 @@ root.StreamProfile.S1.Parameters=videocodec=h265"""
 
 @pytest.fixture
 def stream_profile_handler(
-    axis_device_aiohttp: AxisDevice,
+    axis_device: AxisDevice,
 ) -> StreamProfileParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device_aiohttp.vapix.params.stream_profile_handler
+    return axis_device.vapix.params.stream_profile_handler
 
 
 async def test_stream_profile_handler(

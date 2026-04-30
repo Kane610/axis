@@ -44,7 +44,7 @@ async def aiohttp_session() -> ClientSession:
 
 
 @pytest.fixture
-async def axis_device_aiohttp(aiohttp_session: ClientSession) -> AxisDevice:
+async def axis_device(aiohttp_session: ClientSession) -> AxisDevice:
     """Return an AxisDevice backed by aiohttp ClientSession."""
     return AxisDevice(
         Configuration(aiohttp_session, HOST, username=USER, password=PASS)
@@ -52,7 +52,7 @@ async def axis_device_aiohttp(aiohttp_session: ClientSession) -> AxisDevice:
 
 
 @pytest.fixture
-async def axis_companion_device_aiohttp(aiohttp_session: ClientSession) -> AxisDevice:
+async def axis_companion_device(aiohttp_session: ClientSession) -> AxisDevice:
     """Return a companion AxisDevice backed by aiohttp ClientSession."""
     return AxisDevice(
         Configuration(
@@ -69,71 +69,10 @@ async def axis_companion_device_aiohttp(aiohttp_session: ClientSession) -> AxisD
 # HTTP mocking infrastructure
 #
 # Three layers, each suited to a different case:
-#   aiohttp_request_capture  - raw handler/response testing with request log
 #   aiohttp_mock_server      - direct handler or static-payload tests
 #   http_route_mock          - route-registration tests (single device)
 #   http_route_mock_factory  - route-registration tests (multi-device or explicit)
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def aiohttp_request_capture() -> tuple[
-    list[dict[str, str]], Callable[..., Callable[[web.Request], web.Response]]
-]:
-    """Return request log and a handler factory for aiohttp_server routes."""
-    requests: list[dict[str, str]] = []
-
-    def make_handler(
-        *,
-        status: int = 200,
-        body: bytes = b"",
-        text: str | None = None,
-        headers: dict[str, str] | None = None,
-    ):
-        async def _handler(request: web.Request) -> web.Response:
-            requests.append(
-                {
-                    "method": request.method,
-                    "path": request.path,
-                    "query": request.query_string,
-                }
-            )
-            if text is not None:
-                return web.Response(status=status, text=text, headers=headers)
-
-            return web.Response(status=status, body=body, headers=headers)
-
-        return _handler
-
-    return requests, make_handler
-
-
-@pytest.fixture
-async def axis_device(aiohttp_session: ClientSession) -> AxisDevice:
-    """Return the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    return AxisDevice(
-        Configuration(aiohttp_session, HOST, username=USER, password=PASS)
-    )
-
-
-@pytest.fixture
-async def axis_companion_device(aiohttp_session: ClientSession) -> AxisDevice:
-    """Return the axis device.
-
-    Clean up sessions automatically at the end of each test.
-    """
-    return AxisDevice(
-        Configuration(
-            aiohttp_session,
-            HOST,
-            username=USER,
-            password=PASS,
-            is_companion=True,
-        )
-    )
 
 
 class TcpServerProtocol(asyncio.Protocol):
@@ -380,9 +319,9 @@ def http_route_mock_factory(aiohttp_mock_server) -> HttpRouteMock:
 
 @pytest.fixture
 async def http_route_mock(
-    http_route_mock_factory, axis_device_aiohttp: AxisDevice
+    http_route_mock_factory, axis_device: AxisDevice
 ) -> HttpRouteMock:
-    """Single-device HttpRouteMock auto-bound to axis_device_aiohttp.
+    """Single-device HttpRouteMock auto-bound to axis_device.
 
     Use for common route-registration tests against a single device.
     For multi-device tests use http_route_mock_factory instead.
@@ -392,7 +331,7 @@ async def http_route_mock(
         async def test_example(http_route_mock):
             http_route_mock.post("/axis-cgi/example.cgi").respond(json={"data": []})
     """
-    return await http_route_mock_factory(axis_device_aiohttp)
+    return await http_route_mock_factory(axis_device)
 
 
 # ---------------------------------------------------------------------------

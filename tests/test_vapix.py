@@ -51,26 +51,26 @@ if TYPE_CHECKING:
 @pytest.fixture
 async def http_route_mock(
     http_route_mock_factory,
-    axis_device_aiohttp: AxisDevice,
-    axis_companion_device_aiohttp: AxisDevice,
+    axis_device: AxisDevice,
+    axis_companion_device: AxisDevice,
 ):
     """Return an HTTP route mock for two devices backed by aiohttp_mock_server."""
     return await http_route_mock_factory(
-        axis_device_aiohttp,
-        axis_companion_device_aiohttp,
+        axis_device,
+        axis_companion_device,
     )
 
 
 @pytest.fixture
-def vapix(axis_device_aiohttp: AxisDevice) -> Vapix:
+def vapix(axis_device: AxisDevice) -> Vapix:
     """Return the vapix object."""
-    return axis_device_aiohttp.vapix
+    return axis_device.vapix
 
 
 @pytest.fixture
-def vapix_companion_device(axis_companion_device_aiohttp: AxisDevice) -> Vapix:
+def vapix_companion_device(axis_companion_device: AxisDevice) -> Vapix:
     """Return the vapix object."""
-    return axis_companion_device_aiohttp.vapix
+    return axis_companion_device.vapix
 
 
 def test_vapix_not_initialized(vapix: Vapix) -> None:

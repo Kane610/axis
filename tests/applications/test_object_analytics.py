@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def object_analytics(axis_device_aiohttp) -> ObjectAnalyticsHandler:
+def object_analytics(axis_device) -> ObjectAnalyticsHandler:
     """Return the object analytics mock object."""
-    return axis_device_aiohttp.vapix.object_analytics
+    return axis_device.vapix.object_analytics
 
 
 async def test_get_no_configuration(aiohttp_mock_server, object_analytics):

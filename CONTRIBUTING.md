@@ -136,8 +136,8 @@ Tests live in `tests/` and mirror the `axis/` structure. Use the nearest relevan
 
 Reuse the async device fixtures from [`tests/conftest.py`](tests/conftest.py):
 
-- `axis_device_aiohttp` for single-device tests.
-- `axis_companion_device_aiohttp` for companion/multi-device tests.
+- `axis_device` for single-device tests.
+- `axis_companion_device` for companion/multi-device tests.
 
 ### HTTP mocking layers
 
@@ -146,11 +146,9 @@ Choose the fixture layer based on test scope and assertion needs:
 - Prefer `aiohttp_mock_server` for most new direct endpoint tests.
 - Prefer `http_route_mock` for single-device route-registration tests.
 - Use `http_route_mock_factory` only when you need explicit multi-device binding.
-- Use `aiohttp_request_capture` only for low-level/manual aiohttp handler tests.
 
 | Fixture | Use when | Avoid when |
 |---|---|---|
-| `aiohttp_request_capture` | Low-level request/response handler tests where you need manual aiohttp setup | Standard VAPIX handler tests with normal route registration |
 | `aiohttp_mock_server` | Direct endpoint/static payload tests, custom handler tests, payload/body capture tests | Complex route-sequence tests that benefit from fluent route registration |
 | `http_route_mock` | Common single-device route-registration tests with call-history assertions | Multi-device tests |
 | `http_route_mock_factory` | Multi-device or explicit device-binding route-registration tests | Single-device tests where `http_route_mock` is simpler |
@@ -158,13 +156,13 @@ Choose the fixture layer based on test scope and assertion needs:
 Use `aiohttp_mock_server` for most new direct endpoint tests:
 
 ```python
-async def test_something(aiohttp_mock_server, axis_device_aiohttp):
+async def test_something(aiohttp_mock_server, axis_device):
     server, requests = await aiohttp_mock_server(
         "/axis-cgi/example.cgi",
         response={"data": []},
-        device=axis_device_aiohttp,
+        device=axis_device,
     )
-    assert server.port == axis_device_aiohttp.config.port
+    assert server.port == axis_device.config.port
     assert requests is not None
 ```
 
@@ -182,12 +180,12 @@ Use `http_route_mock_factory` for multi-device tests:
 ```python
 async def test_multi_device(
     http_route_mock_factory,
-    axis_device_aiohttp,
-    axis_companion_device_aiohttp,
+    axis_device,
+    axis_companion_device,
 ):
     mock = await http_route_mock_factory(
-        axis_device_aiohttp,
-        axis_companion_device_aiohttp,
+        axis_device,
+        axis_companion_device,
     )
     mock.post("/axis-cgi/example.cgi").respond(json={"data": []})
 ```

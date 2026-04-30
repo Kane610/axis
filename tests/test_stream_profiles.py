@@ -11,11 +11,11 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def stream_profiles(axis_device_aiohttp: AxisDevice) -> StreamProfilesHandler:
+def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
     """Return the stream_profiles mock object."""
-    axis_device_aiohttp.vapix.api_discovery = api_discovery_mock = MagicMock()
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
-    return axis_device_aiohttp.vapix.stream_profiles
+    return axis_device.vapix.stream_profiles
 
 
 async def test_list_stream_profiles(

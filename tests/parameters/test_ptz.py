@@ -1592,9 +1592,9 @@ root.PTZ.Various.V8.CtlQueuePollTime=20
 
 
 @pytest.fixture
-def ptz_handler(axis_device_aiohttp: AxisDevice) -> PtzParameterHandler:
+def ptz_handler(axis_device: AxisDevice) -> PtzParameterHandler:
     """Return the PTZ control mock object."""
-    return axis_device_aiohttp.vapix.params.ptz_handler
+    return axis_device.vapix.params.ptz_handler
 
 
 async def _setup_param_route(

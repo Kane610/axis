@@ -10,9 +10,9 @@ from axis.models.pwdgrp_cgi import SecondaryGroup
 
 
 @pytest.fixture
-def user_groups(axis_device_aiohttp) -> UserGroups:
+def user_groups(axis_device) -> UserGroups:
     """Return the user_groups mock object."""
-    return UserGroups(axis_device_aiohttp.vapix)
+    return UserGroups(axis_device.vapix)
 
 
 async def test_empty_response(aiohttp_mock_server, user_groups):

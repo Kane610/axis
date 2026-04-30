@@ -184,9 +184,9 @@ root.Properties.VirtualInput.VirtualInput=yes
 
 
 @pytest.fixture
-def property_handler(axis_device_aiohttp: AxisDevice) -> PropertyParameterHandler:
+def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
     """Return the param cgi mock object."""
-    return axis_device_aiohttp.vapix.params.property_handler
+    return axis_device.vapix.params.property_handler
 
 
 async def _setup_param_route(

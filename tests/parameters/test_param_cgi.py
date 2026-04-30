@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def param_handler(axis_device_aiohttp: AxisDevice) -> Params:
+def param_handler(axis_device: AxisDevice) -> Params:
     """Return the param cgi mock object."""
-    return axis_device_aiohttp.vapix.params
+    return axis_device.vapix.params
 
 
 async def test_parameter_group_enum():

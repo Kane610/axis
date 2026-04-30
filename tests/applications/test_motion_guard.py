@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def motion_guard(axis_device_aiohttp) -> MotionGuardHandler:
+def motion_guard(axis_device) -> MotionGuardHandler:
     """Return the motion guard mock object."""
-    return axis_device_aiohttp.vapix.motion_guard
+    return axis_device.vapix.motion_guard
 
 
 async def test_get_empty_configuration(
