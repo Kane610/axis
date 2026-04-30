@@ -206,7 +206,7 @@ def aiohttp_mock_server(aiohttp_server):
             (server, requests_list) or (server, None) if capture_requests=False
 
         """
-        requests: list[dict[str, object]] = [] if capture_requests else None
+        requests: list[dict[str, object]] | None = [] if capture_requests else None
 
         def make_auto_handler(resp_data, resp_status, resp_headers):
             """Create handler from response spec (eliminates manual handler code)."""
