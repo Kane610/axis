@@ -34,7 +34,6 @@ from .applications.test_motion_guard import (
 )
 from .applications.test_vmd4 import GET_CONFIGURATION_RESPONSE as VMD4_RESPONSE
 from .event_fixtures import EVENT_INSTANCES
-from .http_route_mock import start_http_route_mock_server
 from .parameters.test_param_cgi import PARAM_RESPONSE as PARAM_CGI_RESPONSE
 from .test_api_discovery import GET_API_LIST_RESPONSE as API_DISCOVERY_RESPONSE
 from .test_basic_device_info import (
@@ -51,13 +50,12 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 async def http_route_mock(
-    aiohttp_mock_server,
+    http_route_mock_factory,
     axis_device_aiohttp: AxisDevice,
     axis_companion_device_aiohttp: AxisDevice,
 ):
     """Return an HTTP route mock for two devices backed by aiohttp_mock_server."""
-    return await start_http_route_mock_server(
-        aiohttp_mock_server,
+    return await http_route_mock_factory(
         axis_device_aiohttp,
         axis_companion_device_aiohttp,
     )
