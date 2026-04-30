@@ -12,6 +12,8 @@ import pytest
 from axis.device import AxisDevice
 from axis.models.configuration import Configuration
 
+from tests.http_route_mock import HttpRouteMock, start_http_route_mock_server
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -23,12 +25,22 @@ PASS = "pass"
 RTSP_PORT = 8888
 
 
+# ---------------------------------------------------------------------------
+# Session fixtures
+# ---------------------------------------------------------------------------
+
+
 @pytest.fixture
 async def aiohttp_session() -> ClientSession:
     """Return a reusable aiohttp session for tests."""
     session = ClientSession()
     yield session
     await session.close()
+
+
+# ---------------------------------------------------------------------------
+# Device fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -51,6 +63,17 @@ async def axis_companion_device_aiohttp(aiohttp_session: ClientSession) -> AxisD
             is_companion=True,
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# HTTP mocking infrastructure
+#
+# Three layers, each suited to a different case:
+#   aiohttp_request_capture  - raw handler/response testing with request log
+#   aiohttp_mock_server      - direct handler or static-payload tests
+#   http_route_mock          - route-registration tests (single device)
+#   http_route_mock_factory  - route-registration tests (multi-device or explicit)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -334,6 +357,47 @@ def aiohttp_mock_server(aiohttp_server):
         return server, requests
 
     return _create_mock_server
+
+
+@pytest.fixture
+def http_route_mock_factory(aiohttp_mock_server) -> HttpRouteMock:
+    """Return an HttpRouteMock factory bound to one or more devices.
+
+    Use for multi-device tests or when http_route_mock (single-device) is insufficient.
+
+    Example::
+
+        async def test_multi(http_route_mock_factory, device_a, device_b):
+            mock = await http_route_mock_factory(device_a, device_b)
+            mock.post("/axis-cgi/example.cgi").respond(json={"data": []})
+    """
+
+    async def _factory(*devices) -> HttpRouteMock:
+        return await start_http_route_mock_server(aiohttp_mock_server, *devices)
+
+    return _factory
+
+
+@pytest.fixture
+async def http_route_mock(
+    http_route_mock_factory, axis_device_aiohttp: AxisDevice
+) -> HttpRouteMock:
+    """Single-device HttpRouteMock auto-bound to axis_device_aiohttp.
+
+    Use for common route-registration tests against a single device.
+    For multi-device tests use http_route_mock_factory instead.
+
+    Example::
+
+        async def test_example(http_route_mock):
+            http_route_mock.post("/axis-cgi/example.cgi").respond(json={"data": []})
+    """
+    return await http_route_mock_factory(axis_device_aiohttp)
+
+
+# ---------------------------------------------------------------------------
+# Network protocol fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
