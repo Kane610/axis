@@ -5,6 +5,7 @@ Fixture exposure (http_route_mock_factory, http_route_mock) lives in conftest.py
 """
 
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from aiohttp import web
 import httpx
@@ -37,6 +38,7 @@ class Route:
         self._json: dict | list | None = None
         self._text: str | None = None
         self._content: bytes | None = None
+        self._expected_content: bytes | None = None
         self._status_code = 200
         self._headers: dict[str, str] | None = None
 
@@ -44,6 +46,11 @@ class Route:
     def call_count(self) -> int:
         """Return number of times this route was invoked."""
         return len(self.calls)
+
+    def expects_content(self, expected_content: bytes | None) -> Route:
+        """Set optional expected request body for this route."""
+        self._expected_content = expected_content
+        return self
 
     def respond(
         self,
@@ -114,18 +121,35 @@ class HttpRouteMock:
         self._routes[key] = route
         return route
 
+    @staticmethod
+    def _normalize_expected_content(data: object | None) -> bytes | None:
+        if data is None:
+            return None
+        if isinstance(data, bytes):
+            return data
+        if isinstance(data, str):
+            return data.encode()
+        if isinstance(data, dict):
+            return urlencode(data).encode()
+        return None
+
     def _register(
         self,
         method: str,
         path: str,
         *,
         path__in: tuple[str, ...] | None = None,
+        data: object | None = None,
         **_: object,
     ) -> Route | MultiRoute:
+        expected_content = self._normalize_expected_content(data)
         if path__in:
-            routes = [self._add_route(method, alt_path) for alt_path in path__in]
+            routes = [
+                self._add_route(method, alt_path).expects_content(expected_content)
+                for alt_path in path__in
+            ]
             return MultiRoute(routes)
-        return self._add_route(method, path)
+        return self._add_route(method, path).expects_content(expected_content)
 
     def post(
         self,
@@ -217,13 +241,20 @@ async def start_http_route_mock_server(
         if route.side_effect is not None:
             _raise_side_effect(route.side_effect, request)
 
-        route.called = True
         content = await request.read()
+        if route._expected_content is not None and content != route._expected_content:
+            return web.Response(status=404)
+
+        route.called = True
         params = dict(request.rel_url.query)
         call = SimpleNamespace(
             request=SimpleNamespace(
                 method=request.method,
-                url=SimpleNamespace(path=request.path, params=params),
+                url=SimpleNamespace(
+                    path=request.path,
+                    params=params,
+                    query=request.query_string,
+                ),
                 content=content,
             )
         )
