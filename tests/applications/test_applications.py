@@ -40,11 +40,12 @@ async def test_update_single_application(
     aiohttp_mock_server, applications: ApplicationsHandler
 ):
     """Test update applications call."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/applications/list.cgi",
         response=LIST_APPLICATION_RESPONSE,
         headers={"Content-Type": "text/xml"},
         device=applications,
+        capture_requests=False,
     )
 
     await applications.update()
@@ -71,11 +72,12 @@ async def test_update_multiple_applications(
     aiohttp_mock_server, applications: ApplicationsHandler
 ):
     """Test update applicatios call."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/applications/list.cgi",
         response=LIST_APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
         device=applications,
+        capture_requests=False,
     )
 
     await applications.update()
@@ -187,11 +189,12 @@ async def test_responses_with_with_limitations(
     aiohttp_mock_server, applications: ApplicationsHandler
 ):
     """Test update applications call."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/applications/list.cgi",
         response=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
         device=applications,
+        capture_requests=False,
     )
 
     await applications.update()

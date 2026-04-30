@@ -48,10 +48,11 @@ async def test_get_no_configuration(aiohttp_mock_server, object_analytics):
 
 async def test_get_empty_configuration(aiohttp_mock_server, object_analytics):
     """Test empty get_configuration."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/local/objectanalytics/control.cgi",
         response=GET_CONFIGURATION_EMPTY_RESPONSE,
         device=object_analytics,
+        capture_requests=False,
     )
 
     await object_analytics.update()
@@ -61,10 +62,11 @@ async def test_get_empty_configuration(aiohttp_mock_server, object_analytics):
 
 async def test_get_configuration(aiohttp_mock_server, object_analytics):
     """Test get_configuration."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/local/objectanalytics/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,
         device=object_analytics,
+        capture_requests=False,
     )
 
     await object_analytics.update()

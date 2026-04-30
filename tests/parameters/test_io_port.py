@@ -37,11 +37,12 @@ async def test_io_port_handler(
     aiohttp_mock_server, io_port_handler: IOPortParameterHandler
 ):
     """Verify that update brand works."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=PORT_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
         device=io_port_handler,
+        capture_requests=False,
     )
 
     assert not io_port_handler.initialized

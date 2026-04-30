@@ -194,11 +194,12 @@ async def _setup_param_route(
     property_handler: PropertyParameterHandler,
     property_response: str,
 ) -> None:
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=property_response.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
         device=property_handler,
+        capture_requests=False,
     )
 
 

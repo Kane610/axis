@@ -42,10 +42,11 @@ async def test_get_empty_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
 
 async def test_get_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
     """Test get_supported_versions."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/local/vmd/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,
         device=vmd4,
+        capture_requests=False,
     )
 
     await vmd4.update()

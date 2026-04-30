@@ -56,7 +56,7 @@ async def test_list_stream_profiles_no_profiles(
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/streamprofile.cgi",
         response={
             "method": "list",
@@ -67,6 +67,7 @@ async def test_list_stream_profiles_no_profiles(
             },
         },
         device=stream_profiles,
+        capture_requests=False,
     )
 
     await stream_profiles.update()

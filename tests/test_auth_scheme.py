@@ -35,11 +35,12 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server):
         )
     )
 
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/basicdeviceinfo.cgi",
         handler=handle_basic_device_info,
         method="GET",
         device=axis_device,
+        capture_requests=False,
     )
 
     assert axis_device.vapix.auth is None
@@ -79,11 +80,12 @@ async def test_auth_scheme_digest_does_not_fallback(aiohttp_mock_server):
         )
     )
 
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/basicdeviceinfo.cgi",
         handler=handle_basic_device_info,
         method="GET",
         device=axis_device,
+        capture_requests=False,
     )
 
     try:

@@ -72,10 +72,11 @@ async def test_get_ports(aiohttp_mock_server, io_port_management):
 
 async def test_get_empty_ports_response(aiohttp_mock_server, io_port_management):
     """Test get_ports call."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/io/portmanagement.cgi",
         response=GET_EMPTY_PORTS_RESPONSE,
         device=io_port_management,
+        capture_requests=False,
     )
 
     await io_port_management.update()

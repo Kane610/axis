@@ -34,11 +34,12 @@ def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
 async def _setup_param_route(
     aiohttp_mock_server, brand_handler: BrandParameterHandler, response_content: str
 ) -> None:
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=response_content.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
         device=brand_handler,
+        capture_requests=False,
     )
 
 

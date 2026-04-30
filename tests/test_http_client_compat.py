@@ -33,11 +33,12 @@ async def test_aiohttp_client_session_request(aiohttp_mock_server: Any) -> None:
         )
     )
 
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/basicdeviceinfo.cgi",
         handler=handle,
         method="GET",
         device=axis_device,
+        capture_requests=False,
     )
 
     try:
@@ -81,11 +82,12 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
         )
     )
 
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/basicdeviceinfo.cgi",
         handler=handle,
         method="GET",
         device=axis_device,
+        capture_requests=False,
     )
 
     try:
@@ -123,11 +125,12 @@ async def test_aiohttp_client_session_auto_initializes_digest_middleware(
         )
     )
 
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/basicdeviceinfo.cgi",
         handler=handle,
         method="GET",
         device=axis_device,
+        capture_requests=False,
     )
 
     try:
@@ -163,11 +166,12 @@ async def test_aiohttp_client_session_digest_initializes_digest_middleware(
         )
     )
 
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/basicdeviceinfo.cgi",
         handler=handle,
         method="GET",
         device=axis_device,
+        capture_requests=False,
     )
 
     try:

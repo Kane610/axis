@@ -44,10 +44,11 @@ async def test_get_empty_configuration(
 
 async def test_get_configuration(aiohttp_mock_server, motion_guard: MotionGuardHandler):
     """Test get_configuration."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/local/motionguard/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,
         device=motion_guard,
+        capture_requests=False,
     )
 
     await motion_guard.update()

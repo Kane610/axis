@@ -46,10 +46,11 @@ async def test_get_configuration(
     aiohttp_mock_server, loitering_guard: LoiteringGuardHandler
 ):
     """Test get_configuration."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/local/loiteringguard/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,
         device=loitering_guard,
+        capture_requests=False,
     )
 
     await loitering_guard.update()

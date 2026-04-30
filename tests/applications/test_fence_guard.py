@@ -44,10 +44,11 @@ async def test_get_empty_configuration(
 
 async def test_get_configuration(aiohttp_mock_server, fence_guard: FenceGuardHandler):
     """Test get_configuration."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/local/fenceguard/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,
         device=fence_guard,
+        capture_requests=False,
     )
 
     await fence_guard.update()

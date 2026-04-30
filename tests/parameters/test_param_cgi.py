@@ -42,11 +42,12 @@ async def test_param_handler_request_signalling(param_handler: Params):
 
 async def test_param_handler(aiohttp_mock_server, param_handler: Params):
     """Verify that you can list parameters."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=PARAM_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
         device=param_handler,
+        capture_requests=False,
     )
 
     assert not param_handler.initialized

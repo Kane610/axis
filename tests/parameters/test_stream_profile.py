@@ -32,11 +32,12 @@ async def test_stream_profile_handler(
     stream_profile_handler: StreamProfileParameterHandler,
 ):
     """Verify that update properties works."""
-    _server, _requests = await aiohttp_mock_server(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
         device=stream_profile_handler,
+        capture_requests=False,
     )
 
     assert not stream_profile_handler.initialized
