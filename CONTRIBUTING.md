@@ -190,6 +190,11 @@ async def test_multi_device(
     mock.post("/axis-cgi/example.cgi").respond(json={"data": []})
 ```
 
+When registering a route with `data=...`, body matching is strict. A request body
+that does not match the registered payload will not hit the route (it will return
+404 from the mock server). Use `data=` only when you intend to assert request-body
+shape; otherwise omit it to match only method/path.
+
 When using `Route.respond()`, map response type to the correct keyword:
 
 | Content-Type | `respond()` kwarg |
@@ -203,6 +208,10 @@ http_route_mock.post("/axis-cgi/...").respond(json={"data": ...})
 ```
 
 For advanced options like `capture_payload`, `capture_body`, and route-spec dictionaries, use [`tests/conftest.py`](tests/conftest.py) as the source of truth.
+
+If you override shared fixtures in a test module (for example `http_route_mock`),
+document the reason in the fixture docstring so the scope difference is explicit to
+future contributors.
 
 ### Async tests
 
