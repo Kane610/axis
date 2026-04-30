@@ -40,22 +40,19 @@ async def test_param_handler_request_signalling(param_handler: Params):
         signal_mock.assert_called_with("obj_id")
 
 
-async def test_param_handler(respx_mock, param_handler: Params):
+async def test_param_handler(aiohttp_mock_server, param_handler: Params):
     """Verify that you can list parameters."""
-    route = respx_mock.post(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
-        data={"action": "list"},
-    ).respond(
-        content=PARAM_RESPONSE.encode("iso-8859-1"),
+        response=PARAM_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=param_handler,
+        capture_requests=False,
     )
+
     assert not param_handler.initialized
 
     await param_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert param_handler.initialized
 

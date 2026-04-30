@@ -3,17 +3,18 @@
 pytest --cov-report term-missing --cov=axis.configuration tests/test_configuration.py
 """
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-from httpx import AsyncClient
 import pytest
 
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 
+if TYPE_CHECKING:
+    from aiohttp import ClientSession
 
-def test_configuration() -> None:
+
+async def test_configuration(session: ClientSession) -> None:
     """Test Configuration works."""
-    session = AsyncClient(verify=False)
     config = Configuration(
         session,
         "192.168.0.1",
@@ -37,9 +38,8 @@ def test_configuration() -> None:
     assert config.websocket_force is False
 
 
-def test_minimal_configuration() -> None:
+async def test_minimal_configuration(session: ClientSession) -> None:
     """Test Configuration works."""
-    session = AsyncClient(verify=False)
     config = Configuration(
         session,
         "192.168.1.1",
@@ -60,9 +60,8 @@ def test_minimal_configuration() -> None:
     assert config.websocket_force is False
 
 
-def test_configuration_websocket_can_be_enabled() -> None:
+async def test_configuration_websocket_can_be_enabled(session: ClientSession) -> None:
     """Test websocket transport can be explicitly enabled."""
-    session = AsyncClient(verify=False)
     config = Configuration(
         session,
         "192.168.1.10",
@@ -80,9 +79,10 @@ def test_unsupported_auth_scheme_defaults_to_auto() -> None:
     assert AuthScheme("unsupported") == AuthScheme.AUTO
 
 
-def test_configuration_auth_scheme_is_normalized_to_enum() -> None:
+async def test_configuration_auth_scheme_is_normalized_to_enum(
+    session: ClientSession,
+) -> None:
     """Test auth scheme input is normalized to enum value."""
-    session = AsyncClient(verify=False)
     config = Configuration(
         session,
         "192.168.1.2",
@@ -99,9 +99,10 @@ def test_unsupported_web_protocol_defaults_to_http() -> None:
     assert WebProtocol("unsupported") == WebProtocol.HTTP
 
 
-def test_configuration_web_protocol_is_normalized_to_enum() -> None:
+async def test_configuration_web_protocol_is_normalized_to_enum(
+    session: ClientSession,
+) -> None:
     """Test web protocol input is normalized to enum value."""
-    session = AsyncClient(verify=False)
     config = Configuration(
         session,
         "192.168.1.3",
@@ -113,9 +114,8 @@ def test_configuration_web_protocol_is_normalized_to_enum() -> None:
     assert config.web_proto is WebProtocol.HTTPS
 
 
-def test_configuration_default_https_port_is_443() -> None:
+async def test_configuration_default_https_port_is_443(session: ClientSession) -> None:
     """Test default HTTPS configuration uses port 443."""
-    session = AsyncClient(verify=False)
     config = Configuration(
         session,
         "192.168.1.4",
@@ -128,9 +128,10 @@ def test_configuration_default_https_port_is_443() -> None:
     assert config.url == "https://192.168.1.4:443"
 
 
-def test_configuration_zero_port_uses_http_default() -> None:
+async def test_configuration_zero_port_uses_http_default(
+    session: ClientSession,
+) -> None:
     """Test port 0 uses HTTP default port."""
-    session = AsyncClient(verify=False)
     config = Configuration(
         session,
         "192.168.1.5",
@@ -155,10 +156,10 @@ def test_configuration_zero_port_uses_http_default() -> None:
         " camera.local ",
     ],
 )
-def test_configuration_rejects_invalid_host_values(host: str) -> None:
+async def test_configuration_rejects_invalid_host_values(
+    session: ClientSession, host: str
+) -> None:
     """Test host must be a plain hostname or IP address."""
-    session = AsyncClient(verify=False)
-
     with pytest.raises(ValueError, match="Host must"):
         Configuration(
             session,

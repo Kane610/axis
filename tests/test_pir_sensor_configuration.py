@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def pir_sensor_configuration(axis_device: AxisDevice) -> PirSensorConfigurationHandler:
+def pir_sensor_configuration(
+    axis_device: AxisDevice,
+) -> PirSensorConfigurationHandler:
     """Return the pir_sensor_configuration mock object."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
@@ -23,11 +25,11 @@ def pir_sensor_configuration(axis_device: AxisDevice) -> PirSensorConfigurationH
 
 
 async def test_get_api_list(
-    respx_mock,
+    http_route_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
+    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -62,11 +64,11 @@ async def test_get_api_list(
 
 
 async def test_get_sensitivity(
-    respx_mock,
+    http_route_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
+    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -92,11 +94,11 @@ async def test_get_sensitivity(
 
 
 async def test_set_sensitivity(
-    respx_mock,
+    http_route_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
+    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -120,11 +122,11 @@ async def test_set_sensitivity(
 
 
 async def test_supported_versions(
-    respx_mock,
+    http_route_mock,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = respx_mock.post("/axis-cgi/pirsensor.cgi").respond(
+    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
         json={
             "apiVersion": "1.0",
             "context": "Axis library",

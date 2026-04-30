@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.applications.vmd4 tests/applications/test_vmd4.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,17 +17,21 @@ def vmd4(axis_device) -> Vmd4Handler:
     return axis_device.vapix.vmd4
 
 
-async def test_get_empty_configuration(respx_mock, vmd4: Vmd4Handler):
+async def test_get_empty_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
     """Test empty get_configuration."""
-    route = respx_mock.post("/local/vmd/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
+    _server, requests = await aiohttp_mock_server(
+        "/local/vmd/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=vmd4,
+        capture_payload=True,
     )
+
     await vmd4.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/vmd/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/vmd/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.2",
         "context": "Axis library",
@@ -37,11 +40,15 @@ async def test_get_empty_configuration(respx_mock, vmd4: Vmd4Handler):
     assert len(vmd4.values()) == 1
 
 
-async def test_get_configuration(respx_mock, vmd4: Vmd4Handler):
+async def test_get_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
     """Test get_supported_versions."""
-    respx_mock.post("/local/vmd/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
+    await aiohttp_mock_server(
+        "/local/vmd/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=vmd4,
+        capture_requests=False,
     )
+
     await vmd4.update()
 
     assert vmd4.initialized

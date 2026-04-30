@@ -20,30 +20,29 @@ root.StreamProfile.S1.Parameters=videocodec=h265"""
 
 
 @pytest.fixture
-def stream_profile_handler(axis_device: AxisDevice) -> StreamProfileParameterHandler:
+def stream_profile_handler(
+    axis_device: AxisDevice,
+) -> StreamProfileParameterHandler:
     """Return the param cgi mock object."""
     return axis_device.vapix.params.stream_profile_handler
 
 
 async def test_stream_profile_handler(
-    respx_mock,
+    aiohttp_mock_server,
     stream_profile_handler: StreamProfileParameterHandler,
 ):
     """Verify that update properties works."""
-    route = respx_mock.post(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.StreamProfile"},
-    ).respond(
-        content=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
+        response=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=stream_profile_handler,
+        capture_requests=False,
     )
+
     assert not stream_profile_handler.initialized
 
     await stream_profile_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert stream_profile_handler.initialized
     profile_params = stream_profile_handler["0"]

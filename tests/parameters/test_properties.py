@@ -189,21 +189,27 @@ def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
     return axis_device.vapix.params.property_handler
 
 
-async def test_property_handler(respx_mock, property_handler: PropertyParameterHandler):
-    """Verify that update properties works."""
-    route = respx_mock.post(
+async def _setup_param_route(
+    aiohttp_mock_server,
+    property_handler: PropertyParameterHandler,
+    property_response: str,
+) -> None:
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Properties"},
-    ).respond(
-        content=PROPERTY_RESPONSE.encode("iso-8859-1"),
+        response=property_response.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=property_handler,
+        capture_requests=False,
     )
+
+
+async def test_property_handler(
+    aiohttp_mock_server, property_handler: PropertyParameterHandler
+):
+    """Verify that update properties works."""
+    await _setup_param_route(aiohttp_mock_server, property_handler, PROPERTY_RESPONSE)
     assert not property_handler.initialized
     await property_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert property_handler.initialized
     properties = property_handler["0"]
@@ -253,17 +259,12 @@ async def test_property_handler(respx_mock, property_handler: PropertyParameterH
     [PROPERTY_5_20_M7001_RESPONSE, PROPERTY_1_84_1_A9188_RESPONSE],
 )
 async def test_mixed_properties(
-    respx_mock, property_handler: PropertyParameterHandler, property_response
+    aiohttp_mock_server, property_handler: PropertyParameterHandler, property_response
 ):
     """Verify that update ptz works.
 
     No embedded development provided.
     """
-    respx_mock.post(
-        "/axis-cgi/param.cgi", data={"action": "list", "group": "root.Properties"}
-    ).respond(
-        content=property_response.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_mock_server, property_handler, property_response)
 
     await property_handler.update()

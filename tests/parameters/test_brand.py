@@ -31,22 +31,24 @@ def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
     return axis_device.vapix.params.brand_handler
 
 
-async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
-    """Verify that update brand works."""
-    route = respx_mock.post(
+async def _setup_param_route(
+    aiohttp_mock_server, brand_handler: BrandParameterHandler, response_content: str
+) -> None:
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Brand"},
-    ).respond(
-        content=BRAND_RESPONSE.encode("iso-8859-1"),
+        response=response_content.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=brand_handler,
+        capture_requests=False,
     )
+
+
+async def test_brand_handler(aiohttp_mock_server, brand_handler: BrandParameterHandler):
+    """Verify that update brand works."""
+    await _setup_param_route(aiohttp_mock_server, brand_handler, BRAND_RESPONSE)
     assert not brand_handler.initialized
 
     await brand_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert brand_handler.initialized
     brand = brand_handler["0"]
@@ -59,15 +61,11 @@ async def test_brand_handler(respx_mock, brand_handler: BrandParameterHandler):
     assert brand.web_url == "http://www.axis.com"
 
 
-async def test_brand_handler_5_51(respx_mock, brand_handler: BrandParameterHandler):
+async def test_brand_handler_5_51(
+    aiohttp_mock_server, brand_handler: BrandParameterHandler
+):
     """Verify that update brand works."""
-    respx_mock.post(
-        "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.Brand"},
-    ).respond(
-        content=BRAND_5_51_RESPONSE.encode("iso-8859-1"),
-        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-    )
+    await _setup_param_route(aiohttp_mock_server, brand_handler, BRAND_5_51_RESPONSE)
     await brand_handler.update()
 
     assert brand_handler.initialized

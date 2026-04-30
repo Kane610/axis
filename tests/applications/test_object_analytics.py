@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/applications/test_object_analytics.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -22,18 +21,22 @@ def object_analytics(axis_device) -> ObjectAnalyticsHandler:
     return axis_device.vapix.object_analytics
 
 
-async def test_get_no_configuration(respx_mock, object_analytics):
+async def test_get_no_configuration(aiohttp_mock_server, object_analytics):
     """Test no response from get_configuration."""
-    route = respx_mock.post("/local/objectanalytics/control.cgi").respond(
-        json={},
+    _server, requests = await aiohttp_mock_server(
+        "/local/objectanalytics/control.cgi",
+        response={},
+        device=object_analytics,
+        capture_payload=True,
     )
+
     with pytest.raises(KeyError):
         await object_analytics.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/objectanalytics/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/objectanalytics/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -43,21 +46,29 @@ async def test_get_no_configuration(respx_mock, object_analytics):
     assert len(object_analytics.values()) == 0
 
 
-async def test_get_empty_configuration(respx_mock, object_analytics):
+async def test_get_empty_configuration(aiohttp_mock_server, object_analytics):
     """Test empty get_configuration."""
-    respx_mock.post("/local/objectanalytics/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
+    await aiohttp_mock_server(
+        "/local/objectanalytics/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=object_analytics,
+        capture_requests=False,
     )
+
     await object_analytics.update()
 
     assert len(object_analytics.values()) == 1
 
 
-async def test_get_configuration(respx_mock, object_analytics):
+async def test_get_configuration(aiohttp_mock_server, object_analytics):
     """Test get_configuration."""
-    respx_mock.post("/local/objectanalytics/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
+    await aiohttp_mock_server(
+        "/local/objectanalytics/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=object_analytics,
+        capture_requests=False,
     )
+
     await object_analytics.update()
 
     assert object_analytics.initialized

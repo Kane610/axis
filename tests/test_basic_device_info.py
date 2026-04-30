@@ -4,31 +4,19 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 """
 
 import json
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-import pytest
 
-if TYPE_CHECKING:
-    from axis.device import AxisDevice
-    from axis.interfaces.basic_device_info import BasicDeviceInfoHandler
-
-
-@pytest.fixture
-def basic_device_info(axis_device: AxisDevice) -> BasicDeviceInfoHandler:
-    """Return the basic_device_info mock object."""
+async def test_get_all_properties(http_route_mock, axis_device):
+    """Test get all properties api."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.get().version = "1.0"
-    return axis_device.vapix.basic_device_info
+    basic_device_info = axis_device.vapix.basic_device_info
 
-
-async def test_get_all_properties(
-    respx_mock, basic_device_info: BasicDeviceInfoHandler
-):
-    """Test get all properties api."""
-    route = respx_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
+    route = http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
         json=GET_ALL_PROPERTIES_RESPONSE,
     )
+
     await basic_device_info.update()
 
     assert route.called
@@ -59,11 +47,13 @@ async def test_get_all_properties(
     assert device_info.web_url == "http://www.axis.com"
 
 
-async def test_get_supported_versions(
-    respx_mock, basic_device_info: BasicDeviceInfoHandler
-):
+async def test_get_supported_versions(http_route_mock, axis_device):
     """Test get supported versions api."""
-    route = respx_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
+    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
+    api_discovery_mock.get().version = "1.0"
+    basic_device_info = axis_device.vapix.basic_device_info
+
+    route = http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
         json={
             "apiVersion": "1.1",
             "context": "Axis library",
@@ -71,6 +61,7 @@ async def test_get_supported_versions(
             "data": {"apiVersions": ["1.1"]},
         },
     )
+
     response = await basic_device_info.get_supported_versions()
 
     assert route.called

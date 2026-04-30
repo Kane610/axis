@@ -88,7 +88,7 @@ Override `should_initialize_in_group()` to customize eligibility within a phase.
 1. Add a model in `axis/models/<name>.py` — dataclass(es), enums with `_missing_` fallbacks, and any parsing helpers.
 2. Add a handler in `axis/interfaces/<name>.py` — extend `ApiHandler`, declare `api_id`, `handler_groups`, and implement `_api_request()`.
 3. Register the handler on `Vapix` in [`axis/interfaces/vapix.py`](axis/interfaces/vapix.py).
-4. Add tests in `tests/test_<name>.py` using the async fixture and `respx` mocking patterns from [`tests/conftest.py`](tests/conftest.py).
+4. Add tests in `tests/test_<name>.py` using the async fixtures and HTTP mocking layers from [`tests/conftest.py`](tests/conftest.py).
 
 ## Coding conventions
 
@@ -134,16 +134,68 @@ Tests live in `tests/` and mirror the `axis/` structure. Use the nearest relevan
 
 ### Fixtures
 
-Reuse the async `axis_device` fixture from [`tests/conftest.py`](tests/conftest.py). It provides an `httpx.AsyncClient` wired to a `respx` mock and handles cleanup:
+Reuse the async device fixtures from [`tests/conftest.py`](tests/conftest.py):
+
+- `axis_device` for single-device tests.
+- `axis_companion_device` for companion/multi-device tests.
+
+### HTTP mocking layers
+
+Choose the fixture layer based on test scope and assertion needs:
+
+- Prefer `aiohttp_mock_server` for most new direct endpoint tests.
+- Prefer `http_route_mock` for single-device route-registration tests.
+- Use `http_route_mock_factory` only when you need explicit multi-device binding.
+
+| Fixture | Use when | Avoid when |
+|---|---|---|
+| `aiohttp_mock_server` | Direct endpoint/static payload tests, custom handler tests, payload/body capture tests | Complex route-sequence tests that benefit from fluent route registration |
+| `http_route_mock` | Common single-device route-registration tests with call-history assertions | Multi-device tests |
+| `http_route_mock_factory` | Multi-device or explicit device-binding route-registration tests | Single-device tests where `http_route_mock` is simpler |
+
+Use `aiohttp_mock_server` for most new direct endpoint tests:
 
 ```python
-async def test_something(axis_device):
-    ...
+async def test_something(aiohttp_mock_server, axis_device):
+    server, requests = await aiohttp_mock_server(
+        "/axis-cgi/example.cgi",
+        response={"data": []},
+        device=axis_device,
+    )
+    assert server.port == axis_device.config.port
+    assert requests is not None
 ```
 
-### Mocking HTTP requests
+Use `http_route_mock` for route-registration tests:
 
-Use `respx` to mock VAPIX calls. Map `ApiRequest.content_type` to the correct `respond()` kwarg:
+```python
+async def test_handler(http_route_mock):
+    http_route_mock.post("/axis-cgi/example.cgi").respond(
+        json={"apiVersion": "1.0", "data": []}
+    )
+```
+
+Use `http_route_mock_factory` for multi-device tests:
+
+```python
+async def test_multi_device(
+    http_route_mock_factory,
+    axis_device,
+    axis_companion_device,
+):
+    mock = await http_route_mock_factory(
+        axis_device,
+        axis_companion_device,
+    )
+    mock.post("/axis-cgi/example.cgi").respond(json={"data": []})
+```
+
+When registering a route with `data=...`, body matching is strict. A request body
+that does not match the registered payload will not hit the route (it will return
+404 from the mock server). Use `data=` only when you intend to assert request-body
+shape; otherwise omit it to match only method/path.
+
+When using `Route.respond()`, map response type to the correct keyword:
 
 | Content-Type | `respond()` kwarg |
 |---|---|
@@ -152,12 +204,34 @@ Use `respx` to mock VAPIX calls. Map `ApiRequest.content_type` to the correct `r
 | `text/xml` | `text=` |
 
 ```python
-respx_mock.post("/axis-cgi/...").respond(json={"data": ...})
+http_route_mock.post("/axis-cgi/...").respond(json={"data": ...})
 ```
+
+For advanced options like `capture_payload`, `capture_body`, and route-spec dictionaries, use [`tests/conftest.py`](tests/conftest.py) as the source of truth.
+
+If you override shared fixtures in a test module (for example `http_route_mock`),
+document the reason in the fixture docstring so the scope difference is explicit to
+future contributors.
 
 ### Async tests
 
 `asyncio_mode = "auto"` is configured — write `async def test_*` without any extra decorator.
+
+### Future extraction policy
+
+The current recommended architecture is the hybrid pattern already in this repository:
+
+- Shared route/dispatch behavior in support modules (for example [`tests/http_route_mock.py`](tests/http_route_mock.py)).
+- Fixture exposure and loading in [`tests/conftest.py`](tests/conftest.py).
+
+Do not extract test support to a standalone pytest plugin yet. Revisit extraction only when all gates are met:
+
+1. Shared fixtures are adopted in roughly 30-40% of eligible tests.
+2. Fixture API remains stable for at least two weeks (no semantic/parameter changes).
+3. A clear maintenance owner is identified.
+4. There is concrete reuse demand outside this repository, or a proven local scaling issue that cannot be addressed by reorganizing `tests/conftest.py`.
+
+If extraction is justified later, extract locally first while keeping `tests/conftest.py` as the loading surface. Separate packaging/release workflows are out of scope until local extraction proves stable.
 
 ## Pull request workflow
 

@@ -26,12 +26,13 @@ def event_instances(axis_device) -> EventInstanceHandler:
     return axis_device.vapix.event_instances
 
 
-async def test_full_list_of_event_instances(respx_mock, event_instances):
+async def test_full_list_of_event_instances(http_route_mock, event_instances):
     """Test loading of event instances work."""
-    respx_mock.post("/vapix/services").respond(
+    http_route_mock.post("/vapix/services").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
     )
+
     await event_instances.update()
 
     assert len(event_instances) == 44
@@ -128,12 +129,17 @@ async def test_full_list_of_event_instances(respx_mock, event_instances):
     ],
 )
 async def test_single_event_instance(
-    respx_mock, event_instances: EventInstanceHandler, response: str, expected: dict
+    http_route_mock,
+    event_instances: EventInstanceHandler,
+    response: str,
+    expected: dict,
 ):
     """Verify expected outcome from different event instances."""
-    respx_mock.post("/vapix/services").respond(
-        text=response, headers={"Content-Type": "application/soap+xml; charset=utf-8"}
+    http_route_mock.post("/vapix/services").respond(
+        text=response,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
     )
+
     await event_instances.update()
 
     assert not event_instances.supported

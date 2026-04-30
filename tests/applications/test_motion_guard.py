@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/applications/test_motion_guard.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,17 +17,23 @@ def motion_guard(axis_device) -> MotionGuardHandler:
     return axis_device.vapix.motion_guard
 
 
-async def test_get_empty_configuration(respx_mock, motion_guard: MotionGuardHandler):
+async def test_get_empty_configuration(
+    aiohttp_mock_server, motion_guard: MotionGuardHandler
+):
     """Test empty get_configuration."""
-    route = respx_mock.post("/local/motionguard/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
+    _server, requests = await aiohttp_mock_server(
+        "/local/motionguard/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=motion_guard,
+        capture_payload=True,
     )
+
     await motion_guard.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/motionguard/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/motionguard/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.3",
         "context": "Axis library",
@@ -37,11 +42,15 @@ async def test_get_empty_configuration(respx_mock, motion_guard: MotionGuardHand
     assert len(motion_guard.values()) == 1
 
 
-async def test_get_configuration(respx_mock, motion_guard: MotionGuardHandler):
+async def test_get_configuration(aiohttp_mock_server, motion_guard: MotionGuardHandler):
     """Test get_configuration."""
-    respx_mock.post("/local/motionguard/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
+    await aiohttp_mock_server(
+        "/local/motionguard/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=motion_guard,
+        capture_requests=False,
     )
+
     await motion_guard.update()
 
     assert motion_guard.initialized

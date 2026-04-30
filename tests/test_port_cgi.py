@@ -3,27 +3,16 @@
 pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 """
 
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
 import pytest
 
 from axis.models.parameters.io_port import PortAction, PortDirection
 
-from .conftest import HOST
 
-if TYPE_CHECKING:
-    from axis.interfaces.port_cgi import Ports
-
-
-@pytest.fixture
-def ports(axis_device) -> Ports:
-    """Return the api_discovery mock object."""
-    return axis_device.vapix.port_cgi
-
-
-async def test_ports(respx_mock, ports: Ports) -> None:
+async def test_ports(http_route_mock, axis_device) -> None:
     """Test that different types of ports work."""
-    update_ports_route = respx_mock.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
+    param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
         content="""root.Input.NbrOfInputs=3
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
@@ -51,10 +40,12 @@ root.Output.NbrOfOutputs=1
 """.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
+    io_route = http_route_mock.get("/axis-cgi/io/port.cgi").respond(text="")
+
+    ports = axis_device.vapix.port_cgi
 
     await ports.update()
-
-    assert update_ports_route.call_count == 1
+    assert param_route.called
 
     assert ports["0"].id == "0"
     assert ports["0"].configurable is False
@@ -81,35 +72,28 @@ root.Output.NbrOfOutputs=1
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"
 
-    action_low_route = respx_mock.get("/axis-cgi/io/port.cgi?action=4%3A%2F")
-    action_high_route = respx_mock.get("/axis-cgi/io/port.cgi?action=4%3A%5C")
-
-    assert not action_low_route.called
-    assert not action_high_route.called
-
+    low_count = len(io_route.calls)
     await ports.close("3")
-    assert action_low_route.called
-    assert action_low_route.calls.last.request.method == "GET"
-    assert action_low_route.calls.last.request.url.path == "/axis-cgi/io/port.cgi"
-    assert action_low_route.calls.last.request.url.query.decode() == "action=4%3A%2F"
+    assert len(io_route.calls) == low_count + 1
+    assert io_route.calls.last.request.url.params == {"action": "4:/"}
 
+    high_count = len(io_route.calls)
     await ports.open("3")
-    assert action_high_route.called
-    assert action_high_route.calls.last.request.method == "GET"
-    assert action_high_route.calls.last.request.url.path == "/axis-cgi/io/port.cgi"
-    assert action_high_route.calls.last.request.url.query.decode() == "action=4%3A%5C"
+    assert len(io_route.calls) == high_count + 1
+    assert io_route.calls.last.request.url.params == {"action": "4:\\"}
 
 
-async def test_no_ports(respx_mock, ports: Ports) -> None:
+async def test_no_ports(http_route_mock, axis_device) -> None:
     """Test that no ports also work."""
-    route = respx_mock.post(f"http://{HOST}/axis-cgi/param.cgi").respond(
+    param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
         content="".encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
+    ports = axis_device.vapix.port_cgi
 
     await ports.update()
+    assert param_route.called
 
-    assert route.call_count == 1
     assert len(ports.values()) == 0
 
 

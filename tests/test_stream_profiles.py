@@ -1,6 +1,5 @@
 """Test Axis stream profiles API."""
 
-import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -20,18 +19,22 @@ def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
 
 
 async def test_list_stream_profiles(
-    respx_mock, stream_profiles: StreamProfilesHandler
+    aiohttp_mock_server, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
-        json=LIST_RESPONSE,
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/streamprofile.cgi",
+        response=LIST_RESPONSE,
+        device=stream_profiles,
+        capture_payload=True,
     )
+
     await stream_profiles.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/streamprofile.cgi"
+    assert requests[-1]["payload"] == {
         "method": "list",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -49,12 +52,13 @@ async def test_list_stream_profiles(
 
 
 async def test_list_stream_profiles_no_profiles(
-    respx_mock,
+    aiohttp_mock_server,
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-    respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
-        json={
+    await aiohttp_mock_server(
+        "/axis-cgi/streamprofile.cgi",
+        response={
             "method": "list",
             "apiVersion": "1.0",
             "context": "",
@@ -62,25 +66,32 @@ async def test_list_stream_profiles_no_profiles(
                 "maxProfiles": 0,
             },
         },
+        device=stream_profiles,
+        capture_requests=False,
     )
+
     await stream_profiles.update()
 
     assert len(stream_profiles.values()) == 0
 
 
 async def test_get_supported_versions(
-    respx_mock, stream_profiles: StreamProfilesHandler
+    aiohttp_mock_server, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    route = respx_mock.post("/axis-cgi/streamprofile.cgi").respond(
-        json=GET_SUPPORTED_VERSIONS_RESPONSE,
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/streamprofile.cgi",
+        response=GET_SUPPORTED_VERSIONS_RESPONSE,
+        device=stream_profiles,
+        capture_payload=True,
     )
+
     response = await stream_profiles.get_supported_versions()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/streamprofile.cgi"
+    assert requests[-1]["payload"] == {
         "context": "Axis library",
         "method": "getSupportedVersions",
     }

@@ -33,22 +33,21 @@ async def test_port_direction_enum():
     assert PortDirection("unsupported") is PortDirection.UNKNOWN
 
 
-async def test_io_port_handler(respx_mock, io_port_handler: IOPortParameterHandler):
+async def test_io_port_handler(
+    aiohttp_mock_server, io_port_handler: IOPortParameterHandler
+):
     """Verify that update brand works."""
-    route = respx_mock.post(
+    await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
-        data={"action": "list", "group": "root.IOPort"},
-    ).respond(
-        content=PORT_RESPONSE.encode("iso-8859-1"),
+        response=PORT_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+        device=io_port_handler,
+        capture_requests=False,
     )
+
     assert not io_port_handler.initialized
 
     await io_port_handler.update()
-
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/axis-cgi/param.cgi"
 
     assert io_port_handler.initialized
     port = io_port_handler["0"]

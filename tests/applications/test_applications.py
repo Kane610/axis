@@ -17,25 +17,37 @@ def applications(axis_device) -> ApplicationsHandler:
     return axis_device.vapix.applications
 
 
-async def test_update_no_application(respx_mock, applications: ApplicationsHandler):
+async def test_update_no_application(
+    aiohttp_mock_server, applications: ApplicationsHandler
+):
     """Test update applicatios call."""
-    route = respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=LIST_APPLICATION_EMPTY_RESPONSE,
+    _server, requests = await aiohttp_mock_server(
+        "/axis-cgi/applications/list.cgi",
+        response=LIST_APPLICATION_EMPTY_RESPONSE,
         headers={"Content-Type": "text/xml"},
+        device=applications,
     )
 
     await applications.update()
 
-    assert route.called
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/axis-cgi/applications/list.cgi"
     assert len(applications.values()) == 0
 
 
-async def test_update_single_application(respx_mock, applications: ApplicationsHandler):
+async def test_update_single_application(
+    aiohttp_mock_server, applications: ApplicationsHandler
+):
     """Test update applications call."""
-    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=LIST_APPLICATION_RESPONSE,
+    await aiohttp_mock_server(
+        "/axis-cgi/applications/list.cgi",
+        response=LIST_APPLICATION_RESPONSE,
         headers={"Content-Type": "text/xml"},
+        device=applications,
+        capture_requests=False,
     )
+
     await applications.update()
 
     assert applications.initialized
@@ -57,13 +69,17 @@ async def test_update_single_application(respx_mock, applications: ApplicationsH
 
 
 async def test_update_multiple_applications(
-    respx_mock, applications: ApplicationsHandler
+    aiohttp_mock_server, applications: ApplicationsHandler
 ):
     """Test update applicatios call."""
-    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=LIST_APPLICATIONS_RESPONSE,
+    await aiohttp_mock_server(
+        "/axis-cgi/applications/list.cgi",
+        response=LIST_APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
+        device=applications,
+        capture_requests=False,
     )
+
     await applications.update()
 
     assert len(applications.values()) == 7
@@ -170,13 +186,17 @@ async def test_update_multiple_applications(
 
 
 async def test_responses_with_with_limitations(
-    respx_mock, applications: ApplicationsHandler
+    aiohttp_mock_server, applications: ApplicationsHandler
 ):
     """Test update applications call."""
-    respx_mock.post("/axis-cgi/applications/list.cgi").respond(
-        text=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,
+    await aiohttp_mock_server(
+        "/axis-cgi/applications/list.cgi",
+        response=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
+        device=applications,
+        capture_requests=False,
     )
+
     await applications.update()
 
 

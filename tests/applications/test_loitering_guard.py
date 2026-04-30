@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/applications/test_loitering_guard.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -19,18 +18,22 @@ def loitering_guard(axis_device) -> LoiteringGuardHandler:
 
 
 async def test_get_empty_configuration(
-    respx_mock, loitering_guard: LoiteringGuardHandler
+    aiohttp_mock_server, loitering_guard: LoiteringGuardHandler
 ):
     """Test empty get_configuration."""
-    route = respx_mock.post("/local/loiteringguard/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
+    _server, requests = await aiohttp_mock_server(
+        "/local/loiteringguard/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=loitering_guard,
+        capture_payload=True,
     )
+
     await loitering_guard.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/loiteringguard/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/loiteringguard/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.3",
         "context": "Axis library",
@@ -39,11 +42,17 @@ async def test_get_empty_configuration(
     assert len(loitering_guard.values()) == 1
 
 
-async def test_get_configuration(respx_mock, loitering_guard: LoiteringGuardHandler):
+async def test_get_configuration(
+    aiohttp_mock_server, loitering_guard: LoiteringGuardHandler
+):
     """Test get_configuration."""
-    respx_mock.post("/local/loiteringguard/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
+    await aiohttp_mock_server(
+        "/local/loiteringguard/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=loitering_guard,
+        capture_requests=False,
     )
+
     await loitering_guard.update()
 
     assert loitering_guard.initialized

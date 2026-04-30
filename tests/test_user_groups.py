@@ -15,23 +15,33 @@ def user_groups(axis_device) -> UserGroups:
     return UserGroups(axis_device.vapix)
 
 
-async def test_empty_response(respx_mock, user_groups):
+async def test_empty_response(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
-        text="",
+    await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="",
         headers={"Content-Type": "text/plain"},
+        device=user_groups,
+        capture_requests=False,
     )
+
     await user_groups.update()
 
     assert user_groups.get("0") is None
 
 
-async def test_root_user(respx_mock, user_groups):
+async def test_root_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
-        text="root\nroot admin operator ptz viewer\n",
+    await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="root\nroot admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
+        device=user_groups,
+        capture_requests=False,
     )
+
     await user_groups.update()
 
     assert user_groups.initialized
@@ -44,12 +54,17 @@ async def test_root_user(respx_mock, user_groups):
     assert user.ptz
 
 
-async def test_admin_user(respx_mock, user_groups):
+async def test_admin_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
-        text="administrator\nusers admin operator viewer\n",
+    await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="administrator\nusers admin operator viewer\n",
         headers={"Content-Type": "text/plain"},
+        device=user_groups,
+        capture_requests=False,
     )
+
     await user_groups.update()
 
     user = user_groups.get("0")
@@ -61,12 +76,17 @@ async def test_admin_user(respx_mock, user_groups):
     assert not user.ptz
 
 
-async def test_operator_user(respx_mock, user_groups):
+async def test_operator_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
-        text="operator\nusers operator viewer\n",
+    await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="operator\nusers operator viewer\n",
         headers={"Content-Type": "text/plain"},
+        device=user_groups,
+        capture_requests=False,
     )
+
     await user_groups.update()
 
     user = user_groups.get("0")
@@ -78,12 +98,17 @@ async def test_operator_user(respx_mock, user_groups):
     assert not user.ptz
 
 
-async def test_viewer_user(respx_mock, user_groups):
+async def test_viewer_user(aiohttp_mock_server, user_groups):
     """Test get_supported_versions."""
-    respx_mock.get("/axis-cgi/usergroup.cgi").respond(
-        text="viewer\nusers viewer\n",
+    await aiohttp_mock_server(
+        "/axis-cgi/usergroup.cgi",
+        method="GET",
+        response="viewer\nusers viewer\n",
         headers={"Content-Type": "text/plain"},
+        device=user_groups,
+        capture_requests=False,
     )
+
     await user_groups.update()
 
     user = user_groups.get("0")

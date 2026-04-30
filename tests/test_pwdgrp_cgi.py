@@ -32,9 +32,9 @@ def test_user_class_privileges() -> None:
     assert bad_user.privileges == SecondaryGroup.UNKNOWN
 
 
-async def test_users(respx_mock, users):
+async def test_users(http_route_mock, users):
     """Verify that you can list users."""
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
     await users.update()
 
     assert users.initialized
@@ -80,10 +80,10 @@ async def test_users(respx_mock, users):
     assert users["usera"].privileges == SecondaryGroup.ADMIN_PTZ
 
 
-async def test_users_new_response(respx_mock, users):
+async def test_users_new_response(http_route_mock, users):
     """Verify that you can list users."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(content=response)
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(content=response)
     await users.update()
 
     assert users["root"]
@@ -94,9 +94,9 @@ async def test_users_new_response(respx_mock, users):
     assert users["root"].ptz
 
 
-async def test_create(respx_mock, users):
+async def test_create(http_route_mock, users):
     """Verify that you can create users."""
-    route = respx_mock.post("/axis-cgi/pwdgrp.cgi")
+    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
@@ -118,7 +118,6 @@ async def test_create(respx_mock, users):
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
-    assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
@@ -136,9 +135,9 @@ async def test_create(respx_mock, users):
     )
 
 
-async def test_modify(respx_mock, users):
+async def test_modify(http_route_mock, users):
     """Verify that you can modify users."""
-    route = respx_mock.post("/axis-cgi/pwdgrp.cgi")
+    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
 
     await users.modify("joe", pwd="abcd")
 
@@ -154,7 +153,6 @@ async def test_modify(respx_mock, users):
 
     await users.modify("joe", sgrp=SecondaryGroup.ADMIN)
 
-    assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
@@ -166,7 +164,6 @@ async def test_modify(respx_mock, users):
 
     await users.modify("joe", comment="comment")
 
-    assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
@@ -178,7 +175,6 @@ async def test_modify(respx_mock, users):
 
     await users.modify("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
-    assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
@@ -195,9 +191,9 @@ async def test_modify(respx_mock, users):
     )
 
 
-async def test_delete(respx_mock, users):
+async def test_delete(http_route_mock, users):
     """Verify that you can delete users."""
-    route = respx_mock.post("/axis-cgi/pwdgrp.cgi")
+    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
 
     await users.delete("joe")
 
@@ -210,17 +206,17 @@ async def test_delete(respx_mock, users):
     )
 
 
-async def test_equals_in_value(respx_mock, users):
+async def test_equals_in_value(http_route_mock, users):
     """Verify that values containing `=` are parsed correctly."""
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(
         text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
     )
     await users.update()
 
 
-async def test_no_equals_in_value(respx_mock, users):
+async def test_no_equals_in_value(http_route_mock, users):
     """Verify that values containing `=` are parsed correctly."""
-    respx_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
     await users.update()
 
 

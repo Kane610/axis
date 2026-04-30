@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/applications/test_fence_guard.py
 """
 
-import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,17 +17,23 @@ def fence_guard(axis_device) -> FenceGuardHandler:
     return axis_device.vapix.fence_guard
 
 
-async def test_get_empty_configuration(respx_mock, fence_guard: FenceGuardHandler):
+async def test_get_empty_configuration(
+    aiohttp_mock_server, fence_guard: FenceGuardHandler
+):
     """Test empty get_configuration."""
-    route = respx_mock.post("/local/fenceguard/control.cgi").respond(
-        json=GET_CONFIGURATION_EMPTY_RESPONSE,
+    _server, requests = await aiohttp_mock_server(
+        "/local/fenceguard/control.cgi",
+        response=GET_CONFIGURATION_EMPTY_RESPONSE,
+        device=fence_guard,
+        capture_payload=True,
     )
+
     await fence_guard.update()
 
-    assert route.called
-    assert route.calls.last.request.method == "POST"
-    assert route.calls.last.request.url.path == "/local/fenceguard/control.cgi"
-    assert json.loads(route.calls.last.request.content) == {
+    assert requests
+    assert requests[-1]["method"] == "POST"
+    assert requests[-1]["path"] == "/local/fenceguard/control.cgi"
+    assert requests[-1]["payload"] == {
         "method": "getConfiguration",
         "apiVersion": "1.3",
         "context": "Axis library",
@@ -37,11 +42,15 @@ async def test_get_empty_configuration(respx_mock, fence_guard: FenceGuardHandle
     assert len(fence_guard.values()) == 1
 
 
-async def test_get_configuration(respx_mock, fence_guard: FenceGuardHandler):
+async def test_get_configuration(aiohttp_mock_server, fence_guard: FenceGuardHandler):
     """Test get_configuration."""
-    respx_mock.post("/local/fenceguard/control.cgi").respond(
-        json=GET_CONFIGURATION_RESPONSE,
+    await aiohttp_mock_server(
+        "/local/fenceguard/control.cgi",
+        response=GET_CONFIGURATION_RESPONSE,
+        device=fence_guard,
+        capture_requests=False,
     )
+
     await fence_guard.update()
 
     assert fence_guard.initialized
