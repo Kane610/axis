@@ -22,7 +22,6 @@ requires-python = ">=3.14.0"
 dependencies    = [
     "aiohttp>=3.12",
     "faust-cchardet>=2.1.18",
-    "httpx>=0.26",
     "orjson>3.9",
     "packaging>23",
     "xmltodict>=0.13.0",
@@ -31,7 +30,6 @@ dependencies    = [
 [project.optional-dependencies]
 requirements = [
     "aiohttp==3.13.5",
-    "httpx==0.28.1",
     "orjson==3.11.8",
     "packaging==26.2",
     "xmltodict==1.0.4",

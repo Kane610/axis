@@ -113,11 +113,7 @@ async def main(
         device.stream.stop()
 
     finally:
-        session = device.config.session
-        if not isinstance(session, aiohttp.ClientSession):
-            message = "Configured session is not an aiohttp ClientSession"
-            raise RuntimeError(message)
-        await close_session(session)
+        await close_session(device.config.session)
         device.stream.stop()
 
 

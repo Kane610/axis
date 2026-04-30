@@ -35,7 +35,7 @@ class AiohttpDigestAuth:
         """Return if aiohttp requests should use library-managed digest auth.
 
         Args:
-            http_client: Name of HTTP client ("aiohttp" or "httpx").
+            http_client: Name of HTTP client.
             has_basic_auth: Whether basic auth is configured.
 
         Returns:

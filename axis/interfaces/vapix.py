@@ -7,7 +7,6 @@ import logging
 from typing import TYPE_CHECKING, Any, cast
 
 import aiohttp
-import httpx
 
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
@@ -55,20 +54,14 @@ class Vapix:
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
         self.device = device
-        self._http_client = self._client_name()
         self._aiohttp_digest_middleware: Any | None = None
         self._aiohttp_digest_auth = AiohttpDigestAuth(device)
 
-        if self._http_client == "aiohttp":
-            if device.config.auth_scheme == AuthScheme.BASIC:
-                self.auth = self._aiohttp_basic_auth()
-            else:
-                self.auth = None
-                self._aiohttp_digest_middleware = self._aiohttp_digest_middleware_obj()
-        elif device.config.auth_scheme == AuthScheme.BASIC:
-            self.auth = httpx.BasicAuth(device.config.username, device.config.password)
+        if device.config.auth_scheme == AuthScheme.BASIC:
+            self.auth = self._aiohttp_basic_auth()
         else:
-            self.auth = httpx.DigestAuth(device.config.username, device.config.password)
+            self.auth = None
+            self._aiohttp_digest_middleware = self._aiohttp_digest_middleware_obj()
 
         # Grouped handlers are registered in handler-construction order.
         # Handlers with empty handler_groups are intentionally excluded.
@@ -327,20 +320,6 @@ class Vapix:
                 params=params,
             )
 
-        except httpx.TimeoutException as errt:
-            message = "Timeout"
-            raise RequestError(message) from errt
-
-        except httpx.TransportError as errc:
-            LOGGER.debug("%s", errc)
-            message = f"Connection error: {errc}"
-            raise RequestError(message) from errc
-
-        except httpx.RequestError as err:
-            LOGGER.debug("%s", err)
-            message = f"Unknown error: {err}"
-            raise RequestError(message) from err
-
         except TimeoutError as errt:
             message = "Timeout"
             raise RequestError(message) from errt
@@ -391,17 +370,8 @@ class Vapix:
         headers: dict[str, str] | None,
         params: dict[str, str] | None,
     ) -> tuple[int, dict[str, str], bytes]:
-        """Execute request and normalize responses from supported HTTP clients."""
-        if self._http_client == "aiohttp":
-            return await self._perform_aiohttp_request(
-                method=method,
-                url=url,
-                content=content,
-                data=data,
-                headers=headers,
-                params=params,
-            )
-        return await self._perform_httpx_request(
+        """Execute request and normalize responses."""
+        return await self._perform_aiohttp_request(
             method=method,
             url=url,
             content=content,
@@ -409,29 +379,6 @@ class Vapix:
             headers=headers,
             params=params,
         )
-
-    async def _perform_httpx_request(
-        self,
-        method: str,
-        url: str,
-        content: bytes | None,
-        data: dict[str, str] | None,
-        headers: dict[str, str] | None,
-        params: dict[str, str] | None,
-    ) -> tuple[int, dict[str, str], bytes]:
-        """Execute request with a httpx session."""
-        session = self._httpx_session()
-        response = await session.request(
-            method,
-            url,
-            content=content,
-            data=data,
-            headers=headers,
-            params=params,
-            auth=self._httpx_auth(),
-            timeout=TIME_OUT,
-        )
-        return response.status_code, dict(response.headers), response.content
 
     async def _perform_aiohttp_request(
         self,
@@ -449,8 +396,7 @@ class Vapix:
         session = self._aiohttp_session()
 
         if (
-            self._http_client == "aiohttp"
-            and not self._aiohttp_auth()
+            not self._aiohttp_auth()
             and self.device.config.auth_scheme != AuthScheme.BASIC
         ):
             return await self._aiohttp_digest_auth.perform_request(
@@ -471,17 +417,9 @@ class Vapix:
             response_content = await response.read()
             return response.status, dict(response.headers), response_content
 
-    def _httpx_session(self) -> httpx.AsyncClient:
-        """Return session cast to a httpx client."""
-        return cast("httpx.AsyncClient", self.device.config.session)
-
     def _aiohttp_session(self) -> ClientSession:
         """Return session cast to an aiohttp client."""
-        return cast("ClientSession", self.device.config.session)
-
-    def _httpx_auth(self) -> httpx.Auth | None:
-        """Return auth cast for httpx requests."""
-        return cast("httpx.Auth | None", self.auth)
+        return self.device.config.session
 
     def _aiohttp_auth(self) -> AiohttpBasicAuth | None:
         """Return auth cast for aiohttp requests."""
@@ -509,22 +447,14 @@ class Vapix:
         )
 
     def _basic_auth(self) -> object:
-        """Create basic auth object for configured HTTP client."""
-        if self._http_client == "aiohttp":
-            return self._aiohttp_basic_auth()
-        return httpx.BasicAuth(self.device.config.username, self.device.config.password)
+        """Create basic auth object."""
+        return self._aiohttp_basic_auth()
 
     def _aiohttp_basic_auth(self) -> object:
         """Create aiohttp basic auth object."""
         return aiohttp.BasicAuth(
             self.device.config.username, self.device.config.password
         )
-
-    def _client_name(self) -> str:
-        """Return normalized client name from configured session object."""
-        if isinstance(self.device.config.session, aiohttp.ClientSession):
-            return "aiohttp"
-        return "httpx"
 
     def _should_retry_with_basic(
         self, headers: dict[str, str], allow_auto_basic_retry: bool
@@ -534,9 +464,6 @@ class Vapix:
             return False
 
         if self.device.config.auth_scheme != AuthScheme.AUTO:
-            return False
-
-        if self._http_client == "httpx" and not isinstance(self.auth, httpx.DigestAuth):
             return False
 
         expected_auth = ""

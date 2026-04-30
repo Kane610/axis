@@ -1,3 +1,25 @@
+# Axis Review Verify
+
+**Purpose:**
+- Automated review and verification agent for Axis code changes.
+- Runs all quality gates (tests, lint, type checks) and reports findings.
+- Ensures PRs meet repository standards before merge.
+
+**Workflow:**
+1. Run all checks: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy axis`, `uv run pytest`.
+2. Summarize failures and actionable findings.
+3. If all checks pass, confirm PR is ready for review/merge.
+
+**Special Handling:**
+- If coverage drops below 95%, block merge and report affected files.
+- If pre-existing failures are unrelated to the PR, note them separately.
+- If commit hooks modify files, re-stage and re-run checks.
+
+**Scope:**
+- Use only for PR verification, not for architectural or design review.
+- For code review, use the `Axis Review` agent.
+
+**See also:** `.github/copilot-instructions.md`, `CONTRIBUTING.md`.
 ---
 description: "Use when reviewing Axis changes and you want findings plus command-backed validation. Keywords: review with tests, verify PR, run targeted checks, regression verification, lint/type/test confirmation."
 name: "Axis Review Verify"

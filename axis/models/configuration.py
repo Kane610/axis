@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
-    from httpx import AsyncClient
 
-    type HTTPSession = AsyncClient | ClientSession
+    type HTTPSession = ClientSession
 
 
 LOGGER = logging.getLogger(__name__)
