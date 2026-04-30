@@ -1,4 +1,8 @@
-"""Minimal respx-like shim backed by aiohttp_mock_server for migrated tests."""
+"""HTTP route mock backed by aiohttp_mock_server for migrated tests.
+
+Route registration and dispatch behavior lives here.
+Fixture exposure (http_route_mock_factory, http_route_mock) lives in conftest.py.
+"""
 
 from types import SimpleNamespace
 
@@ -98,11 +102,11 @@ class MultiRoute:
         return self
 
 
-class RespxMockShim:
-    """Small subset of respx behavior used by migrated test suites."""
+class HttpRouteMock:
+    """HTTP route mock backed by aiohttp test server."""
 
     def __init__(self) -> None:
-        """Initialize shim route registry and global call history."""
+        """Initialize route registry and global call history."""
         self._routes: dict[tuple[str, str], Route] = {}
         self.calls = CallList()
 
@@ -201,12 +205,12 @@ def _raise_side_effect(side_effect: object, request: web.Request) -> None:
         raise side_effect()
 
 
-async def start_respx_shim_server(
+async def start_http_route_mock_server(
     aiohttp_mock_server,
     *devices,
-) -> RespxMockShim:
-    """Start catch-all aiohttp server that dispatches to RespxMockShim routes."""
-    mock = RespxMockShim()
+) -> HttpRouteMock:
+    """Start catch-all aiohttp server that dispatches to HttpRouteMock routes."""
+    mock = HttpRouteMock()
 
     async def handle_request(request: web.Request) -> web.Response:
         route = mock.resolve(request.method, request.path)
