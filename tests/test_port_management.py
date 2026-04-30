@@ -3,7 +3,6 @@
 pytest --cov-report term-missing --cov=axis.port_management tests/test_port_management.py
 """
 
-from aiohttp import web
 import pytest
 
 from axis.interfaces.port_management import IoPortManagement
@@ -18,26 +17,11 @@ def io_port_management(axis_device_aiohttp) -> IoPortManagement:
 
 async def test_get_ports(aiohttp_mock_server, io_port_management):
     """Test get_ports call."""
-    requests: list[dict[str, object]] = []
-
-    async def handle_request(request: web.Request) -> web.Response:
-        payload = await request.json()
-        requests.append(
-            {
-                "method": request.method,
-                "path": request.path,
-                "payload": payload,
-            }
-        )
-        if payload["method"] == "getPorts":
-            return web.json_response(GET_PORTS_RESPONSE)
-        return web.json_response({"apiVersion": "1.0", "context": "Axis library"})
-
-    _server, _captured = await aiohttp_mock_server(
+    _server, requests = await aiohttp_mock_server(
         "/axis-cgi/io/portmanagement.cgi",
-        handler=handle_request,
-        method="POST",
+        response=GET_PORTS_RESPONSE,
         device=io_port_management,
+        capture_payload=True,
     )
 
     await io_port_management.update()
