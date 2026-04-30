@@ -5,7 +5,6 @@ pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 
 from __future__ import annotations
 
-import aiohttp
 import pytest
 
 from axis.device import AxisDevice
@@ -15,12 +14,11 @@ from axis.models.parameters.io_port import PortAction, PortDirection
 from .conftest import HOST, PASS, USER
 
 
-async def test_ports(aiohttp_mock_server) -> None:
+async def test_ports(aiohttp_mock_server, aiohttp_session) -> None:
     """Test that different types of ports work."""
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -65,79 +63,75 @@ root.Output.NbrOfOutputs=1
     )
     ports = axis_device.vapix.port_cgi
 
-    try:
-        await ports.update()
-        assert requests is not None
-        assert (
-            len(
-                [
-                    req
-                    for req in requests
-                    if req["method"] == "POST" and req["path"] == "/axis-cgi/param.cgi"
-                ]
-            )
-            == 1
+    await ports.update()
+    assert requests is not None
+    assert (
+        len(
+            [
+                req
+                for req in requests
+                if req["method"] == "POST" and req["path"] == "/axis-cgi/param.cgi"
+            ]
         )
+        == 1
+    )
 
-        assert ports["0"].id == "0"
-        assert ports["0"].configurable is False
-        assert ports["0"].direction == PortDirection.IN
-        assert ports["0"].name == ""
+    assert ports["0"].id == "0"
+    assert ports["0"].configurable is False
+    assert ports["0"].direction == PortDirection.IN
+    assert ports["0"].name == ""
 
-        await ports.action("0", action=PortAction.LOW)
+    await ports.action("0", action=PortAction.LOW)
 
-        assert ports["1"].id == "1"
-        assert ports["1"].configurable is False
-        assert ports["1"].direction == PortDirection.IN
-        assert ports["1"].name == "PIR sensor"
-        assert ports["1"].input_trigger == "closed"
+    assert ports["1"].id == "1"
+    assert ports["1"].configurable is False
+    assert ports["1"].direction == PortDirection.IN
+    assert ports["1"].name == "PIR sensor"
+    assert ports["1"].input_trigger == "closed"
 
-        assert ports["2"].id == "2"
-        assert ports["2"].configurable is False
-        assert ports["2"].direction == PortDirection.IN
-        assert ports["2"].name == ""
-        assert ports["2"].output_active == "closed"
+    assert ports["2"].id == "2"
+    assert ports["2"].configurable is False
+    assert ports["2"].direction == PortDirection.IN
+    assert ports["2"].name == ""
+    assert ports["2"].output_active == "closed"
 
-        assert ports["3"].id == "3"
-        assert ports["3"].configurable is False
-        assert ports["3"].direction == PortDirection.OUT
-        assert ports["3"].name == "Tampering"
-        assert ports["3"].output_active == "open"
+    assert ports["3"].id == "3"
+    assert ports["3"].configurable is False
+    assert ports["3"].direction == PortDirection.OUT
+    assert ports["3"].name == "Tampering"
+    assert ports["3"].output_active == "open"
 
-        io_requests = [
-            req
-            for req in requests
-            if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
-        ]
-        low_count = len(io_requests)
-        await ports.close("3")
-        io_requests = [
-            req
-            for req in requests
-            if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
-        ]
-        assert len(io_requests) == low_count + 1
-        assert io_requests[-1]["query"] == "action=4:/"
+    io_requests = [
+        req
+        for req in requests
+        if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
+    ]
+    low_count = len(io_requests)
+    await ports.close("3")
+    io_requests = [
+        req
+        for req in requests
+        if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
+    ]
+    assert len(io_requests) == low_count + 1
+    assert io_requests[-1]["query"] == "action=4:/"
 
-        high_count = len(io_requests)
-        await ports.open("3")
-        io_requests = [
-            req
-            for req in requests
-            if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
-        ]
-        assert len(io_requests) == high_count + 1
-        assert io_requests[-1]["query"] == "action=4:\\"
-    finally:
-        await session.close()
+    high_count = len(io_requests)
+    await ports.open("3")
+    io_requests = [
+        req
+        for req in requests
+        if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
+    ]
+    assert len(io_requests) == high_count + 1
+    assert io_requests[-1]["query"] == "action=4:\\"
 
 
-async def test_no_ports(aiohttp_mock_server) -> None:
+async def test_no_ports(aiohttp_mock_server, aiohttp_session) -> None:
     """Test that no ports also work."""
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -153,22 +147,19 @@ async def test_no_ports(aiohttp_mock_server) -> None:
     )
     ports = axis_device.vapix.port_cgi
 
-    try:
-        await ports.update()
-        assert requests is not None
-        assert (
-            len(
-                [
-                    req
-                    for req in requests
-                    if req["method"] == "POST" and req["path"] == "/axis-cgi/param.cgi"
-                ]
-            )
-            == 1
+    await ports.update()
+    assert requests is not None
+    assert (
+        len(
+            [
+                req
+                for req in requests
+                if req["method"] == "POST" and req["path"] == "/axis-cgi/param.cgi"
+            ]
         )
-        assert len(ports.values()) == 0
-    finally:
-        await session.close()
+        == 1
+    )
+    assert len(ports.values()) == 0
 
 
 @pytest.mark.parametrize(

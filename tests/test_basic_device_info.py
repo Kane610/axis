@@ -5,20 +5,17 @@ pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_d
 
 from unittest.mock import MagicMock
 
-import aiohttp
-
 from axis.device import AxisDevice
 from axis.models.configuration import Configuration
 
 from .conftest import HOST, PASS, USER
 
 
-async def test_get_all_properties(aiohttp_mock_server):
+async def test_get_all_properties(aiohttp_mock_server, aiohttp_session):
     """Test get all properties api."""
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -36,10 +33,7 @@ async def test_get_all_properties(aiohttp_mock_server):
         capture_payload=True,
     )
 
-    try:
-        await basic_device_info.update()
-    finally:
-        await session.close()
+    await basic_device_info.update()
 
     assert requests
     assert requests[-1]["method"] == "POST"
@@ -69,12 +63,11 @@ async def test_get_all_properties(aiohttp_mock_server):
     assert device_info.web_url == "http://www.axis.com"
 
 
-async def test_get_supported_versions(aiohttp_mock_server):
+async def test_get_supported_versions(aiohttp_mock_server, aiohttp_session):
     """Test get supported versions api."""
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -97,10 +90,7 @@ async def test_get_supported_versions(aiohttp_mock_server):
         capture_payload=True,
     )
 
-    try:
-        response = await basic_device_info.get_supported_versions()
-    finally:
-        await session.close()
+    response = await basic_device_info.get_supported_versions()
 
     assert requests
     assert requests[-1]["method"] == "POST"

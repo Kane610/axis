@@ -3,8 +3,6 @@
 pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discovery.py
 """
 
-import aiohttp
-
 from axis.device import AxisDevice
 from axis.models.api_discovery import ApiId, ApiStatus
 from axis.models.configuration import Configuration
@@ -22,12 +20,11 @@ async def test_api_status_enum():
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
-async def test_get_api_list(aiohttp_mock_server):
+async def test_get_api_list(aiohttp_mock_server, aiohttp_session):
     """Test get_api_list call."""
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -44,10 +41,7 @@ async def test_get_api_list(aiohttp_mock_server):
     )
 
     assert api_discovery.supported
-    try:
-        await api_discovery.update()
-    finally:
-        await session.close()
+    await api_discovery.update()
 
     assert requests
     assert requests[-1]["method"] == "POST"
@@ -69,12 +63,11 @@ async def test_get_api_list(aiohttp_mock_server):
     assert item.version == "1.0"
 
 
-async def test_get_supported_versions(aiohttp_mock_server):
+async def test_get_supported_versions(aiohttp_mock_server, aiohttp_session):
     """Test get_supported_versions."""
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -90,10 +83,7 @@ async def test_get_supported_versions(aiohttp_mock_server):
         capture_payload=True,
     )
 
-    try:
-        response = await api_discovery.get_supported_versions()
-    finally:
-        await session.close()
+    response = await api_discovery.get_supported_versions()
 
     assert requests
     assert requests[-1]["method"] == "POST"

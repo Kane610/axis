@@ -11,7 +11,7 @@ from axis.models.configuration import AuthScheme, Configuration
 from .conftest import HOST, PASS, USER
 
 
-async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server):
+async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server, aiohttp_session):
     """Verify AUTO starts with digest and retries with basic auth once."""
     auth_headers: list[str] = []
 
@@ -24,10 +24,9 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server):
             )
         return web.Response(status=200, body=b"ok")
 
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -45,10 +44,7 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server):
 
     assert axis_device.vapix.auth is None
 
-    try:
-        result = await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
-    finally:
-        await session.close()
+    result = await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
 
     assert result == b"ok"
     assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
@@ -56,7 +52,9 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server):
     assert auth_headers[-1].lower().startswith("basic ")
 
 
-async def test_auth_scheme_digest_does_not_fallback(aiohttp_mock_server):
+async def test_auth_scheme_digest_does_not_fallback(
+    aiohttp_mock_server, aiohttp_session
+):
     """Verify DIGEST does not switch auth method when basic is offered."""
     calls = 0
 
@@ -68,10 +66,9 @@ async def test_auth_scheme_digest_does_not_fallback(aiohttp_mock_server):
             headers={"WWW-Authenticate": 'Basic realm="AXIS"'},
         )
 
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             port=80,
             username=USER,
@@ -88,54 +85,43 @@ async def test_auth_scheme_digest_does_not_fallback(aiohttp_mock_server):
         capture_requests=False,
     )
 
-    try:
-        with pytest.raises(Unauthorized):
-            await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
-    finally:
-        await session.close()
+    with pytest.raises(Unauthorized):
+        await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
 
     assert axis_device.vapix.auth is None
     assert calls == 1
 
 
-async def test_auth_scheme_basic_initializes_basic_auth() -> None:
+async def test_auth_scheme_basic_initializes_basic_auth(aiohttp_session) -> None:
     """Verify BASIC starts with basic auth immediately."""
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             username=USER,
             password=PASS,
             auth_scheme=AuthScheme.BASIC,
         )
     )
-    try:
-        assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
-    finally:
-        await session.close()
+    assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
 
 
-async def test_auto_should_retry_guards() -> None:
+async def test_auto_should_retry_guards(aiohttp_session) -> None:
     """Verify retry guard conditions short-circuit appropriately."""
     headers = {"WWW-Authenticate": 'Basic realm="AXIS"'}
 
-    session = aiohttp.ClientSession()
     axis_device = AxisDevice(
         Configuration(
-            session,
+            aiohttp_session,
             HOST,
             username=USER,
             password=PASS,
             auth_scheme=AuthScheme.AUTO,
         )
     )
-    try:
-        # Retry disabled should always return False.
-        assert not axis_device.vapix._should_retry_with_basic(headers, False)
+    # Retry disabled should always return False.
+    assert not axis_device.vapix._should_retry_with_basic(headers, False)
 
-        # On the aiohttp client path, retry guard does not inspect auth type.
-        axis_device.vapix.auth = aiohttp.BasicAuth(USER, PASS)
-        assert axis_device.vapix._should_retry_with_basic(headers, True)
-    finally:
-        await session.close()
+    # On the aiohttp client path, retry guard does not inspect auth type.
+    axis_device.vapix.auth = aiohttp.BasicAuth(USER, PASS)
+    assert axis_device.vapix._should_retry_with_basic(headers, True)
