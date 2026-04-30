@@ -7,30 +7,13 @@ from __future__ import annotations
 
 import pytest
 
-from axis.device import AxisDevice
-from axis.models.configuration import Configuration
 from axis.models.parameters.io_port import PortAction, PortDirection
 
-from .conftest import HOST, PASS, USER
 
-
-async def test_ports(aiohttp_mock_server, session) -> None:
+async def test_ports(http_route_mock, axis_device) -> None:
     """Test that different types of ports work."""
-    axis_device = AxisDevice(
-        Configuration(
-            session,
-            HOST,
-            port=80,
-            username=USER,
-            password=PASS,
-        )
-    )
-
-    _server, requests = await aiohttp_mock_server(
-        {
-            "/axis-cgi/param.cgi": {
-                "method": "POST",
-                "response": """root.Input.NbrOfInputs=3
+    param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
+        content="""root.Input.NbrOfInputs=3
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
 root.IOPort.I1.Configurable=no
@@ -55,26 +38,14 @@ root.IOPort.I3.Output.Name=Tampering
 root.IOPort.I3.Output.PulseTime=0
 root.Output.NbrOfOutputs=1
 """.encode("iso-8859-1"),
-                "headers": {"Content-Type": "text/plain; charset=iso-8859-1"},
-            },
-            "/axis-cgi/io/port.cgi": {"method": "GET", "response": ""},
-        },
-        device=axis_device,
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
+    io_route = http_route_mock.get("/axis-cgi/io/port.cgi").respond(text="")
+
     ports = axis_device.vapix.port_cgi
 
     await ports.update()
-    assert requests is not None
-    assert (
-        len(
-            [
-                req
-                for req in requests
-                if req["method"] == "POST" and req["path"] == "/axis-cgi/param.cgi"
-            ]
-        )
-        == 1
-    )
+    assert param_route.called
 
     assert ports["0"].id == "0"
     assert ports["0"].configurable is False
@@ -101,64 +72,28 @@ root.Output.NbrOfOutputs=1
     assert ports["3"].name == "Tampering"
     assert ports["3"].output_active == "open"
 
-    io_requests = [
-        req
-        for req in requests
-        if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
-    ]
-    low_count = len(io_requests)
+    low_count = len(io_route.calls)
     await ports.close("3")
-    io_requests = [
-        req
-        for req in requests
-        if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
-    ]
-    assert len(io_requests) == low_count + 1
-    assert io_requests[-1]["query"] == "action=4:/"
+    assert len(io_route.calls) == low_count + 1
+    assert io_route.calls.last.request.url.params == {"action": "4:/"}
 
-    high_count = len(io_requests)
+    high_count = len(io_route.calls)
     await ports.open("3")
-    io_requests = [
-        req
-        for req in requests
-        if req["method"] == "GET" and req["path"] == "/axis-cgi/io/port.cgi"
-    ]
-    assert len(io_requests) == high_count + 1
-    assert io_requests[-1]["query"] == "action=4:\\"
+    assert len(io_route.calls) == high_count + 1
+    assert io_route.calls.last.request.url.params == {"action": "4:\\"}
 
 
-async def test_no_ports(aiohttp_mock_server, session) -> None:
+async def test_no_ports(http_route_mock, axis_device) -> None:
     """Test that no ports also work."""
-    axis_device = AxisDevice(
-        Configuration(
-            session,
-            HOST,
-            port=80,
-            username=USER,
-            password=PASS,
-        )
-    )
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/param.cgi",
-        method="POST",
-        response="".encode("iso-8859-1"),
+    param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
+        content="".encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
-        device=axis_device,
     )
     ports = axis_device.vapix.port_cgi
 
     await ports.update()
-    assert requests is not None
-    assert (
-        len(
-            [
-                req
-                for req in requests
-                if req["method"] == "POST" and req["path"] == "/axis-cgi/param.cgi"
-            ]
-        )
-        == 1
-    )
+    assert param_route.called
+
     assert len(ports.values()) == 0
 
 

@@ -3,6 +3,8 @@
 pytest --cov-report term-missing --cov=axis.port_management tests/test_port_management.py
 """
 
+import json
+
 import pytest
 
 from axis.interfaces.port_management import IoPortManagement
@@ -15,21 +17,18 @@ def io_port_management(axis_device) -> IoPortManagement:
     return IoPortManagement(axis_device.vapix)
 
 
-async def test_get_ports(aiohttp_mock_server, io_port_management):
+async def test_get_ports(http_route_mock, io_port_management):
     """Test get_ports call."""
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/io/portmanagement.cgi",
-        response=GET_PORTS_RESPONSE,
-        device=io_port_management,
-        capture_payload=True,
+    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json=GET_PORTS_RESPONSE,
     )
 
     await io_port_management.update()
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/io/portmanagement.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "apiVersion": "1.0",
         "context": "Axis library",
         "method": "getPorts",
@@ -49,9 +48,9 @@ async def test_get_ports(aiohttp_mock_server, io_port_management):
 
     await io_port_management.open("0")
 
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/io/portmanagement.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -60,9 +59,9 @@ async def test_get_ports(aiohttp_mock_server, io_port_management):
 
     await io_port_management.close("0")
 
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/io/portmanagement.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -70,13 +69,10 @@ async def test_get_ports(aiohttp_mock_server, io_port_management):
     }
 
 
-async def test_get_empty_ports_response(aiohttp_mock_server, io_port_management):
+async def test_get_empty_ports_response(http_route_mock, io_port_management):
     """Test get_ports call."""
-    await aiohttp_mock_server(
-        "/axis-cgi/io/portmanagement.cgi",
-        response=GET_EMPTY_PORTS_RESPONSE,
-        device=io_port_management,
-        capture_requests=False,
+    http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json=GET_EMPTY_PORTS_RESPONSE,
     )
 
     await io_port_management.update()
@@ -84,15 +80,10 @@ async def test_get_empty_ports_response(aiohttp_mock_server, io_port_management)
     assert len(io_port_management.values()) == 0
 
 
-async def test_set_ports(aiohttp_mock_server, io_port_management):
+async def test_set_ports(http_route_mock, io_port_management):
     """Test set_ports call."""
-    requests: list[dict[str, object]] = []
-
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/io/portmanagement.cgi",
-        response={"apiVersion": "1.0", "context": "Axis library"},
-        device=io_port_management,
-        capture_payload=True,
+    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json={"apiVersion": "1.0", "context": "Axis library"},
     )
 
     await io_port_management.set_ports(
@@ -108,10 +99,10 @@ async def test_set_ports(aiohttp_mock_server, io_port_management):
         ]
     )
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/io/portmanagement.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "method": "setPorts",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -130,25 +121,20 @@ async def test_set_ports(aiohttp_mock_server, io_port_management):
     }
 
 
-async def test_set_state_sequence(aiohttp_mock_server, io_port_management):
+async def test_set_state_sequence(http_route_mock, io_port_management):
     """Test setting state sequence call."""
-    requests: list[dict[str, object]] = []
-
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/io/portmanagement.cgi",
-        response={"apiVersion": "1.0", "context": "Axis library"},
-        device=io_port_management,
-        capture_payload=True,
+    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json={"apiVersion": "1.0", "context": "Axis library"},
     )
 
     await io_port_management.set_state_sequence(
         "0", [Sequence("open", 3000), Sequence("closed", 5000)]
     )
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/io/portmanagement.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "method": "setStateSequence",
         "apiVersion": "1.0",
         "context": "Axis library",
@@ -162,23 +148,18 @@ async def test_set_state_sequence(aiohttp_mock_server, io_port_management):
     }
 
 
-async def test_get_supported_versions(aiohttp_mock_server, io_port_management):
+async def test_get_supported_versions(http_route_mock, io_port_management):
     """Test get_supported_versions."""
-    requests: list[dict[str, object]] = []
-
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/io/portmanagement.cgi",
-        response=GET_SUPPORTED_VERSIONS_RESPONSE,
-        device=io_port_management,
-        capture_payload=True,
+    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+        json=GET_SUPPORTED_VERSIONS_RESPONSE,
     )
 
     response = await io_port_management.get_supported_versions()
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/io/portmanagement.cgi"
-    assert requests[-1]["payload"] == {
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/io/portmanagement.cgi"
+    assert json.loads(route.calls.last.request.content) == {
         "method": "getSupportedVersions",
         "context": "Axis library",
     }

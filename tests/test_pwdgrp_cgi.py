@@ -17,23 +17,6 @@ def users(axis_device) -> Users:
     return axis_device.vapix.users
 
 
-async def _setup_pwdgrp_route(
-    aiohttp_mock_server,
-    users: Users,
-    *,
-    text: str = "",
-    content: bytes | None = None,
-) -> list[dict[str, object]]:
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/pwdgrp.cgi",
-        method="POST",
-        response=content if content is not None else text,
-        device=users,
-        capture_body=True,
-    )
-    return requests
-
-
 def test_user_class_privileges() -> None:
     """Test privilege case that shouldn't be able to arise."""
     bad_user = User.decode(
@@ -49,9 +32,9 @@ def test_user_class_privileges() -> None:
     assert bad_user.privileges == SecondaryGroup.UNKNOWN
 
 
-async def test_users(aiohttp_mock_server, users):
+async def test_users(http_route_mock, users):
     """Verify that you can list users."""
-    await _setup_pwdgrp_route(aiohttp_mock_server, users, text=GET_USERS_RESPONSE)
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
     await users.update()
 
     assert users.initialized
@@ -97,10 +80,10 @@ async def test_users(aiohttp_mock_server, users):
     assert users["usera"].privileges == SecondaryGroup.ADMIN_PTZ
 
 
-async def test_users_new_response(aiohttp_mock_server, users):
+async def test_users_new_response(http_route_mock, users):
     """Verify that you can list users."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
-    await _setup_pwdgrp_route(aiohttp_mock_server, users, content=response)
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(content=response)
     await users.update()
 
     assert users["root"]
@@ -111,17 +94,17 @@ async def test_users_new_response(aiohttp_mock_server, users):
     assert users["root"].ptz
 
 
-async def test_create(aiohttp_mock_server, users):
+async def test_create(http_route_mock, users):
     """Verify that you can create users."""
-    requests = await _setup_pwdgrp_route(aiohttp_mock_server, users)
+    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
-        requests[-1]["body"]
+        route.calls.last.request.content
         == urllib.parse.urlencode(
             {
                 "action": "add",
@@ -135,10 +118,10 @@ async def test_create(aiohttp_mock_server, users):
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
-        requests[-1]["body"]
+        route.calls.last.request.content
         == urllib.parse.urlencode(
             {
                 "action": "add",
@@ -152,17 +135,17 @@ async def test_create(aiohttp_mock_server, users):
     )
 
 
-async def test_modify(aiohttp_mock_server, users):
+async def test_modify(http_route_mock, users):
     """Verify that you can modify users."""
-    requests = await _setup_pwdgrp_route(aiohttp_mock_server, users)
+    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
 
     await users.modify("joe", pwd="abcd")
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
-        requests[-1]["body"]
+        route.calls.last.request.content
         == urllib.parse.urlencode(
             {"action": "update", "user": "joe", "pwd": "abcd"}
         ).encode()
@@ -170,10 +153,10 @@ async def test_modify(aiohttp_mock_server, users):
 
     await users.modify("joe", sgrp=SecondaryGroup.ADMIN)
 
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
-        requests[-1]["body"]
+        route.calls.last.request.content
         == urllib.parse.urlencode(
             {"action": "update", "user": "joe", "sgrp": "viewer:operator:admin"}
         ).encode()
@@ -181,10 +164,10 @@ async def test_modify(aiohttp_mock_server, users):
 
     await users.modify("joe", comment="comment")
 
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
-        requests[-1]["body"]
+        route.calls.last.request.content
         == urllib.parse.urlencode(
             {"action": "update", "user": "joe", "comment": "comment"}
         ).encode()
@@ -192,10 +175,10 @@ async def test_modify(aiohttp_mock_server, users):
 
     await users.modify("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN, comment="comment")
 
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
-        requests[-1]["body"]
+        route.calls.last.request.content
         == urllib.parse.urlencode(
             {
                 "action": "update",
@@ -208,32 +191,32 @@ async def test_modify(aiohttp_mock_server, users):
     )
 
 
-async def test_delete(aiohttp_mock_server, users):
+async def test_delete(http_route_mock, users):
     """Verify that you can delete users."""
-    requests = await _setup_pwdgrp_route(aiohttp_mock_server, users)
+    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
 
     await users.delete("joe")
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/pwdgrp.cgi"
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/pwdgrp.cgi"
     assert (
-        requests[-1]["body"]
+        route.calls.last.request.content
         == urllib.parse.urlencode({"action": "remove", "user": "joe"}).encode()
     )
 
 
-async def test_equals_in_value(aiohttp_mock_server, users):
+async def test_equals_in_value(http_route_mock, users):
     """Verify that values containing `=` are parsed correctly."""
-    await _setup_pwdgrp_route(
-        aiohttp_mock_server, users, text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(
+        text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
     )
     await users.update()
 
 
-async def test_no_equals_in_value(aiohttp_mock_server, users):
+async def test_no_equals_in_value(http_route_mock, users):
     """Verify that values containing `=` are parsed correctly."""
-    await _setup_pwdgrp_route(aiohttp_mock_server, users, text="")
+    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
     await users.update()
 
 

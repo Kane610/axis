@@ -26,14 +26,11 @@ def event_instances(axis_device) -> EventInstanceHandler:
     return axis_device.vapix.event_instances
 
 
-async def test_full_list_of_event_instances(aiohttp_mock_server, event_instances):
+async def test_full_list_of_event_instances(http_route_mock, event_instances):
     """Test loading of event instances work."""
-    await aiohttp_mock_server(
-        "/vapix/services",
-        response=EVENT_INSTANCES,
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-        device=event_instances,
-        capture_requests=False,
     )
 
     await event_instances.update()
@@ -132,18 +129,15 @@ async def test_full_list_of_event_instances(aiohttp_mock_server, event_instances
     ],
 )
 async def test_single_event_instance(
-    aiohttp_mock_server,
+    http_route_mock,
     event_instances: EventInstanceHandler,
     response: str,
     expected: dict,
 ):
     """Verify expected outcome from different event instances."""
-    await aiohttp_mock_server(
-        "/vapix/services",
-        response=response,
+    http_route_mock.post("/vapix/services").respond(
+        text=response,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-        device=event_instances,
-        capture_requests=False,
     )
 
     await event_instances.update()
