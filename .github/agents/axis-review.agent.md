@@ -32,6 +32,26 @@ user-invocable: true
 
 **See also:** `.github/copilot-instructions.md`, `CONTRIBUTING.md`.
 
+## When to Use This Agent
+
+**Invoke with these keywords:**
+- "review my code"
+- "review for regressions"
+- "check for bugs"
+- "code review"
+- "@axis-review"
+
+**Best for:**
+- After writing code but before running full test suite
+- Checking enum fallbacks, XML parsing, handler phases
+- Identifying test gaps or missing edge cases
+- Risk analysis on PR changes
+
+**Do NOT use for:**
+- Running tests or lint checks (use Axis Review Verify for that)
+- General questions about the codebase (use default agent)
+- "Run pytest" or "verify CI" (specify Axis Review Verify instead)
+
 ## Scope
 - Review code changes and nearby context for defects and unintended behavior changes.
 - Prioritize runtime correctness, API/contract compatibility, and edge-case handling.

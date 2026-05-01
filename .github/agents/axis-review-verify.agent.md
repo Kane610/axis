@@ -20,6 +20,28 @@
 - For code review, use the `Axis Review` agent.
 
 **See also:** `.github/copilot-instructions.md`, `CONTRIBUTING.md`.
+
+## When to Use This Agent
+
+**Invoke with these keywords:**
+- "verify my PR"
+- "validate my changes"
+- "run checks"
+- "is my PR ready for merge?"
+- "test and review"
+- "@axis-review-verify"
+
+**Best for:**
+- Before pushing to GitHub or opening a PR
+- Full validation of code + tests + lint + type checking
+- Confirmation that all checks will pass
+- Finding failures and explaining what went wrong
+
+**Do NOT use for:**
+- Quick code review only (use Axis Review instead)
+- Sweeping repo-wide tests (specify affected test files: `tests/test_<area>.py`)
+- General questions or debugging (use default agent)
+- Exploratory questions about the codebase
 ---
 description: "Use when reviewing Axis changes and you want findings plus command-backed validation. Keywords: review with tests, verify PR, run targeted checks, regression verification, lint/type/test confirmation."
 name: "Axis Review Verify"
