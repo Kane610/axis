@@ -4,10 +4,12 @@ from typing import TYPE_CHECKING, Any
 
 from ..models.event_instance import (
     EventInstance,
+    EventProtocol,
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )
 from .api_handler import ApiHandler
+from .event_manager import BLACK_LISTED_TOPICS
 
 if TYPE_CHECKING:
     from ..models.event import Event
@@ -26,11 +28,29 @@ class EventInstanceHandler(ApiHandler[Any]):
         response = ListEventInstancesResponse.decode(bytes_data)
         return response.data
 
-    def get_events_per_topic(self) -> dict[str, list[Event]]:
-        """Return synthesized initialized events grouped by event-instance topic."""
+    def get_expected_events_per_topic(
+        self,
+        protocol: EventProtocol | str | None = None,
+        include_internal_topics: bool = False,
+    ) -> dict[str, list[Event]]:
+        """Return normalized expected events grouped by topic.
+
+        Event instances are the protocol-agnostic bootstrap source for expected events.
+        MQTT does not advertise topics during startup, so this API provides a unified
+        expectation surface across metadata stream, websocket, and MQTT consumers.
+        """
+        if protocol is not None:
+            EventProtocol(protocol)
+
         grouped: dict[str, list[Event]] = {}
         for item in self.values():
             if not isinstance(item, EventInstance):
                 continue
+            if not include_internal_topics and item.topic in BLACK_LISTED_TOPICS:
+                continue
             grouped[item.topic] = item.to_events()
         return grouped
+
+    def get_events_per_topic(self) -> dict[str, list[Event]]:
+        """Backward-compatible alias for expected events grouped by topic."""
+        return self.get_expected_events_per_topic()

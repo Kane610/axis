@@ -145,30 +145,6 @@ class Event:
     data: dict[str, Any]
 
     @classmethod
-    def synthesize_initialized(
-        cls,
-        topic: str,
-        source: str = "",
-        source_idx: str = "",
-        value: str | None = None,
-    ) -> Self:
-        """Create an initialized event from normalized event-instance fields."""
-        topic_base = EventTopic(topic)
-        state = value
-        if state in (None, ""):
-            state = TOPIC_TO_INACTIVE_STATE.get(topic_base, "0")
-
-        return cls._decode_from_dict(
-            {
-                EVENT_OPERATION: EventOperation.INITIALIZED,
-                EVENT_TOPIC: topic,
-                EVENT_SOURCE: source,
-                EVENT_SOURCE_IDX: source_idx,
-                EVENT_VALUE: state,
-            }
-        )
-
-    @classmethod
     def decode(cls, data: bytes | dict[str, Any]) -> Self:
         """Decode data to an event object."""
         if isinstance(data, dict):
