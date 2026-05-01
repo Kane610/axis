@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from axis.models.event import Event
 from axis.models.event_instance import get_events
 
 from .event_fixtures import (
@@ -14,6 +15,9 @@ from .event_fixtures import (
     EVENT_INSTANCE_STORAGE_ALERT,
     EVENT_INSTANCE_VMD4_PROFILE1,
     EVENT_INSTANCES,
+    LIGHT_STATUS_INIT,
+    PIR_INIT,
+    VMD4_C1P1_INIT,
 )
 
 if TYPE_CHECKING:
@@ -269,3 +273,53 @@ async def test_single_event_instance(
 def test_get_events(input: dict, output: list):
     """Verify expected output of get_events."""
     assert get_events(input) == output
+
+
+@pytest.mark.parametrize(
+    "event_stream_bytes",
+    [PIR_INIT, LIGHT_STATUS_INIT, VMD4_C1P1_INIT],
+)
+async def test_event_instance_synthesized_event_matches_stream_content(
+    http_route_mock,
+    event_instances: EventInstanceHandler,
+    event_stream_bytes: bytes,
+) -> None:
+    """Synthesize events from instances and verify stream-content parity fields."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    expected = Event.decode(event_stream_bytes)
+    per_topic = event_instances.get_events_per_topic()
+    actual = next(
+        event
+        for event in per_topic[expected.topic]
+        if event.source == expected.source and event.id == expected.id
+    )
+
+    assert actual.topic == expected.topic
+    assert actual.source == expected.source
+    assert actual.id == expected.id
+    assert actual.state == expected.state
+    assert actual.group == expected.group
+
+
+async def test_event_instance_synthesizes_unknown_topics(
+    http_route_mock, event_instances
+):
+    """Synthesis should include topics not represented in EventTopic enum."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    per_topic = event_instances.get_events_per_topic()
+    assert "tns1:Media/ProfileChanged" in per_topic
+    assert (
+        per_topic["tns1:Media/ProfileChanged"][0].topic == "tns1:Media/ProfileChanged"
+    )
