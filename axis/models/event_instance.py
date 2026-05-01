@@ -1,12 +1,23 @@
 """Event service and action service APIs available in Axis network device."""
 
 from dataclasses import dataclass
+import enum
 from typing import Any, Self
 
 import xmltodict
 
 from .api import ApiItem, ApiRequest, ApiResponse
-from .event import Event, traverse
+from .event import (
+    EVENT_OPERATION,
+    EVENT_SOURCE,
+    EVENT_SOURCE_IDX,
+    EVENT_TOPIC,
+    EVENT_VALUE,
+    Event,
+    EventOperation,
+    EventTopic,
+    traverse,
+)
 
 EVENT_INSTANCE = (
     "http://www.w3.org/2003/05/soap-envelope:Envelope",
@@ -103,6 +114,25 @@ def _extract_data_value(data: dict[str, Any] | list[dict[str, Any]]) -> str:
     return "" if value is None else str(value)
 
 
+TOPIC_TO_INACTIVE_STATE = {
+    EventTopic.LIGHT_STATUS.value: "OFF",
+    EventTopic.RELAY.value: "inactive",
+}
+
+
+class EventProtocol(enum.StrEnum):
+    """Protocols that consume normalized expected events."""
+
+    METADATA_STREAM = "metadata_stream"
+    WEBSOCKET = "websocket"
+    MQTT = "mqtt"
+
+
+def _default_inactive_state(topic: str) -> str:
+    """Return a default inactive state for expected event synthesis."""
+    return TOPIC_TO_INACTIVE_STATE.get(topic, "0")
+
+
 @dataclass(frozen=True)
 class EventInstance(ApiItem):
     """Events are emitted when the Axis product detects an occurrence of some kind.
@@ -178,16 +208,25 @@ class EventInstance(ApiItem):
         )
 
     def to_events(self) -> list[Event]:
-        """Synthesize initialized Event objects from event-instance schema data."""
+        """Synthesize normalized expected events from event-instance schema data.
+
+        Topics are preserved exactly as they are declared by event instances so topic
+        representation stays identical to emitted event topics.
+        """
         source_name, source_values = _extract_source_values(self.source)
         state_value = _extract_data_value(self.data)
+        if state_value == "":
+            state_value = _default_inactive_state(self.topic)
 
         return [
-            Event.synthesize_initialized(
-                topic=self.topic,
-                source=source_name,
-                source_idx=source_value,
-                value=state_value,
+            Event.decode(
+                {
+                    EVENT_OPERATION: EventOperation.INITIALIZED,
+                    EVENT_TOPIC: self.topic,
+                    EVENT_SOURCE: source_name,
+                    EVENT_SOURCE_IDX: source_value,
+                    EVENT_VALUE: state_value,
+                }
             )
             for source_value in source_values
         ]

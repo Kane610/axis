@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.models.event import Event
-from axis.models.event_instance import get_events
+from axis.models.event_instance import EventInstance, EventProtocol, get_events
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,
@@ -293,7 +293,7 @@ async def test_event_instance_synthesized_event_matches_stream_content(
     await event_instances.update()
 
     expected = Event.decode(event_stream_bytes)
-    per_topic = event_instances.get_events_per_topic()
+    per_topic = event_instances.get_expected_events_per_topic()
     actual = next(
         event
         for event in per_topic[expected.topic]
@@ -318,8 +318,77 @@ async def test_event_instance_synthesizes_unknown_topics(
 
     await event_instances.update()
 
-    per_topic = event_instances.get_events_per_topic()
+    per_topic = event_instances.get_expected_events_per_topic()
     assert "tns1:Media/ProfileChanged" in per_topic
     assert (
         per_topic["tns1:Media/ProfileChanged"][0].topic == "tns1:Media/ProfileChanged"
     )
+
+
+async def test_expected_events_protocol_normalization(http_route_mock, event_instances):
+    """All protocol calls should expose the same expected-event topic set."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    metadata_topics = set(
+        event_instances.get_expected_events_per_topic(EventProtocol.METADATA_STREAM)
+    )
+    websocket_topics = set(
+        event_instances.get_expected_events_per_topic(EventProtocol.WEBSOCKET)
+    )
+    mqtt_topics = set(event_instances.get_expected_events_per_topic(EventProtocol.MQTT))
+
+    assert metadata_topics == websocket_topics
+    assert websocket_topics == mqtt_topics
+
+
+def test_expected_events_invalid_protocol(event_instances):
+    """Invalid protocol value should fail fast."""
+    with pytest.raises(ValueError, match="EventProtocol"):
+        event_instances.get_expected_events_per_topic("invalid")
+
+
+def test_expected_events_internal_topic_filtering(event_instances):
+    """Internal-only topics are excluded by default and available on request."""
+    internal_topic = "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"
+    normal_topic = "tns1:Device/tnsaxis:Sensor/PIR"
+
+    event_instances._items = {
+        internal_topic: EventInstance(
+            id=internal_topic,
+            topic=internal_topic,
+            topic_filter="axis:CameraApplicationPlatform/VMD/xinternal_data",
+            is_available=True,
+            is_application_data=False,
+            name="internal",
+            stateful=True,
+            stateless=False,
+            source={},
+            data={},
+        ),
+        normal_topic: EventInstance(
+            id=normal_topic,
+            topic=normal_topic,
+            topic_filter="onvif:Device/axis:Sensor/PIR",
+            is_available=True,
+            is_application_data=False,
+            name="pir",
+            stateful=True,
+            stateless=False,
+            source={},
+            data={},
+        ),
+    }
+
+    filtered = event_instances.get_expected_events_per_topic()
+    unfiltered = event_instances.get_expected_events_per_topic(
+        include_internal_topics=True
+    )
+
+    assert internal_topic not in filtered
+    assert internal_topic in unfiltered
+    assert normal_topic in filtered

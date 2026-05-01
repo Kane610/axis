@@ -91,11 +91,6 @@ TOPIC_TO_STATE = {
     EventTopic.RELAY: "active",
 }
 
-TOPIC_TO_INACTIVE_STATE = {
-    EventTopic.LIGHT_STATUS: "OFF",
-    EventTopic.RELAY: "inactive",
-}
-
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
 EVENT_SOURCE_IDX = "source_idx"
@@ -156,30 +151,6 @@ class Event:
     state: str
     topic: str
     topic_base: EventTopic
-
-    @classmethod
-    def synthesize_initialized(
-        cls,
-        topic: str,
-        source: str = "",
-        source_idx: str = "",
-        value: str | None = None,
-    ) -> Self:
-        """Create an initialized event from normalized event-instance fields."""
-        topic_base = EventTopic(topic)
-        state = value
-        if state in (None, ""):
-            state = TOPIC_TO_INACTIVE_STATE.get(topic_base, "0")
-
-        return cls._decode_from_dict(
-            {
-                EVENT_OPERATION: EventOperation.INITIALIZED,
-                EVENT_TOPIC: topic,
-                EVENT_SOURCE: source,
-                EVENT_SOURCE_IDX: source_idx,
-                EVENT_VALUE: state,
-            }
-        )
 
     @classmethod
     def decode(cls, data: bytes | dict[str, Any]) -> Self:

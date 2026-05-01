@@ -39,7 +39,6 @@ if TYPE_CHECKING:
 
     from ..device import AxisDevice
     from ..models.api import ApiRequest
-    from ..models.event import Event
     from ..models.stream_profile import StreamProfile
 
 LOGGER = logging.getLogger(__name__)
@@ -95,7 +94,6 @@ class Vapix:
         self.vmd4 = Vmd4Handler(self)
 
         self.event_instances = EventInstanceHandler(self)
-        self.event_instance_events: dict[str, list[Event]] = {}
 
     @property
     def firmware_version(self) -> str:
@@ -242,7 +240,6 @@ class Vapix:
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
         await self.event_instances.update()
-        self.event_instance_events = self.event_instances.get_events_per_topic()
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""
