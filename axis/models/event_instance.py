@@ -72,6 +72,13 @@ def _as_simple_item_list(
     return []
 
 
+def _as_dict(data: object) -> dict[str, Any]:
+    """Return dict for mapping-like payloads and normalize other values to empty."""
+    if isinstance(data, dict):
+        return data
+    return {}
+
+
 def _extract_source_values(
     source: dict[str, Any] | list[dict[str, Any]],
 ) -> tuple[str, list[str]]:
@@ -191,20 +198,24 @@ class EventInstance(ApiItem):
     @classmethod
     def decode(cls, data: dict[str, Any]) -> Self:
         """Decode dict to class object."""
-        message = data["data"].get("MessageInstance", {})
+        event_data = _as_dict(data.get("data"))
+        message = _as_dict(event_data.get("MessageInstance"))
+        source_instance = _as_dict(message.get("SourceInstance"))
+        data_instance = _as_dict(message.get("DataInstance"))
+
         return cls(
             id=data["topic"],
             topic=data["topic"],
             topic_filter=data["topic"]
             .replace("tns1", "onvif")
             .replace("tnsaxis", "axis"),
-            is_available=data["data"]["@topic"] == "true",
-            is_application_data=data["data"].get("@isApplicationData") == "true",
-            name=data["data"].get("@NiceName", ""),
+            is_available=event_data.get("@topic") == "true",
+            is_application_data=event_data.get("@isApplicationData") == "true",
+            name=event_data.get("@NiceName", ""),
             stateful=message.get("@isProperty") == "true",
             stateless=message.get("@isProperty") != "true",
-            source=message.get("SourceInstance", {}).get("SimpleItemInstance", {}),
-            data=message.get("DataInstance", {}).get("SimpleItemInstance", {}),
+            source=source_instance.get("SimpleItemInstance", {}),
+            data=data_instance.get("SimpleItemInstance", {}),
         )
 
     def to_events(self) -> list[Event]:
