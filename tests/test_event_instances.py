@@ -7,13 +7,17 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.models.event_instance import get_events
+from axis.models.event import Event
+from axis.models.event_instance import EventInstance, get_events
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,
     EVENT_INSTANCE_STORAGE_ALERT,
     EVENT_INSTANCE_VMD4_PROFILE1,
     EVENT_INSTANCES,
+    LIGHT_STATUS_INIT,
+    PIR_INIT,
+    VMD4_C1P1_INIT,
 )
 
 if TYPE_CHECKING:
@@ -269,3 +273,198 @@ async def test_single_event_instance(
 def test_get_events(input: dict, output: list):
     """Verify expected output of get_events."""
     assert get_events(input) == output
+
+
+@pytest.mark.parametrize(
+    "event_stream_bytes",
+    [PIR_INIT, LIGHT_STATUS_INIT, VMD4_C1P1_INIT],
+)
+async def test_event_instance_synthesized_event_matches_stream_content(
+    http_route_mock,
+    event_instances: EventInstanceHandler,
+    event_stream_bytes: bytes,
+) -> None:
+    """Synthesize events from instances and verify stream-content parity fields."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    expected = Event.decode(event_stream_bytes)
+    per_topic = event_instances.get_expected_events_per_topic()
+    actual = next(
+        event
+        for event in per_topic[expected.topic]
+        if event.source == expected.source and event.id == expected.id
+    )
+
+    assert actual.topic == expected.topic
+    assert actual.source == expected.source
+    assert actual.id == expected.id
+    assert actual.state == expected.state
+    assert actual.group == expected.group
+
+
+async def test_event_instance_synthesizes_unknown_topics(
+    http_route_mock, event_instances
+):
+    """Synthesis should include topics not represented in EventTopic enum."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    per_topic = event_instances.get_expected_events_per_topic()
+    assert "tns1:Media/ProfileChanged" in per_topic
+    assert (
+        per_topic["tns1:Media/ProfileChanged"][0].topic == "tns1:Media/ProfileChanged"
+    )
+
+
+async def test_expected_events_protocol_normalization(http_route_mock, event_instances):
+    """Expected-event discovery is protocol-agnostic and deterministic."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    topics_first = set(event_instances.get_expected_events_per_topic())
+    topics_second = set(event_instances.get_expected_events_per_topic())
+
+    assert topics_first == topics_second
+
+
+def test_expected_events_internal_topic_filtering(event_instances):
+    """Internal-only topics are excluded by default and available on request."""
+    internal_topic = "tnsaxis:CameraApplicationPlatform/VMD/xinternal_data"
+    normal_topic = "tns1:Device/tnsaxis:Sensor/PIR"
+
+    event_instances._items = {
+        internal_topic: EventInstance(
+            id=internal_topic,
+            topic=internal_topic,
+            topic_filter="axis:CameraApplicationPlatform/VMD/xinternal_data",
+            is_available=True,
+            is_application_data=False,
+            name="internal",
+            stateful=True,
+            stateless=False,
+            source={},
+            data={},
+        ),
+        normal_topic: EventInstance(
+            id=normal_topic,
+            topic=normal_topic,
+            topic_filter="onvif:Device/axis:Sensor/PIR",
+            is_available=True,
+            is_application_data=False,
+            name="pir",
+            stateful=True,
+            stateless=False,
+            source={},
+            data={},
+        ),
+    }
+
+    filtered = event_instances.get_expected_events_per_topic()
+    unfiltered = event_instances.get_expected_events_per_topic(
+        include_internal_topics=True
+    )
+
+    assert internal_topic not in filtered
+    assert internal_topic in unfiltered
+    assert normal_topic in filtered
+
+
+@pytest.mark.parametrize(
+    "raw_event",
+    [
+        {
+            "topic": "tns1:Configuration/tnsaxis:Intercom/Changed",
+            "data": {
+                "@topic": "true",
+                "@NiceName": "Intercom Configuration changed",
+                "MessageInstance": None,
+            },
+        },
+        {
+            "topic": "tns1:Device/Trigger/Relay",
+            "data": {
+                "@topic": "true",
+                "MessageInstance": {
+                    "@isProperty": "true",
+                    "SourceInstance": None,
+                    "DataInstance": None,
+                },
+            },
+        },
+        {
+            "topic": "tns1:Device/Trigger/Relay",
+            "data": {
+                "@topic": "true",
+                "MessageInstance": {
+                    "@isProperty": "true",
+                    "SourceInstance": {
+                        "SimpleItemInstance": {
+                            "@Name": "RelayToken",
+                            "Value": "3",
+                        }
+                    },
+                    "DataInstance": None,
+                },
+            },
+        },
+    ],
+)
+def test_event_instance_decode_handles_none_shapes(raw_event: dict) -> None:
+    """EventInstance.decode should normalize None-shaped nested objects safely."""
+    event = EventInstance.decode(raw_event)
+
+    assert event.topic == raw_event["topic"]
+    assert isinstance(event.source, (dict, list))
+    assert isinstance(event.data, (dict, list))
+
+
+async def test_event_instances_empty_message_instance_xml(
+    http_route_mock, event_instances
+):
+    """Empty MessageInstance XML nodes should not crash event instance parsing."""
+    response = """<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope"
+    xmlns:wstop="http://docs.oasis-open.org/wsn/t-1"
+    xmlns:aev="http://www.axis.com/vapix/ws/event1"
+    xmlns:tns1="http://www.onvif.org/ver10/topics"
+    xmlns:tnsaxis="http://www.axis.com/2009/event/topics">
+  <SOAP-ENV:Body>
+    <aev:GetEventInstancesResponse>
+      <wstop:TopicSet>
+        <tns1:Configuration>
+          <tnsaxis:Intercom>
+            <Changed wstop:topic="true" aev:NiceName="Intercom Configuration changed">
+              <aev:MessageInstance></aev:MessageInstance>
+            </Changed>
+          </tnsaxis:Intercom>
+        </tns1:Configuration>
+      </wstop:TopicSet>
+    </aev:GetEventInstancesResponse>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+"""
+    http_route_mock.post("/vapix/services").respond(
+        text=response,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    topic = "tns1:Configuration/tnsaxis:Intercom/Changed"
+    assert topic in event_instances
+    event = event_instances[topic]
+    assert event.source == {}
+    assert event.data == {}

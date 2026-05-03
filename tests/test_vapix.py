@@ -528,6 +528,7 @@ async def test_initialize_event_instances(http_route_mock, vapix: Vapix):
 
     assert vapix.event_instances
     assert len(vapix.event_instances) == 44
+    assert "tns1:Device/tnsaxis:Sensor/PIR" in vapix.event_instances
 
 
 async def test_applications_dont_load_without_params(http_route_mock, vapix: Vapix):
