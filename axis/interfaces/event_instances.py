@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from ..models.event_instance import (
     EventInstance,
-    EventProtocol,
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )
@@ -30,18 +29,14 @@ class EventInstanceHandler(ApiHandler[Any]):
 
     def get_expected_events_per_topic(
         self,
-        protocol: EventProtocol | str | None = None,
         include_internal_topics: bool = False,
     ) -> dict[str, list[Event]]:
-        """Return normalized expected events grouped by topic.
+        """Return expected startup events grouped by topic.
 
-        Event instances are the protocol-agnostic bootstrap source for expected events.
-        MQTT does not advertise topics during startup, so this API provides a unified
-        expectation surface across metadata stream, websocket, and MQTT consumers.
+        Event instances are the protocol-agnostic bootstrap source for startup
+        predeclaration. Returned events are synthesized from schema data and represent
+        expected event identity/state (operation=Initialized), not live stream updates.
         """
-        if protocol is not None:
-            EventProtocol(protocol)
-
         grouped: dict[str, list[Event]] = {}
         for item in self.values():
             if not isinstance(item, EventInstance):
@@ -50,7 +45,3 @@ class EventInstanceHandler(ApiHandler[Any]):
                 continue
             grouped[item.topic] = item.to_events()
         return grouped
-
-    def get_events_per_topic(self) -> dict[str, list[Event]]:
-        """Backward-compatible alias for expected events grouped by topic."""
-        return self.get_expected_events_per_topic()

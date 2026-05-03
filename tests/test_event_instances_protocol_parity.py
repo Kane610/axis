@@ -10,7 +10,6 @@ import pytest
 
 from axis.interfaces.mqtt import mqtt_json_to_event
 from axis.models.event import Event
-from axis.models.event_instance import EventProtocol
 from axis.websocket import _parse_ws_notification
 
 from .event_fixtures import EVENT_INSTANCES, LIGHT_STATUS_INIT, PIR_INIT, VMD4_C1P1_INIT
@@ -67,9 +66,7 @@ async def test_expected_events_match_websocket_shape(
     }
 
     parsed = Event.decode(_parse_ws_notification(notification))
-    expected_events = event_instances.get_expected_events_per_topic(
-        protocol=EventProtocol.WEBSOCKET
-    )
+    expected_events = event_instances.get_expected_events_per_topic()
 
     expected_identities = {
         _event_identity(event) for event in expected_events[expected.topic]
@@ -110,9 +107,7 @@ async def test_expected_events_match_mqtt_shape(
     }
 
     parsed = Event.decode(mqtt_json_to_event(orjson.dumps(mqtt_msg)))
-    expected_events = event_instances.get_expected_events_per_topic(
-        protocol=EventProtocol.MQTT
-    )
+    expected_events = event_instances.get_expected_events_per_topic()
 
     expected_identities = {
         _event_identity(event) for event in expected_events[expected.topic]
