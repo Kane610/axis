@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.models.event import Event
-from axis.models.event_instance import EventInstance, EventProtocol, get_events
+from axis.models.event_instance import EventInstance, get_events
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,
@@ -326,7 +326,7 @@ async def test_event_instance_synthesizes_unknown_topics(
 
 
 async def test_expected_events_protocol_normalization(http_route_mock, event_instances):
-    """All protocol calls should expose the same expected-event topic set."""
+    """Expected-event discovery is protocol-agnostic and deterministic."""
     http_route_mock.post("/vapix/services").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
@@ -334,22 +334,10 @@ async def test_expected_events_protocol_normalization(http_route_mock, event_ins
 
     await event_instances.update()
 
-    metadata_topics = set(
-        event_instances.get_expected_events_per_topic(EventProtocol.METADATA_STREAM)
-    )
-    websocket_topics = set(
-        event_instances.get_expected_events_per_topic(EventProtocol.WEBSOCKET)
-    )
-    mqtt_topics = set(event_instances.get_expected_events_per_topic(EventProtocol.MQTT))
+    topics_first = set(event_instances.get_expected_events_per_topic())
+    topics_second = set(event_instances.get_expected_events_per_topic())
 
-    assert metadata_topics == websocket_topics
-    assert websocket_topics == mqtt_topics
-
-
-def test_expected_events_invalid_protocol(event_instances):
-    """Invalid protocol value should fail fast."""
-    with pytest.raises(ValueError, match="EventProtocol"):
-        event_instances.get_expected_events_per_topic("invalid")
+    assert topics_first == topics_second
 
 
 def test_expected_events_internal_topic_filtering(event_instances):
