@@ -392,3 +392,91 @@ def test_expected_events_internal_topic_filtering(event_instances):
     assert internal_topic not in filtered
     assert internal_topic in unfiltered
     assert normal_topic in filtered
+
+
+@pytest.mark.parametrize(
+    "raw_event",
+    [
+        {
+            "topic": "tns1:Configuration/tnsaxis:Intercom/Changed",
+            "data": {
+                "@topic": "true",
+                "@NiceName": "Intercom Configuration changed",
+                "MessageInstance": None,
+            },
+        },
+        {
+            "topic": "tns1:Device/Trigger/Relay",
+            "data": {
+                "@topic": "true",
+                "MessageInstance": {
+                    "@isProperty": "true",
+                    "SourceInstance": None,
+                    "DataInstance": None,
+                },
+            },
+        },
+        {
+            "topic": "tns1:Device/Trigger/Relay",
+            "data": {
+                "@topic": "true",
+                "MessageInstance": {
+                    "@isProperty": "true",
+                    "SourceInstance": {
+                        "SimpleItemInstance": {
+                            "@Name": "RelayToken",
+                            "Value": "3",
+                        }
+                    },
+                    "DataInstance": None,
+                },
+            },
+        },
+    ],
+)
+def test_event_instance_decode_handles_none_shapes(raw_event: dict) -> None:
+    """EventInstance.decode should normalize None-shaped nested objects safely."""
+    event = EventInstance.decode(raw_event)
+
+    assert event.topic == raw_event["topic"]
+    assert isinstance(event.source, (dict, list))
+    assert isinstance(event.data, (dict, list))
+
+
+async def test_event_instances_empty_message_instance_xml(
+    http_route_mock, event_instances
+):
+    """Empty MessageInstance XML nodes should not crash event instance parsing."""
+    response = """<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope"
+    xmlns:wstop="http://docs.oasis-open.org/wsn/t-1"
+    xmlns:aev="http://www.axis.com/vapix/ws/event1"
+    xmlns:tns1="http://www.onvif.org/ver10/topics"
+    xmlns:tnsaxis="http://www.axis.com/2009/event/topics">
+  <SOAP-ENV:Body>
+    <aev:GetEventInstancesResponse>
+      <wstop:TopicSet>
+        <tns1:Configuration>
+          <tnsaxis:Intercom>
+            <Changed wstop:topic="true" aev:NiceName="Intercom Configuration changed">
+              <aev:MessageInstance></aev:MessageInstance>
+            </Changed>
+          </tnsaxis:Intercom>
+        </tns1:Configuration>
+      </wstop:TopicSet>
+    </aev:GetEventInstancesResponse>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+"""
+    http_route_mock.post("/vapix/services").respond(
+        text=response,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    topic = "tns1:Configuration/tnsaxis:Intercom/Changed"
+    assert topic in event_instances
+    event = event_instances[topic]
+    assert event.source == {}
+    assert event.data == {}
