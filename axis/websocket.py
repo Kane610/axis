@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
+import enum
 import logging
+import ssl
 from time import time
 from typing import TYPE_CHECKING, Any
 
@@ -46,6 +48,46 @@ RECEIVE_TIMEOUT = (
     60  # Allow 60 seconds for device to respond (heartbeat + network margin)
 )
 BUFFER_SIZE = 200
+
+
+class WebSocketFailureReason(enum.StrEnum):
+    """Classified websocket startup failure reason."""
+
+    NONE = "none"
+    SSL_CERTIFICATE = "ssl_certificate"
+    OTHER = "other"
+
+
+def _walk_exception_chain(err: BaseException) -> list[BaseException]:
+    """Return exceptions in causal chain for robust error classification."""
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = err
+
+    while current is not None and id(current) not in seen:
+        chain.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+    return chain
+
+
+def _classify_connect_error(err: BaseException) -> WebSocketFailureReason:
+    """Classify websocket connect failure for fallback decisions."""
+    for exc in _walk_exception_chain(err):
+        if isinstance(
+            exc,
+            (
+                ssl.SSLCertVerificationError,
+                aiohttp.ClientConnectorCertificateError,
+            ),
+        ):
+            return WebSocketFailureReason.SSL_CERTIFICATE
+
+        if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+            return WebSocketFailureReason.SSL_CERTIFICATE
+
+    return WebSocketFailureReason.OTHER
 
 
 def _parse_ws_notification(notification: dict[str, Any]) -> dict[str, Any]:
@@ -135,12 +177,14 @@ class WebSocketClient:
         self._data: deque[dict[str, Any]] = deque(maxlen=BUFFER_SIZE)
 
         self._ws_session: aiohttp.ClientSession | None = None
+        self._owns_ws_session = False
         self._ws: aiohttp.ClientWebSocketResponse | None = None
         self._receiver_task: asyncio.Task[None] | None = None
         self._close_task: asyncio.Task[None] | None = None
         self._stopped = False
         self._starting = False
         self._start_time: float | None = None
+        self._last_failure_reason = WebSocketFailureReason.NONE
 
     @classmethod
     def supported_by_device(cls, device: AxisDevice) -> bool:
@@ -154,6 +198,11 @@ class WebSocketClient:
             return self._data.popleft()
         except IndexError:
             return {}
+
+    @property
+    def should_disable_runtime_websocket(self) -> bool:
+        """Return true if websocket should be disabled for this runtime."""
+        return self._last_failure_reason == WebSocketFailureReason.SSL_CERTIFICATE
 
     async def _get_session_token(self) -> str | None:
         """Obtain a short-lived session token for websocket authentication.
@@ -178,32 +227,39 @@ class WebSocketClient:
         self._stopped = False
         self.session.state = State.STARTING
         self._start_time = time()
+        self._last_failure_reason = WebSocketFailureReason.NONE
 
         try:
             if self._close_task is not None:
                 await asyncio.shield(self._close_task)
 
             token = await self._get_session_token()
+            self._ws_session = self.device.config.session
+            self._owns_ws_session = False
+
+            ws_connect_kwargs: dict[str, Any] = {
+                "heartbeat": HEARTBEAT_INTERVAL,
+                "timeout": self._ws_timeout,
+            }
+            if not self.device.config.verify_ssl:
+                ws_connect_kwargs["ssl"] = False
+
             if token:
                 connect_url = f"{self.url}&wssession={token}"
-                self._ws_session = aiohttp.ClientSession()
             else:
                 # Fall back to HTTP Basic auth in the upgrade handshake.
                 connect_url = self.url
-                self._ws_session = aiohttp.ClientSession(
-                    auth=aiohttp.BasicAuth(
-                        self.device.config.username,
-                        self.device.config.password,
-                    ),
+                ws_connect_kwargs["auth"] = aiohttp.BasicAuth(
+                    self.device.config.username,
+                    self.device.config.password,
                 )
 
             self._ws = await self._ws_session.ws_connect(
-                connect_url,
-                heartbeat=HEARTBEAT_INTERVAL,
-                timeout=self._ws_timeout,
+                connect_url, **ws_connect_kwargs
             )
         except (aiohttp.ClientError, TimeoutError, OSError) as err:
             _LOGGER.warning("Websocket connect failed: %s", err)
+            self._last_failure_reason = _classify_connect_error(err)
             await self._close()
             self.session.state = State.STOPPED
             self._signal(Signal.FAILED)
@@ -345,9 +401,11 @@ class WebSocketClient:
             await self._ws.close()
             self._ws = None
 
-        if self._ws_session is not None:
+        if self._ws_session is not None and self._owns_ws_session:
             await self._ws_session.close()
-            self._ws_session = None
+
+        self._ws_session = None
+        self._owns_ws_session = False
 
     def _signal(self, signal: Signal) -> None:
         """Invoke the signal callback, swallowing any exceptions."""

@@ -4,6 +4,7 @@ pytest --cov-report term-missing --cov=axis.websocket tests/test_websocket.py
 """
 
 import asyncio
+import ssl
 from types import SimpleNamespace
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -151,12 +152,10 @@ async def test_websocket_stream_receives_data(axis_device):
         ],
     )
 
-    ws_session = AsyncMock()
-    ws_session.ws_connect.return_value = ws
-
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock(return_value=ws)
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -178,9 +177,10 @@ async def test_websocket_stream_receives_data(axis_device):
     assert client.session.state == State.STOPPED
 
     ws.send_json.assert_called_once_with(client._configure_payload)
-    ws_session.ws_connect.assert_called_once_with(
+    ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events&wssession=token123",
         heartbeat=15,
+        ssl=False,
         timeout=ANY,
     )
 
@@ -189,12 +189,10 @@ async def test_websocket_configure_failure(axis_device):
     """Verify websocket client reports failed configure."""
     callback = MagicMock()
     ws = MockWebSocket(_configure_error_msg(), [])
-    ws_session = AsyncMock()
-    ws_session.ws_connect.return_value = ws
-
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock(return_value=ws)
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -214,11 +212,10 @@ async def test_websocket_binary_configure_frame_is_rejected(axis_device):
         [],
     )
 
-    ws_session = AsyncMock()
-    ws_session.ws_connect.return_value = ws
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock(return_value=ws)
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -234,11 +231,10 @@ async def test_websocket_stop_is_idempotent(axis_device):
     """Verify stop() can be called repeatedly without failed callback."""
     callback = MagicMock()
     ws = BlockingWebSocket(_configure_ok_msg())
-    ws_session = AsyncMock()
-    ws_session.ws_connect.return_value = ws
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock(return_value=ws)
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -262,11 +258,10 @@ async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device):
         _configure_ok_msg(),
         [SimpleNamespace(type=aiohttp.WSMsgType.CLOSED, data=None)],
     )
-    ws_session = AsyncMock()
-    ws_session.ws_connect.return_value = ws
     axis_device.vapix.request = AsyncMock(side_effect=RuntimeError("no token"))
+    ws_connect = AsyncMock(return_value=ws)
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -275,9 +270,14 @@ async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device):
         await client.start()
         await client._receiver_task
 
-    ws_session.ws_connect.assert_called_once_with(
+    ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
+        auth=aiohttp.BasicAuth(
+            axis_device.config.username,
+            axis_device.config.password,
+        ),
         heartbeat=15,
+        ssl=False,
         timeout=ANY,
     )
 
@@ -303,10 +303,10 @@ async def test_websocket_supported_by_device_and_empty_data(axis_device):
 async def test_websocket_start_guard_returns_early(axis_device):
     """Verify start() short-circuits if already starting or non-stopped state."""
     callback = MagicMock()
-    ws_session = AsyncMock()
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock()
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -321,7 +321,7 @@ async def test_websocket_start_guard_returns_early(axis_device):
         await client.start()
 
     axis_device.vapix.request.assert_not_called()
-    ws_session.ws_connect.assert_not_called()
+    ws_connect.assert_not_called()
 
 
 async def test_websocket_start_awaits_close_task(axis_device):
@@ -331,11 +331,10 @@ async def test_websocket_start_awaits_close_task(axis_device):
         _configure_ok_msg(),
         [SimpleNamespace(type=aiohttp.WSMsgType.CLOSED, data=None)],
     )
-    ws_session = AsyncMock()
-    ws_session.ws_connect.return_value = ws
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock(return_value=ws)
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -348,18 +347,16 @@ async def test_websocket_start_awaits_close_task(axis_device):
         await client._receiver_task
 
     assert close_task.done()
-    ws_session.ws_connect.assert_called_once()
+    ws_connect.assert_called_once()
 
 
 async def test_websocket_connect_failure(axis_device):
     """Verify websocket client reports failed connect errors."""
     callback = MagicMock()
-    ws_session = AsyncMock()
-    ws_session.ws_connect.side_effect = aiohttp.ClientError("boom")
-
     axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock(side_effect=aiohttp.ClientError("boom"))
 
-    with patch("axis.websocket.aiohttp.ClientSession", return_value=ws_session):
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
         client = WebSocketClient(
             axis_device,
             "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
@@ -373,6 +370,49 @@ async def test_websocket_connect_failure(axis_device):
     assert client._ws_session is None
 
 
+async def test_websocket_connect_failure_sets_ssl_cert_reason(axis_device):
+    """Verify certificate verification failures are marked for websocket fallback."""
+    callback = MagicMock()
+    cert_err = ssl.SSLCertVerificationError(
+        "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+    )
+    ws_connect = AsyncMock(side_effect=cert_err)
+    axis_device.vapix.request = AsyncMock(return_value=b"token123")
+
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
+        client = WebSocketClient(
+            axis_device,
+            "wss://127.0.0.1:443/vapix/ws-data-stream?sources=events",
+            callback,
+        )
+        await client.start()
+
+    callback.assert_called_once_with(Signal.FAILED)
+    assert client.should_disable_runtime_websocket
+
+
+async def test_websocket_connect_failure_sets_ssl_reason_from_error_string(axis_device):
+    """Verify fallback SSL classification also works from error text."""
+    callback = MagicMock()
+    ws_connect = AsyncMock(
+        side_effect=OSError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+        )
+    )
+    axis_device.vapix.request = AsyncMock(return_value=b"token123")
+
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
+        client = WebSocketClient(
+            axis_device,
+            "wss://127.0.0.1:443/vapix/ws-data-stream?sources=events",
+            callback,
+        )
+        await client.start()
+
+    callback.assert_called_once_with(Signal.FAILED)
+    assert client.should_disable_runtime_websocket
+
+
 async def test_websocket_configure_with_no_ws(axis_device):
     """Verify configure returns cleanly when websocket is missing."""
     client = WebSocketClient(
@@ -382,6 +422,17 @@ async def test_websocket_configure_with_no_ws(axis_device):
     )
     client._ws = None
     await client._configure()
+
+
+async def test_websocket_send_configure_payload_with_no_ws(axis_device):
+    """Verify direct configure send helper returns when websocket is missing."""
+    client = WebSocketClient(
+        axis_device,
+        "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
+        MagicMock(),
+    )
+    client._ws = None
+    await client._send_configure_payload({})
 
 
 async def test_websocket_configure_unexpected_message_type(axis_device):
@@ -538,3 +589,19 @@ async def test_websocket_close_with_no_session(axis_device):
 
     assert client._ws is None
     assert client._ws_session is None
+
+
+async def test_websocket_close_owned_session_is_closed(axis_device):
+    """Verify close() shuts down owned websocket sessions."""
+    client = WebSocketClient(
+        axis_device,
+        "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
+        MagicMock(),
+    )
+    owned_session = AsyncMock()
+    client._ws_session = owned_session
+    client._owns_ws_session = True
+
+    await client._close()
+
+    owned_session.close.assert_awaited_once()

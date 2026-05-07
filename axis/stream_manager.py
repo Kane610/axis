@@ -37,6 +37,7 @@ class StreamManager:
         self.background_tasks: set[asyncio.Task[None]] = set()
         self.retry_timer: asyncio.TimerHandle | None = None
         self._starting = False
+        self._websocket_temporarily_disabled = False
 
     @property
     def stream_url(self) -> str:
@@ -84,12 +85,36 @@ class StreamManager:
         """Use websocket transport when event websocket API is available."""
         if not self.event:
             return False
+        if (
+            self._websocket_temporarily_disabled
+            and not self.device.config.websocket_force
+        ):
+            return False
         if self.device.config.websocket_force:
             return True
         return (
             self.device.config.websocket_enabled
             and WebSocketClient.supported_by_device(self.device)
         )
+
+    def _handle_websocket_failure(self) -> None:
+        """Disable websocket for runtime when TLS certificate validation fails."""
+        if self.device.config.websocket_force:
+            return
+
+        if self.stream is None:
+            return
+
+        if not getattr(self.stream, "should_disable_runtime_websocket", False):
+            return
+
+        if not self._websocket_temporarily_disabled:
+            _LOGGER.warning(
+                "Disabling websocket events for %s until restart after certificate verification failure",
+                self.device.config.host,
+            )
+
+        self._websocket_temporarily_disabled = True
 
     @property
     def _is_stream_stopped(self) -> bool:
@@ -124,6 +149,7 @@ class StreamManager:
             self.device.event.handler(self.data)
 
         elif signal == Signal.FAILED:
+            self._handle_websocket_failure()
             self.retry()
 
         if signal in (Signal.PLAYING, Signal.FAILED):
