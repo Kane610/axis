@@ -11,6 +11,7 @@ import pytest
 from axis.models.api_discovery import ApiId
 from axis.rtsp import Signal, State
 from axis.stream_manager import RETRY_TIMER, StreamManager
+from axis.websocket import WebSocketClient, WebSocketFailureReason
 
 from .conftest import HOST
 from .event_fixtures import AUDIO_INIT
@@ -262,3 +263,43 @@ async def test_retry_without_active_stream_does_not_call_stop(stream_manager):
     existing_stream.stop.assert_not_called()
     assert stream_manager.stream is None
     mock_loop.call_later.assert_called_once_with(RETRY_TIMER, stream_manager.start)
+
+
+async def test_failed_websocket_cert_error_disables_websocket_runtime(stream_manager):
+    """Verify certificate failures disable websocket for runtime fallback."""
+    stream_manager.event = True
+    stream_manager.device.config.websocket_enabled = True
+    stream_manager.device.vapix.api_discovery._items[
+        ApiId.EVENT_STREAMING_OVER_WEBSOCKET
+    ] = MagicMock()
+
+    ws_client = object.__new__(WebSocketClient)
+    ws_client._last_failure_reason = WebSocketFailureReason.SSL_CERTIFICATE
+    ws_client.session = SimpleNamespace(state=State.STOPPED)
+    stream_manager.stream = ws_client
+
+    mock_loop = MagicMock()
+    with patch("axis.stream_manager.asyncio.get_running_loop", return_value=mock_loop):
+        stream_manager.session_callback(Signal.FAILED)
+
+    assert stream_manager._websocket_temporarily_disabled is True
+    assert stream_manager.use_websocket is False
+
+
+async def test_failed_websocket_cert_error_keeps_websocket_when_forced(stream_manager):
+    """Verify forced websocket mode ignores runtime disable on cert failure."""
+    stream_manager.event = True
+    stream_manager.device.config.websocket_enabled = True
+    stream_manager.device.config.websocket_force = True
+
+    ws_client = object.__new__(WebSocketClient)
+    ws_client._last_failure_reason = WebSocketFailureReason.SSL_CERTIFICATE
+    ws_client.session = SimpleNamespace(state=State.STOPPED)
+    stream_manager.stream = ws_client
+
+    mock_loop = MagicMock()
+    with patch("axis.stream_manager.asyncio.get_running_loop", return_value=mock_loop):
+        stream_manager.session_callback(Signal.FAILED)
+
+    assert stream_manager._websocket_temporarily_disabled is False
+    assert stream_manager.use_websocket is True
