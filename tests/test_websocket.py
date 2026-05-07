@@ -391,6 +391,28 @@ async def test_websocket_connect_failure_sets_ssl_cert_reason(axis_device):
     assert client.should_disable_runtime_websocket
 
 
+async def test_websocket_connect_failure_sets_ssl_reason_from_error_string(axis_device):
+    """Verify fallback SSL classification also works from error text."""
+    callback = MagicMock()
+    ws_connect = AsyncMock(
+        side_effect=OSError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+        )
+    )
+    axis_device.vapix.request = AsyncMock(return_value=b"token123")
+
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
+        client = WebSocketClient(
+            axis_device,
+            "wss://127.0.0.1:443/vapix/ws-data-stream?sources=events",
+            callback,
+        )
+        await client.start()
+
+    callback.assert_called_once_with(Signal.FAILED)
+    assert client.should_disable_runtime_websocket
+
+
 async def test_websocket_configure_with_no_ws(axis_device):
     """Verify configure returns cleanly when websocket is missing."""
     client = WebSocketClient(
@@ -400,6 +422,17 @@ async def test_websocket_configure_with_no_ws(axis_device):
     )
     client._ws = None
     await client._configure()
+
+
+async def test_websocket_send_configure_payload_with_no_ws(axis_device):
+    """Verify direct configure send helper returns when websocket is missing."""
+    client = WebSocketClient(
+        axis_device,
+        "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
+        MagicMock(),
+    )
+    client._ws = None
+    await client._send_configure_payload({})
 
 
 async def test_websocket_configure_unexpected_message_type(axis_device):
@@ -556,3 +589,19 @@ async def test_websocket_close_with_no_session(axis_device):
 
     assert client._ws is None
     assert client._ws_session is None
+
+
+async def test_websocket_close_owned_session_is_closed(axis_device):
+    """Verify close() shuts down owned websocket sessions."""
+    client = WebSocketClient(
+        axis_device,
+        "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
+        MagicMock(),
+    )
+    owned_session = AsyncMock()
+    client._ws_session = owned_session
+    client._owns_ws_session = True
+
+    await client._close()
+
+    owned_session.close.assert_awaited_once()

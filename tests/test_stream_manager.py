@@ -303,3 +303,37 @@ async def test_failed_websocket_cert_error_keeps_websocket_when_forced(stream_ma
 
     assert stream_manager._websocket_temporarily_disabled is False
     assert stream_manager.use_websocket is True
+
+
+async def test_failed_signal_without_stream_does_not_disable_websocket(stream_manager):
+    """Verify missing stream branch does not toggle runtime websocket disable."""
+    stream_manager.stream = None
+
+    mock_loop = MagicMock()
+    with patch("axis.stream_manager.asyncio.get_running_loop", return_value=mock_loop):
+        stream_manager.session_callback(Signal.FAILED)
+
+    assert stream_manager._websocket_temporarily_disabled is False
+
+
+async def test_failed_signal_without_ssl_reason_does_not_disable_websocket(
+    stream_manager,
+):
+    """Verify non-SSL websocket failures do not disable websocket runtime usage."""
+    stream_manager.event = True
+    stream_manager.device.config.websocket_enabled = True
+    stream_manager.device.vapix.api_discovery._items[
+        ApiId.EVENT_STREAMING_OVER_WEBSOCKET
+    ] = MagicMock()
+
+    ws_client = object.__new__(WebSocketClient)
+    ws_client._last_failure_reason = WebSocketFailureReason.OTHER
+    ws_client.session = SimpleNamespace(state=State.STOPPED)
+    stream_manager.stream = ws_client
+
+    mock_loop = MagicMock()
+    with patch("axis.stream_manager.asyncio.get_running_loop", return_value=mock_loop):
+        stream_manager.session_callback(Signal.FAILED)
+
+    assert stream_manager._websocket_temporarily_disabled is False
+    assert stream_manager.use_websocket is True
