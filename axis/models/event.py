@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import xmltodict
 
@@ -62,8 +62,6 @@ class EventTopic(enum.StrEnum):
     @classmethod
     def _missing_(cls, value: object) -> EventTopic:
         """Set default enum member if an unknown value is provided."""
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.warning("Unsupported topic %s", value)
         return EventTopic.UNKNOWN
 
 
@@ -194,9 +192,16 @@ class Event:
         event_type = data.get(EVENT_TYPE, "")
         value = data.get(EVENT_VALUE, "")
 
-        if (topic_base := EventTopic(topic)) is EventTopic.UNKNOWN:
+        topic_base = cast(
+            "EventTopic",
+            EventTopic._value2member_map_.get(topic, EventTopic.UNKNOWN),
+        )
+        if topic_base is EventTopic.UNKNOWN:
             _topic_base, _, _source_idx = topic.rpartition("/")
-            topic_base = EventTopic(_topic_base)
+            topic_base = cast(
+                "EventTopic",
+                EventTopic._value2member_map_.get(_topic_base, EventTopic.UNKNOWN),
+            )
             if source_idx == "":
                 source_idx = _source_idx
 
