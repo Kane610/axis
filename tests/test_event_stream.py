@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from axis.interfaces.mqtt import mqtt_json_to_event
 from axis.models.event import Event, EventGroup, EventOperation, EventTopic
 
 from .event_fixtures import (
@@ -375,6 +376,30 @@ def test_mqtt_event(event_manager: EventManager, subscriber: Mock) -> None:
     assert event.operation == EventOperation.CHANGED
     assert event.state == "1"
     assert event.is_tripped
+
+
+def test_mqtt_object_analytics_mixed_data_prefers_active(
+    event_manager: EventManager, subscriber: Mock
+) -> None:
+    """Verify MQTT payload with semantic and active data decodes via active state."""
+    mqtt_message = (
+        b'{"topic": "onvif:CameraApplicationPlatform/axis:ObjectAnalytics/Device1Scenario1", '
+        b'"message": {"source": {"device": "1"}, '
+        b'"data": {"classTypes": "human", "active": "0"}}}'
+    )
+
+    event_manager.handler(mqtt_json_to_event(mqtt_message))
+    assert subscriber.call_count == 1
+
+    event: Event = subscriber.call_args[0][0]
+    assert (
+        event.topic
+        == "tns1:CameraApplicationPlatform/tnsaxis:ObjectAnalytics/Device1Scenario1"
+    )
+    assert event.source == "device"
+    assert event.id == "1"
+    assert event.state == "0"
+    assert event.is_tripped is False
 
 
 def test_unsupported_event(event_manager: EventManager, subscriber: Mock) -> None:
