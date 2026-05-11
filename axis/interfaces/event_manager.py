@@ -29,6 +29,7 @@ class EventManager:
     def __init__(self) -> None:
         """Ready information about events."""
         self._known_topics: set[str] = set()
+        self._unsupported_topics: set[str] = set()
         self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
 
     def handler(self, data: bytes | dict[str, Any]) -> None:
@@ -37,7 +38,13 @@ class EventManager:
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(event)
 
-        if event.topic_base == EventTopic.UNKNOWN or event.topic in BLACK_LISTED_TOPICS:
+        if event.topic_base == EventTopic.UNKNOWN:
+            if event.topic not in self._unsupported_topics:
+                LOGGER.warning("Ignoring unsupported event topic %s", event.topic)
+                self._unsupported_topics.add(event.topic)
+            return
+
+        if event.topic in BLACK_LISTED_TOPICS:
             return
 
         known = (unique_topic := f"{event.topic}_{event.id}") not in self._known_topics

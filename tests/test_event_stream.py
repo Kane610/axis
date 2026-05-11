@@ -3,6 +3,7 @@
 pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
 """
 
+import logging
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -407,6 +408,24 @@ def test_unsupported_event(event_manager: EventManager, subscriber: Mock) -> Non
     """Verify that unsupported events aren't signalled to subscribers."""
     event_manager.handler(GLOBAL_SCENE_CHANGE)
     subscriber.assert_not_called()
+
+
+def test_unsupported_event_logs_once(
+    event_manager: EventManager, subscriber: Mock, caplog
+) -> None:
+    """Verify unsupported topics are logged once and then deduplicated."""
+    with caplog.at_level(logging.WARNING):
+        event_manager.handler(GLOBAL_SCENE_CHANGE)
+        event_manager.handler(GLOBAL_SCENE_CHANGE)
+
+    subscriber.assert_not_called()
+
+    warning_messages = [
+        record.message
+        for record in caplog.records
+        if "Ignoring unsupported event topic" in record.message
+    ]
+    assert len(warning_messages) == 1
 
 
 def test_initialize_event_twice(event_manager: EventManager, subscriber: Mock) -> None:

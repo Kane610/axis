@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from axis.models.event import Event, EventGroup, EventOperation
+from axis.models.event import Event, EventGroup, EventOperation, EventTopic
 
 from .event_fixtures import (
     AUDIO_INIT,
@@ -439,3 +439,21 @@ def test_decode_from_dict_type_aware_is_tripped(
     event = Event.decode(event_data)
 
     assert event.is_tripped is expected
+
+
+def test_decode_from_dict_resolves_topic_suffix_without_warning(caplog) -> None:
+    """Verify recoverable topics do not produce unsupported-topic warnings."""
+    event_data = {
+        "topic": "tnsaxis:CameraApplicationPlatform/VMD/Camera1Profile1",
+        "source": "",
+        "source_idx": "",
+        "type": "active",
+        "value": "0",
+    }
+
+    with caplog.at_level("WARNING"):
+        event = Event.decode(event_data)
+
+    assert event.topic_base == EventTopic.MOTION_DETECTION_4
+    assert event.id == "Camera1Profile1"
+    assert "Unsupported topic" not in caplog.text

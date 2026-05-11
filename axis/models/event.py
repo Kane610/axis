@@ -62,8 +62,6 @@ class EventTopic(enum.StrEnum):
     @classmethod
     def _missing_(cls, value: object) -> EventTopic:
         """Set default enum member if an unknown value is provided."""
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.warning("Unsupported topic %s", value)
         return EventTopic.UNKNOWN
 
 
