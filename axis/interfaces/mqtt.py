@@ -42,6 +42,8 @@ def mqtt_json_to_event(msg: bytes | bytearray | memoryview | str) -> dict[str, A
             source, source_idx = next(iter(source_dict.items()))
         if data_dict := msg_message.get("data"):
             data_type, data_value = next(iter(data_dict.items()))
+            if "active" in data_dict:
+                data_type, data_value = "active", data_dict["active"]
 
     return {
         "topic": topic,

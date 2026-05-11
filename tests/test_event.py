@@ -365,3 +365,77 @@ def test_parse_event_xml(input: bytes, expected: dict):
 def test_unknown_event_operation():
     """Verify unknown event operation is caught."""
     assert EventOperation("") == EventOperation.UNKNOWN
+
+
+@pytest.mark.parametrize(
+    ("event_data", "expected"),
+    [
+        (
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                "source": "",
+                "source_idx": "Device1Scenario1",
+                "type": "active",
+                "value": "0",
+            },
+            False,
+        ),
+        (
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                "source": "",
+                "source_idx": "Device1Scenario1",
+                "type": "classType",
+                "value": "human",
+            },
+            True,
+        ),
+        (
+            {
+                "topic": "tns1:Device/tnsaxis:Sensor/PIR",
+                "source": "sensor",
+                "source_idx": "0",
+                "type": "state",
+                "value": "0",
+            },
+            False,
+        ),
+        (
+            {
+                "topic": "tns1:AudioSource/tnsaxis:TriggerLevel",
+                "source": "channel",
+                "source_idx": "1",
+                "type": "active",
+                "value": "high",
+            },
+            True,
+        ),
+        (
+            {
+                "topic": "tns1:AudioSource/tnsaxis:TriggerLevel",
+                "source": "channel",
+                "source_idx": "1",
+                "type": "active",
+                "value": "unknown",
+            },
+            False,
+        ),
+        (
+            {
+                "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                "source": "",
+                "source_idx": "Device1Scenario1",
+                "type": "classType",
+                "value": "   ",
+            },
+            False,
+        ),
+    ],
+)
+def test_decode_from_dict_type_aware_is_tripped(
+    event_data: dict[str, str], expected: bool
+) -> None:
+    """Verify state handling for binary and semantic event payloads."""
+    event = Event.decode(event_data)
+
+    assert event.is_tripped is expected

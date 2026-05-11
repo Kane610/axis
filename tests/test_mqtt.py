@@ -320,6 +320,21 @@ async def test_convert_json_to_event():
     }
 
 
+async def test_convert_json_to_event_prefers_active_value() -> None:
+    """Verify conversion prefers binary active state when available."""
+    event = mqtt_json_to_event(
+        b'{"topic": "onvif:CameraApplicationPlatform/axis:ObjectAnalytics/Device1Scenario1", "message": {"source": {"device": "1"}, "data": {"classTypes": "human", "active": "0"}}}'
+    )
+
+    assert event == {
+        "topic": "tns1:CameraApplicationPlatform/tnsaxis:ObjectAnalytics/Device1Scenario1",
+        "source": "device",
+        "source_idx": "1",
+        "type": "active",
+        "value": "0",
+    }
+
+
 def test_mqtt_json_to_event_missing_keys(caplog):
     """Test mqtt_json_to_event returns None and logs warning if keys are missing."""
     # Missing 'topic'

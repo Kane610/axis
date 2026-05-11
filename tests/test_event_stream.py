@@ -377,6 +377,32 @@ def test_mqtt_event(event_manager: EventManager, subscriber: Mock) -> None:
     assert event.is_tripped
 
 
+def test_mqtt_object_analytics_mixed_data_prefers_active(
+    event_manager: EventManager, subscriber: Mock
+) -> None:
+    """Verify object analytics event with semantic and active data uses active state."""
+    mqtt_event = {
+        "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+        "source": "device",
+        "source_idx": "1",
+        "type": "active",
+        "value": "0",
+    }
+
+    event_manager.handler(mqtt_event)
+    assert subscriber.call_count == 1
+
+    event: Event = subscriber.call_args[0][0]
+    assert (
+        event.topic
+        == "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1"
+    )
+    assert event.source == "device"
+    assert event.id == "1"
+    assert event.state == "0"
+    assert event.is_tripped is False
+
+
 def test_unsupported_event(event_manager: EventManager, subscriber: Mock) -> None:
     """Verify that unsupported events aren't signalled to subscribers."""
     event_manager.handler(GLOBAL_SCENE_CHANGE)
