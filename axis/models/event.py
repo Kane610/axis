@@ -2,12 +2,9 @@
 
 from dataclasses import dataclass
 import enum
-import logging
 from typing import Any, Self
 
 import xmltodict
-
-LOGGER = logging.getLogger(__name__)
 
 
 class EventGroup(enum.StrEnum):
@@ -33,8 +30,6 @@ class EventOperation(enum.StrEnum):
     @classmethod
     def _missing_(cls, value: object) -> EventOperation:
         """Set default enum member if an unknown value is provided."""
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.warning("Unsupported operation %s", value)
         return EventOperation.UNKNOWN
 
 
