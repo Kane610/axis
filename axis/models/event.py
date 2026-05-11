@@ -143,8 +143,7 @@ def extract_name_value(
 
 def is_tripped(value: object, topic_base: EventTopic, event_type: object) -> bool:
     """Return whether an event value should be considered active/tripped."""
-    expected_state = TOPIC_TO_STATE.get(topic_base)
-    if expected_state is not None:
+    if (expected_state := TOPIC_TO_STATE.get(topic_base)) is not None:
         return str(value) == expected_state
 
     value_text = str(value).strip()
