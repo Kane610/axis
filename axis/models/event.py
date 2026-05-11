@@ -91,6 +91,9 @@ TOPIC_TO_STATE = {
     EventTopic.RELAY: "active",
 }
 
+KNOWN_FALSE_STATES = {"", "0", "false", "inactive", "low", "off"}
+KNOWN_TRUE_STATES = {"1", "active", "high", "on", "true"}
+
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
 EVENT_SOURCE_IDX = "source_idx"
@@ -138,6 +141,29 @@ def extract_name_value(
     return item.get("Name", ""), item.get("Value", "")
 
 
+def is_tripped(value: object, topic_base: EventTopic, event_type: object) -> bool:
+    """Return whether an event value should be considered active/tripped."""
+    expected_state = TOPIC_TO_STATE.get(topic_base)
+    if expected_state is not None:
+        return str(value) == expected_state
+
+    value_text = str(value).strip()
+    state = value_text.casefold()
+
+    if state in KNOWN_FALSE_STATES:
+        return False
+
+    if state in KNOWN_TRUE_STATES:
+        return True
+
+    if str(event_type).casefold() == "active":
+        return False
+
+    # Non-empty semantic values (for example classification values like "human")
+    # are treated as stateless event triggers.
+    return bool(value_text)
+
+
 @dataclass
 class Event:
     """Event data from Axis device."""
@@ -166,6 +192,7 @@ class Event:
         topic = data.get(EVENT_TOPIC, "")
         source = data.get(EVENT_SOURCE, "")
         source_idx = data.get(EVENT_SOURCE_IDX, "")
+        event_type = data.get(EVENT_TYPE, "")
         value = data.get(EVENT_VALUE, "")
 
         if (topic_base := EventTopic(topic)) is EventTopic.UNKNOWN:
@@ -181,7 +208,7 @@ class Event:
             data=data,
             group=TOPIC_TO_GROUP.get(topic_base, EventGroup.NONE),
             id=source_idx,
-            is_tripped=value == TOPIC_TO_STATE.get(topic_base, "1"),
+            is_tripped=is_tripped(value, topic_base, event_type),
             operation=operation,
             source=source,
             state=value,

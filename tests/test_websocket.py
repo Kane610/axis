@@ -185,6 +185,55 @@ async def test_websocket_stream_receives_data(axis_device):
     )
 
 
+async def test_websocket_stream_prefers_active_value(axis_device):
+    """Verify websocket parsing prefers active when multiple data keys are present."""
+    callback = MagicMock()
+    notify_payload = orjson.dumps(
+        {
+            "apiVersion": "1.0",
+            "method": "events:notify",
+            "params": {
+                "notification": {
+                    "timestamp": "2024-01-01T00:00:00Z",
+                    "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+                    "message": {
+                        "source": {"device": "1"},
+                        "key": {},
+                        "data": {"classTypes": "human", "active": "0"},
+                    },
+                }
+            },
+        }
+    )
+    ws = MockWebSocket(
+        _configure_ok_msg(),
+        [
+            SimpleNamespace(type=aiohttp.WSMsgType.TEXT, data=notify_payload.decode()),
+            SimpleNamespace(type=aiohttp.WSMsgType.CLOSED, data=None),
+        ],
+    )
+
+    axis_device.vapix.request = AsyncMock(return_value=b"token123")
+    ws_connect = AsyncMock(return_value=ws)
+
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
+        client = WebSocketClient(
+            axis_device,
+            "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
+            callback,
+        )
+        await client.start()
+        await client._receiver_task
+
+    assert client.data == {
+        "topic": "tnsaxis:CameraApplicationPlatform/ObjectAnalytics/Device1Scenario1",
+        "source": "device",
+        "source_idx": "1",
+        "type": "active",
+        "value": "0",
+    }
+
+
 async def test_websocket_configure_failure(axis_device):
     """Verify websocket client reports failed configure."""
     callback = MagicMock()

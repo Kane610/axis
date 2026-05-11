@@ -113,6 +113,8 @@ def _parse_ws_notification(notification: dict[str, Any]) -> dict[str, Any]:
 
     source, source_idx = next(iter(source_dict.items()), ("", ""))
     data_type, data_value = next(iter(data_dict.items()), ("", ""))
+    if "active" in data_dict:
+        data_type, data_value = "active", data_dict["active"]
 
     return {
         EVENT_TOPIC: topic,
