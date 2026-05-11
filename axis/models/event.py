@@ -192,8 +192,7 @@ class Event:
         event_type = data.get(EVENT_TYPE, "")
         value = data.get(EVENT_VALUE, "")
 
-        topic_base = EventTopic(topic)
-        if topic_base is EventTopic.UNKNOWN:
+        if (topic_base := EventTopic(topic)) is EventTopic.UNKNOWN:
             _topic_base, _, _source_idx = topic.rpartition("/")
             topic_base = EventTopic(_topic_base)
             if source_idx == "":
