@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any, Self, cast
+from typing import Any, Self
 
 import xmltodict
 
@@ -192,16 +192,10 @@ class Event:
         event_type = data.get(EVENT_TYPE, "")
         value = data.get(EVENT_VALUE, "")
 
-        topic_base = cast(
-            "EventTopic",
-            EventTopic._value2member_map_.get(topic, EventTopic.UNKNOWN),
-        )
+        topic_base = EventTopic(topic)
         if topic_base is EventTopic.UNKNOWN:
             _topic_base, _, _source_idx = topic.rpartition("/")
-            topic_base = cast(
-                "EventTopic",
-                EventTopic._value2member_map_.get(_topic_base, EventTopic.UNKNOWN),
-            )
+            topic_base = EventTopic(_topic_base)
             if source_idx == "":
                 source_idx = _source_idx
 
