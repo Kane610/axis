@@ -35,8 +35,6 @@ from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
-    from aiohttp import BasicAuth as AiohttpBasicAuth
-
     from ..device import AxisDevice
     from ..models.api import ApiRequest
     from ..models.stream_profile import StreamProfile
@@ -49,7 +47,7 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
-    auth: AiohttpBasicAuth | None
+    auth: aiohttp.BasicAuth | None
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
@@ -410,7 +408,7 @@ class Vapix:
             password=self.device.config.password,
         )
 
-    def _basic_auth(self) -> AiohttpBasicAuth:
+    def _basic_auth(self) -> aiohttp.BasicAuth:
         """Create aiohttp basic auth object."""
         return aiohttp.BasicAuth(
             self.device.config.username, self.device.config.password
