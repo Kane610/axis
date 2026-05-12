@@ -370,26 +370,7 @@ class Vapix:
         headers: dict[str, str] | None,
         params: dict[str, str] | None,
     ) -> tuple[int, dict[str, str], bytes]:
-        """Execute request and normalize responses."""
-        return await self._perform_aiohttp_request(
-            method=method,
-            url=url,
-            content=content,
-            data=data,
-            headers=headers,
-            params=params,
-        )
-
-    async def _perform_aiohttp_request(
-        self,
-        method: str,
-        url: str,
-        content: bytes | None,
-        data: dict[str, str] | None,
-        headers: dict[str, str] | None,
-        params: dict[str, str] | None,
-    ) -> tuple[int, dict[str, str], bytes]:
-        """Execute request with an aiohttp session."""
+        """Execute request with the configured HTTP session."""
         request_data: bytes | dict[str, str] | None = (
             content if content is not None else data
         )
