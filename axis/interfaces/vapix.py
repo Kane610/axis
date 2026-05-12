@@ -376,10 +376,7 @@ class Vapix:
         )
         session = self._aiohttp_session()
 
-        if (
-            not self._aiohttp_auth()
-            and self.device.config.auth_scheme != AuthScheme.BASIC
-        ):
+        if not self.auth and self.device.config.auth_scheme != AuthScheme.BASIC:
             return await self._aiohttp_digest_auth.perform_request(
                 session, method, url, request_data, headers, params
             )
@@ -388,7 +385,7 @@ class Vapix:
             "data": request_data,
             "headers": headers,
             "params": params,
-            "auth": self._aiohttp_auth(),
+            "auth": self.auth,
             "timeout": TIME_OUT,
         }
         if middlewares := self._aiohttp_middlewares():
@@ -401,10 +398,6 @@ class Vapix:
     def _aiohttp_session(self) -> ClientSession:
         """Return session cast to an aiohttp client."""
         return self.device.config.session
-
-    def _aiohttp_auth(self) -> AiohttpBasicAuth | None:
-        """Return auth cast for aiohttp requests."""
-        return self.auth
 
     def _aiohttp_middlewares(self) -> tuple[Any, ...] | None:
         """Return aiohttp middlewares used for auth challenges."""
