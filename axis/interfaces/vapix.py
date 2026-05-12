@@ -335,7 +335,7 @@ class Vapix:
 
         if status_code >= 400:
             if self._should_retry_with_basic(response_headers, allow_auto_basic_retry):
-                self.auth = self._aiohttp_basic_auth()
+                self.auth = self._basic_auth()
                 self._aiohttp_digest_middleware = None
                 return await self._request(
                     method=method,
