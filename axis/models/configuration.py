@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
-    type HTTPSession = ClientSession
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +46,7 @@ class Configuration:
     A port value of 0 means use the default port for the configured protocol.
     """
 
-    session: HTTPSession
+    session: ClientSession
     host: str
     _: KW_ONLY
     username: str
