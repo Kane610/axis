@@ -325,11 +325,11 @@ class Vapix:
             raise RequestError(message) from errt
 
         except Exception as err:
-            if aiohttp is not None and isinstance(err, aiohttp.ClientConnectionError):
+            if isinstance(err, aiohttp.ClientConnectionError):
                 LOGGER.debug("%s", err)
                 message = f"Connection error: {err}"
                 raise RequestError(message) from err
-            if aiohttp is not None and isinstance(err, aiohttp.ClientError):
+            if isinstance(err, aiohttp.ClientError):
                 LOGGER.debug("%s", err)
                 message = f"Unknown error: {err}"
                 raise RequestError(message) from err
