@@ -7,18 +7,6 @@ from typing import Any, Self
 import xmltodict
 
 
-class EventGroup(enum.StrEnum):
-    """Logical grouping of events."""
-
-    INPUT = "input"
-    LIGHT = "light"
-    MOTION = "motion"
-    OUTPUT = "output"
-    PTZ = "ptz"
-    SOUND = "sound"
-    NONE = "none"
-
-
 class EventOperation(enum.StrEnum):
     """Possible operations of an event."""
 
@@ -59,37 +47,33 @@ class EventTopic(enum.StrEnum):
         """Set default enum member if an unknown value is provided."""
         return EventTopic.UNKNOWN
 
+    @property
+    def group(self) -> str:
+        """Return logical group for the event topic."""
+        group = "none"
+        if self in (EventTopic.PORT_INPUT, EventTopic.PORT_SUPERVISED_INPUT):
+            group = "input"
+        elif self in (EventTopic.DAY_NIGHT_VISION, EventTopic.LIGHT_STATUS):
+            group = "light"
+        elif self in (
+            EventTopic.FENCE_GUARD,
+            EventTopic.LOITERING_GUARD,
+            EventTopic.MOTION_DETECTION,
+            EventTopic.MOTION_DETECTION_3,
+            EventTopic.MOTION_DETECTION_4,
+            EventTopic.MOTION_GUARD,
+            EventTopic.OBJECT_ANALYTICS,
+            EventTopic.PIR,
+        ):
+            group = "motion"
+        elif self == EventTopic.RELAY:
+            group = "output"
+        elif self in (EventTopic.PTZ_IS_MOVING, EventTopic.PTZ_ON_PRESET):
+            group = "ptz"
+        elif self == EventTopic.SOUND_TRIGGER_LEVEL:
+            group = "sound"
+        return group
 
-GROUP_TO_TOPICS: dict[EventGroup, tuple[EventTopic, ...]] = {
-    EventGroup.INPUT: (
-        EventTopic.PORT_INPUT,
-        EventTopic.PORT_SUPERVISED_INPUT,
-    ),
-    EventGroup.LIGHT: (
-        EventTopic.DAY_NIGHT_VISION,
-        EventTopic.LIGHT_STATUS,
-    ),
-    EventGroup.MOTION: (
-        EventTopic.FENCE_GUARD,
-        EventTopic.LOITERING_GUARD,
-        EventTopic.MOTION_DETECTION,
-        EventTopic.MOTION_DETECTION_3,
-        EventTopic.MOTION_DETECTION_4,
-        EventTopic.MOTION_GUARD,
-        EventTopic.OBJECT_ANALYTICS,
-        EventTopic.PIR,
-    ),
-    EventGroup.OUTPUT: (EventTopic.RELAY,),
-    EventGroup.PTZ: (
-        EventTopic.PTZ_IS_MOVING,
-        EventTopic.PTZ_ON_PRESET,
-    ),
-    EventGroup.SOUND: (EventTopic.SOUND_TRIGGER_LEVEL,),
-}
-
-TOPIC_TO_GROUP = {
-    topic: group for group, topics in GROUP_TO_TOPICS.items() for topic in topics
-}
 
 TOPIC_TO_STATE = {
     EventTopic.LIGHT_STATUS: "ON",
@@ -173,7 +157,7 @@ class Event:
     """Event data from Axis device."""
 
     data: dict[str, Any]
-    group: EventGroup
+    group: str
     id: str
     is_tripped: bool
     operation: EventOperation
@@ -210,7 +194,7 @@ class Event:
 
         return cls(
             data=data,
-            group=TOPIC_TO_GROUP.get(topic_base, EventGroup.NONE),
+            group=topic_base.group,
             id=source_idx,
             is_tripped=is_tripped(value, topic_base, event_type),
             operation=operation,
