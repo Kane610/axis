@@ -48,33 +48,6 @@ class EventTopic(enum.StrEnum):
         return EventTopic.UNKNOWN
 
 
-def event_group(topic: EventTopic) -> str:
-    """Return logical group for the event topic."""
-    group = "none"
-    if topic in (EventTopic.PORT_INPUT, EventTopic.PORT_SUPERVISED_INPUT):
-        group = "input"
-    elif topic in (EventTopic.DAY_NIGHT_VISION, EventTopic.LIGHT_STATUS):
-        group = "light"
-    elif topic in (
-        EventTopic.FENCE_GUARD,
-        EventTopic.LOITERING_GUARD,
-        EventTopic.MOTION_DETECTION,
-        EventTopic.MOTION_DETECTION_3,
-        EventTopic.MOTION_DETECTION_4,
-        EventTopic.MOTION_GUARD,
-        EventTopic.OBJECT_ANALYTICS,
-        EventTopic.PIR,
-    ):
-        group = "motion"
-    elif topic == EventTopic.RELAY:
-        group = "output"
-    elif topic in (EventTopic.PTZ_IS_MOVING, EventTopic.PTZ_ON_PRESET):
-        group = "ptz"
-    elif topic == EventTopic.SOUND_TRIGGER_LEVEL:
-        group = "sound"
-    return group
-
-
 TOPIC_TO_STATE = {
     EventTopic.LIGHT_STATUS: "ON",
     EventTopic.RELAY: "active",
@@ -157,7 +130,6 @@ class Event:
     """Event data from Axis device."""
 
     data: dict[str, Any]
-    group: str
     id: str
     is_tripped: bool
     operation: EventOperation
@@ -194,7 +166,6 @@ class Event:
 
         return cls(
             data=data,
-            group=event_group(topic_base),
             id=source_idx,
             is_tripped=is_tripped(value, topic_base, event_type),
             operation=operation,
