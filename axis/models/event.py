@@ -60,23 +60,35 @@ class EventTopic(enum.StrEnum):
         return EventTopic.UNKNOWN
 
 
+GROUP_TO_TOPICS: dict[EventGroup, tuple[EventTopic, ...]] = {
+    EventGroup.INPUT: (
+        EventTopic.PORT_INPUT,
+        EventTopic.PORT_SUPERVISED_INPUT,
+    ),
+    EventGroup.LIGHT: (
+        EventTopic.DAY_NIGHT_VISION,
+        EventTopic.LIGHT_STATUS,
+    ),
+    EventGroup.MOTION: (
+        EventTopic.FENCE_GUARD,
+        EventTopic.LOITERING_GUARD,
+        EventTopic.MOTION_DETECTION,
+        EventTopic.MOTION_DETECTION_3,
+        EventTopic.MOTION_DETECTION_4,
+        EventTopic.MOTION_GUARD,
+        EventTopic.OBJECT_ANALYTICS,
+        EventTopic.PIR,
+    ),
+    EventGroup.OUTPUT: (EventTopic.RELAY,),
+    EventGroup.PTZ: (
+        EventTopic.PTZ_IS_MOVING,
+        EventTopic.PTZ_ON_PRESET,
+    ),
+    EventGroup.SOUND: (EventTopic.SOUND_TRIGGER_LEVEL,),
+}
+
 TOPIC_TO_GROUP = {
-    EventTopic.DAY_NIGHT_VISION: EventGroup.LIGHT,
-    EventTopic.FENCE_GUARD: EventGroup.MOTION,
-    EventTopic.LIGHT_STATUS: EventGroup.LIGHT,
-    EventTopic.LOITERING_GUARD: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION_3: EventGroup.MOTION,
-    EventTopic.MOTION_DETECTION_4: EventGroup.MOTION,
-    EventTopic.MOTION_GUARD: EventGroup.MOTION,
-    EventTopic.OBJECT_ANALYTICS: EventGroup.MOTION,
-    EventTopic.PIR: EventGroup.MOTION,
-    EventTopic.PORT_INPUT: EventGroup.INPUT,
-    EventTopic.PORT_SUPERVISED_INPUT: EventGroup.INPUT,
-    EventTopic.PTZ_IS_MOVING: EventGroup.PTZ,
-    EventTopic.PTZ_ON_PRESET: EventGroup.PTZ,
-    EventTopic.RELAY: EventGroup.OUTPUT,
-    EventTopic.SOUND_TRIGGER_LEVEL: EventGroup.SOUND,
+    topic: group for group, topics in GROUP_TO_TOPICS.items() for topic in topics
 }
 
 TOPIC_TO_STATE = {
