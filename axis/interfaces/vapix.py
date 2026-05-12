@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
@@ -49,7 +49,7 @@ TIME_OUT = 15
 class Vapix:
     """Vapix parameter request."""
 
-    auth: object
+    auth: AiohttpBasicAuth | None
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
@@ -404,7 +404,7 @@ class Vapix:
 
     def _aiohttp_auth(self) -> AiohttpBasicAuth | None:
         """Return auth cast for aiohttp requests."""
-        return cast("AiohttpBasicAuth | None", self.auth)
+        return self.auth
 
     def _aiohttp_middlewares(self) -> tuple[Any, ...] | None:
         """Return aiohttp middlewares used for auth challenges."""
