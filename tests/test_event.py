@@ -7,7 +7,13 @@ from unittest.mock import patch
 
 import pytest
 
-from axis.models.event import Event, EventOperation, EventTopic
+from axis.models.event import (
+    Event,
+    EventOperation,
+    EventTopic,
+    extract_name_value,
+    traverse,
+)
 
 from .event_fixtures import (
     AUDIO_INIT,
@@ -438,3 +444,45 @@ def test_decode_from_dict_resolves_topic_suffix_without_warning(caplog) -> None:
     assert event.topic_base == EventTopic.MOTION_DETECTION_4
     assert event.id == "Camera1Profile1"
     assert "Unsupported topic" not in caplog.text
+
+
+def test_traverse_non_dict_data():
+    """Test traverse function with non-dict data returns empty dict."""
+    # Passing non-dict should return empty dict
+    result = traverse(None, ("key",))
+    assert result == {}
+
+    result = traverse("not a dict", ("key",))
+    assert result == {}
+
+    result = traverse([], ("key",))
+    assert result == {}
+
+
+def test_extract_name_value_empty_list():
+    """Test extract_name_value with empty SimpleItem list."""
+    # Empty list should return empty strings
+    data = {"SimpleItem": []}
+    name, value = extract_name_value(data)
+    assert name == ""
+    assert value == ""
+
+
+def test_extract_name_value_with_prefer():
+    """Test extract_name_value with prefer parameter finds matching item."""
+    # Test with prefer parameter that matches an item
+    data = {
+        "SimpleItem": [
+            {"Name": "State", "Value": "0"},
+            {"Name": "active", "Value": "1"},
+            {"Name": "Other", "Value": "2"},
+        ]
+    }
+    name, value = extract_name_value(data, prefer="active")
+    assert name == "active"
+    assert value == "1"
+
+    # Test with prefer parameter that doesn't match (falls back to first item)
+    name, value = extract_name_value(data, prefer="nonexistent")
+    assert name == "State"
+    assert value == "0"

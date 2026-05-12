@@ -499,3 +499,39 @@ def test_subscription(event_manager: EventManager) -> None:
     # Validate no exception when unsubscribe with no object ID exist
     event_manager._subscribers.pop("Camera1Profile1")
     unsub_vmd4_c1p1()
+
+
+async def test_event_manager_unsubscribe_twice(event_manager: EventManager):
+    """Test calling unsubscribe twice does not raise exception."""
+    callback = Mock()
+
+    unsub = event_manager.subscribe(callback)
+    unsub()  # First unsubscribe
+    unsub()  # Second unsubscribe should not raise exception
+
+    # Test unsubscribe after subscription is manually removed from subscribers
+    unsub2 = event_manager.subscribe(callback, id_filter="test_id")
+    # Manually remove the subscription from the list to trigger the continue branch
+    if event_manager._subscribers["test_id"]:
+        event_manager._subscribers["test_id"].clear()
+    unsub2()  # Should not raise exception even though subscription not in list
+
+
+async def test_event_manager_blacklisted_topic(event_manager: EventManager):
+    """Test that blacklisted topics are filtered and don't trigger callbacks."""
+    callback = Mock()
+    event_manager.subscribe(callback)
+
+    # Send a blacklisted timer topic event
+    event_data = {
+        "topic": "tns1:RuleEngine/tnsaxis:VideoMotionDetection/timer",
+        "source": "channel",
+        "source_idx": "1",
+        "type": "Motion",
+        "value": "1",
+    }
+
+    event_manager.handler(event_data)
+
+    # Callback should NOT be called for blacklisted topics
+    callback.assert_not_called()
