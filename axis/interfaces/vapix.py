@@ -35,7 +35,7 @@ from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
-    from aiohttp import BasicAuth as AiohttpBasicAuth, ClientSession
+    from aiohttp import BasicAuth as AiohttpBasicAuth
 
     from ..device import AxisDevice
     from ..models.api import ApiRequest
@@ -374,7 +374,7 @@ class Vapix:
         request_data: bytes | dict[str, str] | None = (
             content if content is not None else data
         )
-        session = self._aiohttp_session()
+        session = self.device.config.session
 
         if not self.auth and self.device.config.auth_scheme != AuthScheme.BASIC:
             return await self._aiohttp_digest_auth.perform_request(
@@ -394,10 +394,6 @@ class Vapix:
         async with session.request(method, url, **request_kwargs) as response:
             response_content = await response.read()
             return response.status, dict(response.headers), response_content
-
-    def _aiohttp_session(self) -> ClientSession:
-        """Return session cast to an aiohttp client."""
-        return self.device.config.session
 
     def _aiohttp_middlewares(self) -> tuple[Any, ...] | None:
         """Return aiohttp middlewares used for auth challenges."""
