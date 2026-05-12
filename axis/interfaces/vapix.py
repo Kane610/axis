@@ -427,7 +427,7 @@ class Vapix:
             password=self.device.config.password,
         )
 
-    def _basic_auth(self) -> object:
+    def _basic_auth(self) -> AiohttpBasicAuth:
         """Create aiohttp basic auth object."""
         return aiohttp.BasicAuth(
             self.device.config.username, self.device.config.password
