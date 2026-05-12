@@ -393,6 +393,23 @@ class Vapix:
             response_content = await response.read()
             return response.status, dict(response.headers), response_content
 
+<<<<<<< HEAD
+=======
+    def _aiohttp_session(self) -> ClientSession:
+        """Return session cast to an aiohttp client."""
+        return self.device.config.session
+
+    def _aiohttp_auth(self) -> AiohttpBasicAuth | None:
+        """Return auth cast for aiohttp requests."""
+        return self.auth
+
+    def _aiohttp_middlewares(self) -> tuple[Any, ...] | None:
+        """Return aiohttp middlewares used for auth challenges."""
+        if self._aiohttp_digest_middleware is None:
+            return None
+        return (self._aiohttp_digest_middleware,)
+
+>>>>>>> c395b6d (refactor: type vapix auth attribute explicitly)
     def _aiohttp_digest_middleware_obj(self) -> Any | None:
         """Create aiohttp digest middleware when available and relevant."""
         if self.device.config.auth_scheme == AuthScheme.BASIC:
