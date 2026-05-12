@@ -2,8 +2,6 @@
 
 from typing import Any
 
-import orjson
-
 from ..models.api_discovery import ApiId
 from ..models.mqtt import (
     API_VERSION,
@@ -23,35 +21,6 @@ from ..models.mqtt import (
 from .api_handler import ApiHandler, HandlerGroup
 
 DEFAULT_TOPICS = ["//."]
-
-
-def mqtt_json_to_event(msg: bytes | bytearray | memoryview | str) -> dict[str, Any]:
-    """Convert JSON message from MQTT to event format.
-
-    Returns None if required keys are missing.
-    """
-    message = orjson.loads(msg)
-    topic = source = source_idx = data_type = data_value = ""
-
-    if "topic" in message:
-        topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")
-
-    msg_message = message.get("message", {})
-    if isinstance(msg_message, dict):
-        if source_dict := msg_message.get("source"):
-            source, source_idx = next(iter(source_dict.items()))
-        if data_dict := msg_message.get("data"):
-            data_type, data_value = next(iter(data_dict.items()))
-            if "active" in data_dict:
-                data_type, data_value = "active", data_dict["active"]
-
-    return {
-        "topic": topic,
-        "source": source,
-        "source_idx": source_idx,
-        "type": data_type,
-        "value": data_value,
-    }
 
 
 class MqttClientHandler(ApiHandler[Any]):

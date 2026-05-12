@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import enum
-from typing import Literal, NotRequired, Self
+from typing import Any, Literal, NotRequired, Self
 
 import orjson
 from typing_extensions import TypedDict
@@ -126,6 +126,32 @@ class GetEventPublicationConfigResponseT(TypedDict):
     method: str
     data: EventPublicationConfigDataT
     error: NotRequired[ErrorDataT]
+
+
+def mqtt_json_to_event(msg: bytes | bytearray | memoryview | str) -> dict[str, Any]:
+    """Convert MQTT JSON payload into the internal event dict format."""
+    message = orjson.loads(msg)
+    topic = source = source_idx = data_type = data_value = ""
+
+    if "topic" in message:
+        topic = message["topic"].replace("onvif", "tns1").replace("axis", "tnsaxis")
+
+    msg_message = message.get("message", {})
+    if isinstance(msg_message, dict):
+        if source_dict := msg_message.get("source"):
+            source, source_idx = next(iter(source_dict.items()))
+        if data_dict := msg_message.get("data"):
+            data_type, data_value = next(iter(data_dict.items()))
+            if "active" in data_dict:
+                data_type, data_value = "active", data_dict["active"]
+
+    return {
+        "topic": topic,
+        "source": source,
+        "source_idx": source_idx,
+        "type": data_type,
+        "value": data_value,
+    }
 
 
 general_error_codes = {
