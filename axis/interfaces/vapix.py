@@ -58,7 +58,7 @@ class Vapix:
         self._aiohttp_digest_auth = AiohttpDigestAuth(device)
 
         if device.config.auth_scheme == AuthScheme.BASIC:
-            self.auth = self._aiohttp_basic_auth()
+            self.auth = self._basic_auth()
         else:
             self.auth = None
             self._aiohttp_digest_middleware = self._aiohttp_digest_middleware_obj()
@@ -337,7 +337,7 @@ class Vapix:
 
         if status_code >= 400:
             if self._should_retry_with_basic(response_headers, allow_auto_basic_retry):
-                self.auth = self._aiohttp_basic_auth()
+                self.auth = self._basic_auth()
                 self._aiohttp_digest_middleware = None
                 return await self._request(
                     method=method,
@@ -427,7 +427,7 @@ class Vapix:
             password=self.device.config.password,
         )
 
-    def _aiohttp_basic_auth(self) -> object:
+    def _basic_auth(self) -> object:
         """Create aiohttp basic auth object."""
         return aiohttp.BasicAuth(
             self.device.config.username, self.device.config.password
