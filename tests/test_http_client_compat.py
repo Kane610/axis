@@ -93,7 +93,7 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
     assert result == b"ok"
     assert calls == 2
     assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
-    assert axis_device.vapix._aiohttp_middlewares() is None
+    assert axis_device.vapix._aiohttp_digest_middleware is None
 
 
 @pytest.mark.skipif(
@@ -129,9 +129,7 @@ async def test_aiohttp_client_session_auto_initializes_digest_middleware(
     )
 
     assert axis_device.vapix.auth is None
-    middlewares = axis_device.vapix._aiohttp_middlewares()
-    assert middlewares is not None
-    assert len(middlewares) == 1
+    assert axis_device.vapix._aiohttp_digest_middleware is not None
 
 
 @pytest.mark.skipif(
@@ -167,9 +165,7 @@ async def test_aiohttp_client_session_digest_initializes_digest_middleware(
     )
 
     assert axis_device.vapix.auth is None
-    middlewares = axis_device.vapix._aiohttp_middlewares()
-    assert middlewares is not None
-    assert len(middlewares) == 1
+    assert axis_device.vapix._aiohttp_digest_middleware is not None
 
 
 async def test_aiohttp_digest_request_target_preencodes_query_params(

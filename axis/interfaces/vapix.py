@@ -388,18 +388,12 @@ class Vapix:
             "auth": self.auth,
             "timeout": TIME_OUT,
         }
-        if middlewares := self._aiohttp_middlewares():
-            request_kwargs["middlewares"] = middlewares
+        if self._aiohttp_digest_middleware is not None:
+            request_kwargs["middlewares"] = (self._aiohttp_digest_middleware,)
 
         async with session.request(method, url, **request_kwargs) as response:
             response_content = await response.read()
             return response.status, dict(response.headers), response_content
-
-    def _aiohttp_middlewares(self) -> tuple[Any, ...] | None:
-        """Return aiohttp middlewares used for auth challenges."""
-        if self._aiohttp_digest_middleware is None:
-            return None
-        return (self._aiohttp_digest_middleware,)
 
     def _aiohttp_digest_middleware_obj(self) -> Any | None:
         """Create aiohttp digest middleware when available and relevant."""
