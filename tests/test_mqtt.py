@@ -13,6 +13,7 @@ import pytest
 
 from axis.models.mqtt import (
     ClientConfig,
+    ClientConnectionState,
     Message,
     Server,
     ServerProtocol,
@@ -419,3 +420,13 @@ GET_CLIENT_STATUS_RESPONSE = {
         },
     },
 }
+
+
+def test_client_connection_state_missing():
+    """Test ClientConnectionState._missing_ returns DISCONNECTED for unknown values."""
+    # Test unknown value returns DISCONNECTED
+    result = ClientConnectionState._missing_("unknown_state")
+    assert result == ClientConnectionState.DISCONNECTED
+
+    result = ClientConnectionState._missing_("not connected")
+    assert result == ClientConnectionState.DISCONNECTED
