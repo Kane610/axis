@@ -129,7 +129,6 @@ def is_tripped(value: object, topic_base: EventTopic, event_type: object) -> boo
 class Event:
     """Event data from Axis device."""
 
-    data: dict[str, Any]
     id: str
     is_tripped: bool
     operation: EventOperation
@@ -137,6 +136,7 @@ class Event:
     state: str
     topic: str
     topic_base: EventTopic
+    data: dict[str, Any]
 
     @classmethod
     def decode(cls, data: bytes | dict[str, Any]) -> Self:
@@ -165,7 +165,6 @@ class Event:
             source_idx = "ANY" if source != "port" else ""
 
         return cls(
-            data=data,
             id=source_idx,
             is_tripped=is_tripped(value, topic_base, event_type),
             operation=operation,
@@ -173,6 +172,7 @@ class Event:
             state=value,
             topic=topic,
             topic_base=topic_base,
+            data=data,
         )
 
     @classmethod
