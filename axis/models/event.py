@@ -47,32 +47,32 @@ class EventTopic(enum.StrEnum):
         """Set default enum member if an unknown value is provided."""
         return EventTopic.UNKNOWN
 
-    @property
-    def group(self) -> str:
-        """Return logical group for the event topic."""
-        group = "none"
-        if self in (EventTopic.PORT_INPUT, EventTopic.PORT_SUPERVISED_INPUT):
-            group = "input"
-        elif self in (EventTopic.DAY_NIGHT_VISION, EventTopic.LIGHT_STATUS):
-            group = "light"
-        elif self in (
-            EventTopic.FENCE_GUARD,
-            EventTopic.LOITERING_GUARD,
-            EventTopic.MOTION_DETECTION,
-            EventTopic.MOTION_DETECTION_3,
-            EventTopic.MOTION_DETECTION_4,
-            EventTopic.MOTION_GUARD,
-            EventTopic.OBJECT_ANALYTICS,
-            EventTopic.PIR,
-        ):
-            group = "motion"
-        elif self == EventTopic.RELAY:
-            group = "output"
-        elif self in (EventTopic.PTZ_IS_MOVING, EventTopic.PTZ_ON_PRESET):
-            group = "ptz"
-        elif self == EventTopic.SOUND_TRIGGER_LEVEL:
-            group = "sound"
-        return group
+
+def event_group(topic: EventTopic) -> str:
+    """Return logical group for the event topic."""
+    group = "none"
+    if topic in (EventTopic.PORT_INPUT, EventTopic.PORT_SUPERVISED_INPUT):
+        group = "input"
+    elif topic in (EventTopic.DAY_NIGHT_VISION, EventTopic.LIGHT_STATUS):
+        group = "light"
+    elif topic in (
+        EventTopic.FENCE_GUARD,
+        EventTopic.LOITERING_GUARD,
+        EventTopic.MOTION_DETECTION,
+        EventTopic.MOTION_DETECTION_3,
+        EventTopic.MOTION_DETECTION_4,
+        EventTopic.MOTION_GUARD,
+        EventTopic.OBJECT_ANALYTICS,
+        EventTopic.PIR,
+    ):
+        group = "motion"
+    elif topic == EventTopic.RELAY:
+        group = "output"
+    elif topic in (EventTopic.PTZ_IS_MOVING, EventTopic.PTZ_ON_PRESET):
+        group = "ptz"
+    elif topic == EventTopic.SOUND_TRIGGER_LEVEL:
+        group = "sound"
+    return group
 
 
 TOPIC_TO_STATE = {
@@ -194,7 +194,7 @@ class Event:
 
         return cls(
             data=data,
-            group=topic_base.group,
+            group=event_group(topic_base),
             id=source_idx,
             is_tripped=is_tripped(value, topic_base, event_type),
             operation=operation,
