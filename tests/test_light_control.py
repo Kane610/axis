@@ -11,7 +11,7 @@ import pytest
 from axis.models.api_discovery import Api
 from axis.models.light_control import GetLightInformationRequest
 
-from tests.conftest import MockApiResponseSpec
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -40,12 +40,10 @@ async def light_control(axis_device: AxisDevice) -> LightHandler:
 @pytest.fixture
 def mock_light_request(mock_api_request):
     """Register light-control route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, GetLightInformationRequest)
 
     def _register(json_data):
-        return mock_api_request(
-            GetLightInformationRequest,
-            response=MockApiResponseSpec(json=json_data),
-        )
+        return bound_request(response=MockApiResponseSpec(json=json_data))
 
     return _register
 

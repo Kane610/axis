@@ -11,18 +11,18 @@ from axis.models.parameters.io_port import PortAction, PortDirection
 from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_cgi import PortActionRequest
 
-from tests.conftest import MockApiResponseSpec
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 
 @pytest.fixture
 def mock_param_request(mock_api_request):
     """Register Param CGI route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, ParamRequest)
 
     def _register(
         *, content: bytes | None = None, headers: dict[str, str] | None = None
     ):
-        return mock_api_request(
-            ParamRequest,
+        return bound_request(
             response=MockApiResponseSpec(content=content, headers=headers),
         )
 
@@ -32,10 +32,10 @@ def mock_param_request(mock_api_request):
 @pytest.fixture
 def mock_port_action_request(mock_api_request):
     """Register port action route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, PortActionRequest)
 
     def _register(*, text: str | None = None):
-        return mock_api_request(
-            PortActionRequest,
+        return bound_request(
             response=MockApiResponseSpec(text=text),
         )
 

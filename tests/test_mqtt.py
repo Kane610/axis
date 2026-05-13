@@ -23,7 +23,7 @@ from axis.models.mqtt import (
     mqtt_json_to_event,
 )
 
-from tests.conftest import MockApiResponseSpec
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -41,12 +41,10 @@ def mqtt_client(axis_device: AxisDevice) -> MqttClientHandler:
 @pytest.fixture
 def mock_mqtt_client_request(mock_api_request):
     """Register MQTT client route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, ConfigureClientRequest)
 
     def _register(json_data):
-        return mock_api_request(
-            ConfigureClientRequest,
-            response=MockApiResponseSpec(json=json_data),
-        )
+        return bound_request(response=MockApiResponseSpec(json=json_data))
 
     return _register
 
@@ -54,12 +52,13 @@ def mock_mqtt_client_request(mock_api_request):
 @pytest.fixture
 def mock_mqtt_event_request(mock_api_request):
     """Register MQTT event route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(
+        mock_api_request,
+        ConfigureEventPublicationRequest,
+    )
 
     def _register(json_data):
-        return mock_api_request(
-            ConfigureEventPublicationRequest,
-            response=MockApiResponseSpec(json=json_data),
-        )
+        return bound_request(response=MockApiResponseSpec(json=json_data))
 
     return _register
 

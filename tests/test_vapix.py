@@ -56,7 +56,7 @@ from .test_light_control import GET_LIGHT_INFORMATION_RESPONSE as LIGHT_CONTROL_
 from .test_port_management import GET_PORTS_RESPONSE as IO_PORT_MANAGEMENT_RESPONSE
 from .test_stream_profiles import LIST_RESPONSE as STREAM_PROFILE_RESPONSE
 
-from tests.conftest import MockApiResponseSpec
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -98,8 +98,7 @@ def mock_vapix_request(mock_api_request):
     """Register VAPIX request mocks using ApiRequest classes."""
 
     def _register(api_request, *, json=None, text=None, content=None, headers=None):
-        return mock_api_request(
-            api_request,
+        return bind_mock_api_request(mock_api_request, api_request)(
             response=MockApiResponseSpec(
                 json=json,
                 text=text,

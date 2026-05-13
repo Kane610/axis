@@ -7,7 +7,7 @@ import pytest
 
 from axis.models.pwdgrp_cgi import GetUsersRequest, SecondaryGroup, User
 
-from tests.conftest import MockApiResponseSpec
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 if TYPE_CHECKING:
     from axis.interfaces.pwdgrp_cgi import Users
@@ -22,6 +22,7 @@ def users(axis_device) -> Users:
 @pytest.fixture
 def mock_pwdgrp_request(mock_api_request):
     """Register pwdgrp route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, GetUsersRequest)
 
     def _register(
         *,
@@ -30,8 +31,7 @@ def mock_pwdgrp_request(mock_api_request):
         status_code: int = 200,
         headers: dict[str, str] | None = None,
     ):
-        return mock_api_request(
-            GetUsersRequest,
+        return bound_request(
             response=MockApiResponseSpec(
                 text=text,
                 content=content,

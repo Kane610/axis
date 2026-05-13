@@ -16,7 +16,11 @@ from axis.models.ptz_cgi import (
 
 from .parameters.test_ptz import PTZ_RESPONSE
 
-from tests.conftest import MockApiRequestAssertions, MockApiResponseSpec
+from tests.conftest import (
+    MockApiRequestAssertions,
+    MockApiResponseSpec,
+    bind_mock_api_request,
+)
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -32,6 +36,7 @@ def ptz_control_handler(axis_device: AxisDevice) -> PtzControl:
 @pytest.fixture
 def mock_ptz_request(mock_api_request):
     """Register PTZ control route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, PtzControlRequest)
 
     def _register(
         *,
@@ -41,10 +46,9 @@ def mock_ptz_request(mock_api_request):
         headers: dict[str, str] | None = None,
     ):
         if text is None and content is None and status_code == 200 and headers is None:
-            return mock_api_request(PtzControlRequest)
+            return bound_request()
 
-        return mock_api_request(
-            PtzControlRequest,
+        return bound_request(
             response=MockApiResponseSpec(
                 text=text,
                 content=content,
@@ -59,6 +63,7 @@ def mock_ptz_request(mock_api_request):
 @pytest.fixture
 def mock_param_request(mock_api_request):
     """Register Param CGI route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, ParamRequest)
 
     def _register(
         *,
@@ -67,8 +72,7 @@ def mock_param_request(mock_api_request):
         headers: dict[str, str] | None = None,
         assertions: MockApiRequestAssertions | None = None,
     ):
-        return mock_api_request(
-            ParamRequest,
+        return bound_request(
             response=MockApiResponseSpec(text=text, content=content, headers=headers),
             assertions=assertions,
         )

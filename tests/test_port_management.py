@@ -10,7 +10,7 @@ import pytest
 from axis.interfaces.port_management import IoPortManagement
 from axis.models.port_management import GetPortsRequest, PortConfiguration, Sequence
 
-from tests.conftest import MockApiResponseSpec
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 
 @pytest.fixture
@@ -22,12 +22,10 @@ def io_port_management(axis_device) -> IoPortManagement:
 @pytest.fixture
 def mock_port_management_request(mock_api_request):
     """Register port-management route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, GetPortsRequest)
 
     def _register(json_data):
-        return mock_api_request(
-            GetPortsRequest,
-            response=MockApiResponseSpec(json=json_data),
-        )
+        return bound_request(response=MockApiResponseSpec(json=json_data))
 
     return _register
 

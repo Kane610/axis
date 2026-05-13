@@ -259,6 +259,32 @@ def api_request_fixture(
     return _register_route
 
 
+def bind_mock_api_request(
+    mock_api_request: Callable[..., Route],
+    api_request: type[ApiRequest],
+) -> Callable[..., Route]:
+    """Return a partial-like helper bound to a specific ApiRequest class.
+
+    This keeps per-module fixtures thin while preserving explicit fixture names
+    close to the tests that use them.
+    """
+
+    def _bound(
+        response_data: Any = None,
+        *,
+        response: MockApiResponseSpec | None = None,
+        assertions: MockApiRequestAssertions | None = None,
+    ) -> Route:
+        return mock_api_request(
+            api_request,
+            response_data,
+            response=response,
+            assertions=assertions,
+        )
+
+    return _bound
+
+
 class TcpServerProtocol(asyncio.Protocol):
     """Simple socket server that responds with preset responses."""
 
