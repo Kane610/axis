@@ -394,33 +394,42 @@ async def test_initialize_param_cgi(http_route_mock, vapix: Vapix):
 
 
 async def test_initialize_param_cgi_skips_fallback_when_discovery_supports_api(
-    http_route_mock, vapix: Vapix
+    http_route_mock,
+    mock_vapix_request,
+    vapix: Vapix,
 ):
     """Verify param fallback does not run for APIs supported by discovery."""
-    http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+    mock_vapix_request(
+        ListApisRequest,
         json=API_DISCOVERY_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
+    mock_vapix_request(
+        GetAllPropertiesRequest,
         json=BASIC_DEVICE_INFO_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+    mock_vapix_request(
+        GetPortsRequest,
         json=IO_PORT_MANAGEMENT_RESPONSE,
     )
-    light_control_route = http_route_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+    light_control_route = mock_vapix_request(
+        GetLightInformationRequest,
         json=LIGHT_CONTROL_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/streamprofile.cgi").respond(
+    mock_vapix_request(
+        ListStreamProfilesRequest,
         json=STREAM_PROFILE_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
+    mock_vapix_request(
+        ListViewAreasRequest,
         json={
             "apiVersion": "1.0",
             "context": "",
             "method": "list",
             "data": {"viewAreas": []},
-        }
+        },
     )
-    http_route_mock.post("/axis-cgi/param.cgi").respond(
+    mock_vapix_request(
+        ParamRequest,
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
