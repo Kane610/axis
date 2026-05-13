@@ -3,11 +3,23 @@
 pytest --cov-report term-missing --cov=axis.interfaces.pir_sensor_configuration tests/test_pir_sensor_configuration.py
 """
 
-import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
+
+from axis.models.pir_sensor_configuration import (
+    GetSensitivityRequest,
+    GetSupportedVersionsRequest,
+    ListSensorsRequest,
+    SetSensitivityRequest,
+)
+
+from tests.conftest import (
+    MockApiRequestAssertions,
+    MockApiResponseSpec,
+    bind_mock_api_request,
+)
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -24,13 +36,27 @@ def pir_sensor_configuration(
     return axis_device.vapix.pir_sensor_configuration
 
 
+@pytest.fixture
+def mock_pir_request(mock_api_request):
+    """Register PIR sensor mocks via ApiRequest classes."""
+
+    def _register(api_request, json_data, *, content):
+        return bind_mock_api_request(mock_api_request, api_request)(
+            response=MockApiResponseSpec(json=json_data),
+            assertions=MockApiRequestAssertions(content=content),
+        )
+
+    return _register
+
+
 async def test_get_api_list(
-    http_route_mock,
+    mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
-        json={
+    route = mock_pir_request(
+        ListSensorsRequest,
+        {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "listSensors",
@@ -44,17 +70,13 @@ async def test_get_api_list(
                 ]
             },
         },
+        content=ListSensorsRequest(api_version="1.0").content,
     )
     await pir_sensor_configuration.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pirsensor.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "listSensors",
-        "apiVersion": "1.0",
-        "context": "Axis library",
-    }
 
     assert pir_sensor_configuration.initialized
 
@@ -64,12 +86,13 @@ async def test_get_api_list(
 
 
 async def test_get_sensitivity(
-    http_route_mock,
+    mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
-        json={
+    route = mock_pir_request(
+        GetSensitivityRequest,
+        {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getSensitivity",
@@ -77,57 +100,44 @@ async def test_get_sensitivity(
                 "sensitivity": 1,
             },
         },
+        content=GetSensitivityRequest(id=0, api_version="1.0").content,
     )
     assert await pir_sensor_configuration.get_sensitivity(id=0) == 1
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pirsensor.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getSensitivity",
-        "apiVersion": "1.0",
-        "context": "Axis library",
-        "params": {
-            "id": 0,
-        },
-    }
 
 
 async def test_set_sensitivity(
-    http_route_mock,
+    mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
-        json={
+    route = mock_pir_request(
+        SetSensitivityRequest,
+        {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "setSensitivity",
         },
+        content=SetSensitivityRequest(id=0, sensitivity=1, api_version="1.0").content,
     )
     await pir_sensor_configuration.set_sensitivity(id=0, sensitivity=1)
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pirsensor.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "setSensitivity",
-        "apiVersion": "1.0",
-        "context": "Axis library",
-        "params": {
-            "id": 0,
-            "sensitivity": 1,
-        },
-    }
 
 
 async def test_supported_versions(
-    http_route_mock,
+    mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
     """Test list_sensors call."""
-    route = http_route_mock.post("/axis-cgi/pirsensor.cgi").respond(
-        json={
+    route = mock_pir_request(
+        GetSupportedVersionsRequest,
+        {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getSupportedVersions",
@@ -135,13 +145,10 @@ async def test_supported_versions(
                 "apiVersions": ["1", "2"],
             },
         },
+        content=GetSupportedVersionsRequest().content,
     )
     assert await pir_sensor_configuration.get_supported_versions() == ["1", "2"]
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/pirsensor.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getSupportedVersions",
-        "context": "Axis library",
-    }
