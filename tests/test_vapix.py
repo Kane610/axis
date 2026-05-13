@@ -364,19 +364,22 @@ async def test_initialize_api_discovery_unsupported(http_route_mock, vapix: Vapi
     assert len(vapix.api_discovery) == 0
 
 
-async def test_initialize_param_cgi(http_route_mock, vapix: Vapix):
+async def test_initialize_param_cgi(http_route_mock, mock_vapix_request, vapix: Vapix):
     """Verify that you can list parameters."""
-    http_route_mock.post("/axis-cgi/param.cgi").respond(
+    param_route = mock_vapix_request(
+        ParamRequest,
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
-    light_control_route = http_route_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+    light_control_route = mock_vapix_request(
+        GetLightInformationRequest,
         json=LIGHT_CONTROL_RESPONSE,
     )
     await vapix.initialize_param_cgi()
 
+    assert param_route.called
     assert light_control_route.called
-    assert "Axis-Orig-Sw" not in http_route_mock.calls.last.request.url.params
+    assert "Axis-Orig-Sw" not in param_route.calls.last.request.url.params
     assert vapix.firmware_version == "9.10.1"
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
@@ -442,19 +445,23 @@ async def test_initialize_param_cgi_skips_fallback_when_discovery_supports_api(
 
 
 async def test_initialize_param_cgi_for_companion_device(
-    http_route_mock, vapix_companion_device: Vapix
+    mock_vapix_request,
+    vapix_companion_device: Vapix,
 ):
     """Verify that you can list parameters."""
-    http_route_mock.post("/axis-cgi/param.cgi").respond(
+    param_route = mock_vapix_request(
+        ParamRequest,
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
-    http_route_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+    mock_vapix_request(
+        GetLightInformationRequest,
         json=LIGHT_CONTROL_RESPONSE,
     )
     await vapix_companion_device.initialize_param_cgi()
 
-    assert "Axis-Orig-Sw" in http_route_mock.calls.last.request.url.params
+    assert param_route.called
+    assert "Axis-Orig-Sw" in param_route.calls.last.request.url.params
 
     assert vapix_companion_device.firmware_version == "9.10.1"
     assert vapix_companion_device.product_number == "M1065-LW"
