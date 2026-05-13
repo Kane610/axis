@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from contextlib import suppress
+from dataclasses import dataclass
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -86,10 +87,21 @@ async def axis_companion_device(session: ClientSession) -> AxisDevice:
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class MockApiResponseSpec:
+    """Explicit response configuration for mock_api_request."""
+
+    json: dict[str, Any] | list[Any] | None = None
+    text: str | None = None
+    content: bytes | None = None
+    status_code: int = 200
+    headers: dict[str, str] | None = None
+
+
 @pytest.fixture(name="mock_api_request")
 def api_request_fixture(
     http_route_mock: HttpRouteMock,
-) -> Callable[[type[ApiRequest], Any], Route]:
+) -> Callable[..., Route]:
     """Register a route mock from an ApiRequest class.
 
     Contract:
@@ -104,7 +116,32 @@ def api_request_fixture(
     }
     supported_content_types = {"application/json", "text/plain", "text/xml"}
 
-    def _register_route(api_request: type[ApiRequest], response_data: Any) -> Route:
+    def _respond_from_spec(route: Route, response: MockApiResponseSpec) -> Route:
+        payload_count = sum(
+            value is not None
+            for value in (response.json, response.text, response.content)
+        )
+        if payload_count > 1:
+            msg = (
+                "MockApiResponseSpec accepts only one payload kind: "
+                "json, text, or content"
+            )
+            raise ValueError(msg)
+
+        return route.respond(
+            json=response.json,
+            text=response.text,
+            content=response.content,
+            status_code=response.status_code,
+            headers=response.headers,
+        )
+
+    def _register_route(
+        api_request: type[ApiRequest],
+        response_data: Any = None,
+        *,
+        response: MockApiResponseSpec | None = None,
+    ) -> Route:
         method = api_request.method.lower()
         if method not in supported_methods:
             msg = (
@@ -121,7 +158,14 @@ def api_request_fixture(
             )
             raise ValueError(msg)
 
+        if response is not None and response_data is not None:
+            msg = "Pass either response_data or response, not both"
+            raise ValueError(msg)
+
         route = supported_methods[method](api_request.path)
+        if response is not None:
+            return _respond_from_spec(route, response)
+
         if content_type == "application/json":
             return route.respond(json=response_data)
         if content_type in {"text/plain", "text/xml"}:

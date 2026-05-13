@@ -6,6 +6,7 @@ import pytest
 
 from axis.models.api import ApiRequest
 
+from tests.conftest import MockApiResponseSpec
 from tests.http_route_mock import HttpRouteMock
 
 if TYPE_CHECKING:
@@ -239,3 +240,53 @@ class TestMockApiRequestFixture:
         """Unsupported methods raise a descriptive ValueError."""
         with pytest.raises(ValueError, match="Unsupported method"):
             mock_api_request(_UnsupportedMethodApiRequest, {"ok": True})
+
+    async def test_accepts_explicit_json_response_spec(self, mock_api_request):
+        """Explicit response spec can set JSON independent of request content type."""
+        route = mock_api_request(
+            _PlainTextApiRequest,
+            response=MockApiResponseSpec(json={"ok": True}, status_code=201),
+        )
+
+        assert route._json == {"ok": True}
+        assert route._text is None
+        assert route._status_code == 201
+
+    async def test_accepts_explicit_text_response_spec_with_headers(
+        self, mock_api_request
+    ):
+        """Explicit response spec can set text, status code, and headers."""
+        route = mock_api_request(
+            _JsonApiRequest,
+            response=MockApiResponseSpec(
+                text="ok",
+                status_code=202,
+                headers={"X-Test": "true"},
+            ),
+        )
+
+        assert route._json is None
+        assert route._text == "ok"
+        assert route._status_code == 202
+        assert route._headers == {"X-Test": "true"}
+
+    async def test_rejects_legacy_and_explicit_response_together(
+        self, mock_api_request
+    ):
+        """Passing legacy response_data and response spec together is invalid."""
+        with pytest.raises(ValueError, match="response_data or response"):
+            mock_api_request(
+                _JsonApiRequest,
+                {"legacy": True},
+                response=MockApiResponseSpec(json={"new": True}),
+            )
+
+    async def test_rejects_response_spec_with_multiple_payload_kinds(
+        self, mock_api_request
+    ):
+        """Response spec must use a single payload kind."""
+        with pytest.raises(ValueError, match="only one payload kind"):
+            mock_api_request(
+                _JsonApiRequest,
+                response=MockApiResponseSpec(json={"a": 1}, text="b"),
+            )
