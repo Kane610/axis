@@ -350,8 +350,6 @@ async def test_get_supported_config_versions(
     assert response == ["1.0"]
 
 
-# Keep error-code tests on raw routes: explicit payload/endpoint visibility is clearer
-# for error-path behavior than request-model abstraction in this section.
 async def test_general_error_101(http_route_mock, view_areas: ViewAreaHandler):
     """Test handling error 101.
 
