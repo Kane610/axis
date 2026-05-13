@@ -10,10 +10,28 @@ import pytest
 
 from axis.models.api_discovery import Api
 from axis.models.light_control import (
+    ActivateLightRequest,
+    DeactivateLightRequest,
+    DisableLightRequest,
+    EnableLightRequest,
+    GetCurrentAngleOfIlluminationRequest,
+    GetCurrentIntensityRequest,
+    GetIndividualIntensityRequest,
     GetLightInformationRequest,
     GetLightStatusRequest,
+    GetLightSynchronizeDayNightModeRequest,
+    GetManualAngleOfIlluminationRequest,
+    GetManualIntensityRequest,
     GetServiceCapabilitiesRequest,
     GetSupportedVersionsRequest,
+    GetValidAngleOfIlluminationRequest,
+    GetValidIntensityRequest,
+    SetAutomaticAngleOfIlluminationModeRequest,
+    SetAutomaticIntensityModeRequest,
+    SetIndividualIntensityRequest,
+    SetLightSynchronizeDayNightModeRequest,
+    SetManualAngleOfIlluminationModeRequest,
+    SetManualIntensityRequest,
 )
 
 from tests.conftest import (
@@ -245,14 +263,16 @@ async def test_get_light_information_error(
     assert len(response) == 0
 
 
-async def test_activate_light(mock_light_request, light_control):
+async def test_activate_light(mock_light_api_request, light_control):
     """Test activating light API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        ActivateLightRequest,
         {
             "apiVersion": "1.0",
             "method": "activateLight",
             "data": {},
         },
+        content=ActivateLightRequest(light_id="led0", api_version="1.0").content,
     )
 
     await light_control.activate_light("led0")
@@ -268,14 +288,16 @@ async def test_activate_light(mock_light_request, light_control):
     }
 
 
-async def test_deactivate_light(mock_light_request, light_control):
+async def test_deactivate_light(mock_light_api_request, light_control):
     """Test deactivating light API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        DeactivateLightRequest,
         {
             "apiVersion": "1.0",
             "method": "deactivateLight",
             "data": {},
         },
+        content=DeactivateLightRequest(light_id="led0", api_version="1.0").content,
     )
 
     await light_control.deactivate_light("led0")
@@ -291,14 +313,16 @@ async def test_deactivate_light(mock_light_request, light_control):
     }
 
 
-async def test_enable_light(mock_light_request, light_control):
+async def test_enable_light(mock_light_api_request, light_control):
     """Test enabling light API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        EnableLightRequest,
         {
             "apiVersion": "1.0",
             "method": "enableLight",
             "data": {},
         },
+        content=EnableLightRequest(light_id="led0", api_version="1.0").content,
     )
 
     await light_control.enable_light("led0")
@@ -314,14 +338,16 @@ async def test_enable_light(mock_light_request, light_control):
     }
 
 
-async def test_disable_light(mock_light_request, light_control):
+async def test_disable_light(mock_light_api_request, light_control):
     """Test disabling light API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        DisableLightRequest,
         {
             "apiVersion": "1.0",
             "method": "disableLight",
             "data": {},
         },
+        content=DisableLightRequest(light_id="led0", api_version="1.0").content,
     )
 
     await light_control.disable_light("led0")
@@ -365,15 +391,21 @@ async def test_get_light_status(mock_light_api_request, light_control):
     assert response is False
 
 
-async def test_set_automatic_intensity_mode(mock_light_request, light_control):
+async def test_set_automatic_intensity_mode(mock_light_api_request, light_control):
     """Test set automatic intensity mode API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        SetAutomaticIntensityModeRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "setAutomaticIntensityMode",
             "data": {},
         },
+        content=SetAutomaticIntensityModeRequest(
+            light_id="led0",
+            enabled=True,
+            api_version="1.0",
+        ).content,
     )
 
     await light_control.set_automatic_intensity_mode("led0", True)
@@ -389,15 +421,17 @@ async def test_set_automatic_intensity_mode(mock_light_request, light_control):
     }
 
 
-async def test_get_manual_intensity(mock_light_request, light_control):
+async def test_get_manual_intensity(mock_light_api_request, light_control):
     """Test get valid intensity API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetManualIntensityRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getManualIntensity",
             "data": {"intensity": 1000},
         },
+        content=GetManualIntensityRequest(light_id="led0", api_version="1.0").content,
     )
 
     response = await light_control.get_manual_intensity("led0")
@@ -415,15 +449,21 @@ async def test_get_manual_intensity(mock_light_request, light_control):
     assert response == 1000
 
 
-async def test_set_manual_intensity(mock_light_request, light_control):
+async def test_set_manual_intensity(mock_light_api_request, light_control):
     """Test set manual intensity API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        SetManualIntensityRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "setManualIntensity",
             "data": {},
         },
+        content=SetManualIntensityRequest(
+            light_id="led0",
+            intensity=1000,
+            api_version="1.0",
+        ).content,
     )
 
     await light_control.set_manual_intensity("led0", 1000)
@@ -439,15 +479,17 @@ async def test_set_manual_intensity(mock_light_request, light_control):
     }
 
 
-async def test_get_valid_intensity(mock_light_request, light_control):
+async def test_get_valid_intensity(mock_light_api_request, light_control):
     """Test get valid intensity API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetValidIntensityRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getValidIntensity",
             "data": {"ranges": [{"low": 0, "high": 1000}]},
         },
+        content=GetValidIntensityRequest(light_id="led0", api_version="1.0").content,
     )
 
     response = await light_control.get_valid_intensity("led0")
@@ -466,14 +508,21 @@ async def test_get_valid_intensity(mock_light_request, light_control):
     assert response.high == 1000
 
 
-async def test_set_individual_intensity(mock_light_request, light_control):
+async def test_set_individual_intensity(mock_light_api_request, light_control):
     """Test set individual intensity API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        SetIndividualIntensityRequest,
         {
             "apiVersion": "1.0",
             "method": "setIndividualIntensity",
             "data": {},
         },
+        content=SetIndividualIntensityRequest(
+            light_id="led0",
+            led_id=1,
+            intensity=1000,
+            api_version="1.0",
+        ).content,
     )
 
     await light_control.set_individual_intensity("led0", 1, 1000)
@@ -489,15 +538,21 @@ async def test_set_individual_intensity(mock_light_request, light_control):
     }
 
 
-async def test_get_individual_intensity(mock_light_request, light_control):
+async def test_get_individual_intensity(mock_light_api_request, light_control):
     """Test get individual intensity API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetIndividualIntensityRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getIndividualIntensity",
             "data": {"intensity": 1000},
         },
+        content=GetIndividualIntensityRequest(
+            light_id="led0",
+            led_id=1,
+            api_version="1.0",
+        ).content,
     )
 
     response = await light_control.get_individual_intensity("led0", 1)
@@ -515,15 +570,17 @@ async def test_get_individual_intensity(mock_light_request, light_control):
     assert response == 1000
 
 
-async def test_get_current_intensity(mock_light_request, light_control):
+async def test_get_current_intensity(mock_light_api_request, light_control):
     """Test get current intensity API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetCurrentIntensityRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getCurrentIntensity",
             "data": {"intensity": 1000},
         },
+        content=GetCurrentIntensityRequest(light_id="led0", api_version="1.0").content,
     )
 
     response = await light_control.get_current_intensity("led0")
@@ -542,15 +599,21 @@ async def test_get_current_intensity(mock_light_request, light_control):
 
 
 async def test_set_automatic_angle_of_illumination_mode(
-    mock_light_request, light_control
+    mock_light_api_request, light_control
 ):
     """Test set automatic angle of illumination mode API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        SetAutomaticAngleOfIlluminationModeRequest,
         {
             "apiVersion": "1.0",
             "method": "setAutomaticAngleOfIlluminationMode",
             "data": {},
         },
+        content=SetAutomaticAngleOfIlluminationModeRequest(
+            light_id="led0",
+            enabled=True,
+            api_version="1.0",
+        ).content,
     )
 
     await light_control.set_automatic_angle_of_illumination_mode("led0", True)
@@ -567,16 +630,21 @@ async def test_set_automatic_angle_of_illumination_mode(
 
 
 async def test_get_valid_angle_of_illumination(
-    mock_light_request, light_control: LightHandler
+    mock_light_api_request, light_control: LightHandler
 ):
     """Test get valid angle of illumination API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetValidAngleOfIlluminationRequest,
         {
             "apiVersion": "1.0",
             "context": "my context",
             "method": "getValidAngleOfIllumination",
             "data": {"ranges": [{"low": 10, "high": 30}, {"low": 20, "high": 50}]},
         },
+        content=GetValidAngleOfIlluminationRequest(
+            light_id="led0",
+            api_version="1.0",
+        ).content,
     )
 
     response = await light_control.get_valid_angle_of_illumination("led0")
@@ -597,14 +665,20 @@ async def test_get_valid_angle_of_illumination(
     assert response[1].high == 50
 
 
-async def test_set_manual_angle_of_illumination(mock_light_request, light_control):
+async def test_set_manual_angle_of_illumination(mock_light_api_request, light_control):
     """Test set manual angle of illumination API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        SetManualAngleOfIlluminationModeRequest,
         {
             "apiVersion": "1.0",
             "method": "setManualAngleOfIllumination",
             "data": {},
         },
+        content=SetManualAngleOfIlluminationModeRequest(
+            light_id="led0",
+            angle_of_illumination=30,
+            api_version="1.0",
+        ).content,
     )
 
     await light_control.set_manual_angle_of_illumination("led0", 30)
@@ -620,15 +694,20 @@ async def test_set_manual_angle_of_illumination(mock_light_request, light_contro
     }
 
 
-async def test_get_manual_angle_of_illumination(mock_light_request, light_control):
+async def test_get_manual_angle_of_illumination(mock_light_api_request, light_control):
     """Test get manual angle of illumination API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetManualAngleOfIlluminationRequest,
         {
             "apiVersion": "1.0",
             "context": "my context",
             "method": "getManualAngleOfIllumination",
             "data": {"angleOfIllumination": 30},
         },
+        content=GetManualAngleOfIlluminationRequest(
+            light_id="led0",
+            api_version="1.0",
+        ).content,
     )
 
     response = await light_control.get_manual_angle_of_illumination("led0")
@@ -646,15 +725,20 @@ async def test_get_manual_angle_of_illumination(mock_light_request, light_contro
     assert response == 30
 
 
-async def test_get_current_angle_of_illumination(mock_light_request, light_control):
+async def test_get_current_angle_of_illumination(mock_light_api_request, light_control):
     """Test get current angle of illumination API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetCurrentAngleOfIlluminationRequest,
         {
             "apiVersion": "1.0",
             "context": "my context",
             "method": "getCurrentAngleOfIllumination",
             "data": {"angleOfIllumination": 20},
         },
+        content=GetCurrentAngleOfIlluminationRequest(
+            light_id="led0",
+            api_version="1.0",
+        ).content,
     )
 
     response = await light_control.get_current_angle_of_illumination("led0")
@@ -673,15 +757,21 @@ async def test_get_current_angle_of_illumination(mock_light_request, light_contr
 
 
 async def test_set_light_synchronization_day_night_mode(
-    mock_light_request, light_control
+    mock_light_api_request, light_control
 ):
     """Test set light synchronization day night mode API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        SetLightSynchronizeDayNightModeRequest,
         {
             "apiVersion": "1.0",
             "method": "setLightSynchronizationDayNightMode",
             "data": {},
         },
+        content=SetLightSynchronizeDayNightModeRequest(
+            light_id="led0",
+            enabled=True,
+            api_version="1.0",
+        ).content,
     )
 
     await light_control.set_light_synchronization_day_night_mode("led0", True)
@@ -698,16 +788,21 @@ async def test_set_light_synchronization_day_night_mode(
 
 
 async def test_get_light_synchronization_day_night_mode(
-    mock_light_request, light_control: LightHandler
+    mock_light_api_request, light_control: LightHandler
 ):
     """Test get light synchronization day night mode API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetLightSynchronizeDayNightModeRequest,
         {
             "apiVersion": "1.0",
             "context": "my context",
             "method": "getLightSynchronizeDayNightMode",
             "data": {"synchronize": True},
         },
+        content=GetLightSynchronizeDayNightModeRequest(
+            light_id="led0",
+            api_version="1.0",
+        ).content,
     )
 
     response = await light_control.get_light_synchronization_day_night_mode("led0")
