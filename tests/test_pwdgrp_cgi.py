@@ -5,7 +5,9 @@ import urllib
 
 import pytest
 
-from axis.models.pwdgrp_cgi import SecondaryGroup, User
+from axis.models.pwdgrp_cgi import GetUsersRequest, SecondaryGroup, User
+
+from tests.conftest import MockApiResponseSpec
 
 if TYPE_CHECKING:
     from axis.interfaces.pwdgrp_cgi import Users
@@ -15,6 +17,30 @@ if TYPE_CHECKING:
 def users(axis_device) -> Users:
     """Return the api_discovery mock object."""
     return axis_device.vapix.users
+
+
+@pytest.fixture
+def mock_pwdgrp_request(mock_api_request):
+    """Register pwdgrp route mocks via ApiRequest classes."""
+
+    def _register(
+        *,
+        text: str | None = None,
+        content: bytes | None = None,
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ):
+        return mock_api_request(
+            GetUsersRequest,
+            response=MockApiResponseSpec(
+                text=text,
+                content=content,
+                status_code=status_code,
+                headers=headers,
+            ),
+        )
+
+    return _register
 
 
 def test_user_class_privileges() -> None:
@@ -32,9 +58,9 @@ def test_user_class_privileges() -> None:
     assert bad_user.privileges == SecondaryGroup.UNKNOWN
 
 
-async def test_users(http_route_mock, users):
+async def test_users(mock_pwdgrp_request, users):
     """Verify that you can list users."""
-    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text=GET_USERS_RESPONSE)
+    mock_pwdgrp_request(text=GET_USERS_RESPONSE)
     await users.update()
 
     assert users.initialized
@@ -80,10 +106,10 @@ async def test_users(http_route_mock, users):
     assert users["usera"].privileges == SecondaryGroup.ADMIN_PTZ
 
 
-async def test_users_new_response(http_route_mock, users):
+async def test_users_new_response(mock_pwdgrp_request, users):
     """Verify that you can list users."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
-    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(content=response)
+    mock_pwdgrp_request(content=response)
     await users.update()
 
     assert users["root"]
@@ -94,9 +120,9 @@ async def test_users_new_response(http_route_mock, users):
     assert users["root"].ptz
 
 
-async def test_create(http_route_mock, users):
+async def test_create(mock_pwdgrp_request, users):
     """Verify that you can create users."""
-    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
+    route = mock_pwdgrp_request(text="")
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
 
@@ -135,9 +161,9 @@ async def test_create(http_route_mock, users):
     )
 
 
-async def test_modify(http_route_mock, users):
+async def test_modify(mock_pwdgrp_request, users):
     """Verify that you can modify users."""
-    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
+    route = mock_pwdgrp_request(text="")
 
     await users.modify("joe", pwd="abcd")
 
@@ -191,9 +217,9 @@ async def test_modify(http_route_mock, users):
     )
 
 
-async def test_delete(http_route_mock, users):
+async def test_delete(mock_pwdgrp_request, users):
     """Verify that you can delete users."""
-    route = http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
+    route = mock_pwdgrp_request(text="")
 
     await users.delete("joe")
 
@@ -206,17 +232,15 @@ async def test_delete(http_route_mock, users):
     )
 
 
-async def test_equals_in_value(http_route_mock, users):
+async def test_equals_in_value(mock_pwdgrp_request, users):
     """Verify that values containing `=` are parsed correctly."""
-    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(
-        text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="'
-    )
+    mock_pwdgrp_request(text=GET_USERS_RESPONSE + 'equals-in-value="xyz=="')
     await users.update()
 
 
-async def test_no_equals_in_value(http_route_mock, users):
+async def test_no_equals_in_value(mock_pwdgrp_request, users):
     """Verify that values containing `=` are parsed correctly."""
-    http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(text="")
+    mock_pwdgrp_request(text="")
     await users.update()
 
 
