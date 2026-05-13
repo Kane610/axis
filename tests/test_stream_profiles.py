@@ -5,6 +5,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from axis.models.stream_profile import (
+    GetSupportedVersionsRequest,
+    ListStreamProfilesRequest,
+)
+
+from tests.conftest import (
+    MockApiRequestAssertions,
+    MockApiResponseSpec,
+    bind_mock_api_request,
+)
+
 if TYPE_CHECKING:
     from axis.device import AxisDevice
     from axis.interfaces.stream_profiles import StreamProfilesHandler
@@ -18,28 +29,34 @@ def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
     return axis_device.vapix.stream_profiles
 
 
+@pytest.fixture
+def mock_stream_profile_request(mock_api_request):
+    """Register stream profile route mocks via ApiRequest classes."""
+
+    def _register(api_request, json_data, *, content):
+        return bind_mock_api_request(mock_api_request, api_request)(
+            response=MockApiResponseSpec(json=json_data),
+            assertions=MockApiRequestAssertions(content=content),
+        )
+
+    return _register
+
+
 async def test_list_stream_profiles(
-    aiohttp_mock_server, stream_profiles: StreamProfilesHandler
+    mock_stream_profile_request, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/streamprofile.cgi",
-        response=LIST_RESPONSE,
-        device=stream_profiles,
-        capture_payload=True,
+    route = mock_stream_profile_request(
+        ListStreamProfilesRequest,
+        LIST_RESPONSE,
+        content=ListStreamProfilesRequest(api_version="1.0").content,
     )
 
     await stream_profiles.update()
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/streamprofile.cgi"
-    assert requests[-1]["payload"] == {
-        "method": "list",
-        "apiVersion": "1.0",
-        "context": "Axis library",
-        "params": {"streamProfileName": []},
-    }
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
 
     assert stream_profiles.initialized
     assert len(stream_profiles.values()) == 1
@@ -52,13 +69,13 @@ async def test_list_stream_profiles(
 
 
 async def test_list_stream_profiles_no_profiles(
-    aiohttp_mock_server,
+    mock_stream_profile_request,
     stream_profiles: StreamProfilesHandler,
 ) -> None:
     """Test get_supported_versions."""
-    await aiohttp_mock_server(
-        "/axis-cgi/streamprofile.cgi",
-        response={
+    route = mock_stream_profile_request(
+        ListStreamProfilesRequest,
+        {
             "method": "list",
             "apiVersion": "1.0",
             "context": "",
@@ -66,35 +83,33 @@ async def test_list_stream_profiles_no_profiles(
                 "maxProfiles": 0,
             },
         },
-        device=stream_profiles,
-        capture_requests=False,
+        content=ListStreamProfilesRequest(api_version="1.0").content,
     )
 
     await stream_profiles.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
 
     assert len(stream_profiles.values()) == 0
 
 
 async def test_get_supported_versions(
-    aiohttp_mock_server, stream_profiles: StreamProfilesHandler
+    mock_stream_profile_request, stream_profiles: StreamProfilesHandler
 ) -> None:
     """Test get_supported_versions."""
-    _server, requests = await aiohttp_mock_server(
-        "/axis-cgi/streamprofile.cgi",
-        response=GET_SUPPORTED_VERSIONS_RESPONSE,
-        device=stream_profiles,
-        capture_payload=True,
+    route = mock_stream_profile_request(
+        GetSupportedVersionsRequest,
+        GET_SUPPORTED_VERSIONS_RESPONSE,
+        content=GetSupportedVersionsRequest().content,
     )
 
     response = await stream_profiles.get_supported_versions()
 
-    assert requests
-    assert requests[-1]["method"] == "POST"
-    assert requests[-1]["path"] == "/axis-cgi/streamprofile.cgi"
-    assert requests[-1]["payload"] == {
-        "context": "Axis library",
-        "method": "getSupportedVersions",
-    }
+    assert route.called
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.url.path == "/axis-cgi/streamprofile.cgi"
 
     assert response == ["1.0"]
 
