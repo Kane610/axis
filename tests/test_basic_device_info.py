@@ -3,30 +3,71 @@
 pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_device_info.py
 """
 
-import json
 from unittest.mock import MagicMock
 
+import pytest
 
-async def test_get_all_properties(http_route_mock, axis_device):
-    """Test get all properties api."""
+from axis.models.basic_device_info import (
+    GetAllPropertiesRequest,
+    GetSupportedVersionsRequest,
+)
+
+from tests.conftest import (
+    MockApiRequestAssertions,
+    MockApiResponseSpec,
+    bind_mock_api_request,
+)
+
+
+@pytest.fixture
+def basic_device_info(axis_device):
+    """Return the basic-device-info handler with api discovery primed."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.get().version = "1.0"
-    basic_device_info = axis_device.vapix.basic_device_info
+    return axis_device.vapix.basic_device_info
 
-    route = http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
-        json=GET_ALL_PROPERTIES_RESPONSE,
-    )
+
+@pytest.fixture
+def mock_get_all_properties_request(mock_api_request):
+    """Register get-all-properties mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, GetAllPropertiesRequest)
+
+    def _register(json_data):
+        return bound_request(
+            response=MockApiResponseSpec(json=json_data),
+            assertions=MockApiRequestAssertions(
+                content=GetAllPropertiesRequest(api_version="1.0").content,
+            ),
+        )
+
+    return _register
+
+
+@pytest.fixture
+def mock_get_supported_versions_request(mock_api_request):
+    """Register supported-versions mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, GetSupportedVersionsRequest)
+
+    def _register(json_data):
+        return bound_request(
+            response=MockApiResponseSpec(json=json_data),
+            assertions=MockApiRequestAssertions(
+                content=GetSupportedVersionsRequest().content,
+            ),
+        )
+
+    return _register
+
+
+async def test_get_all_properties(mock_get_all_properties_request, basic_device_info):
+    """Test get all properties api."""
+    route = mock_get_all_properties_request(GET_ALL_PROPERTIES_RESPONSE)
 
     await basic_device_info.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "getAllProperties",
-        "apiVersion": "1.0",
-        "context": "Axis library",
-    }
 
     assert basic_device_info.initialized
 
@@ -47,19 +88,18 @@ async def test_get_all_properties(http_route_mock, axis_device):
     assert device_info.web_url == "http://www.axis.com"
 
 
-async def test_get_supported_versions(http_route_mock, axis_device):
+async def test_get_supported_versions(
+    mock_get_supported_versions_request,
+    basic_device_info,
+):
     """Test get supported versions api."""
-    axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
-    api_discovery_mock.get().version = "1.0"
-    basic_device_info = axis_device.vapix.basic_device_info
-
-    route = http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
-        json={
+    route = mock_get_supported_versions_request(
+        {
             "apiVersion": "1.1",
             "context": "Axis library",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.1"]},
-        },
+        }
     )
 
     response = await basic_device_info.get_supported_versions()
@@ -67,10 +107,6 @@ async def test_get_supported_versions(http_route_mock, axis_device):
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/basicdeviceinfo.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "context": "Axis library",
-        "method": "getSupportedVersions",
-    }
 
     assert response == ["1.1"]
 
