@@ -4,10 +4,42 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from axis.models.api import ApiRequest
+
 from tests.http_route_mock import HttpRouteMock
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
+
+
+class _JsonApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/json.cgi"
+    content_type = "application/json"
+
+
+class _PlainTextApiRequest(ApiRequest):
+    method = "GET"
+    path = "/axis-cgi/mock/plain.cgi"
+    content_type = "text/plain"
+
+
+class _XmlApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/xml.cgi"
+    content_type = "text/xml"
+
+
+class _UnsupportedTypeApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/unsupported-type.cgi"
+    content_type = "application/octet-stream"
+
+
+class _UnsupportedMethodApiRequest(ApiRequest):
+    method = "DELETE"
+    path = "/axis-cgi/mock/unsupported-method.cgi"
+    content_type = "application/json"
 
 
 class TestHttpRouteMock:
@@ -162,3 +194,48 @@ async def test_route_data_match_accepts_expected_body(http_route_mock, axis_devi
 
     assert route.called
     assert route.call_count == 1
+
+
+class TestMockApiRequestFixture:
+    """Validate the request-class-driven route registration fixture contract."""
+
+    async def test_registers_json_response(self, mock_api_request, http_route_mock):
+        """JSON request content type maps to route.respond(json=...)."""
+        expected = {"ok": True}
+        route = mock_api_request(_JsonApiRequest, expected)
+
+        assert route._json == expected
+        assert route._text is None
+        assert http_route_mock.resolve("POST", _JsonApiRequest.path) is route
+
+    async def test_registers_plain_text_response(
+        self, mock_api_request, http_route_mock
+    ):
+        """Plain-text request content type maps to route.respond(text=...)."""
+        expected = "ok"
+        route = mock_api_request(_PlainTextApiRequest, expected)
+
+        assert route._text == expected
+        assert route._json is None
+        assert http_route_mock.resolve("GET", _PlainTextApiRequest.path) is route
+
+    async def test_registers_xml_response_as_text(
+        self, mock_api_request, http_route_mock
+    ):
+        """XML request content type maps to route.respond(text=...)."""
+        expected = "<root><ok>true</ok></root>"
+        route = mock_api_request(_XmlApiRequest, expected)
+
+        assert route._text == expected
+        assert route._json is None
+        assert http_route_mock.resolve("POST", _XmlApiRequest.path) is route
+
+    async def test_raises_for_unsupported_content_type(self, mock_api_request):
+        """Unsupported content types raise a descriptive ValueError."""
+        with pytest.raises(ValueError, match="Unsupported content type"):
+            mock_api_request(_UnsupportedTypeApiRequest, "data")
+
+    async def test_raises_for_unsupported_method(self, mock_api_request):
+        """Unsupported methods raise a descriptive ValueError."""
+        with pytest.raises(ValueError, match="Unsupported method"):
+            mock_api_request(_UnsupportedMethodApiRequest, {"ok": True})
