@@ -131,6 +131,7 @@ class ListEventInstancesRequest(ApiRequest):
 
     method = "post"
     path = "/vapix/services"
+    content_type = "application/soap+xml"
 
     @property
     def content(self) -> bytes:

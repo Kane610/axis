@@ -32,6 +32,12 @@ USER = "root"
 PASS = "pass"
 RTSP_PORT = 8888
 
+MOCK_API_REQUEST_SUPPORTED_METHODS = frozenset({"GET", "POST"})
+MOCK_API_REQUEST_DIRECT_CONTENT_TYPES = frozenset(
+    {"application/json", "text/plain", "text/xml"}
+)
+MOCK_API_REQUEST_EXPLICIT_RESPONSE_CONTENT_TYPES = frozenset({"application/soap+xml"})
+
 
 # ---------------------------------------------------------------------------
 # Session fixtures
@@ -117,6 +123,8 @@ def api_request_fixture(
     Contract:
       - Supported methods: GET, POST
       - Supported content types: application/json, text/plain, text/xml
+      - Explicit response specs can mock request classes outside the direct
+        content-type mapping without adding special-case fixture logic.
       - For advanced behavior (side effects, header assertions, body matching),
         use http_route_mock directly.
     """
@@ -124,7 +132,6 @@ def api_request_fixture(
         "GET": http_route_mock.get,
         "POST": http_route_mock.post,
     }
-    supported_content_types = {"application/json", "text/plain", "text/xml"}
 
     def _respond_from_spec(route: Route, response: MockApiResponseSpec) -> Route:
         payload_count = sum(
@@ -196,7 +203,7 @@ def api_request_fixture(
             raise ValueError(msg)
 
         method = api_request.method.strip().upper()
-        if method not in supported_methods:
+        if method not in MOCK_API_REQUEST_SUPPORTED_METHODS:
             msg = (
                 f"Unsupported method: {api_request.method}. "
                 f"Supported methods: {', '.join(sorted(supported_methods))}"
@@ -204,10 +211,15 @@ def api_request_fixture(
             raise ValueError(msg)
 
         content_type = api_request.content_type
-        if content_type not in supported_content_types:
+        if (
+            response is None
+            and content_type not in MOCK_API_REQUEST_DIRECT_CONTENT_TYPES
+        ):
             msg = (
                 f"Unsupported content type: {content_type}. "
-                f"Supported content types: {', '.join(sorted(supported_content_types))}"
+                "Provide an explicit MockApiResponseSpec response for unsupported "
+                "content types. Direct mapping supports: "
+                f"{', '.join(sorted(MOCK_API_REQUEST_DIRECT_CONTENT_TYPES))}"
             )
             raise ValueError(msg)
 
