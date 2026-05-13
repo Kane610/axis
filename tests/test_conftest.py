@@ -1,13 +1,101 @@
 """Contract tests for shared HTTP mocking fixtures in conftest.py."""
 
+import importlib
+import inspect
+import pkgutil
 from typing import TYPE_CHECKING
 
 import pytest
 
+import axis.models
+from axis.models.api import ApiRequest
+
+from tests.conftest import (
+    MOCK_API_REQUEST_DIRECT_CONTENT_TYPES,
+    MOCK_API_REQUEST_EXPLICIT_RESPONSE_CONTENT_TYPES,
+    MockApiRequestAssertions,
+    MockApiResponseSpec,
+)
 from tests.http_route_mock import HttpRouteMock
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
+
+
+class _JsonApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/json.cgi"
+    content_type = "application/json"
+
+
+class _PlainTextApiRequest(ApiRequest):
+    method = "GET"
+    path = "/axis-cgi/mock/plain.cgi"
+    content_type = "text/plain"
+
+
+class _XmlApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/xml.cgi"
+    content_type = "text/xml"
+
+
+class _UnsupportedTypeApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/unsupported-type.cgi"
+    content_type = "application/octet-stream"
+
+
+class _UnsupportedMethodApiRequest(ApiRequest):
+    method = "DELETE"
+    path = "/axis-cgi/mock/unsupported-method.cgi"
+    content_type = "application/json"
+
+
+class _LowerCaseMethodApiRequest(ApiRequest):
+    method = "post"
+    path = "/axis-cgi/mock/lowercase-method.cgi"
+    content_type = "application/json"
+
+
+class _BlankMethodApiRequest(ApiRequest):
+    method = "   "
+    path = "/axis-cgi/mock/blank-method.cgi"
+    content_type = "application/json"
+
+
+class _AssertionApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/assertions.cgi"
+    content_type = "application/json"
+
+
+class _ExplicitResponseOnlyApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/explicit-only.cgi"
+    content_type = "application/octet-stream"
+
+
+def _iter_api_request_classes() -> list[type[ApiRequest]]:
+    request_classes: list[type[ApiRequest]] = []
+    seen: set[type[ApiRequest]] = set()
+
+    for module_info in pkgutil.walk_packages(
+        axis.models.__path__,
+        prefix=f"{axis.models.__name__}.",
+    ):
+        module = importlib.import_module(module_info.name)
+        for _, candidate in inspect.getmembers(module, inspect.isclass):
+            if (
+                issubclass(candidate, ApiRequest)
+                and candidate is not ApiRequest
+                and candidate.__module__ == module.__name__
+                and candidate not in seen
+            ):
+                seen.add(candidate)
+                request_classes.append(candidate)
+
+    return request_classes
 
 
 class TestHttpRouteMock:
@@ -162,3 +250,190 @@ async def test_route_data_match_accepts_expected_body(http_route_mock, axis_devi
 
     assert route.called
     assert route.call_count == 1
+
+
+class TestMockApiRequestFixture:
+    """Validate the request-class-driven route registration fixture contract."""
+
+    async def test_registers_json_response(self, mock_api_request, http_route_mock):
+        """JSON request content type maps to route.respond(json=...)."""
+        expected = {"ok": True}
+        route = mock_api_request(_JsonApiRequest, expected)
+
+        assert route._json == expected
+        assert route._text is None
+        assert http_route_mock.resolve("POST", _JsonApiRequest.path) is route
+
+    async def test_registers_plain_text_response(
+        self, mock_api_request, http_route_mock
+    ):
+        """Plain-text request content type maps to route.respond(text=...)."""
+        expected = "ok"
+        route = mock_api_request(_PlainTextApiRequest, expected)
+
+        assert route._text == expected
+        assert route._json is None
+        assert http_route_mock.resolve("GET", _PlainTextApiRequest.path) is route
+
+    async def test_registers_xml_response_as_text(
+        self, mock_api_request, http_route_mock
+    ):
+        """XML request content type maps to route.respond(text=...)."""
+        expected = "<root><ok>true</ok></root>"
+        route = mock_api_request(_XmlApiRequest, expected)
+
+        assert route._text == expected
+        assert route._json is None
+        assert http_route_mock.resolve("POST", _XmlApiRequest.path) is route
+
+    async def test_raises_for_unsupported_content_type(self, mock_api_request):
+        """Unsupported content types raise a descriptive ValueError."""
+        with pytest.raises(ValueError, match="Unsupported content type"):
+            mock_api_request(_UnsupportedTypeApiRequest, "data")
+
+    async def test_raises_for_unsupported_method(self, mock_api_request):
+        """Unsupported methods raise a descriptive ValueError."""
+        with pytest.raises(ValueError, match="Unsupported method"):
+            mock_api_request(_UnsupportedMethodApiRequest, {"ok": True})
+
+    async def test_accepts_lowercase_method_by_normalizing(self, mock_api_request):
+        """Method normalization accepts lowercase request method declarations."""
+        route = mock_api_request(_LowerCaseMethodApiRequest, {"ok": True})
+
+        assert route.method == "POST"
+        assert route.path == _LowerCaseMethodApiRequest.path
+
+    async def test_raises_for_blank_method(self, mock_api_request):
+        """Blank request methods raise a targeted validation error."""
+        with pytest.raises(ValueError, match="non-empty string"):
+            mock_api_request(_BlankMethodApiRequest, {"ok": True})
+
+    async def test_accepts_explicit_json_response_spec(self, mock_api_request):
+        """Explicit response spec can set JSON independent of request content type."""
+        route = mock_api_request(
+            _PlainTextApiRequest,
+            response=MockApiResponseSpec(json={"ok": True}, status_code=201),
+        )
+
+        assert route._json == {"ok": True}
+        assert route._text is None
+        assert route._status_code == 201
+
+    async def test_accepts_explicit_text_response_spec_with_headers(
+        self, mock_api_request
+    ):
+        """Explicit response spec can set text, status code, and headers."""
+        route = mock_api_request(
+            _JsonApiRequest,
+            response=MockApiResponseSpec(
+                text="ok",
+                status_code=202,
+                headers={"X-Test": "true"},
+            ),
+        )
+
+        assert route._json is None
+        assert route._text == "ok"
+        assert route._status_code == 202
+        assert route._headers == {"X-Test": "true"}
+
+    async def test_rejects_legacy_and_explicit_response_together(
+        self, mock_api_request
+    ):
+        """Passing legacy response_data and response spec together is invalid."""
+        with pytest.raises(ValueError, match="response_data or response"):
+            mock_api_request(
+                _JsonApiRequest,
+                {"legacy": True},
+                response=MockApiResponseSpec(json={"new": True}),
+            )
+
+    async def test_rejects_response_spec_with_multiple_payload_kinds(
+        self, mock_api_request
+    ):
+        """Response spec must use a single payload kind."""
+        with pytest.raises(ValueError, match="only one payload kind"):
+            mock_api_request(
+                _JsonApiRequest,
+                response=MockApiResponseSpec(json={"a": 1}, text="b"),
+            )
+
+    async def test_explicit_response_spec_allows_unsupported_content_type(
+        self, mock_api_request
+    ):
+        """Explicit response specs can mock request classes outside direct mapping."""
+        route = mock_api_request(
+            _ExplicitResponseOnlyApiRequest,
+            response=MockApiResponseSpec(content=b"ok"),
+        )
+
+        assert route._content == b"ok"
+
+    async def test_all_model_api_requests_are_mockable(self, mock_api_request):
+        """Every ApiRequest class in axis.models remains mockable by the fixture."""
+        failures: list[str] = []
+
+        for request_class in _iter_api_request_classes():
+            try:
+                mock_api_request(
+                    request_class,
+                    response=MockApiResponseSpec(text="ok"),
+                )
+            except (AttributeError, TypeError, ValueError) as err:  # pragma: no cover
+                failures.append(
+                    f"{request_class.__module__}.{request_class.__name__}: {err}"
+                )
+
+        assert not failures
+
+    def test_model_api_request_content_types_match_fixture_contract(self):
+        """Current request-model content types stay inside the documented fixture contract."""
+        request_content_types = {
+            request_class.content_type for request_class in _iter_api_request_classes()
+        }
+
+        assert request_content_types <= (
+            MOCK_API_REQUEST_DIRECT_CONTENT_TYPES
+            | MOCK_API_REQUEST_EXPLICIT_RESPONSE_CONTENT_TYPES
+        )
+
+    async def test_assertion_hooks_allow_matching_request(
+        self, mock_api_request, axis_device
+    ):
+        """Assertion hooks validate params, headers, and request body."""
+        mock_api_request(
+            _AssertionApiRequest,
+            response=MockApiResponseSpec(text="ok"),
+            assertions=MockApiRequestAssertions(
+                content=b"payload",
+                params={"camera": "1"},
+                headers={"X-Test": "true"},
+            ),
+        )
+
+        async with axis_device.config.session.post(
+            f"{axis_device.config.url}{_AssertionApiRequest.path}",
+            params={"camera": "1"},
+            data=b"payload",
+            headers={"X-Test": "true"},
+        ) as response:
+            assert response.status == 200
+            assert await response.text() == "ok"
+
+    async def test_assertion_hooks_fail_on_header_mismatch(
+        self, mock_api_request, axis_device
+    ):
+        """Assertion mismatch returns 400 with a useful message."""
+        mock_api_request(
+            _AssertionApiRequest,
+            response=MockApiResponseSpec(text="ok"),
+            assertions=MockApiRequestAssertions(headers={"X-Test": "expected"}),
+        )
+
+        async with axis_device.config.session.post(
+            f"{axis_device.config.url}{_AssertionApiRequest.path}",
+            data=b"payload",
+            headers={"X-Test": "other"},
+        ) as response:
+            assert response.status == 400
+            assert "Expected header X-Test=expected" in await response.text()

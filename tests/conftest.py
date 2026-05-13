@@ -1,10 +1,14 @@
 """Setup common test helpers."""
 
+from __future__ import annotations
+
 import asyncio
 from collections import deque
 from contextlib import suppress
+from dataclasses import dataclass
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urlencode
 
 from aiohttp import ClientSession, web
 import pytest
@@ -12,12 +16,14 @@ import pytest
 from axis.device import AxisDevice
 from axis.models.configuration import Configuration
 
-from tests.http_route_mock import HttpRouteMock, start_http_route_mock_server
+from tests.http_route_mock import HttpRouteMock, Route, start_http_route_mock_server
 from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from axis.models.api import ApiRequest
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,6 +31,12 @@ HOST = "127.0.0.1"
 USER = "root"
 PASS = "pass"
 RTSP_PORT = 8888
+
+MOCK_API_REQUEST_SUPPORTED_METHODS = frozenset({"GET", "POST"})
+MOCK_API_REQUEST_DIRECT_CONTENT_TYPES = frozenset(
+    {"application/json", "text/plain", "text/xml"}
+)
+MOCK_API_REQUEST_EXPLICIT_RESPONSE_CONTENT_TYPES = frozenset({"application/soap+xml"})
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +92,197 @@ async def axis_companion_device(session: ClientSession) -> AxisDevice:
 #   - Use aiohttp_mock_server for low-level handler assertions, payload capture,
 #     or custom request processing not modeled by route registration.
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MockApiResponseSpec:
+    """Explicit response configuration for mock_api_request.
+
+    Use this when the response shape should not be inferred from the request
+    content type, or when a request class uses an explicit-only content type
+    such as SOAP/XML envelopes.
+    """
+
+    json: dict[str, Any] | list[Any] | None = None
+    text: str | None = None
+    content: bytes | None = None
+    status_code: int = 200
+    headers: dict[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class MockApiRequestAssertions:
+    """Optional request assertions for mock_api_request.
+
+    Prefer these hooks when a test should verify params, headers, or encoded
+    request bodies without dropping down to raw route-level plumbing.
+    """
+
+    content: bytes | str | dict[str, str] | None = None
+    params: dict[str, str] | None = None
+    headers: dict[str, str] | None = None
+
+
+@pytest.fixture(name="mock_api_request")
+def api_request_fixture(
+    http_route_mock: HttpRouteMock,
+) -> Callable[..., Route]:
+    """Register a route mock from an ApiRequest class.
+
+    Contract:
+      - Supported methods: GET, POST
+      - Supported content types: application/json, text/plain, text/xml
+      - Explicit response specs can mock request classes outside the direct
+        content-type mapping without adding special-case fixture logic.
+            - Prefer this fixture for model-backed ApiRequest tests.
+            - Fall back to http_route_mock for route-level side effects, multi-route
+                setup, or transport-level behavior that is not naturally tied to a
+                single ApiRequest class.
+      - For advanced behavior (side effects, header assertions, body matching),
+        use http_route_mock directly.
+    """
+    supported_methods = {
+        "GET": http_route_mock.get,
+        "POST": http_route_mock.post,
+    }
+
+    def _respond_from_spec(route: Route, response: MockApiResponseSpec) -> Route:
+        payload_count = sum(
+            value is not None
+            for value in (response.json, response.text, response.content)
+        )
+        if payload_count > 1:
+            msg = (
+                "MockApiResponseSpec accepts only one payload kind: "
+                "json, text, or content"
+            )
+            raise ValueError(msg)
+
+        return route.respond(
+            json=response.json,
+            text=response.text,
+            content=response.content,
+            status_code=response.status_code,
+            headers=response.headers,
+        )
+
+    def _normalize_expected_content(
+        content: bytes | str | dict[str, str] | None,
+    ) -> bytes | None:
+        if content is None:
+            return None
+        if isinstance(content, bytes):
+            return content
+        if isinstance(content, str):
+            return content.encode()
+        return urlencode(content).encode()
+
+    def _apply_assertions(route: Route, assertions: MockApiRequestAssertions) -> None:
+        expected_content = _normalize_expected_content(assertions.content)
+
+        def _validate_request(request: Any) -> None:
+            if (
+                assertions.params is not None
+                and request.url.params != assertions.params
+            ):
+                msg = f"Expected params {assertions.params}, got {request.url.params}"
+                raise AssertionError(msg)
+
+            if assertions.headers is not None:
+                for header_name, expected_value in assertions.headers.items():
+                    actual_value = request.headers.get(header_name)
+                    if actual_value != expected_value:
+                        msg = (
+                            f"Expected header {header_name}={expected_value}, "
+                            f"got {actual_value}"
+                        )
+                        raise AssertionError(msg)
+
+            if expected_content is not None and request.content != expected_content:
+                msg = f"Expected content {expected_content!r}, got {request.content!r}"
+                raise AssertionError(msg)
+
+        route.expect_request(_validate_request)
+
+    def _register_route(
+        api_request: type[ApiRequest],
+        response_data: Any = None,
+        *,
+        response: MockApiResponseSpec | None = None,
+        assertions: MockApiRequestAssertions | None = None,
+    ) -> Route:
+        if not isinstance(api_request.method, str) or not api_request.method.strip():
+            msg = "ApiRequest.method must be a non-empty string"
+            raise ValueError(msg)
+
+        method = api_request.method.strip().upper()
+        if method not in MOCK_API_REQUEST_SUPPORTED_METHODS:
+            msg = (
+                f"Unsupported method: {api_request.method}. "
+                f"Supported methods: {', '.join(sorted(supported_methods))}"
+            )
+            raise ValueError(msg)
+
+        content_type = api_request.content_type
+        if (
+            response is None
+            and content_type not in MOCK_API_REQUEST_DIRECT_CONTENT_TYPES
+        ):
+            msg = (
+                f"Unsupported content type: {content_type}. "
+                "Provide an explicit MockApiResponseSpec response for unsupported "
+                "content types. Direct mapping supports: "
+                f"{', '.join(sorted(MOCK_API_REQUEST_DIRECT_CONTENT_TYPES))}"
+            )
+            raise ValueError(msg)
+
+        if response is not None and response_data is not None:
+            msg = "Pass either response_data or response, not both"
+            raise ValueError(msg)
+
+        route = supported_methods[method](api_request.path)
+        if response is not None:
+            route = _respond_from_spec(route, response)
+        elif content_type == "application/json":
+            route = route.respond(json=response_data)
+        elif content_type in {"text/plain", "text/xml"}:
+            route = route.respond(text=response_data)
+        else:
+            msg = "Unsupported fixture state"
+            raise RuntimeError(msg)
+
+        if assertions is not None:
+            _apply_assertions(route, assertions)
+
+        return route
+
+    return _register_route
+
+
+def bind_mock_api_request(
+    mock_api_request: Callable[..., Route],
+    api_request: type[ApiRequest],
+) -> Callable[..., Route]:
+    """Return a partial-like helper bound to a specific ApiRequest class.
+
+    This keeps per-module fixtures thin while preserving explicit fixture names
+    close to the tests that use them.
+    """
+
+    def _bound(
+        response_data: Any = None,
+        *,
+        response: MockApiResponseSpec | None = None,
+        assertions: MockApiRequestAssertions | None = None,
+    ) -> Route:
+        return mock_api_request(
+            api_request,
+            response_data,
+            response=response,
+            assertions=assertions,
+        )
+
+    return _bound
 
 
 class TcpServerProtocol(asyncio.Protocol):

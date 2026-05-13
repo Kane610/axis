@@ -8,11 +8,43 @@ from __future__ import annotations
 import pytest
 
 from axis.models.parameters.io_port import PortAction, PortDirection
+from axis.models.parameters.param_cgi import ParamRequest
+from axis.models.port_cgi import PortActionRequest
+
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 
-async def test_ports(http_route_mock, axis_device) -> None:
+@pytest.fixture
+def mock_param_request(mock_api_request):
+    """Register Param CGI route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, ParamRequest)
+
+    def _register(
+        *, content: bytes | None = None, headers: dict[str, str] | None = None
+    ):
+        return bound_request(
+            response=MockApiResponseSpec(content=content, headers=headers),
+        )
+
+    return _register
+
+
+@pytest.fixture
+def mock_port_action_request(mock_api_request):
+    """Register port action route mocks via ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, PortActionRequest)
+
+    def _register(*, text: str | None = None):
+        return bound_request(
+            response=MockApiResponseSpec(text=text),
+        )
+
+    return _register
+
+
+async def test_ports(mock_param_request, mock_port_action_request, axis_device) -> None:
     """Test that different types of ports work."""
-    param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
+    param_route = mock_param_request(
         content="""root.Input.NbrOfInputs=3
 root.IOPort.I0.Direction=input
 root.IOPort.I0.Usage=Button
@@ -40,7 +72,7 @@ root.Output.NbrOfOutputs=1
 """.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
-    io_route = http_route_mock.get("/axis-cgi/io/port.cgi").respond(text="")
+    io_route = mock_port_action_request(text="")
 
     ports = axis_device.vapix.port_cgi
 
@@ -83,9 +115,11 @@ root.Output.NbrOfOutputs=1
     assert io_route.calls.last.request.url.params == {"action": "4:\\"}
 
 
-async def test_no_ports(http_route_mock, axis_device) -> None:
+async def test_no_ports(
+    mock_param_request, mock_port_action_request, axis_device
+) -> None:
     """Test that no ports also work."""
-    param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
+    param_route = mock_param_request(
         content="".encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )

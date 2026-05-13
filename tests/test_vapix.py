@@ -15,9 +15,18 @@ from axis.errors import (
     Unauthorized,
 )
 from axis.interfaces.api_handler import HandlerGroup
-from axis.models.applications.application import ApplicationStatus
+from axis.models.api_discovery import ListApisRequest
+from axis.models.applications.application import (
+    ApplicationStatus,
+    ListApplicationsRequest,
+)
+from axis.models.basic_device_info import GetAllPropertiesRequest
+from axis.models.light_control import GetLightInformationRequest
+from axis.models.parameters.param_cgi import ParamRequest
+from axis.models.port_management import GetPortsRequest
 from axis.models.pwdgrp_cgi import SecondaryGroup
-from axis.models.stream_profile import StreamProfile
+from axis.models.stream_profile import ListStreamProfilesRequest, StreamProfile
+from axis.models.view_area import ListViewAreasRequest
 
 from .applications.test_applications import (
     LIST_APPLICATIONS_RESPONSE as APPLICATIONS_RESPONSE,
@@ -46,6 +55,8 @@ from .test_basic_device_info import (
 from .test_light_control import GET_LIGHT_INFORMATION_RESPONSE as LIGHT_CONTROL_RESPONSE
 from .test_port_management import GET_PORTS_RESPONSE as IO_PORT_MANAGEMENT_RESPONSE
 from .test_stream_profiles import LIST_RESPONSE as STREAM_PROFILE_RESPONSE
+
+from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -80,6 +91,23 @@ def vapix(axis_device: AxisDevice) -> Vapix:
 def vapix_companion_device(axis_companion_device: AxisDevice) -> Vapix:
     """Return the vapix object."""
     return axis_companion_device.vapix
+
+
+@pytest.fixture
+def mock_vapix_request(mock_api_request):
+    """Register VAPIX request mocks using ApiRequest classes."""
+
+    def _register(api_request, *, json=None, text=None, content=None, headers=None):
+        return bind_mock_api_request(mock_api_request, api_request)(
+            response=MockApiResponseSpec(
+                json=json,
+                text=text,
+                content=content,
+                headers=headers,
+            ),
+        )
+
+    return _register
 
 
 def test_vapix_not_initialized(vapix: Vapix) -> None:
@@ -170,37 +198,45 @@ def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
     assert vapix.event_instances not in param_fallback_handlers
 
 
-async def test_initialize(http_route_mock, vapix: Vapix):
+async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
     """Verify that you can initialize all APIs."""
-    http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+    mock_vapix_request(
+        ListApisRequest,
         json=API_DISCOVERY_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
+    mock_vapix_request(
+        GetAllPropertiesRequest,
         json=BASIC_DEVICE_INFO_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+    mock_vapix_request(
+        GetPortsRequest,
         json=IO_PORT_MANAGEMENT_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+    mock_vapix_request(
+        GetLightInformationRequest,
         json=LIGHT_CONTROL_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/streamprofile.cgi").respond(
+    mock_vapix_request(
+        ListStreamProfilesRequest,
         json=STREAM_PROFILE_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
+    mock_vapix_request(
+        ListViewAreasRequest,
         json={
             "apiVersion": "1.0",
             "context": "",
             "method": "list",
             "data": {"viewAreas": []},
-        }
+        },
     )
 
-    http_route_mock.post("/axis-cgi/param.cgi").respond(
+    mock_vapix_request(
+        ParamRequest,
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
-    http_route_mock.post("/axis-cgi/applications/list.cgi").respond(
+    mock_vapix_request(
+        ListApplicationsRequest,
         text=APPLICATIONS_RESPONSE,
         headers={"Content-Type": "text/xml"},
     )
@@ -238,30 +274,36 @@ async def test_initialize(http_route_mock, vapix: Vapix):
     assert vapix.vmd4.initialized
 
 
-async def test_initialize_api_discovery(http_route_mock, vapix: Vapix):
+async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
-    http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
+    mock_vapix_request(
+        ListApisRequest,
         json=API_DISCOVERY_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi").respond(
+    mock_vapix_request(
+        GetAllPropertiesRequest,
         json=BASIC_DEVICE_INFO_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
+    mock_vapix_request(
+        GetPortsRequest,
         json=IO_PORT_MANAGEMENT_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/lightcontrol.cgi").respond(
+    mock_vapix_request(
+        GetLightInformationRequest,
         json=LIGHT_CONTROL_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/streamprofile.cgi").respond(
+    mock_vapix_request(
+        ListStreamProfilesRequest,
         json=STREAM_PROFILE_RESPONSE,
     )
-    http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
+    mock_vapix_request(
+        ListViewAreasRequest,
         json={
             "apiVersion": "1.0",
             "context": "",
             "method": "list",
             "data": {"viewAreas": []},
-        }
+        },
     )
 
     await vapix.initialize_api_discovery()
