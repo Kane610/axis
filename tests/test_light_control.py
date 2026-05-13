@@ -9,9 +9,18 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.models.api_discovery import Api
-from axis.models.light_control import GetLightInformationRequest
+from axis.models.light_control import (
+    GetLightInformationRequest,
+    GetLightStatusRequest,
+    GetServiceCapabilitiesRequest,
+    GetSupportedVersionsRequest,
+)
 
-from tests.conftest import MockApiResponseSpec, bind_mock_api_request
+from tests.conftest import (
+    MockApiRequestAssertions,
+    MockApiResponseSpec,
+    bind_mock_api_request,
+)
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -48,9 +57,23 @@ def mock_light_request(mock_api_request):
     return _register
 
 
-async def test_update(mock_light_request, light_control):
+@pytest.fixture
+def mock_light_api_request(mock_api_request):
+    """Register light-control route mocks via explicit ApiRequest classes."""
+
+    def _register(api_request, json_data, *, content):
+        return bind_mock_api_request(mock_api_request, api_request)(
+            response=MockApiResponseSpec(json=json_data),
+            assertions=MockApiRequestAssertions(content=content),
+        )
+
+    return _register
+
+
+async def test_update(mock_light_api_request, light_control):
     """Test update method."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetLightInformationRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -72,6 +95,7 @@ async def test_update(mock_light_request, light_control):
                 ]
             },
         },
+        content=GetLightInformationRequest(api_version="1.0").content,
     )
 
     assert light_control.supported
@@ -103,10 +127,11 @@ async def test_update(mock_light_request, light_control):
 
 
 async def test_get_service_capabilities(
-    mock_light_request, light_control: LightHandler
+    mock_light_api_request, light_control: LightHandler
 ):
     """Test get service capabilities API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetServiceCapabilitiesRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -121,6 +146,7 @@ async def test_get_service_capabilities(
                 "dayNightSynchronizeSupport": True,
             },
         },
+        content=GetServiceCapabilitiesRequest(api_version="1.0").content,
     )
 
     response = await light_control.get_service_capabilities()
@@ -143,9 +169,12 @@ async def test_get_service_capabilities(
     assert response.day_night_synchronize_support is True
 
 
-async def test_get_light_information(mock_light_request, light_control: LightHandler):
+async def test_get_light_information(
+    mock_light_api_request, light_control: LightHandler
+):
     """Test get light information API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetLightInformationRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -167,6 +196,7 @@ async def test_get_light_information(mock_light_request, light_control: LightHan
                 ]
             },
         },
+        content=GetLightInformationRequest(api_version="1.0").content,
     )
 
     response = await light_control.get_light_information()
@@ -194,10 +224,11 @@ async def test_get_light_information(mock_light_request, light_control: LightHan
 
 
 async def test_get_light_information_error(
-    mock_light_request, light_control: LightHandler
+    mock_light_api_request, light_control: LightHandler
 ):
     """Test get light information API return error."""
-    mock_light_request(
+    mock_light_api_request(
+        GetLightInformationRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
@@ -207,6 +238,7 @@ async def test_get_light_information_error(
                 "message": "No light hardware found, could not complete request.",
             },
         },
+        content=GetLightInformationRequest(api_version="1.0").content,
     )
 
     response = await light_control.get_light_information()
@@ -305,15 +337,17 @@ async def test_disable_light(mock_light_request, light_control):
     }
 
 
-async def test_get_light_status(mock_light_request, light_control):
+async def test_get_light_status(mock_light_api_request, light_control):
     """Test get light status API."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetLightStatusRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getLightStatus",
             "data": {"status": False},
         },
+        content=GetLightStatusRequest(light_id="led0", api_version="1.0").content,
     )
 
     response = await light_control.get_light_status("led0")
@@ -691,15 +725,17 @@ async def test_get_light_synchronization_day_night_mode(
     assert response is True
 
 
-async def test_get_supported_versions(mock_light_request, light_control):
+async def test_get_supported_versions(mock_light_api_request, light_control):
     """Test get supported versions api."""
-    route = mock_light_request(
+    route = mock_light_api_request(
+        GetSupportedVersionsRequest,
         {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.1"]},
         },
+        content=GetSupportedVersionsRequest().content,
     )
 
     response = await light_control.get_supported_versions()
