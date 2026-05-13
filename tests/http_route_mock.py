@@ -28,7 +28,7 @@ class SimulateRequestError(ConnectionError):
 
 
 class CallList(list):
-    """List of captured calls with a respx-like `.last` shortcut."""
+    """List of captured calls with a `.last` shortcut."""
 
     @property
     def last(self):
