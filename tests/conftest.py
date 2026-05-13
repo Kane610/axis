@@ -111,8 +111,8 @@ def api_request_fixture(
         use http_route_mock directly.
     """
     supported_methods = {
-        "get": http_route_mock.get,
-        "post": http_route_mock.post,
+        "GET": http_route_mock.get,
+        "POST": http_route_mock.post,
     }
     supported_content_types = {"application/json", "text/plain", "text/xml"}
 
@@ -142,7 +142,11 @@ def api_request_fixture(
         *,
         response: MockApiResponseSpec | None = None,
     ) -> Route:
-        method = api_request.method.lower()
+        if not isinstance(api_request.method, str) or not api_request.method.strip():
+            msg = "ApiRequest.method must be a non-empty string"
+            raise ValueError(msg)
+
+        method = api_request.method.strip().upper()
         if method not in supported_methods:
             msg = (
                 f"Unsupported method: {api_request.method}. "

@@ -43,6 +43,18 @@ class _UnsupportedMethodApiRequest(ApiRequest):
     content_type = "application/json"
 
 
+class _LowerCaseMethodApiRequest(ApiRequest):
+    method = "post"
+    path = "/axis-cgi/mock/lowercase-method.cgi"
+    content_type = "application/json"
+
+
+class _BlankMethodApiRequest(ApiRequest):
+    method = "   "
+    path = "/axis-cgi/mock/blank-method.cgi"
+    content_type = "application/json"
+
+
 class TestHttpRouteMock:
     """Validate the single-device http_route_mock fixture contract."""
 
@@ -240,6 +252,18 @@ class TestMockApiRequestFixture:
         """Unsupported methods raise a descriptive ValueError."""
         with pytest.raises(ValueError, match="Unsupported method"):
             mock_api_request(_UnsupportedMethodApiRequest, {"ok": True})
+
+    async def test_accepts_lowercase_method_by_normalizing(self, mock_api_request):
+        """Method normalization accepts lowercase request method declarations."""
+        route = mock_api_request(_LowerCaseMethodApiRequest, {"ok": True})
+
+        assert route.method == "POST"
+        assert route.path == _LowerCaseMethodApiRequest.path
+
+    async def test_raises_for_blank_method(self, mock_api_request):
+        """Blank request methods raise a targeted validation error."""
+        with pytest.raises(ValueError, match="non-empty string"):
+            mock_api_request(_BlankMethodApiRequest, {"ok": True})
 
     async def test_accepts_explicit_json_response_spec(self, mock_api_request):
         """Explicit response spec can set JSON independent of request content type."""
