@@ -65,17 +65,6 @@ async def light_control(axis_device: AxisDevice) -> LightHandler:
 
 
 @pytest.fixture
-def mock_light_request(mock_api_request):
-    """Register light-control route mocks via ApiRequest classes."""
-    bound_request = bind_mock_api_request(mock_api_request, GetLightInformationRequest)
-
-    def _register(json_data):
-        return bound_request(response=MockApiResponseSpec(json=json_data))
-
-    return _register
-
-
-@pytest.fixture
 def mock_light_api_request(mock_api_request):
     """Register light-control route mocks via explicit ApiRequest classes."""
 
