@@ -8,6 +8,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 import logging
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlencode
 
 from aiohttp import ClientSession, web
 import pytest
@@ -98,6 +99,15 @@ class MockApiResponseSpec:
     headers: dict[str, str] | None = None
 
 
+@dataclass(frozen=True)
+class MockApiRequestAssertions:
+    """Optional request assertions for mock_api_request."""
+
+    content: bytes | str | dict[str, str] | None = None
+    params: dict[str, str] | None = None
+    headers: dict[str, str] | None = None
+
+
 @pytest.fixture(name="mock_api_request")
 def api_request_fixture(
     http_route_mock: HttpRouteMock,
@@ -136,11 +146,50 @@ def api_request_fixture(
             headers=response.headers,
         )
 
+    def _normalize_expected_content(
+        content: bytes | str | dict[str, str] | None,
+    ) -> bytes | None:
+        if content is None:
+            return None
+        if isinstance(content, bytes):
+            return content
+        if isinstance(content, str):
+            return content.encode()
+        return urlencode(content).encode()
+
+    def _apply_assertions(route: Route, assertions: MockApiRequestAssertions) -> None:
+        expected_content = _normalize_expected_content(assertions.content)
+
+        def _validate_request(request: Any) -> None:
+            if (
+                assertions.params is not None
+                and request.url.params != assertions.params
+            ):
+                msg = f"Expected params {assertions.params}, got {request.url.params}"
+                raise AssertionError(msg)
+
+            if assertions.headers is not None:
+                for header_name, expected_value in assertions.headers.items():
+                    actual_value = request.headers.get(header_name)
+                    if actual_value != expected_value:
+                        msg = (
+                            f"Expected header {header_name}={expected_value}, "
+                            f"got {actual_value}"
+                        )
+                        raise AssertionError(msg)
+
+            if expected_content is not None and request.content != expected_content:
+                msg = f"Expected content {expected_content!r}, got {request.content!r}"
+                raise AssertionError(msg)
+
+        route.expect_request(_validate_request)
+
     def _register_route(
         api_request: type[ApiRequest],
         response_data: Any = None,
         *,
         response: MockApiResponseSpec | None = None,
+        assertions: MockApiRequestAssertions | None = None,
     ) -> Route:
         if not isinstance(api_request.method, str) or not api_request.method.strip():
             msg = "ApiRequest.method must be a non-empty string"
@@ -168,15 +217,19 @@ def api_request_fixture(
 
         route = supported_methods[method](api_request.path)
         if response is not None:
-            return _respond_from_spec(route, response)
+            route = _respond_from_spec(route, response)
+        elif content_type == "application/json":
+            route = route.respond(json=response_data)
+        elif content_type in {"text/plain", "text/xml"}:
+            route = route.respond(text=response_data)
+        else:
+            msg = "Unsupported fixture state"
+            raise RuntimeError(msg)
 
-        if content_type == "application/json":
-            return route.respond(json=response_data)
-        if content_type in {"text/plain", "text/xml"}:
-            return route.respond(text=response_data)
+        if assertions is not None:
+            _apply_assertions(route, assertions)
 
-        msg = "Unsupported fixture state"
-        raise RuntimeError(msg)
+        return route
 
     return _register_route
 

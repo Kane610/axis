@@ -5,6 +5,7 @@ Fixture exposure (http_route_mock_factory, http_route_mock) lives in conftest.py
 """
 
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from aiohttp import web
@@ -13,6 +14,9 @@ from axis.errors import Forbidden, MethodNotAllowed, PathNotFound, Unauthorized
 
 from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class SimulateTimeout(TimeoutError):
@@ -52,6 +56,7 @@ class Route:
         self._expected_content: bytes | None = None
         self._status_code = 200
         self._headers: dict[str, str] | None = None
+        self._request_validator: Callable[[SimpleNamespace], None] | None = None
 
     @property
     def call_count(self) -> int:
@@ -61,6 +66,11 @@ class Route:
     def expects_content(self, expected_content: bytes | None) -> Route:
         """Set optional expected request body for this route."""
         self._expected_content = expected_content
+        return self
+
+    def expect_request(self, validator: Callable[[SimpleNamespace], None]) -> Route:
+        """Set optional per-request validator for request assertions."""
+        self._request_validator = validator
         return self
 
     def respond(
@@ -263,11 +273,19 @@ async def start_http_route_mock_server(
                     params=params,
                     query=request.query_string,
                 ),
+                headers=dict(request.headers),
                 content=content,
             )
         )
         route.calls.append(call)
         mock.calls.append(call)
+        if route._request_validator is not None:
+            try:
+                route._request_validator(call.request)
+            except AssertionError as err:
+                return web.Response(
+                    status=400, text=str(err) or "request assertion failed"
+                )
         return route.make_response()
 
     server, _requests = await aiohttp_mock_server(

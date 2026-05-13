@@ -6,7 +6,7 @@ import pytest
 
 from axis.models.api import ApiRequest
 
-from tests.conftest import MockApiResponseSpec
+from tests.conftest import MockApiRequestAssertions, MockApiResponseSpec
 from tests.http_route_mock import HttpRouteMock
 
 if TYPE_CHECKING:
@@ -52,6 +52,12 @@ class _LowerCaseMethodApiRequest(ApiRequest):
 class _BlankMethodApiRequest(ApiRequest):
     method = "   "
     path = "/axis-cgi/mock/blank-method.cgi"
+    content_type = "application/json"
+
+
+class _AssertionApiRequest(ApiRequest):
+    method = "POST"
+    path = "/axis-cgi/mock/assertions.cgi"
     content_type = "application/json"
 
 
@@ -314,3 +320,44 @@ class TestMockApiRequestFixture:
                 _JsonApiRequest,
                 response=MockApiResponseSpec(json={"a": 1}, text="b"),
             )
+
+    async def test_assertion_hooks_allow_matching_request(
+        self, mock_api_request, axis_device
+    ):
+        """Assertion hooks validate params, headers, and request body."""
+        mock_api_request(
+            _AssertionApiRequest,
+            response=MockApiResponseSpec(text="ok"),
+            assertions=MockApiRequestAssertions(
+                content=b"payload",
+                params={"camera": "1"},
+                headers={"X-Test": "true"},
+            ),
+        )
+
+        async with axis_device.config.session.post(
+            f"{axis_device.config.url}{_AssertionApiRequest.path}",
+            params={"camera": "1"},
+            data=b"payload",
+            headers={"X-Test": "true"},
+        ) as response:
+            assert response.status == 200
+            assert await response.text() == "ok"
+
+    async def test_assertion_hooks_fail_on_header_mismatch(
+        self, mock_api_request, axis_device
+    ):
+        """Assertion mismatch returns 400 with a useful message."""
+        mock_api_request(
+            _AssertionApiRequest,
+            response=MockApiResponseSpec(text="ok"),
+            assertions=MockApiRequestAssertions(headers={"X-Test": "expected"}),
+        )
+
+        async with axis_device.config.session.post(
+            f"{axis_device.config.url}{_AssertionApiRequest.path}",
+            data=b"payload",
+            headers={"X-Test": "other"},
+        ) as response:
+            assert response.status == 400
+            assert "Expected header X-Test=expected" in await response.text()
