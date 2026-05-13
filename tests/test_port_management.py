@@ -8,7 +8,9 @@ import json
 import pytest
 
 from axis.interfaces.port_management import IoPortManagement
-from axis.models.port_management import PortConfiguration, Sequence
+from axis.models.port_management import GetPortsRequest, PortConfiguration, Sequence
+
+from tests.conftest import MockApiResponseSpec
 
 
 @pytest.fixture
@@ -17,10 +19,23 @@ def io_port_management(axis_device) -> IoPortManagement:
     return IoPortManagement(axis_device.vapix)
 
 
-async def test_get_ports(http_route_mock, io_port_management):
+@pytest.fixture
+def mock_port_management_request(mock_api_request):
+    """Register port-management route mocks via ApiRequest classes."""
+
+    def _register(json_data):
+        return mock_api_request(
+            GetPortsRequest,
+            response=MockApiResponseSpec(json=json_data),
+        )
+
+    return _register
+
+
+async def test_get_ports(mock_port_management_request, io_port_management):
     """Test get_ports call."""
-    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
-        json=GET_PORTS_RESPONSE,
+    route = mock_port_management_request(
+        GET_PORTS_RESPONSE,
     )
 
     await io_port_management.update()
@@ -69,10 +84,12 @@ async def test_get_ports(http_route_mock, io_port_management):
     }
 
 
-async def test_get_empty_ports_response(http_route_mock, io_port_management):
+async def test_get_empty_ports_response(
+    mock_port_management_request, io_port_management
+):
     """Test get_ports call."""
-    http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
-        json=GET_EMPTY_PORTS_RESPONSE,
+    mock_port_management_request(
+        GET_EMPTY_PORTS_RESPONSE,
     )
 
     await io_port_management.update()
@@ -80,10 +97,10 @@ async def test_get_empty_ports_response(http_route_mock, io_port_management):
     assert len(io_port_management.values()) == 0
 
 
-async def test_set_ports(http_route_mock, io_port_management):
+async def test_set_ports(mock_port_management_request, io_port_management):
     """Test set_ports call."""
-    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
-        json={"apiVersion": "1.0", "context": "Axis library"},
+    route = mock_port_management_request(
+        {"apiVersion": "1.0", "context": "Axis library"},
     )
 
     await io_port_management.set_ports(
@@ -121,10 +138,10 @@ async def test_set_ports(http_route_mock, io_port_management):
     }
 
 
-async def test_set_state_sequence(http_route_mock, io_port_management):
+async def test_set_state_sequence(mock_port_management_request, io_port_management):
     """Test setting state sequence call."""
-    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
-        json={"apiVersion": "1.0", "context": "Axis library"},
+    route = mock_port_management_request(
+        {"apiVersion": "1.0", "context": "Axis library"},
     )
 
     await io_port_management.set_state_sequence(
@@ -148,10 +165,10 @@ async def test_set_state_sequence(http_route_mock, io_port_management):
     }
 
 
-async def test_get_supported_versions(http_route_mock, io_port_management):
+async def test_get_supported_versions(mock_port_management_request, io_port_management):
     """Test get_supported_versions."""
-    route = http_route_mock.post("/axis-cgi/io/portmanagement.cgi").respond(
-        json=GET_SUPPORTED_VERSIONS_RESPONSE,
+    route = mock_port_management_request(
+        GET_SUPPORTED_VERSIONS_RESPONSE,
     )
 
     response = await io_port_management.get_supported_versions()
