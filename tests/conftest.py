@@ -90,17 +90,45 @@ async def axis_companion_device(session: ClientSession) -> AxisDevice:
 def api_request_fixture(
     http_route_mock: HttpRouteMock,
 ) -> Callable[[type[ApiRequest], Any], Route]:
-    """Mock API request."""
+    """Register a route mock from an ApiRequest class.
+
+    Contract:
+      - Supported methods: GET, POST
+      - Supported content types: application/json, text/plain, text/xml
+      - For advanced behavior (side effects, header assertions, body matching),
+        use http_route_mock directly.
+    """
+    supported_methods = {
+        "get": http_route_mock.get,
+        "post": http_route_mock.post,
+    }
+    supported_content_types = {"application/json", "text/plain", "text/xml"}
 
     def _register_route(api_request: type[ApiRequest], response_data: Any) -> Route:
-        route = getattr(http_route_mock, api_request.method.lower())(api_request.path)
-        if api_request.content_type == "application/json":
+        method = api_request.method.lower()
+        if method not in supported_methods:
+            msg = (
+                f"Unsupported method: {api_request.method}. "
+                f"Supported methods: {', '.join(sorted(supported_methods))}"
+            )
+            raise ValueError(msg)
+
+        content_type = api_request.content_type
+        if content_type not in supported_content_types:
+            msg = (
+                f"Unsupported content type: {content_type}. "
+                f"Supported content types: {', '.join(sorted(supported_content_types))}"
+            )
+            raise ValueError(msg)
+
+        route = supported_methods[method](api_request.path)
+        if content_type == "application/json":
             return route.respond(json=response_data)
-        if api_request.content_type in {"text/plain", "text/xml"}:
+        if content_type in {"text/plain", "text/xml"}:
             return route.respond(text=response_data)
 
-        msg = f"Unsupported content type: {api_request.content_type}"
-        raise ValueError(msg)
+        msg = "Unsupported fixture state"
+        raise RuntimeError(msg)
 
     return _register_route
 
