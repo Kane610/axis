@@ -3,13 +3,25 @@
 pytest --cov-report term-missing --cov=axis.view_areas tests/test_view_areas.py
 """
 
-import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
 from axis.interfaces.view_areas import Geometry, ViewAreaHandler
+from axis.models.view_area import (
+    GetSupportedConfigVersionsRequest,
+    GetSupportedVersionsRequest,
+    ListViewAreasRequest,
+    ResetGeometryRequest,
+    SetGeometryRequest,
+)
+
+from tests.conftest import (
+    MockApiRequestAssertions,
+    MockApiResponseSpec,
+    bind_mock_api_request,
+)
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
@@ -23,10 +35,24 @@ def view_areas(axis_device: AxisDevice) -> ViewAreaHandler:
     return axis_device.vapix.view_areas
 
 
-async def test_list_view_areas(http_route_mock, view_areas: ViewAreaHandler):
+@pytest.fixture
+def mock_view_area_request(mock_api_request):
+    """Register view area route mocks via ApiRequest classes."""
+
+    def _register(api_request, json_data, *, content):
+        return bind_mock_api_request(mock_api_request, api_request)(
+            response=MockApiResponseSpec(json=json_data),
+            assertions=MockApiRequestAssertions(content=content),
+        )
+
+    return _register
+
+
+async def test_list_view_areas(mock_view_area_request, view_areas: ViewAreaHandler):
     """Test simple view area."""
-    route = http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
-        json={
+    route = mock_view_area_request(
+        ListViewAreasRequest,
+        {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "list",
@@ -61,18 +87,14 @@ async def test_list_view_areas(http_route_mock, view_areas: ViewAreaHandler):
                     },
                 ]
             },
-        }
+        },
+        content=ListViewAreasRequest(api_version="1.0").content,
     )
     await view_areas.update()
 
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/viewarea/info.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "method": "list",
-        "apiVersion": "1.0",
-        "context": "Axis library",
-    }
 
     assert view_areas.initialized
     assert len(view_areas) == 2
@@ -120,15 +142,19 @@ async def test_list_view_areas(http_route_mock, view_areas: ViewAreaHandler):
     assert view_area.grid is None
 
 
-async def test_get_supported_versions(http_route_mock, view_areas: ViewAreaHandler):
+async def test_get_supported_versions(
+    mock_view_area_request, view_areas: ViewAreaHandler
+):
     """Test get supported versions api."""
-    route = http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
-        json={
+    route = mock_view_area_request(
+        GetSupportedVersionsRequest,
+        {
             "apiVersion": "1.0",
             "context": "",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.0"]},
         },
+        content=GetSupportedVersionsRequest().content,
     )
 
     response = await view_areas.get_supported_versions()
@@ -136,18 +162,17 @@ async def test_get_supported_versions(http_route_mock, view_areas: ViewAreaHandl
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/viewarea/info.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "context": "Axis library",
-        "method": "getSupportedVersions",
-    }
 
     assert response == ["1.0"]
 
 
-async def test_set_geometry_of_view_area(http_route_mock, view_areas: ViewAreaHandler):
+async def test_set_geometry_of_view_area(
+    mock_view_area_request, view_areas: ViewAreaHandler
+):
     """Test simple view area."""
-    http_route_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
-        json={
+    mock_view_area_request(
+        SetGeometryRequest,
+        {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "list",
@@ -176,7 +201,12 @@ async def test_set_geometry_of_view_area(http_route_mock, view_areas: ViewAreaHa
                     }
                 ]
             },
-        }
+        },
+        content=SetGeometryRequest(
+            id=1000001,
+            geometry=Geometry(1, 2000, 2, 1000),
+            api_version="1.0",
+        ).content,
     )
 
     assert len(view_areas) == 0
@@ -220,11 +250,12 @@ async def test_set_geometry_of_view_area(http_route_mock, view_areas: ViewAreaHa
 
 
 async def test_reset_geometry_of_view_area(
-    http_route_mock, view_areas: ViewAreaHandler
+    mock_view_area_request, view_areas: ViewAreaHandler
 ):
     """Test simple view area."""
-    http_route_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
-        json={
+    mock_view_area_request(
+        ResetGeometryRequest,
+        {
             "apiVersion": "1.0",
             "context": "Axis library",
             "method": "list",
@@ -253,7 +284,8 @@ async def test_reset_geometry_of_view_area(
                     }
                 ]
             },
-        }
+        },
+        content=ResetGeometryRequest(id=1000001, api_version="1.0").content,
     )
 
     assert len(view_areas) == 0
@@ -295,16 +327,18 @@ async def test_reset_geometry_of_view_area(
 
 
 async def test_get_supported_config_versions(
-    http_route_mock, view_areas: ViewAreaHandler
+    mock_view_area_request, view_areas: ViewAreaHandler
 ):
     """Test get supported versions api."""
-    route = http_route_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
-        json={
+    route = mock_view_area_request(
+        GetSupportedConfigVersionsRequest,
+        {
             "apiVersion": "1.0",
             "context": "",
             "method": "getSupportedVersions",
             "data": {"apiVersions": ["1.0"]},
         },
+        content=GetSupportedConfigVersionsRequest().content,
     )
 
     response = await view_areas.get_supported_config_versions()
@@ -312,10 +346,6 @@ async def test_get_supported_config_versions(
     assert route.called
     assert route.calls.last.request.method == "POST"
     assert route.calls.last.request.url.path == "/axis-cgi/viewarea/configure.cgi"
-    assert json.loads(route.calls.last.request.content) == {
-        "context": "Axis library",
-        "method": "getSupportedVersions",
-    }
 
     assert response == ["1.0"]
 
