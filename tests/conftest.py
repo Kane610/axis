@@ -1,22 +1,27 @@
 """Setup common test helpers."""
 
+from __future__ import annotations
+
 import asyncio
 from collections import deque
-from collections.abc import Callable
 from contextlib import suppress
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession, web
 import pytest
 
 from axis.device import AxisDevice
-from axis.models.api import ApiRequest
 from axis.models.configuration import Configuration
 
 from tests.http_route_mock import HttpRouteMock, Route, start_http_route_mock_server
 from tests.mock_device_binding import bind_device_port
 from tests.mock_response_builder import build_response
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from axis.models.api import ApiRequest
 
 LOGGER = logging.getLogger(__name__)
 
@@ -87,9 +92,7 @@ def api_request_fixture(
 ) -> Callable[[type[ApiRequest], Any], Route]:
     """Mock API request."""
 
-    def _register_route(
-        api_request: type[ApiRequest], response_data: Any
-    ) -> Route:
+    def _register_route(api_request: type[ApiRequest], response_data: Any) -> Route:
         route = getattr(http_route_mock, api_request.method.lower())(api_request.path)
         if api_request.content_type == "application/json":
             return route.respond(json=response_data)
