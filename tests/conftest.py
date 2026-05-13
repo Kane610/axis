@@ -96,7 +96,12 @@ async def axis_companion_device(session: ClientSession) -> AxisDevice:
 
 @dataclass(frozen=True)
 class MockApiResponseSpec:
-    """Explicit response configuration for mock_api_request."""
+    """Explicit response configuration for mock_api_request.
+
+    Use this when the response shape should not be inferred from the request
+    content type, or when a request class uses an explicit-only content type
+    such as SOAP/XML envelopes.
+    """
 
     json: dict[str, Any] | list[Any] | None = None
     text: str | None = None
@@ -107,7 +112,11 @@ class MockApiResponseSpec:
 
 @dataclass(frozen=True)
 class MockApiRequestAssertions:
-    """Optional request assertions for mock_api_request."""
+    """Optional request assertions for mock_api_request.
+
+    Prefer these hooks when a test should verify params, headers, or encoded
+    request bodies without dropping down to raw route-level plumbing.
+    """
 
     content: bytes | str | dict[str, str] | None = None
     params: dict[str, str] | None = None
@@ -125,6 +134,10 @@ def api_request_fixture(
       - Supported content types: application/json, text/plain, text/xml
       - Explicit response specs can mock request classes outside the direct
         content-type mapping without adding special-case fixture logic.
+            - Prefer this fixture for model-backed ApiRequest tests.
+            - Fall back to http_route_mock for route-level side effects, multi-route
+                setup, or transport-level behavior that is not naturally tied to a
+                single ApiRequest class.
       - For advanced behavior (side effects, header assertions, body matching),
         use http_route_mock directly.
     """

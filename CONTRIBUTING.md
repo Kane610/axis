@@ -143,15 +143,61 @@ Reuse the async device fixtures from [`tests/conftest.py`](tests/conftest.py):
 
 Choose the fixture layer based on test scope and assertion needs:
 
+- Prefer `mock_api_request` for tests backed by an `ApiRequest` model class.
 - Prefer `aiohttp_mock_server` for most new direct endpoint tests.
 - Prefer `http_route_mock` for single-device route-registration tests.
 - Use `http_route_mock_factory` only when you need explicit multi-device binding.
 
 | Fixture | Use when | Avoid when |
 |---|---|---|
+| `mock_api_request` | Model-backed request/response tests where method/path come from an `ApiRequest` class | Transport-side effects, multi-route flows, or tests not centered on a single request class |
 | `aiohttp_mock_server` | Direct endpoint/static payload tests, custom handler tests, payload/body capture tests | Complex route-sequence tests that benefit from fluent route registration |
 | `http_route_mock` | Common single-device route-registration tests with call-history assertions | Multi-device tests |
 | `http_route_mock_factory` | Multi-device or explicit device-binding route-registration tests | Single-device tests where `http_route_mock` is simpler |
+
+Use `mock_api_request` as the default for model-backed tests:
+
+```python
+from axis.models.api_discovery import ListApisRequest
+from tests.conftest import MockApiResponseSpec
+
+
+async def test_api_list(mock_api_request, axis_device):
+    mock_api_request(
+        ListApisRequest,
+        response=MockApiResponseSpec(json={"data": {"apiList": []}}),
+    )
+
+    await axis_device.vapix.api_discovery.get_api_list()
+```
+
+Use `MockApiResponseSpec` when the response should not be inferred from the
+request content type, or when the request model uses an explicit-only content
+type such as SOAP:
+
+```python
+mock_api_request(
+    SomeSoapRequest,
+    response=MockApiResponseSpec(content=b"<xml />"),
+)
+```
+
+Use `MockApiRequestAssertions` to verify request params, headers, or encoded body
+without leaving the request-class abstraction:
+
+```python
+from tests.conftest import MockApiRequestAssertions, MockApiResponseSpec
+
+
+mock_api_request(
+    SomeRequest,
+    response=MockApiResponseSpec(text="ok"),
+    assertions=MockApiRequestAssertions(
+        params={"camera": "1"},
+        headers={"X-Test": "true"},
+    ),
+)
+```
 
 Use `aiohttp_mock_server` for most new direct endpoint tests:
 
