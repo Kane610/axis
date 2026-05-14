@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from axis.interfaces.event_extension_contracts import DesiredEventSubscription
 from axis.models.event import Event
 from axis.models.event_instance import (
     EventInstance,
@@ -355,6 +356,34 @@ async def test_event_instance_synthesizes_unknown_topics(
     assert (
         per_topic["tns1:Media/ProfileChanged"][0].topic == "tns1:Media/ProfileChanged"
     )
+
+
+async def test_supported_event_descriptors_and_filter_payloads(
+    http_route_mock, event_instances
+) -> None:
+    """Extension helpers should expose normalized descriptors and payloads."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    descriptors = event_instances.get_supported_event_descriptors()
+    assert "tns1:Device/tnsaxis:Sensor/PIR" in descriptors
+    assert (
+        descriptors["tns1:Device/tnsaxis:Sensor/PIR"]["topic_filter"]
+        == "onvif:Device/axis:Sensor/PIR"
+    )
+
+    payloads = event_instances.build_transport_filter_payloads(
+        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")]
+    )
+    assert payloads == {
+        "canonical_topics": ["tns1:Device/tnsaxis:Sensor/PIR"],
+        "mqtt_topics": ["onvif:Device/axis:Sensor/PIR"],
+        "websocket_topic_filters": ["onvif:Device/axis:Sensor/PIR"],
+    }
 
 
 async def test_expected_events_protocol_normalization(http_route_mock, event_instances):

@@ -355,6 +355,37 @@ async def test_configure_event_publication_specific_topics(
     }
 
 
+async def test_build_topic_filters_deduplicates_preserving_order(
+    mqtt_client: MqttClientHandler,
+) -> None:
+    """Topic filter builder should keep order while removing duplicates."""
+    assert mqtt_client.build_topic_filters(["a", "b", "a"]) == ["a", "b"]
+
+
+async def test_configure_event_publication_normalizes_topics(
+    mock_mqtt_client_request,
+    mock_mqtt_event_request,
+    mqtt_client: MqttClientHandler,
+):
+    """Optional normalize flag should convert canonical topics to filter format."""
+    route = mock_mqtt_event_request({})
+
+    await mqtt_client.configure_event_publication(
+        ["tns1:Device/tnsaxis:Sensor/PIR"],
+        normalize_topics=True,
+    )
+
+    assert route.called
+    assert json.loads(route.calls.last.request.content) == {
+        "apiVersion": "1.0",
+        "context": "Axis library",
+        "method": "configureEventPublication",
+        "params": {
+            "eventFilterList": [{"topicFilter": "onvif:Device/axis:Sensor/PIR"}]
+        },
+    }
+
+
 async def test_convert_json_to_event():
     """Verify conversion from json to event."""
     event = mqtt_json_to_event(

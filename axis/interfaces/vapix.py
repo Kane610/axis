@@ -21,6 +21,12 @@ from .applications.motion_guard import MotionGuardHandler
 from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
+from .event_extension_contracts import (
+    TRANSPORT_FILTER_CAPABILITIES,
+    DesiredEventSubscription,
+    EventTransport,
+    TransportFilterCapability,
+)
 from .event_instances import EventInstanceHandler
 from .light_control import LightHandler
 from .mqtt import MqttClientHandler
@@ -238,6 +244,38 @@ class Vapix:
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
         await self.event_instances.update()
+
+    def get_event_transport_capabilities(
+        self,
+    ) -> dict[EventTransport, TransportFilterCapability]:
+        """Return extension capability matrix for event transports."""
+        return dict(TRANSPORT_FILTER_CAPABILITIES)
+
+    def get_supported_event_descriptors(
+        self,
+        include_internal_topics: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """Return normalized supported-event descriptors from event instances.
+
+        This method is extension-oriented and has no side effects.
+        """
+        return self.event_instances.get_supported_event_descriptors(
+            include_internal_topics=include_internal_topics
+        )
+
+    def build_transport_filter_payloads(
+        self,
+        subscriptions: list[DesiredEventSubscription] | None = None,
+        include_internal_topics: bool = False,
+    ) -> dict[str, list[str]]:
+        """Build transport filter payloads from desired subscriptions.
+
+        This method does not apply filters; it only returns extension payloads.
+        """
+        return self.event_instances.build_transport_filter_payloads(
+            subscriptions=subscriptions,
+            include_internal_topics=include_internal_topics,
+        )
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

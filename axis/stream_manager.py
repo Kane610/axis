@@ -25,12 +25,17 @@ RETRY_TIMER = 15
 class StreamManager:
     """Setup, start, stop and retry stream."""
 
-    def __init__(self, device: AxisDevice) -> None:
+    def __init__(
+        self,
+        device: AxisDevice,
+        event_filter_list: list[dict[str, str]] | None = None,
+    ) -> None:
         """Initialize stream manager."""
         self.device = device
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = False
+        self.event_filter_list = event_filter_list
         self.stream: StreamTransport | None = None
 
         self.connection_status_callback: list[Callable[[Signal], None]] = []
@@ -128,6 +133,7 @@ class StreamManager:
                 self.device,
                 self.websocket_url,
                 self.session_callback,
+                event_filter_list=self.event_filter_list,
             )
 
         return RTSPClient(
@@ -137,6 +143,10 @@ class StreamManager:
             self.device.config.password,
             self.session_callback,
         )
+
+    def set_event_filter_list(self, event_filter_list: list[dict[str, str]]) -> None:
+        """Set optional websocket event filter list for future stream sessions."""
+        self.event_filter_list = event_filter_list
 
     def session_callback(self, signal: Signal) -> None:
         """Signalling from stream session.

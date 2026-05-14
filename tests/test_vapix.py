@@ -15,6 +15,10 @@ from axis.errors import (
     Unauthorized,
 )
 from axis.interfaces.api_handler import HandlerGroup
+from axis.interfaces.event_extension_contracts import (
+    DesiredEventSubscription,
+    EventTransport,
+)
 from axis.models.api_discovery import ListApisRequest
 from axis.models.applications.application import (
     ApplicationStatus,
@@ -125,6 +129,23 @@ def test_vapix_not_initialized(vapix: Vapix) -> None:
     assert vapix.serial_number == ""
     assert vapix.streaming_profiles == []
     assert not vapix.users.supported
+
+
+def test_vapix_extension_helpers(vapix: Vapix) -> None:
+    """Extension helper APIs should be available without side effects."""
+    capabilities = vapix.get_event_transport_capabilities()
+    assert EventTransport.RTSP in capabilities
+    assert EventTransport.WEBSOCKET in capabilities
+    assert EventTransport.MQTT in capabilities
+
+    assert vapix.get_supported_event_descriptors() == {}
+    assert vapix.build_transport_filter_payloads(
+        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")]
+    ) == {
+        "canonical_topics": ["tns1:Device/tnsaxis:Sensor/PIR"],
+        "mqtt_topics": ["onvif:Device/axis:Sensor/PIR"],
+        "websocket_topic_filters": ["onvif:Device/axis:Sensor/PIR"],
+    }
 
 
 def test_api_discovery_handlers_registration(vapix: Vapix) -> None:

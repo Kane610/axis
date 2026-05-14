@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from ..models.event import Event, EventOperation, EventTopic
+from .topic_normalizer import to_canonical
 
 SubscriptionCallback = Callable[[Event], None]
 SubscriptionType = tuple[
@@ -32,7 +33,27 @@ class EventManager:
         """Ready information about events."""
         self._known_topics: set[str] = set()
         self._unsupported_topics: set[str] = set()
+        self._allowed_topics: set[str] | None = None
         self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
+
+    def set_allowed_topics(self, topics: list[str] | set[str] | None) -> None:
+        """Set optional canonical topic allow-list for runtime filtering.
+
+        Default behavior remains unchanged until this extension is explicitly used.
+        """
+        if topics is None:
+            self._allowed_topics = None
+            return
+
+        self._allowed_topics = {to_canonical(topic) for topic in topics}
+
+    def seed_known_events(self, events: list[Event]) -> None:
+        """Seed known topics from expected startup events.
+
+        This extension hook is no-op unless explicitly invoked by a caller.
+        """
+        for event in events:
+            self._known_topics.add(f"{to_canonical(event.topic)}_{event.id}")
 
     def handler(self, data: bytes | dict[str, Any]) -> None:
         """Create event and pass it along to subscribers."""
@@ -47,6 +68,12 @@ class EventManager:
             return
 
         if event.topic in BLACK_LISTED_TOPICS:
+            return
+
+        if (
+            self._allowed_topics is not None
+            and to_canonical(event.topic) not in self._allowed_topics
+        ):
             return
 
         known = (unique_topic := f"{event.topic}_{event.id}") not in self._known_topics

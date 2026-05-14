@@ -123,6 +123,31 @@ async def test_start_uses_websocket_when_supported(
 
 @patch("axis.stream_manager.RTSPClient")
 @patch("axis.stream_manager.WebSocketClient")
+async def test_stream_manager_passes_event_filter_list_to_websocket(
+    websocket_client, rtsp_client, stream_manager
+):
+    """Optional event_filter_list should be forwarded to websocket transport."""
+    websocket_client.return_value.start = AsyncMock()
+    stream_manager.event = True
+    stream_manager.device.config.websocket_enabled = True
+    stream_manager.device.vapix.api_discovery._items[
+        ApiId.EVENT_STREAMING_OVER_WEBSOCKET
+    ] = MagicMock()
+    stream_manager.set_event_filter_list([{"topicFilter": "onvif:Device//."}])
+
+    stream_manager.start()
+
+    websocket_client.assert_called_once_with(
+        stream_manager.device,
+        stream_manager.websocket_url,
+        stream_manager.session_callback,
+        event_filter_list=[{"topicFilter": "onvif:Device//."}],
+    )
+    rtsp_client.assert_not_called()
+
+
+@patch("axis.stream_manager.RTSPClient")
+@patch("axis.stream_manager.WebSocketClient")
 async def test_initialize_stream(websocket_client, rtsp_client, stream_manager):
     """Test stream commands."""
     rtsp_client.return_value.start = AsyncMock()
