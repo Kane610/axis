@@ -465,6 +465,21 @@ def test_event_instance_decode_handles_none_shapes(raw_event: dict) -> None:
     assert event.raw_data == event.data.as_raw()
 
 
+def test_event_instance_source_as_raw_multiple_items() -> None:
+    """Source with multiple items should keep list shape for backward compatibility."""
+    source = EventInstanceSource(
+        items=(
+            EventInstanceSimpleItem(name="sensor", values=("0",)),
+            EventInstanceSimpleItem(name="channel", values=("1",)),
+        )
+    )
+
+    assert source.as_raw() == [
+        {"@Name": "sensor", "Value": "0"},
+        {"@Name": "channel", "Value": "1"},
+    ]
+
+
 async def test_event_instances_empty_message_instance_xml(
     http_route_mock, event_instances
 ):
