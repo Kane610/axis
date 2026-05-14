@@ -21,13 +21,20 @@ from .applications.motion_guard import MotionGuardHandler
 from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
-from .event_extension_contracts import (
+from .event_instances import EventInstanceHandler
+from .events.event_extension_contracts import (
     TRANSPORT_FILTER_CAPABILITIES,
     DesiredEventSubscription,
     EventTransport,
     TransportFilterCapability,
 )
-from .event_instances import EventInstanceHandler
+from .events.topic_normalizer import to_canonical
+from .events.unique_id_migration import (
+    UNIQUE_ID_MIGRATION_VERSION,
+    UniqueIdMigrationPlan,
+    build_unique_id_alias_map,
+    build_unique_id_migration_plan,
+)
 from .light_control import LightHandler
 from .mqtt import MqttClientHandler
 from .parameters.param_cgi import Params
@@ -37,13 +44,6 @@ from .port_management import IoPortManagement
 from .ptz import PtzControl
 from .pwdgrp_cgi import Users
 from .stream_profiles import StreamProfilesHandler
-from .topic_normalizer import to_canonical
-from .unique_id_migration import (
-    UNIQUE_ID_MIGRATION_VERSION,
-    UniqueIdMigrationPlan,
-    build_unique_id_alias_map,
-    build_unique_id_migration_plan,
-)
 from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 

@@ -15,11 +15,11 @@ from axis.errors import (
     Unauthorized,
 )
 from axis.interfaces.api_handler import HandlerGroup
-from axis.interfaces.event_extension_contracts import (
+from axis.interfaces.events.event_extension_contracts import (
     DesiredEventSubscription,
     EventTransport,
 )
-from axis.interfaces.unique_id_migration import UNIQUE_ID_MIGRATION_VERSION
+from axis.interfaces.events.unique_id_migration import UNIQUE_ID_MIGRATION_VERSION
 from axis.models.api_discovery import ApiId, ListApisRequest
 from axis.models.applications.application import (
     ApplicationStatus,

@@ -19,7 +19,7 @@ from ..models.mqtt import (
     GetEventPublicationConfigResponse,
 )
 from .api_handler import ApiHandler, HandlerGroup
-from .topic_normalizer import to_topic_filter
+from .events.topic_normalizer import to_topic_filter
 
 DEFAULT_TOPICS = ["//."]
 

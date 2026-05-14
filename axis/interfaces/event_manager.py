@@ -5,7 +5,7 @@ import logging
 from typing import Any
 
 from ..models.event import Event, EventOperation, EventTopic
-from .topic_normalizer import to_canonical
+from .events.topic_normalizer import to_canonical
 
 SubscriptionCallback = Callable[[Event], None]
 SubscriptionType = tuple[

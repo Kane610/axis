@@ -1,6 +1,6 @@
 """Tests for unique ID migration contract utilities."""
 
-from axis.interfaces.unique_id_migration import (
+from axis.interfaces.events.unique_id_migration import (
     UNIQUE_ID_MIGRATION_VERSION,
     build_unique_id_alias_map,
     build_unique_id_migration_plan,

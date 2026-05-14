@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.interfaces.event_extension_contracts import DesiredEventSubscription
+from axis.interfaces.events.event_extension_contracts import DesiredEventSubscription
 from axis.models.event import Event
 from axis.models.event_instance import (
     EventInstance,

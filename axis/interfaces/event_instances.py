@@ -11,11 +11,11 @@ from ..models.event_instance import (
 )
 from .api_handler import ApiHandler
 from .event_manager import BLACK_LISTED_TOPICS
-from .topic_normalizer import to_canonical, to_topic_filter
+from .events.topic_normalizer import to_canonical, to_topic_filter
 
 if TYPE_CHECKING:
     from ..models.event import Event
-    from .event_extension_contracts import DesiredEventSubscription
+    from .events.event_extension_contracts import DesiredEventSubscription
 
 
 class EventInstanceHandler(ApiHandler[EventInstance]):

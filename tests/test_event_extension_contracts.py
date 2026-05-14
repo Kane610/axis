@@ -1,6 +1,6 @@
 """Tests for extension contract capability matrix."""
 
-from axis.interfaces.event_extension_contracts import (
+from axis.interfaces.events.event_extension_contracts import (
     TRANSPORT_FILTER_CAPABILITIES,
     EventTransport,
 )
