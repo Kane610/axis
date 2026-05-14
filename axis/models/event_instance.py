@@ -1,6 +1,6 @@
 """Event service and action service APIs available in Axis network device."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import enum
 from typing import Any, Self
 
@@ -61,13 +61,11 @@ def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
     return events
 
 
-def _as_simple_item_list(
-    data: object,
-) -> list[dict[str, Any]]:
+def _as_simple_item_list(data: object) -> list[dict[str, Any]]:
     """Return a list representation for a simple-item payload."""
     if isinstance(data, list):
         return data
-    if isinstance(data, dict):
+    if isinstance(data, dict) and data:
         return [data]
     return []
 
@@ -79,46 +77,127 @@ def _as_dict(data: object) -> dict[str, Any]:
     return {}
 
 
-def _extract_source_values(
-    source: dict[str, Any] | list[dict[str, Any]],
-) -> tuple[str, list[str]]:
+@dataclass(frozen=True)
+class EventInstanceSimpleItem:
+    """Typed representation of a single event-instance simple item."""
+
+    name: str = ""
+    nice_name: str = ""
+    value_type: str = ""
+    values: tuple[str, ...] = ()
+    is_property_state: bool = False
+
+    @classmethod
+    def from_raw(cls, data: object) -> Self:
+        """Decode a raw simple-item payload into a typed item."""
+        item = _as_dict(data)
+        raw_values = item.get("Value", "")
+        if isinstance(raw_values, list):
+            values = tuple(str(value) for value in raw_values)
+        elif raw_values in (None, ""):
+            values = ()
+        else:
+            values = (str(raw_values),)
+
+        return cls(
+            name=str(item.get("@Name", "")),
+            nice_name=str(item.get("@NiceName", "")),
+            value_type=str(item.get("@Type", "")),
+            values=values,
+            is_property_state=item.get("@isPropertyState") == "true",
+        )
+
+    @property
+    def value(self) -> str:
+        """Return the first value when available."""
+        return self.values[0] if self.values else ""
+
+
+@dataclass(frozen=True)
+class EventInstanceSource:
+    """Structured source definition for an event instance."""
+
+    items: tuple[EventInstanceSimpleItem, ...] = ()
+
+    @classmethod
+    def from_raw(cls, data: object) -> Self:
+        """Decode raw source-instance payload into typed items."""
+        return cls(
+            items=tuple(
+                EventInstanceSimpleItem.from_raw(item)
+                for item in _as_simple_item_list(data)
+            )
+        )
+
+    @property
+    def primary_item(self) -> EventInstanceSimpleItem | None:
+        """Return the first source item when available."""
+        return self.items[0] if self.items else None
+
+    @property
+    def name(self) -> str:
+        """Return the primary source name."""
+        return self.primary_item.name if self.primary_item else ""
+
+    @property
+    def values(self) -> tuple[str, ...]:
+        """Return source values for event synthesis."""
+        if self.primary_item is None:
+            return ("",)
+        return self.primary_item.values or ("",)
+
+
+@dataclass(frozen=True)
+class EventInstanceData:
+    """Structured data definition for an event instance."""
+
+    items: tuple[EventInstanceSimpleItem, ...] = ()
+
+    @classmethod
+    def from_raw(cls, data: object) -> Self:
+        """Decode raw data-instance payload into typed items."""
+        return cls(
+            items=tuple(
+                EventInstanceSimpleItem.from_raw(item)
+                for item in _as_simple_item_list(data)
+            )
+        )
+
+    @property
+    def primary_item(self) -> EventInstanceSimpleItem | None:
+        """Return the first data item when available."""
+        return self.items[0] if self.items else None
+
+    @property
+    def state_item(self) -> EventInstanceSimpleItem | None:
+        """Prefer the active item to align with stream event decoding."""
+        return next(
+            (item for item in self.items if item.name == "active"), self.primary_item
+        )
+
+    @property
+    def state_value(self) -> str:
+        """Return a representative value for state synthesis."""
+        if self.state_item is None:
+            return ""
+        return self.state_item.value
+
+
+def _extract_source_values(source: EventInstanceSource) -> tuple[str, list[str]]:
     """Extract the source name and source values.
 
     Keep behavior aligned with event stream parsing by selecting the first source item
     when multiple source items exist.
     """
-    source_items = _as_simple_item_list(source)
-    if not source_items:
-        return "", [""]
-
-    source_item = source_items[0]
-    source_name = str(source_item.get("@Name", ""))
-    values = source_item.get("Value", "")
-    if isinstance(values, list):
-        source_values = [str(value) for value in values]
-        return source_name, source_values or [""]
-    if values in (None, ""):
-        return source_name, [""]
-    return source_name, [str(values)]
+    return source.name, list(source.values)
 
 
-def _extract_data_value(data: dict[str, Any] | list[dict[str, Any]]) -> str:
+def _extract_data_value(data: EventInstanceData) -> str:
     """Extract a representative state value from data definition.
 
     Prefer the "active" item when available to align with Event._decode_from_bytes().
     """
-    data_items = _as_simple_item_list(data)
-    if not data_items:
-        return ""
-
-    data_item = next(
-        (item for item in data_items if item.get("@Name", "") == "active"),
-        data_items[0],
-    )
-    value = data_item.get("Value", "")
-    if isinstance(value, list):
-        return str(value[0]) if value else ""
-    return "" if value is None else str(value)
+    return data.state_value
 
 
 TOPIC_TO_INACTIVE_STATE = {
@@ -175,6 +254,9 @@ class EventInstance(ApiItem):
     name: str
     """User-friendly and human-readable name describing the event."""
 
+    display_name: str = field(init=False)
+    """Whitespace-normalized version of name for client display."""
+
     stateful: bool
     """Stateful event is a property (a state variable) with a number of states.
 
@@ -189,11 +271,15 @@ class EventInstance(ApiItem):
     Example: Storage device removed.
     """
 
-    source: dict[str, Any] | list[dict[str, Any]]
+    source: EventInstanceSource
     """Event source information."""
 
-    data: dict[str, Any] | list[dict[str, Any]]
+    data: EventInstanceData
     """Event data description."""
+
+    def __post_init__(self) -> None:
+        """Normalize display-oriented fields while preserving raw payload values."""
+        object.__setattr__(self, "display_name", " ".join(self.name.split()))
 
     @classmethod
     def decode(cls, data: dict[str, Any]) -> Self:
@@ -214,8 +300,12 @@ class EventInstance(ApiItem):
             name=event_data.get("@NiceName", ""),
             stateful=message.get("@isProperty") == "true",
             stateless=message.get("@isProperty") != "true",
-            source=source_instance.get("SimpleItemInstance", {}),
-            data=data_instance.get("SimpleItemInstance", {}),
+            source=EventInstanceSource.from_raw(
+                source_instance.get("SimpleItemInstance", {})
+            ),
+            data=EventInstanceData.from_raw(
+                data_instance.get("SimpleItemInstance", {})
+            ),
         )
 
     def to_events(self) -> list[Event]:

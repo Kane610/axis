@@ -8,7 +8,13 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.models.event import Event
-from axis.models.event_instance import EventInstance, get_events
+from axis.models.event_instance import (
+    EventInstance,
+    EventInstanceData,
+    EventInstanceSimpleItem,
+    EventInstanceSource,
+    get_events,
+)
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,
@@ -56,18 +62,26 @@ async def test_full_list_of_event_instances(http_route_mock, event_instances):
                 "message": {
                     "stateful": True,
                     "stateless": False,
-                    "source": {
-                        "@NiceName": "Sensor",
-                        "@Type": "xsd:int",
-                        "@Name": "sensor",
-                        "Value": "0",
-                    },
-                    "data": {
-                        "@NiceName": "Active",
-                        "@Type": "xsd:boolean",
-                        "@Name": "state",
-                        "@isPropertyState": "true",
-                    },
+                    "source": EventInstanceSource(
+                        items=(
+                            EventInstanceSimpleItem(
+                                name="sensor",
+                                nice_name="Sensor",
+                                value_type="xsd:int",
+                                values=("0",),
+                            ),
+                        )
+                    ),
+                    "data": EventInstanceData(
+                        items=(
+                            EventInstanceSimpleItem(
+                                name="state",
+                                nice_name="Active",
+                                value_type="xsd:boolean",
+                                is_property_state=True,
+                            ),
+                        )
+                    ),
                 },
             },
         ),
@@ -82,31 +96,41 @@ async def test_full_list_of_event_instances(http_route_mock, event_instances):
                 "message": {
                     "stateful": True,
                     "stateless": False,
-                    "source": {
-                        "@NiceName": "Disk",
-                        "@Type": "xsd:string",
-                        "@Name": "disk_id",
-                        "Value": ["SD_DISK", "NetworkShare"],
-                    },
-                    "data": [
-                        {
-                            "@NiceName": "Temperature",
-                            "@Type": "xsd:int",
-                            "@Name": "temperature",
-                        },
-                        {
-                            "@isPropertyState": "true",
-                            "@NiceName": "Alert",
-                            "@Type": "xsd:boolean",
-                            "@Name": "alert",
-                        },
-                        {"@NiceName": "Wear", "@Type": "xsd:int", "@Name": "wear"},
-                        {
-                            "@NiceName": "Overall Health",
-                            "@Type": "xsd:int",
-                            "@Name": "overall_health",
-                        },
-                    ],
+                    "source": EventInstanceSource(
+                        items=(
+                            EventInstanceSimpleItem(
+                                name="disk_id",
+                                nice_name="Disk",
+                                value_type="xsd:string",
+                                values=("SD_DISK", "NetworkShare"),
+                            ),
+                        )
+                    ),
+                    "data": EventInstanceData(
+                        items=(
+                            EventInstanceSimpleItem(
+                                name="temperature",
+                                nice_name="Temperature",
+                                value_type="xsd:int",
+                            ),
+                            EventInstanceSimpleItem(
+                                name="alert",
+                                nice_name="Alert",
+                                value_type="xsd:boolean",
+                                is_property_state=True,
+                            ),
+                            EventInstanceSimpleItem(
+                                name="wear",
+                                nice_name="Wear",
+                                value_type="xsd:int",
+                            ),
+                            EventInstanceSimpleItem(
+                                name="overall_health",
+                                nice_name="Overall Health",
+                                value_type="xsd:int",
+                            ),
+                        )
+                    ),
                 },
             },
         ),
@@ -121,12 +145,16 @@ async def test_full_list_of_event_instances(http_route_mock, event_instances):
                 "message": {
                     "stateful": True,
                     "stateless": False,
-                    "source": {},
-                    "data": {
-                        "@Type": "xsd:boolean",
-                        "@Name": "active",
-                        "@isPropertyState": "true",
-                    },
+                    "source": EventInstanceSource(),
+                    "data": EventInstanceData(
+                        items=(
+                            EventInstanceSimpleItem(
+                                name="active",
+                                value_type="xsd:boolean",
+                                is_property_state=True,
+                            ),
+                        )
+                    ),
                 },
             },
         ),
@@ -156,6 +184,7 @@ async def test_single_event_instance(
     assert event.is_available == expected["is_available"]
     assert event.is_application_data == expected["is_application_data"]
     assert event.name == expected["name"]
+    assert event.display_name == " ".join(expected["name"].split())
     assert event.stateful == expected["message"]["stateful"]
     assert event.stateless == expected["message"]["stateless"]
     assert event.source == expected["message"]["source"]
@@ -304,7 +333,9 @@ async def test_event_instance_synthesized_event_matches_stream_content(
     assert actual.source == expected.source
     assert actual.id == expected.id
     assert actual.state == expected.state
-    assert actual.group == expected.group
+    assert actual.operation == expected.operation
+    assert actual.topic_base == expected.topic_base
+    assert actual.is_tripped == expected.is_tripped
 
 
 async def test_event_instance_synthesizes_unknown_topics(
@@ -355,8 +386,8 @@ def test_expected_events_internal_topic_filtering(event_instances):
             name="internal",
             stateful=True,
             stateless=False,
-            source={},
-            data={},
+            source=EventInstanceSource(),
+            data=EventInstanceData(),
         ),
         normal_topic: EventInstance(
             id=normal_topic,
@@ -367,8 +398,8 @@ def test_expected_events_internal_topic_filtering(event_instances):
             name="pir",
             stateful=True,
             stateless=False,
-            source={},
-            data={},
+            source=EventInstanceSource(),
+            data=EventInstanceData(),
         ),
     }
 
@@ -427,8 +458,37 @@ def test_event_instance_decode_handles_none_shapes(raw_event: dict) -> None:
     event = EventInstance.decode(raw_event)
 
     assert event.topic == raw_event["topic"]
-    assert isinstance(event.source, (dict, list))
-    assert isinstance(event.data, (dict, list))
+    assert isinstance(event.source, EventInstanceSource)
+    assert isinstance(event.data, EventInstanceData)
+
+
+@pytest.mark.parametrize(
+    ("raw_name", "expected_display_name"),
+    [
+        ("Storage disruption", "Storage disruption"),
+        ("Currently Playing      Media Clip", "Currently Playing Media Clip"),
+        ("Object   Analytics:   Any   Scenario", "Object Analytics: Any Scenario"),
+    ],
+)
+def test_event_instance_display_name_normalizes_whitespace(
+    raw_name: str, expected_display_name: str
+) -> None:
+    """Display names should collapse formatting noise without changing raw names."""
+    event = EventInstance(
+        id="topic",
+        topic="topic",
+        topic_filter="topic",
+        is_available=True,
+        is_application_data=False,
+        name=raw_name,
+        stateful=True,
+        stateless=False,
+        source=EventInstanceSource(),
+        data=EventInstanceData(),
+    )
+
+    assert event.name == raw_name
+    assert event.display_name == expected_display_name
 
 
 async def test_event_instances_empty_message_instance_xml(
@@ -466,5 +526,5 @@ async def test_event_instances_empty_message_instance_xml(
     topic = "tns1:Configuration/tnsaxis:Intercom/Changed"
     assert topic in event_instances
     event = event_instances[topic]
-    assert event.source == {}
-    assert event.data == {}
+    assert event.source == EventInstanceSource()
+    assert event.data == EventInstanceData()
