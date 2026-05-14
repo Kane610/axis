@@ -261,6 +261,86 @@ async def test_apply_event_transport_filters_calls_transport_hooks(
     assert vapix.device.event._captured_allowed_topics == [topic]
 
 
+async def test_apply_event_transport_filters_respects_apply_flags(vapix: Vapix) -> None:
+    """Apply should skip hooks when apply flags are disabled."""
+    topic = "tns1:Device/tnsaxis:Sensor/PIR"
+    vapix.event_instances._items = {
+        topic: EventInstance(
+            id=topic,
+            topic=topic,
+            topic_filter="onvif:Device/axis:Sensor/PIR",
+            is_available=True,
+            is_application_data=False,
+            name="pir",
+            stateful=True,
+            stateless=False,
+            source=EventInstanceSource(),
+            data=EventInstanceData(),
+        )
+    }
+
+    mqtt_calls: list[list[str]] = []
+    vapix.api_discovery._items[ApiId.MQTT_CLIENT] = type(
+        "_Api", (), {"version": "1.0"}
+    )()
+
+    async def _configure_event_publication(
+        topics: list[str], *_args, **_kwargs
+    ) -> None:
+        mqtt_calls.append(topics)
+
+    vapix.mqtt.configure_event_publication = _configure_event_publication  # type: ignore[method-assign]
+
+    payloads = await vapix.apply_event_transport_filters(
+        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")],
+        apply_mqtt=False,
+        apply_websocket=False,
+        apply_local_fallback=False,
+    )
+
+    assert payloads["canonical_topics"] == [topic]
+    assert mqtt_calls == []
+
+
+async def test_apply_event_transport_filters_skips_unsupported_mqtt(
+    vapix: Vapix,
+) -> None:
+    """Apply should not call MQTT hook when MQTT API is unsupported."""
+    topic = "tns1:Device/tnsaxis:Sensor/PIR"
+    vapix.event_instances._items = {
+        topic: EventInstance(
+            id=topic,
+            topic=topic,
+            topic_filter="onvif:Device/axis:Sensor/PIR",
+            is_available=True,
+            is_application_data=False,
+            name="pir",
+            stateful=True,
+            stateless=False,
+            source=EventInstanceSource(),
+            data=EventInstanceData(),
+        )
+    }
+
+    mqtt_calls: list[list[str]] = []
+
+    async def _configure_event_publication(
+        topics: list[str], *_args, **_kwargs
+    ) -> None:
+        mqtt_calls.append(topics)
+
+    vapix.mqtt.configure_event_publication = _configure_event_publication  # type: ignore[method-assign]
+
+    payloads = await vapix.apply_event_transport_filters(
+        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")],
+        apply_websocket=False,
+        apply_local_fallback=False,
+    )
+
+    assert payloads["canonical_topics"] == [topic]
+    assert mqtt_calls == []
+
+
 def test_api_discovery_handlers_registration(vapix: Vapix) -> None:
     """Verify grouped API-discovery handlers matches the startup contract."""
     handlers = vapix._handlers_by_group(HandlerGroup.API_DISCOVERY)
