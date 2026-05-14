@@ -37,6 +37,7 @@ from .port_management import IoPortManagement
 from .ptz import PtzControl
 from .pwdgrp_cgi import Users
 from .stream_profiles import StreamProfilesHandler
+from .topic_normalizer import to_canonical
 from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
@@ -276,6 +277,66 @@ class Vapix:
             subscriptions=subscriptions,
             include_internal_topics=include_internal_topics,
         )
+
+    def plan_event_transport_filters(
+        self,
+        subscriptions: list[DesiredEventSubscription] | None = None,
+        include_internal_topics: bool = False,
+    ) -> dict[str, list[str]]:
+        """Plan validated transport filter payloads from event-instance support data."""
+        payloads = self.build_transport_filter_payloads(
+            subscriptions=subscriptions,
+            include_internal_topics=include_internal_topics,
+        )
+
+        supported_topics = set(
+            self.event_instances.get_supported_topics(
+                include_internal_topics=include_internal_topics
+            )
+        )
+        requested_topics = {
+            to_canonical(topic) for topic in payloads["canonical_topics"]
+        }
+        unknown_topics = sorted(requested_topics - supported_topics)
+        if unknown_topics:
+            message = f"Requested unsupported topics: {', '.join(unknown_topics)}"
+            raise ValueError(message)
+
+        return payloads
+
+    async def apply_event_transport_filters(
+        self,
+        subscriptions: list[DesiredEventSubscription] | None = None,
+        include_internal_topics: bool = False,
+        apply_mqtt: bool = True,
+        apply_websocket: bool = True,
+        apply_local_fallback: bool = True,
+    ) -> dict[str, list[str]]:
+        """Apply planned transport filters through optional extension hooks.
+
+        This method performs no implicit event-instance initialization. Callers are
+        responsible for invoking ``initialize_event_instances`` before planning.
+        """
+        payloads = self.plan_event_transport_filters(
+            subscriptions=subscriptions,
+            include_internal_topics=include_internal_topics,
+        )
+
+        if apply_websocket:
+            self.device.stream.set_event_filter_list(
+                [
+                    {"topicFilter": topic}
+                    for topic in payloads["websocket_topic_filters"]
+                ]
+            )
+
+        if apply_mqtt and self.mqtt.supported:
+            await self.mqtt.configure_event_publication(payloads["mqtt_topics"])
+
+        if apply_local_fallback:
+            self.device.event.set_allowed_topics(payloads["canonical_topics"])
+
+        return payloads
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

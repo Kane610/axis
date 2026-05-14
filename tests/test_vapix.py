@@ -19,12 +19,17 @@ from axis.interfaces.event_extension_contracts import (
     DesiredEventSubscription,
     EventTransport,
 )
-from axis.models.api_discovery import ListApisRequest
+from axis.models.api_discovery import ApiId, ListApisRequest
 from axis.models.applications.application import (
     ApplicationStatus,
     ListApplicationsRequest,
 )
 from axis.models.basic_device_info import GetAllPropertiesRequest
+from axis.models.event_instance import (
+    EventInstance,
+    EventInstanceData,
+    EventInstanceSource,
+)
 from axis.models.light_control import GetLightInformationRequest
 from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_management import GetPortsRequest
@@ -146,6 +151,90 @@ def test_vapix_extension_helpers(vapix: Vapix) -> None:
         "mqtt_topics": ["onvif:Device/axis:Sensor/PIR"],
         "websocket_topic_filters": ["onvif:Device/axis:Sensor/PIR"],
     }
+
+
+async def test_plan_event_transport_filters_validates_supported_topics(
+    vapix: Vapix,
+) -> None:
+    """Planning should reject requested topics that are not in event instances."""
+    topic = "tns1:Device/tnsaxis:Sensor/PIR"
+    vapix.event_instances._items = {
+        topic: EventInstance(
+            id=topic,
+            topic=topic,
+            topic_filter="onvif:Device/axis:Sensor/PIR",
+            is_available=True,
+            is_application_data=False,
+            name="pir",
+            stateful=True,
+            stateless=False,
+            source=EventInstanceSource(),
+            data=EventInstanceData(),
+        )
+    }
+
+    payloads = vapix.plan_event_transport_filters(
+        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")]
+    )
+    assert payloads["canonical_topics"] == [topic]
+
+    with pytest.raises(ValueError, match="Requested unsupported topics"):
+        vapix.plan_event_transport_filters(
+            subscriptions=[
+                DesiredEventSubscription(topic="onvif:Device/axis:Status/SystemReady")
+            ]
+        )
+
+
+async def test_apply_event_transport_filters_calls_transport_hooks(
+    vapix: Vapix,
+) -> None:
+    """Apply should use websocket, mqtt, and local fallback hooks when enabled."""
+    topic = "tns1:Device/tnsaxis:Sensor/PIR"
+    vapix.event_instances._items = {
+        topic: EventInstance(
+            id=topic,
+            topic=topic,
+            topic_filter="onvif:Device/axis:Sensor/PIR",
+            is_available=True,
+            is_application_data=False,
+            name="pir",
+            stateful=True,
+            stateless=False,
+            source=EventInstanceSource(),
+            data=EventInstanceData(),
+        )
+    }
+
+    mqtt_calls: list[list[str]] = []
+
+    vapix.api_discovery._items[ApiId.MQTT_CLIENT] = type(
+        "_Api", (), {"version": "1.0"}
+    )()
+
+    async def _configure_event_publication(
+        topics: list[str], *_args, **_kwargs
+    ) -> None:
+        mqtt_calls.append(topics)
+
+    vapix.mqtt.configure_event_publication = _configure_event_publication  # type: ignore[method-assign]
+    vapix.device.stream.set_event_filter_list = lambda payload: setattr(
+        vapix.device.stream, "_captured_filters", payload
+    )
+    vapix.device.event.set_allowed_topics = lambda topics: setattr(
+        vapix.device.event, "_captured_allowed_topics", topics
+    )
+
+    payloads = await vapix.apply_event_transport_filters(
+        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")]
+    )
+
+    assert payloads["canonical_topics"] == [topic]
+    assert mqtt_calls == [["onvif:Device/axis:Sensor/PIR"]]
+    assert vapix.device.stream._captured_filters == [
+        {"topicFilter": "onvif:Device/axis:Sensor/PIR"}
+    ]
+    assert vapix.device.event._captured_allowed_topics == [topic]
 
 
 def test_api_discovery_handlers_registration(vapix: Vapix) -> None:
