@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 import orjson
 import pytest
 
-from axis.interfaces.mqtt import mqtt_json_to_event
 from axis.models.event import Event
+from axis.models.mqtt import mqtt_json_to_event
 from axis.websocket import _parse_ws_notification
 
 from .event_fixtures import EVENT_INSTANCES, LIGHT_STATUS_INIT, PIR_INIT, VMD4_C1P1_INIT
@@ -31,7 +31,7 @@ def _mqtt_topic(topic: str) -> str:
 
 def _event_identity(event: Event) -> tuple[str, str, str, str, str]:
     """Return identity fields used for cross-protocol parity assertions."""
-    return (event.topic, event.source, event.id, event.state, event.group.value)
+    return (event.topic, event.source, event.id, event.state, event.topic_base.value)
 
 
 @pytest.mark.parametrize(
