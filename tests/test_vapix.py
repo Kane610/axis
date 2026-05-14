@@ -19,6 +19,7 @@ from axis.interfaces.event_extension_contracts import (
     DesiredEventSubscription,
     EventTransport,
 )
+from axis.interfaces.unique_id_migration import UNIQUE_ID_MIGRATION_VERSION
 from axis.models.api_discovery import ApiId, ListApisRequest
 from axis.models.applications.application import (
     ApplicationStatus,
@@ -150,6 +151,29 @@ def test_vapix_extension_helpers(vapix: Vapix) -> None:
         "canonical_topics": ["tns1:Device/tnsaxis:Sensor/PIR"],
         "mqtt_topics": ["onvif:Device/axis:Sensor/PIR"],
         "websocket_topic_filters": ["onvif:Device/axis:Sensor/PIR"],
+    }
+
+
+def test_vapix_unique_id_migration_helpers(vapix: Vapix) -> None:
+    """Migration helpers should provide deterministic versioned rollout data."""
+    unique_ids = [
+        "sensor_onvif:Device/axis:Sensor/PIR_state",
+        "sensor_tns1:Device/tnsaxis:Sensor/PIR_state",
+    ]
+
+    assert vapix.get_unique_id_migration_version() == UNIQUE_ID_MIGRATION_VERSION
+
+    plan = vapix.plan_unique_id_migration(unique_ids)
+    assert plan.version == UNIQUE_ID_MIGRATION_VERSION
+    assert [entry.old_unique_id for entry in plan.entries] == [
+        "sensor_onvif:Device/axis:Sensor/PIR_state"
+    ]
+    assert [entry.new_unique_id for entry in plan.entries] == [
+        "sensor_tns1:Device/tnsaxis:Sensor/PIR_state"
+    ]
+
+    assert vapix.build_unique_id_alias_map(unique_ids) == {
+        "sensor_onvif:Device/axis:Sensor/PIR_state": "sensor_tns1:Device/tnsaxis:Sensor/PIR_state"
     }
 
 

@@ -38,6 +38,12 @@ from .ptz import PtzControl
 from .pwdgrp_cgi import Users
 from .stream_profiles import StreamProfilesHandler
 from .topic_normalizer import to_canonical
+from .unique_id_migration import (
+    UNIQUE_ID_MIGRATION_VERSION,
+    UniqueIdMigrationPlan,
+    build_unique_id_alias_map,
+    build_unique_id_migration_plan,
+)
 from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
@@ -278,6 +284,18 @@ class Vapix:
             include_internal_topics=include_internal_topics,
         )
 
+    def get_unique_id_migration_version(self) -> int:
+        """Return current unique ID migration contract version."""
+        return UNIQUE_ID_MIGRATION_VERSION
+
+    def plan_unique_id_migration(self, unique_ids: list[str]) -> UniqueIdMigrationPlan:
+        """Build deterministic migration plan for extension-managed unique IDs."""
+        return build_unique_id_migration_plan(unique_ids)
+
+    def build_unique_id_alias_map(self, unique_ids: list[str]) -> dict[str, str]:
+        """Build old-to-new unique ID alias map for rollout compatibility."""
+        return build_unique_id_alias_map(unique_ids)
+
     def plan_event_transport_filters(
         self,
         subscriptions: list[DesiredEventSubscription] | None = None,
@@ -335,6 +353,14 @@ class Vapix:
 
         if apply_local_fallback:
             self.device.event.set_allowed_topics(payloads["canonical_topics"])
+
+        LOGGER.debug(
+            "Applied event transport filters: websocket=%s mqtt=%s local=%s topics=%d",
+            apply_websocket,
+            apply_mqtt and self.mqtt.supported,
+            apply_local_fallback,
+            len(payloads["canonical_topics"]),
+        )
 
         return payloads
 
