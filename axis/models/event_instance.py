@@ -1,6 +1,6 @@
 """Event service and action service APIs available in Axis network device."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import enum
 from typing import Any, Self
 
@@ -112,6 +112,21 @@ class EventInstanceSimpleItem:
         """Return the first value when available."""
         return self.values[0] if self.values else ""
 
+    def as_raw(self) -> dict[str, Any]:
+        """Return the backward-compatible raw dictionary representation."""
+        data: dict[str, Any] = {
+            "@Name": self.name,
+            "@NiceName": self.nice_name,
+            "@Type": self.value_type,
+        }
+        if self.values:
+            data["Value"] = (
+                self.values[0] if len(self.values) == 1 else list(self.values)
+            )
+        if self.is_property_state:
+            data["@isPropertyState"] = "true"
+        return {key: value for key, value in data.items() if value != ""}
+
 
 @dataclass(frozen=True)
 class EventInstanceSource:
@@ -145,6 +160,15 @@ class EventInstanceSource:
         if self.primary_item is None:
             return ("",)
         return self.primary_item.values or ("",)
+
+    def as_raw(self) -> dict[str, Any] | list[dict[str, Any]]:
+        """Return source in the historical dict-or-list shape."""
+        raw_items = [item.as_raw() for item in self.items]
+        if not raw_items:
+            return {}
+        if len(raw_items) == 1:
+            return raw_items[0]
+        return raw_items
 
 
 @dataclass(frozen=True)
@@ -181,6 +205,15 @@ class EventInstanceData:
         if self.state_item is None:
             return ""
         return self.state_item.value
+
+    def as_raw(self) -> dict[str, Any] | list[dict[str, Any]]:
+        """Return data in the historical dict-or-list shape."""
+        raw_items = [item.as_raw() for item in self.items]
+        if not raw_items:
+            return {}
+        if len(raw_items) == 1:
+            return raw_items[0]
+        return raw_items
 
 
 def _extract_source_values(source: EventInstanceSource) -> tuple[str, list[str]]:
@@ -254,9 +287,6 @@ class EventInstance(ApiItem):
     name: str
     """User-friendly and human-readable name describing the event."""
 
-    display_name: str = field(init=False)
-    """Whitespace-normalized version of name for client display."""
-
     stateful: bool
     """Stateful event is a property (a state variable) with a number of states.
 
@@ -277,9 +307,15 @@ class EventInstance(ApiItem):
     data: EventInstanceData
     """Event data description."""
 
-    def __post_init__(self) -> None:
-        """Normalize display-oriented fields while preserving raw payload values."""
-        object.__setattr__(self, "display_name", " ".join(self.name.split()))
+    @property
+    def raw_source(self) -> dict[str, Any] | list[dict[str, Any]]:
+        """Return the source field in the previous raw structure."""
+        return self.source.as_raw()
+
+    @property
+    def raw_data(self) -> dict[str, Any] | list[dict[str, Any]]:
+        """Return the data field in the previous raw structure."""
+        return self.data.as_raw()
 
     @classmethod
     def decode(cls, data: dict[str, Any]) -> Self:

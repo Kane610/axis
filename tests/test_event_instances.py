@@ -184,11 +184,12 @@ async def test_single_event_instance(
     assert event.is_available == expected["is_available"]
     assert event.is_application_data == expected["is_application_data"]
     assert event.name == expected["name"]
-    assert event.display_name == " ".join(expected["name"].split())
     assert event.stateful == expected["message"]["stateful"]
     assert event.stateless == expected["message"]["stateless"]
     assert event.source == expected["message"]["source"]
     assert event.data == expected["message"]["data"]
+    assert event.raw_source == expected["message"]["source"].as_raw()
+    assert event.raw_data == expected["message"]["data"].as_raw()
 
 
 @pytest.mark.parametrize(
@@ -460,35 +461,8 @@ def test_event_instance_decode_handles_none_shapes(raw_event: dict) -> None:
     assert event.topic == raw_event["topic"]
     assert isinstance(event.source, EventInstanceSource)
     assert isinstance(event.data, EventInstanceData)
-
-
-@pytest.mark.parametrize(
-    ("raw_name", "expected_display_name"),
-    [
-        ("Storage disruption", "Storage disruption"),
-        ("Currently Playing      Media Clip", "Currently Playing Media Clip"),
-        ("Object   Analytics:   Any   Scenario", "Object Analytics: Any Scenario"),
-    ],
-)
-def test_event_instance_display_name_normalizes_whitespace(
-    raw_name: str, expected_display_name: str
-) -> None:
-    """Display names should collapse formatting noise without changing raw names."""
-    event = EventInstance(
-        id="topic",
-        topic="topic",
-        topic_filter="topic",
-        is_available=True,
-        is_application_data=False,
-        name=raw_name,
-        stateful=True,
-        stateless=False,
-        source=EventInstanceSource(),
-        data=EventInstanceData(),
-    )
-
-    assert event.name == raw_name
-    assert event.display_name == expected_display_name
+    assert event.raw_source == event.source.as_raw()
+    assert event.raw_data == event.data.as_raw()
 
 
 async def test_event_instances_empty_message_instance_xml(

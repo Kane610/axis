@@ -52,3 +52,14 @@ Example fallback policy:
 
 - `LightHandler` participates in both `API_DISCOVERY` and `PARAM_CGI_FALLBACK`.
 - In `PARAM_CGI_FALLBACK`, it initializes only when not listed in API discovery and listed in parameters.
+
+## Event Instance Model Notes
+
+`EventInstance` keeps `name` as the raw device-provided `NiceName` value.
+
+`EventInstance.source` and `EventInstance.data` are typed containers (`EventInstanceSource` and `EventInstanceData`) built from `SimpleItemInstance` payloads.
+
+For compatibility with integrations that still need the historical raw payload shape, `EventInstance` also exposes:
+
+- `raw_source`: returns `{}` or a dict or a list of dicts.
+- `raw_data`: returns `{}` or a dict or a list of dicts.
