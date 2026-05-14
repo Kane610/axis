@@ -57,6 +57,11 @@ TOPIC_TO_STATE = {
 KNOWN_FALSE_STATES = {"", "0", "false", "inactive", "low", "off"}
 KNOWN_TRUE_STATES = {"1", "active", "high", "on", "true"}
 
+TOPIC_TO_INACTIVE_STATE = {
+    EventTopic.LIGHT_STATUS: "OFF",
+    EventTopic.RELAY: "inactive",
+}
+
 EVENT_OPERATION = "operation"
 EVENT_SOURCE = "source"
 EVENT_SOURCE_IDX = "source_idx"
