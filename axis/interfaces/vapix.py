@@ -14,12 +14,6 @@ from ..models.events.topic_normalizer import to_canonical
 from ..models.events.transport_capabilities import (
     TRANSPORT_FILTER_CAPABILITIES,
 )
-from ..models.events.unique_id_migration import (
-    UNIQUE_ID_MIGRATION_VERSION,
-    UniqueIdMigrationPlan,
-    build_unique_id_alias_map,
-    build_unique_id_migration_plan,
-)
 from ..models.pwdgrp_cgi import SecondaryGroup
 from .aiohttp_digest import AiohttpDigestAuth
 from .api_discovery import ApiDiscoveryHandler
@@ -285,18 +279,6 @@ class Vapix:
             subscriptions=subscriptions,
             include_internal_topics=include_internal_topics,
         )
-
-    def get_unique_id_migration_version(self) -> int:
-        """Return current unique ID migration contract version."""
-        return UNIQUE_ID_MIGRATION_VERSION
-
-    def plan_unique_id_migration(self, unique_ids: list[str]) -> UniqueIdMigrationPlan:
-        """Build deterministic migration plan for extension-managed unique IDs."""
-        return build_unique_id_migration_plan(unique_ids)
-
-    def build_unique_id_alias_map(self, unique_ids: list[str]) -> dict[str, str]:
-        """Build old-to-new unique ID alias map for rollout compatibility."""
-        return build_unique_id_alias_map(unique_ids)
 
     def plan_event_transport_filters(
         self,
