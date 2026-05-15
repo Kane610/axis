@@ -25,7 +25,7 @@ from .applications.motion_guard import MotionGuardHandler
 from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
-from .event_instances import EventInstanceHandler
+from .events.event_instances import EventInstanceHandler
 from .light_control import LightHandler
 from .mqtt import MqttClientHandler
 from .parameters.param_cgi import Params

@@ -1,6 +1,6 @@
 """Tests for EventManager extension hooks."""
 
-from axis.interfaces.event_manager import EventManager
+from axis.interfaces.events.event_manager import EventManager
 
 
 def test_allowed_topics_filter_is_opt_in() -> None:

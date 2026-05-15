@@ -4,18 +4,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..models.event_instance import (
+from ...models.event_instance import (
     EventInstance,
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )
-from ..models.events.topic_normalizer import to_canonical, to_topic_filter
-from .api_handler import ApiHandler
+from ...models.events.topic_normalizer import to_canonical, to_topic_filter
+from ..api_handler import ApiHandler
 from .event_manager import BLACK_LISTED_TOPICS
 
 if TYPE_CHECKING:
-    from ..models.event import Event
-    from ..models.events.subscription_contracts import DesiredEventSubscription
+    from ...models.event import Event
+    from ...models.events.subscription_contracts import DesiredEventSubscription
 
 
 class EventInstanceHandler(ApiHandler[EventInstance]):

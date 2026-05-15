@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from .interfaces.event_manager import EventManager
+from .interfaces.events.event_manager import EventManager
 from .interfaces.vapix import Vapix
 from .stream_manager import StreamManager
 

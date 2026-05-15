@@ -43,7 +43,7 @@ from .event_fixtures import (
 
 if TYPE_CHECKING:
     from axis.device import AxisDevice
-    from axis.interfaces.event_manager import EventManager
+    from axis.interfaces.events.event_manager import EventManager
 
 
 @pytest.fixture

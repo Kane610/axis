@@ -28,7 +28,7 @@ from .event_fixtures import (
 )
 
 if TYPE_CHECKING:
-    from axis.interfaces.event_instances import EventInstanceHandler
+    from axis.interfaces.events.event_instances import EventInstanceHandler
 
 
 @pytest.fixture
