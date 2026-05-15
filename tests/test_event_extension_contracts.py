@@ -1,9 +1,9 @@
 """Tests for extension contract capability matrix."""
 
-from axis.interfaces.events.transport_capabilities import (
+from axis.models.events.subscription_contracts import EventTransport
+from axis.models.events.transport_capabilities import (
     TRANSPORT_FILTER_CAPABILITIES,
 )
-from axis.models.events.subscription_contracts import EventTransport
 
 
 def test_transport_filter_capabilities() -> None:

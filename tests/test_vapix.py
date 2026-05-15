@@ -15,7 +15,6 @@ from axis.errors import (
     Unauthorized,
 )
 from axis.interfaces.api_handler import HandlerGroup
-from axis.interfaces.events.unique_id_migration import UNIQUE_ID_MIGRATION_VERSION
 from axis.models.api_discovery import ApiId, ListApisRequest
 from axis.models.applications.application import (
     ApplicationStatus,
@@ -31,6 +30,7 @@ from axis.models.events.subscription_contracts import (
     DesiredEventSubscription,
     EventTransport,
 )
+from axis.models.events.unique_id_migration import UNIQUE_ID_MIGRATION_VERSION
 from axis.models.light_control import GetLightInformationRequest
 from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_management import GetPortsRequest

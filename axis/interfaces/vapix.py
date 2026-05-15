@@ -10,6 +10,16 @@ import aiohttp
 
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
+from ..models.events.topic_normalizer import to_canonical
+from ..models.events.transport_capabilities import (
+    TRANSPORT_FILTER_CAPABILITIES,
+)
+from ..models.events.unique_id_migration import (
+    UNIQUE_ID_MIGRATION_VERSION,
+    UniqueIdMigrationPlan,
+    build_unique_id_alias_map,
+    build_unique_id_migration_plan,
+)
 from ..models.pwdgrp_cgi import SecondaryGroup
 from .aiohttp_digest import AiohttpDigestAuth
 from .api_discovery import ApiDiscoveryHandler
@@ -22,16 +32,6 @@ from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
 from .event_instances import EventInstanceHandler
-from .events.topic_normalizer import to_canonical
-from .events.transport_capabilities import (
-    TRANSPORT_FILTER_CAPABILITIES,
-)
-from .events.unique_id_migration import (
-    UNIQUE_ID_MIGRATION_VERSION,
-    UniqueIdMigrationPlan,
-    build_unique_id_alias_map,
-    build_unique_id_migration_plan,
-)
 from .light_control import LightHandler
 from .mqtt import MqttClientHandler
 from .parameters.param_cgi import Params
@@ -51,8 +51,8 @@ if TYPE_CHECKING:
         DesiredEventSubscription,
         EventTransport,
     )
+    from ..models.events.transport_capabilities import TransportFilterCapability
     from ..models.stream_profile import StreamProfile
-    from .events.transport_capabilities import TransportFilterCapability
 
 LOGGER = logging.getLogger(__name__)
 

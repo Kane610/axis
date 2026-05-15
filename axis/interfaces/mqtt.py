@@ -3,6 +3,7 @@
 from typing import Any
 
 from ..models.api_discovery import ApiId
+from ..models.events.topic_normalizer import to_topic_filter
 from ..models.mqtt import (
     API_VERSION,
     ActivateClientRequest,
@@ -19,7 +20,6 @@ from ..models.mqtt import (
     GetEventPublicationConfigResponse,
 )
 from .api_handler import ApiHandler, HandlerGroup
-from .events.topic_normalizer import to_topic_filter
 
 DEFAULT_TOPICS = ["//."]
 

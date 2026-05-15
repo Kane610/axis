@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...models.events.subscription_contracts import EventTransport
+from .subscription_contracts import EventTransport
 
 
 @dataclass(frozen=True)
