@@ -22,13 +22,10 @@ from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
 from .event_instances import EventInstanceHandler
-from .events.event_extension_contracts import (
-    TRANSPORT_FILTER_CAPABILITIES,
-    DesiredEventSubscription,
-    EventTransport,
-    TransportFilterCapability,
-)
 from .events.topic_normalizer import to_canonical
+from .events.transport_capabilities import (
+    TRANSPORT_FILTER_CAPABILITIES,
+)
 from .events.unique_id_migration import (
     UNIQUE_ID_MIGRATION_VERSION,
     UniqueIdMigrationPlan,
@@ -50,7 +47,12 @@ from .view_areas import ViewAreaHandler
 if TYPE_CHECKING:
     from ..device import AxisDevice
     from ..models.api import ApiRequest
+    from ..models.events.subscription_contracts import (
+        DesiredEventSubscription,
+        EventTransport,
+    )
     from ..models.stream_profile import StreamProfile
+    from .events.transport_capabilities import TransportFilterCapability
 
 LOGGER = logging.getLogger(__name__)
 

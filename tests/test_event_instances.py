@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from axis.interfaces.events.event_extension_contracts import DesiredEventSubscription
 from axis.models.event import Event
 from axis.models.event_instance import (
     EventInstance,
@@ -16,6 +15,7 @@ from axis.models.event_instance import (
     EventInstanceSource,
     get_events,
 )
+from axis.models.events.subscription_contracts import DesiredEventSubscription
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,

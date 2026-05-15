@@ -15,7 +15,7 @@ from .events.topic_normalizer import to_canonical, to_topic_filter
 
 if TYPE_CHECKING:
     from ..models.event import Event
-    from .events.event_extension_contracts import DesiredEventSubscription
+    from ..models.events.subscription_contracts import DesiredEventSubscription
 
 
 class EventInstanceHandler(ApiHandler[EventInstance]):

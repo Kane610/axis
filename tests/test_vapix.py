@@ -15,10 +15,6 @@ from axis.errors import (
     Unauthorized,
 )
 from axis.interfaces.api_handler import HandlerGroup
-from axis.interfaces.events.event_extension_contracts import (
-    DesiredEventSubscription,
-    EventTransport,
-)
 from axis.interfaces.events.unique_id_migration import UNIQUE_ID_MIGRATION_VERSION
 from axis.models.api_discovery import ApiId, ListApisRequest
 from axis.models.applications.application import (
@@ -30,6 +26,10 @@ from axis.models.event_instance import (
     EventInstance,
     EventInstanceData,
     EventInstanceSource,
+)
+from axis.models.events.subscription_contracts import (
+    DesiredEventSubscription,
+    EventTransport,
 )
 from axis.models.light_control import GetLightInformationRequest
 from axis.models.parameters.param_cgi import ParamRequest
