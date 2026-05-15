@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ...models.event_instance import (
+from ...models.events.event_instance import (
     EventInstance,
     ListEventInstancesRequest,
     ListEventInstancesResponse,

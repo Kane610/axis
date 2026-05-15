@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.models.event import Event
-from axis.models.event_instance import (
+from axis.models.events.event_instance import (
     EventInstance,
     EventInstanceData,
     EventInstanceSimpleItem,

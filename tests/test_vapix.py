@@ -21,7 +21,7 @@ from axis.models.applications.application import (
     ListApplicationsRequest,
 )
 from axis.models.basic_device_info import GetAllPropertiesRequest
-from axis.models.event_instance import (
+from axis.models.events.event_instance import (
     EventInstance,
     EventInstanceData,
     EventInstanceSource,
