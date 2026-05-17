@@ -10,6 +10,10 @@ import aiohttp
 
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
+from ..models.events.topic_filter import EventTopicFilter, from_desired_subscriptions
+from ..models.events.transport_capabilities import (
+    TRANSPORT_FILTER_CAPABILITIES,
+)
 from ..models.pwdgrp_cgi import SecondaryGroup
 from .aiohttp_digest import AiohttpDigestAuth
 from .api_discovery import ApiDiscoveryHandler
@@ -21,7 +25,7 @@ from .applications.motion_guard import MotionGuardHandler
 from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
-from .event_instances import EventInstanceHandler
+from .events.event_instances import EventInstanceHandler
 from .light_control import LightHandler
 from .mqtt import MqttClientHandler
 from .parameters.param_cgi import Params
@@ -37,6 +41,11 @@ from .view_areas import ViewAreaHandler
 if TYPE_CHECKING:
     from ..device import AxisDevice
     from ..models.api import ApiRequest
+    from ..models.events.subscription_contracts import (
+        DesiredEventSubscription,
+        EventTransport,
+    )
+    from ..models.events.transport_capabilities import TransportFilterCapability
     from ..models.stream_profile import StreamProfile
 
 LOGGER = logging.getLogger(__name__)
@@ -238,6 +247,83 @@ class Vapix:
     async def initialize_event_instances(self) -> None:
         """Initialize event instances of what events are supported by the device."""
         await self.event_instances.update()
+
+    def get_event_transport_capabilities(
+        self,
+    ) -> dict[EventTransport, TransportFilterCapability]:
+        """Return extension capability matrix for event transports."""
+        return dict(TRANSPORT_FILTER_CAPABILITIES)
+
+    def get_supported_event_descriptors(
+        self,
+        include_internal_topics: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """Return normalized supported-event descriptors from event instances.
+
+        This method is extension-oriented and has no side effects.
+        """
+        return self.event_instances.get_supported_event_descriptors(
+            include_internal_topics=include_internal_topics
+        )
+
+    async def apply_event_transport_filters(
+        self,
+        subscriptions: list[DesiredEventSubscription] | None = None,
+        include_internal_topics: bool = False,
+    ) -> None:
+        """Apply validated transport filters to websocket, MQTT, and local fallback.
+
+        This method performs no implicit event-instance initialization. Callers must
+        invoke ``initialize_event_instances`` before applying filters.
+        """
+        if not self.event_instances.initialized:
+            msg = (
+                "Event instances are not initialized. "
+                "Call initialize_event_instances() first."
+            )
+            raise RuntimeError(msg)
+
+        if subscriptions:
+            event_filter = from_desired_subscriptions(subscriptions)
+        else:
+            supported = self.event_instances.get_supported_topics(
+                include_internal_topics=include_internal_topics
+            )
+            event_filter = (
+                EventTopicFilter.from_topics(list(supported))
+                if supported
+                else EventTopicFilter.for_all_events()
+            )
+
+        if not event_filter.is_wildcard:
+            supported_topics = set(
+                self.event_instances.get_supported_topics(
+                    include_internal_topics=include_internal_topics
+                )
+            )
+            unknown_topics = sorted(
+                set(event_filter.canonical_topics) - supported_topics
+            )
+            if unknown_topics:
+                message = f"Requested unsupported topics: {', '.join(unknown_topics)}"
+                raise ValueError(message)
+
+        self.device.stream.set_event_subscription(event_filter)
+
+        if self.mqtt.supported:
+            await self.mqtt.configure_event_publication(event_filter.mqtt_topic_filters)
+
+        self.device.event.set_allowed_topics(event_filter.canonical_topics or None)
+
+        LOGGER.debug(
+            "Applied event transport filters: websocket=%s mqtt=%s local=%s topics=%s",
+            True,
+            self.mqtt.supported,
+            True,
+            len(event_filter.canonical_topics)
+            if not event_filter.is_wildcard
+            else "all",
+        )
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

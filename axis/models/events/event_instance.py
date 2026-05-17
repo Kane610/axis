@@ -6,7 +6,7 @@ from typing import Any, Self
 
 import xmltodict
 
-from .api import ApiItem, ApiRequest, ApiResponse
+from ..api import ApiItem, ApiRequest, ApiResponse
 from .event import (
     EVENT_OPERATION,
     EVENT_SOURCE,

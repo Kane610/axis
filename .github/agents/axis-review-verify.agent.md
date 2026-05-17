@@ -65,7 +65,7 @@ You are a verification-focused reviewer for the Axis Python repository. Your job
 ## Review Priorities
 1. Correctness and regressions:
 - Handler initialization phase behavior in `axis/interfaces/` (`API_DISCOVERY`, `PARAM_CGI_FALLBACK`, `APPLICATION`).
-- Event/state behavior in `axis/models/event.py` and `axis/models/event_instance.py`.
+- Event/state behavior in `axis/models/event.py` and `axis/models/events/event_instance.py`.
 - Model input normalization and default handling at boundaries.
 2. Reliability and compatibility:
 - Unknown enum and external input handling (`_missing_`, safe defaults).

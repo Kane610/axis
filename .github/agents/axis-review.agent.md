@@ -67,7 +67,7 @@ user-invocable: true
 ## Review Priorities
 1. Correctness and regressions:
 - Behavior changes in `axis/interfaces/` handlers and initialization flow (`API_DISCOVERY`, `PARAM_CGI_FALLBACK`, `APPLICATION`).
-- State/event semantics in `axis/models/event.py` and `axis/models/event_instance.py`.
+- State/event semantics in `axis/models/event.py` and `axis/models/events/event_instance.py`.
 - Input boundary normalization in model constructors or `__post_init__`.
 2. Reliability and compatibility:
 - Unknown enum and external input handling (`_missing_` fallbacks, safe defaults).

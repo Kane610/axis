@@ -15,7 +15,7 @@ from axis.websocket import _parse_ws_notification
 from .event_fixtures import EVENT_INSTANCES, LIGHT_STATUS_INIT, PIR_INIT, VMD4_C1P1_INIT
 
 if TYPE_CHECKING:
-    from axis.interfaces.event_instances import EventInstanceHandler
+    from axis.interfaces.events.event_instances import EventInstanceHandler
 
 
 @pytest.fixture
