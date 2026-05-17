@@ -10,7 +10,7 @@ import aiohttp
 
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
-from ..models.events.topic_normalizer import to_canonical
+from ..models.events.topic_filter import EventTopicFilter, from_desired_subscriptions
 from ..models.events.transport_capabilities import (
     TRANSPORT_FILTER_CAPABILITIES,
 )
@@ -266,87 +266,64 @@ class Vapix:
             include_internal_topics=include_internal_topics
         )
 
-    def build_transport_filter_payloads(
-        self,
-        subscriptions: list[DesiredEventSubscription] | None = None,
-        include_internal_topics: bool = False,
-    ) -> dict[str, list[str]]:
-        """Build transport filter payloads from desired subscriptions.
-
-        This method does not apply filters; it only returns extension payloads.
-        """
-        return self.event_instances.build_transport_filter_payloads(
-            subscriptions=subscriptions,
-            include_internal_topics=include_internal_topics,
-        )
-
-    def plan_event_transport_filters(
-        self,
-        subscriptions: list[DesiredEventSubscription] | None = None,
-        include_internal_topics: bool = False,
-    ) -> dict[str, list[str]]:
-        """Plan validated transport filter payloads from event-instance support data."""
-        payloads = self.build_transport_filter_payloads(
-            subscriptions=subscriptions,
-            include_internal_topics=include_internal_topics,
-        )
-
-        supported_topics = set(
-            self.event_instances.get_supported_topics(
-                include_internal_topics=include_internal_topics
-            )
-        )
-        requested_topics = {
-            to_canonical(topic) for topic in payloads["canonical_topics"]
-        }
-        unknown_topics = sorted(requested_topics - supported_topics)
-        if unknown_topics:
-            message = f"Requested unsupported topics: {', '.join(unknown_topics)}"
-            raise ValueError(message)
-
-        return payloads
-
     async def apply_event_transport_filters(
         self,
         subscriptions: list[DesiredEventSubscription] | None = None,
         include_internal_topics: bool = False,
-        apply_mqtt: bool = True,
-        apply_websocket: bool = True,
-        apply_local_fallback: bool = True,
-    ) -> dict[str, list[str]]:
-        """Apply planned transport filters through optional extension hooks.
+    ) -> None:
+        """Apply validated transport filters to websocket, MQTT, and local fallback.
 
-        This method performs no implicit event-instance initialization. Callers are
-        responsible for invoking ``initialize_event_instances`` before planning.
+        This method performs no implicit event-instance initialization. Callers must
+        invoke ``initialize_event_instances`` before applying filters.
         """
-        payloads = self.plan_event_transport_filters(
-            subscriptions=subscriptions,
-            include_internal_topics=include_internal_topics,
-        )
+        if not self.event_instances.initialized:
+            msg = (
+                "Event instances are not initialized. "
+                "Call initialize_event_instances() first."
+            )
+            raise RuntimeError(msg)
 
-        if apply_websocket:
-            self.device.stream.set_event_filter_list(
-                [
-                    {"topicFilter": topic}
-                    for topic in payloads["websocket_topic_filters"]
-                ]
+        if subscriptions:
+            event_filter = from_desired_subscriptions(subscriptions)
+        else:
+            supported = self.event_instances.get_supported_topics(
+                include_internal_topics=include_internal_topics
+            )
+            event_filter = (
+                EventTopicFilter.from_topics(list(supported))
+                if supported
+                else EventTopicFilter.for_all_events()
             )
 
-        if apply_mqtt and self.mqtt.supported:
-            await self.mqtt.configure_event_publication(payloads["mqtt_topics"])
+        if not event_filter.is_wildcard:
+            supported_topics = set(
+                self.event_instances.get_supported_topics(
+                    include_internal_topics=include_internal_topics
+                )
+            )
+            unknown_topics = sorted(
+                set(event_filter.canonical_topics) - supported_topics
+            )
+            if unknown_topics:
+                message = f"Requested unsupported topics: {', '.join(unknown_topics)}"
+                raise ValueError(message)
 
-        if apply_local_fallback:
-            self.device.event.set_allowed_topics(payloads["canonical_topics"])
+        self.device.stream.set_event_subscription(event_filter)
+
+        if self.mqtt.supported:
+            await self.mqtt.configure_event_publication(event_filter.mqtt_topic_filters)
+
+        self.device.event.set_allowed_topics(event_filter.canonical_topics or None)
 
         LOGGER.debug(
-            "Applied event transport filters: websocket=%s mqtt=%s local=%s topics=%d",
-            apply_websocket,
-            apply_mqtt and self.mqtt.supported,
-            apply_local_fallback,
-            len(payloads["canonical_topics"]),
+            "Applied event transport filters: websocket=%s mqtt=%s local=%s topics=%s",
+            True,
+            self.mqtt.supported,
+            True,
+            len(event_filter.canonical_topics)
+            if not event_filter.is_wildcard
+            else "all",
         )
-
-        return payloads
 
     async def initialize_users(self) -> None:
         """Load device user data and initialize user management."""

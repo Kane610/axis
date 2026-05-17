@@ -16,8 +16,10 @@ class EventTransport(enum.StrEnum):
 
 @dataclass(frozen=True)
 class DesiredEventSubscription:
-    """Transport-agnostic desired event subscription request."""
+    """Transport-agnostic desired event subscription request.
+
+    Deprecated: Use EventTopicFilter.from_topics() instead.
+    Accepted by apply_event_transport_filters() for backward compatibility.
+    """
 
     topic: str
-    source: str | None = None
-    source_ids: tuple[str, ...] | None = None

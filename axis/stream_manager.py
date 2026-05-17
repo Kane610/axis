@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from .models.configuration import WebProtocol
+from .models.events.topic_filter import EventTopicFilter
 from .rtsp import RTSPClient, Signal, State
 from .websocket import WebSocketClient
 
@@ -28,14 +29,13 @@ class StreamManager:
     def __init__(
         self,
         device: AxisDevice,
-        event_filter_list: list[dict[str, str]] | None = None,
     ) -> None:
         """Initialize stream manager."""
         self.device = device
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = False
-        self.event_filter_list = event_filter_list
+        self._event_subscription: EventTopicFilter = EventTopicFilter.for_all_events()
         self.stream: StreamTransport | None = None
 
         self.connection_status_callback: list[Callable[[Signal], None]] = []
@@ -129,11 +129,13 @@ class StreamManager:
     def _build_stream(self) -> StreamTransport:
         """Build transport based on device capabilities and manager settings."""
         if self.use_websocket:
+            mqtt_filters = self._event_subscription.mqtt_topic_filters
             return WebSocketClient(
                 self.device,
                 self.websocket_url,
                 self.session_callback,
-                event_filter_list=self.event_filter_list,
+                event_filter_list=[{"topicFilter": t} for t in mqtt_filters]
+                or [{"topicFilter": "//."}],
             )
 
         return RTSPClient(
@@ -144,9 +146,22 @@ class StreamManager:
             self.session_callback,
         )
 
+    def set_event_subscription(self, request: EventTopicFilter) -> None:
+        """Set the event topic filter for future WebSocket stream sessions."""
+        self._event_subscription = request
+
     def set_event_filter_list(self, event_filter_list: list[dict[str, str]]) -> None:
-        """Set optional websocket event filter list for future stream sessions."""
-        self.event_filter_list = event_filter_list
+        """Set websocket event filter list (deprecated, use set_event_subscription)."""
+        topics = [
+            entry["topicFilter"]
+            for entry in event_filter_list
+            if entry.get("topicFilter") and entry["topicFilter"] != "//."
+        ]
+        self._event_subscription = (
+            EventTopicFilter.from_topics(topics)
+            if topics
+            else EventTopicFilter.for_all_events()
+        )
 
     def session_callback(self, signal: Signal) -> None:
         """Signalling from stream session.

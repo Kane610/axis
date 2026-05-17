@@ -47,14 +47,6 @@ class EventManager:
 
         self._allowed_topics = {to_canonical(topic) for topic in topics}
 
-    def seed_known_events(self, events: list[Event]) -> None:
-        """Seed known topics from expected startup events.
-
-        This extension hook is no-op unless explicitly invoked by a caller.
-        """
-        for event in events:
-            self._known_topics.add(f"{to_canonical(event.topic)}_{event.id}")
-
     def handler(self, data: bytes | dict[str, Any]) -> None:
         """Create event and pass it along to subscribers."""
         event = Event.decode(data)
