@@ -9,7 +9,7 @@ from ...models.events.event_instance import (
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )
-from ...models.events.topic_normalizer import to_canonical, to_topic_filter
+from ...models.events.topic_filter import to_canonical, to_topic_filter
 from ..api_handler import ApiHandler
 from .event_manager import BLACK_LISTED_TOPICS
 

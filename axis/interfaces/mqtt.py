@@ -3,7 +3,7 @@
 from typing import Any
 
 from ..models.api_discovery import ApiId
-from ..models.events.topic_normalizer import to_topic_filter
+from ..models.events.topic_filter import to_topic_filter
 from ..models.mqtt import (
     API_VERSION,
     ActivateClientRequest,

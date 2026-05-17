@@ -1,6 +1,6 @@
 """Tests for event topic normalization extension contract."""
 
-from axis.models.events.topic_normalizer import (
+from axis.models.events.topic_filter import (
     detect_format,
     to_canonical,
     to_mqtt,
