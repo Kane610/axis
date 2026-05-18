@@ -39,3 +39,11 @@ def test_allowed_topics_filter_is_opt_in() -> None:
         "tns1:Device/tnsaxis:Sensor/PIR",
         "tns1:Device/tnsaxis:Light/Status",
     ]
+
+    manager.set_allowed_topics(None)
+    manager.handler(light_event)
+    assert received == [
+        "tns1:Device/tnsaxis:Sensor/PIR",
+        "tns1:Device/tnsaxis:Light/Status",
+        "tns1:Device/tnsaxis:Light/Status",
+    ]

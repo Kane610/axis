@@ -150,19 +150,6 @@ class StreamManager:
         """Set the event topic filter for future WebSocket stream sessions."""
         self._event_subscription = request
 
-    def set_event_filter_list(self, event_filter_list: list[dict[str, str]]) -> None:
-        """Set websocket event filter list (deprecated, use set_event_subscription)."""
-        topics = [
-            entry["topicFilter"]
-            for entry in event_filter_list
-            if entry.get("topicFilter") and entry["topicFilter"] != "//."
-        ]
-        self._event_subscription = (
-            EventTopicFilter.from_topics(topics)
-            if topics
-            else EventTopicFilter.for_all_events()
-        )
-
     def session_callback(self, signal: Signal) -> None:
         """Signalling from stream session.
 

@@ -26,11 +26,8 @@ from axis.models.events.event_instance import (
     EventInstanceData,
     EventInstanceSource,
 )
-from axis.models.events.subscription_contracts import (
-    DesiredEventSubscription,
-    EventTransport,
-)
 from axis.models.events.topic_filter import EventTopicFilter
+from axis.models.events.transport_capabilities import EventTransport
 from axis.models.light_control import GetLightInformationRequest
 from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_management import GetPortsRequest
@@ -153,9 +150,7 @@ async def test_apply_event_transport_filters_requires_initialized_event_instance
     """Applying filters should require event-instance initialization."""
     with pytest.raises(RuntimeError, match="Event instances are not initialized"):
         await vapix.apply_event_transport_filters(
-            subscriptions=[
-                DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")
-            ]
+            event_filter=EventTopicFilter.from_topics(["onvif:Device/axis:Sensor/PIR"])
         )
 
 
@@ -181,15 +176,15 @@ async def test_apply_event_transport_filters_validates_supported_topics(
     vapix.event_instances.initialized = True
 
     payloads = await vapix.apply_event_transport_filters(
-        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")]
+        event_filter=EventTopicFilter.from_topics(["onvif:Device/axis:Sensor/PIR"])
     )
     assert payloads is None
 
     with pytest.raises(ValueError, match="Requested unsupported topics"):
         await vapix.apply_event_transport_filters(
-            subscriptions=[
-                DesiredEventSubscription(topic="onvif:Device/axis:Status/SystemReady")
-            ]
+            event_filter=EventTopicFilter.from_topics(
+                ["onvif:Device/axis:Status/SystemReady"]
+            )
         )
 
 
@@ -237,7 +232,7 @@ async def test_apply_event_transport_filters_calls_transport_hooks(
     )
 
     await vapix.apply_event_transport_filters(
-        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")]
+        event_filter=EventTopicFilter.from_topics(["onvif:Device/axis:Sensor/PIR"])
     )
 
     assert len(captured_subscriptions) == 1
@@ -288,7 +283,7 @@ async def test_apply_event_transport_filters_skips_unsupported_mqtt(
     )
 
     await vapix.apply_event_transport_filters(
-        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")],
+        event_filter=EventTopicFilter.from_topics(["onvif:Device/axis:Sensor/PIR"]),
     )
 
     assert len(captured_subscriptions) == 1

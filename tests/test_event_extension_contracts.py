@@ -1,8 +1,8 @@
 """Tests for extension contract capability matrix."""
 
-from axis.models.events.subscription_contracts import EventTransport
 from axis.models.events.transport_capabilities import (
     TRANSPORT_FILTER_CAPABILITIES,
+    EventTransport,
 )
 
 

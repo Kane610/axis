@@ -6,8 +6,7 @@ pytest --cov-report term-missing --cov=axis.models.events.topic_filter tests/tes
 import pytest
 
 from axis.models.events.event import EventTopic
-from axis.models.events.subscription_contracts import DesiredEventSubscription
-from axis.models.events.topic_filter import EventTopicFilter, from_desired_subscriptions
+from axis.models.events.topic_filter import EventTopicFilter
 
 
 class TestForAllEvents:
@@ -123,24 +122,3 @@ class TestFromTopics:
         """from_topics result is hashable."""
         f = EventTopicFilter.from_topics(["tns1:Device/tnsaxis:Sensor/PIR"])
         assert isinstance(hash(f), int)
-
-
-class TestFromDesiredSubscriptions:
-    """Tests for the from_desired_subscriptions() compat helper."""
-
-    def test_builds_from_desired_subscriptions(self) -> None:
-        """from_desired_subscriptions bridges DesiredEventSubscription objects."""
-        subscriptions = [
-            DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR"),
-            DesiredEventSubscription(topic="tns1:Device/tnsaxis:IO/Port"),
-        ]
-        f = from_desired_subscriptions(subscriptions)
-        assert f.canonical_topics == [
-            "tns1:Device/tnsaxis:IO/Port",
-            "tns1:Device/tnsaxis:Sensor/PIR",
-        ]
-
-    def test_empty_raises(self) -> None:
-        """Empty subscriptions list raises ValueError."""
-        with pytest.raises(ValueError, match="topics must not be empty"):
-            from_desired_subscriptions([])

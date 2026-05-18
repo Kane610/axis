@@ -10,7 +10,7 @@ import aiohttp
 
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
-from ..models.events.topic_filter import EventTopicFilter, from_desired_subscriptions
+from ..models.events.topic_filter import EventTopicFilter
 from ..models.events.transport_capabilities import (
     TRANSPORT_FILTER_CAPABILITIES,
 )
@@ -41,11 +41,10 @@ from .view_areas import ViewAreaHandler
 if TYPE_CHECKING:
     from ..device import AxisDevice
     from ..models.api import ApiRequest
-    from ..models.events.subscription_contracts import (
-        DesiredEventSubscription,
+    from ..models.events.transport_capabilities import (
         EventTransport,
+        TransportFilterCapability,
     )
-    from ..models.events.transport_capabilities import TransportFilterCapability
     from ..models.stream_profile import StreamProfile
 
 LOGGER = logging.getLogger(__name__)
@@ -268,7 +267,7 @@ class Vapix:
 
     async def apply_event_transport_filters(
         self,
-        subscriptions: list[DesiredEventSubscription] | None = None,
+        event_filter: EventTopicFilter | None = None,
         include_internal_topics: bool = False,
     ) -> None:
         """Apply validated transport filters to websocket, MQTT, and local fallback.
@@ -283,9 +282,7 @@ class Vapix:
             )
             raise RuntimeError(msg)
 
-        if subscriptions:
-            event_filter = from_desired_subscriptions(subscriptions)
-        else:
+        if event_filter is None:
             supported = self.event_instances.get_supported_topics(
                 include_internal_topics=include_internal_topics
             )

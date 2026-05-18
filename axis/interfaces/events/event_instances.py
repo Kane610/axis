@@ -9,13 +9,16 @@ from ...models.events.event_instance import (
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )
-from ...models.events.topic_filter import to_canonical, to_topic_filter
+from ...models.events.topic_filter import (
+    EventTopicFilter,
+    to_canonical,
+    to_topic_filter,
+)
 from ..api_handler import ApiHandler
 from .event_manager import BLACK_LISTED_TOPICS
 
 if TYPE_CHECKING:
     from ...models.event import Event
-    from ...models.events.subscription_contracts import DesiredEventSubscription
 
 
 class EventInstanceHandler(ApiHandler[EventInstance]):
@@ -79,16 +82,14 @@ class EventInstanceHandler(ApiHandler[EventInstance]):
 
     def build_transport_filter_payloads(
         self,
-        subscriptions: list[DesiredEventSubscription] | None = None,
+        event_filter: EventTopicFilter | None = None,
         include_internal_topics: bool = False,
     ) -> dict[str, list[str]]:
         """Build no-op extension payloads for MQTT and WebSocket topic filters."""
-        if subscriptions:
-            topics = sorted(
-                {to_canonical(subscription.topic) for subscription in subscriptions}
-            )
-        else:
+        if event_filter is None or event_filter.is_wildcard:
             topics = list(self.get_supported_topics(include_internal_topics))
+        else:
+            topics = event_filter.canonical_topics
 
         topic_filters = [to_topic_filter(topic) for topic in topics]
 

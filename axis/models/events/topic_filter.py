@@ -1,4 +1,11 @@
-"""Event topic filter and namespace conversion utilities."""
+"""Topic-domain primitives for event filtering.
+
+This module owns two related concerns:
+1) Topic namespace conversion helpers between canonical (tns1/tnsaxis)
+    and transport-facing MQTT/websocket format (onvif/axis).
+2) The EventTopicFilter value object used by callers to describe a
+    wildcard subscription or a normalized set of explicit topics.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +16,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from .event import EventTopic
-    from .subscription_contracts import DesiredEventSubscription
 
 # ---------------------------------------------------------------------------
 # Topic namespace conversion
@@ -34,22 +40,38 @@ def _convert_topic(topic: str, mapping: dict[str, str]) -> str:
 
 
 def to_canonical(topic: str) -> str:
-    """Convert topic namespaces to canonical (tns1/tnsaxis) representation."""
+    """Convert topic namespaces to canonical (tns1/tnsaxis) representation.
+
+    This is the internal normalization format used across filtering and
+    local allow-list comparisons.
+    """
     return _convert_topic(topic, {"onvif": "tns1", "axis": "tnsaxis"})
 
 
 def to_mqtt(topic: str) -> str:
-    """Convert topic namespaces to MQTT (onvif/axis) representation."""
+    """Convert topic namespaces to MQTT (onvif/axis) representation.
+
+    Used for outbound transport configuration where the device API expects
+    onvif/axis prefixes.
+    """
     return _convert_topic(topic, {"tns1": "onvif", "tnsaxis": "axis"})
 
 
 def to_topic_filter(topic: str) -> str:
-    """Convert canonical topic to topic-filter namespace representation."""
+    """Convert canonical topic to transport topic-filter representation.
+
+    Today this is equivalent to MQTT representation and is kept as a named
+    helper to make intent explicit at call sites.
+    """
     return to_mqtt(topic)
 
 
 def detect_format(topic: str) -> SegmentFormat:
-    """Detect topic namespace format from segment prefixes."""
+    """Detect topic namespace format from segment prefixes.
+
+    Returns canonical, mqtt, or unknown. Unknown means no known namespace
+    prefixes were found in any topic segment.
+    """
     segments = topic.split("/")
 
     if any(
@@ -82,7 +104,8 @@ class EventTopicFilter:
     output properties. Wire-format construction (e.g. WebSocket dict shape)
     is the responsibility of the transport layer.
 
-    Do not construct directly — use the provided classmethods.
+    Do not construct directly; prefer for_all_events() and from_topics().
+    This keeps wildcard and normalization behavior centralized.
     """
 
     # None means wildcard (subscribe to all); never empty frozenset.
@@ -108,7 +131,8 @@ class EventTopicFilter:
         Accepts topics in any format: canonical (tns1/tnsaxis), MQTT (onvif/axis),
         or EventTopic enum. All inputs are normalized to canonical form.
 
-        Raises ValueError if topics is empty — use for_all_events() for wildcard.
+        Duplicate logical topics are collapsed after normalization.
+        Raises ValueError if topics is empty; use for_all_events() for wildcard.
         """
         if not topics:
             msg = "topics must not be empty; use EventTopicFilter.for_all_events() to subscribe to all events"
@@ -148,14 +172,3 @@ class EventTopicFilter:
         if self._topics is None:
             return []
         return sorted(to_topic_filter(t) for t in self._topics)
-
-
-def from_desired_subscriptions(
-    subscriptions: Sequence[DesiredEventSubscription],
-) -> EventTopicFilter:
-    """Build an EventTopicFilter from legacy DesiredEventSubscription objects.
-
-    Compatibility helper for callers that construct DesiredEventSubscription.
-    Prefer EventTopicFilter.from_topics() for new code.
-    """
-    return EventTopicFilter.from_topics([s.topic for s in subscriptions])

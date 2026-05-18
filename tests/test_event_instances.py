@@ -15,7 +15,7 @@ from axis.models.events.event_instance import (
     EventInstanceSource,
     get_events,
 )
-from axis.models.events.subscription_contracts import DesiredEventSubscription
+from axis.models.events.topic_filter import EventTopicFilter, to_topic_filter
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,
@@ -377,13 +377,34 @@ async def test_supported_event_descriptors_and_filter_payloads(
     )
 
     payloads = event_instances.build_transport_filter_payloads(
-        subscriptions=[DesiredEventSubscription(topic="onvif:Device/axis:Sensor/PIR")]
+        event_filter=EventTopicFilter.from_topics(["onvif:Device/axis:Sensor/PIR"])
     )
     assert payloads == {
         "canonical_topics": ["tns1:Device/tnsaxis:Sensor/PIR"],
         "mqtt_topics": ["onvif:Device/axis:Sensor/PIR"],
         "websocket_topic_filters": ["onvif:Device/axis:Sensor/PIR"],
     }
+
+
+async def test_transport_filter_payloads_default_to_supported_topics(
+    http_route_mock, event_instances
+) -> None:
+    """No explicit filter should build payloads from supported topics."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    expected_topics = list(event_instances.get_supported_topics())
+    payloads = event_instances.build_transport_filter_payloads()
+
+    assert payloads["canonical_topics"] == expected_topics
+    assert payloads["mqtt_topics"] == [
+        to_topic_filter(topic) for topic in expected_topics
+    ]
+    assert payloads["websocket_topic_filters"] == payloads["mqtt_topics"]
 
 
 async def test_expected_events_protocol_normalization(http_route_mock, event_instances):

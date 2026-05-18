@@ -127,14 +127,16 @@ async def test_start_uses_websocket_when_supported(
 async def test_stream_manager_passes_event_filter_list_to_websocket(
     websocket_client, rtsp_client, stream_manager
 ):
-    """Deprecated set_event_filter_list bridge should forward filter to websocket."""
+    """set_event_subscription should forward filter to websocket."""
     websocket_client.return_value.start = AsyncMock()
     stream_manager.event = True
     stream_manager.device.config.websocket_enabled = True
     stream_manager.device.vapix.api_discovery._items[
         ApiId.EVENT_STREAMING_OVER_WEBSOCKET
     ] = MagicMock()
-    stream_manager.set_event_filter_list([{"topicFilter": "onvif:Device//."}])
+    stream_manager.set_event_subscription(
+        EventTopicFilter.from_topics(["onvif:Device//."])
+    )
 
     stream_manager.start()
 
