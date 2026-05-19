@@ -22,10 +22,10 @@ class TestForAllEvents:
         f = EventTopicFilter.for_all_events()
         assert f.canonical_topics == []
 
-    def test_mqtt_topic_filters_empty(self) -> None:
-        """Wildcard returns empty mqtt_topic_filters list."""
+    def test_transport_topic_filters_empty(self) -> None:
+        """Wildcard returns empty transport_topic_filters list."""
         f = EventTopicFilter.for_all_events()
-        assert f.mqtt_topic_filters == []
+        assert f.transport_topic_filters == []
 
     def test_equality(self) -> None:
         """Two wildcard instances are equal."""
@@ -85,7 +85,7 @@ class TestFromTopics:
         assert f.canonical_topics == ["tns1:Device/tnsaxis:Sensor/PIR"]
 
     def test_sorted_output(self) -> None:
-        """canonical_topics and mqtt_topic_filters return sorted lists."""
+        """canonical_topics and transport_topic_filters return sorted lists."""
         f = EventTopicFilter.from_topics(
             [
                 "tns1:Device/tnsaxis:Sensor/PIR",
@@ -96,15 +96,15 @@ class TestFromTopics:
             "tns1:Device/tnsaxis:IO/Port",
             "tns1:Device/tnsaxis:Sensor/PIR",
         ]
-        assert f.mqtt_topic_filters == [
+        assert f.transport_topic_filters == [
             "onvif:Device/axis:IO/Port",
             "onvif:Device/axis:Sensor/PIR",
         ]
 
-    def test_mqtt_topic_filters_conversion(self) -> None:
-        """mqtt_topic_filters returns MQTT-format strings."""
+    def test_transport_topic_filters_conversion(self) -> None:
+        """transport_topic_filters returns MQTT-format strings."""
         f = EventTopicFilter.from_topics(["tns1:Device/tnsaxis:Sensor/PIR"])
-        assert f.mqtt_topic_filters == ["onvif:Device/axis:Sensor/PIR"]
+        assert f.transport_topic_filters == ["onvif:Device/axis:Sensor/PIR"]
 
     def test_immutable(self) -> None:
         """EventTopicFilter is immutable (frozen dataclass)."""

@@ -162,7 +162,7 @@ class EventTopicFilter:
         return sorted(self._topics)
 
     @property
-    def mqtt_topic_filters(self) -> list[str]:
+    def transport_topic_filters(self) -> list[str]:
         """Sorted MQTT (onvif/axis) topic filter strings.
 
         Consumed by MqttClientHandler.configure_event_publication().

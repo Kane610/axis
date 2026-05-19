@@ -99,7 +99,7 @@ class EventTransportManager:
 
         if self._mqtt.supported:
             await self._mqtt.configure_event_publication(
-                event_filter.mqtt_topic_filters
+                event_filter.transport_topic_filters
             )
 
         self._event.set_allowed_topics(event_filter.canonical_topics or None)

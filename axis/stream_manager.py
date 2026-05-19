@@ -129,12 +129,12 @@ class StreamManager:
     def _build_stream(self) -> StreamTransport:
         """Build transport based on device capabilities and manager settings."""
         if self.use_websocket:
-            mqtt_filters = self._event_subscription.mqtt_topic_filters
+            topic_filters = self._event_subscription.transport_topic_filters
             return WebSocketClient(
                 self.device,
                 self.websocket_url,
                 self.session_callback,
-                event_filter_list=[{"topicFilter": t} for t in mqtt_filters]
+                event_filter_list=[{"topicFilter": t} for t in topic_filters]
                 or [{"topicFilter": "//."}],
             )
 
