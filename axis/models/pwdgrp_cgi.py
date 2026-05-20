@@ -2,9 +2,7 @@
 
 from dataclasses import dataclass
 import enum
-from typing import Self
-
-from typing_extensions import TypedDict
+from typing import Self, TypedDict
 
 from .api import ApiItem, ApiRequest, ApiResponse
 

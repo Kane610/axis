@@ -2,12 +2,12 @@
 
 from abc import abstractmethod
 
-from ...models.api import ApiItemT
+from ...models.api import ApiItem
 from ...models.applications.application import ApplicationName, ApplicationStatus
 from ..api_handler import ApiHandler, HandlerGroup
 
 
-class ApplicationHandler(ApiHandler[ApiItemT]):
+class ApplicationHandler[ApiItemT: ApiItem](ApiHandler[ApiItemT]):
     """Generic application handler."""
 
     app_name: ApplicationName

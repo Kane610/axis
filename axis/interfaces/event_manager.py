@@ -6,13 +6,13 @@ from typing import Any
 
 from ..models.event import Event, EventOperation, EventTopic
 
-SubscriptionCallback = Callable[[Event], None]
-SubscriptionType = tuple[
+type SubscriptionCallback = Callable[[Event], None]
+type SubscriptionType = tuple[
     SubscriptionCallback,
     tuple[EventTopic, ...] | None,
     tuple[EventOperation, ...] | None,
 ]
-UnsubscribeType = Callable[[], None]
+type UnsubscribeType = Callable[[], None]
 
 ID_FILTER_ALL = "*"
 

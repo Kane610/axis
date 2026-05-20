@@ -9,7 +9,7 @@ from collections.abc import (
     ValuesView,
 )
 import enum
-from typing import TYPE_CHECKING, Generic, final
+from typing import TYPE_CHECKING, final
 
 from ..errors import Forbidden, PathNotFound, Unauthorized
 
@@ -17,11 +17,11 @@ if TYPE_CHECKING:
     from ..models.api_discovery import ApiId
     from .vapix import Vapix
 
-from ..models.api import ApiItemT
+from ..models.api import ApiItem
 
-CallbackType = Callable[[str], None]
-SubscriptionType = CallbackType
-UnsubscribeType = Callable[[], None]
+type CallbackType = Callable[[str], None]
+type SubscriptionType = CallbackType
+type UnsubscribeType = Callable[[], None]
 
 ID_FILTER_ALL = "*"
 
@@ -79,7 +79,7 @@ class SubscriptionHandler:
         return unsubscribe
 
 
-class ApiHandler(SubscriptionHandler, Generic[ApiItemT]):
+class ApiHandler[ApiItemT: ApiItem](SubscriptionHandler):
     """Base class for a map of API Items."""
 
     api_id: ApiId | None = None
