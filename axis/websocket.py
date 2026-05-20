@@ -9,8 +9,6 @@ Incoming ``events:notify`` JSON messages are parsed into the internal event
 dict format accepted by EventManager.handler().
 """
 
-from __future__ import annotations
-
 import asyncio
 from collections import deque
 import enum

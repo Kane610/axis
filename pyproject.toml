@@ -148,7 +148,7 @@ lint.select = [
     "TD",   # flake8-todos
     # "TID", # flake8-tidy-imports
     # "TRY", # tryceratops
-    "UP", # pyupgrade
+    "UP", # pyupgrade -- PEP 695 enforcement: UP040 (type aliases), UP046 (generic classes), UP047 (generic functions)
     "W",  # pycodestyle
 ]
 
@@ -168,7 +168,7 @@ lint.ignore = [
 ]
 
 [tool.ruff.per-file-target-version]
-"axis/__main__.py" = "py313"
+"axis/__main__.py" = "py314"
 
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
