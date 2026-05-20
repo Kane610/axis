@@ -135,6 +135,12 @@ All code must pass strict `mypy` (see `[tool.mypy]` in `pyproject.toml`). Key re
 - `disallow_any_generics = true` — avoid bare `list`, `dict`, `tuple`; use parameterized forms.
 - Guard imports only needed for type checking with `if TYPE_CHECKING:`.
 
+This project uses PEP 695 syntax for new or updated typing code:
+
+- Use class type parameters instead of `Generic[...]` base classes.
+- Use `type` statements for aliases instead of assignment-style aliases.
+- Do not introduce new module-level `TypeVar(...)` declarations when class or function type parameters are sufficient.
+
 ## Tests
 
 Tests live in `tests/` and mirror the `axis/` structure. Use the nearest relevant test module for any behavior change.
