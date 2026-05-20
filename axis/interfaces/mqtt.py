@@ -3,6 +3,7 @@
 from typing import Any
 
 from ..models.api_discovery import ApiId
+from ..models.events.topic_filter import to_topic_filter
 from ..models.mqtt import (
     API_VERSION,
     ActivateClientRequest,
@@ -66,12 +67,28 @@ class MqttClientHandler(ApiHandler[Any]):
         response = GetEventPublicationConfigResponse.decode(bytes_data)
         return response.data
 
+    def build_topic_filters(
+        self, topics: list[str], normalize_topics: bool = False
+    ) -> list[str]:
+        """Build MQTT topic filters.
+
+        Defaults preserve previous behavior unless normalization is requested.
+        """
+        normalized = (
+            [to_topic_filter(topic) for topic in topics] if normalize_topics else topics
+        )
+        # Preserve input order while deduplicating.
+        return list(dict.fromkeys(normalized))
+
     async def configure_event_publication(
-        self, topics: list[str] = DEFAULT_TOPICS
+        self,
+        topics: list[str] = DEFAULT_TOPICS,
+        normalize_topics: bool = False,
     ) -> None:
         """Configure MQTT Client event publication."""
+        topic_filters = self.build_topic_filters(topics, normalize_topics)
         event_filters = EventFilter.from_list(
-            [{"topicFilter": topic} for topic in topics]
+            [{"topicFilter": topic} for topic in topic_filters]
         )
         config = EventPublicationConfig(event_filter_list=event_filters)
         await self.vapix.api_request(

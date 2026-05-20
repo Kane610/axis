@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from .models.configuration import WebProtocol
+from .models.events.topic_filter import EventTopicFilter
 from .rtsp import RTSPClient, Signal, State
 from .websocket import WebSocketClient
 
@@ -25,12 +26,16 @@ RETRY_TIMER = 15
 class StreamManager:
     """Setup, start, stop and retry stream."""
 
-    def __init__(self, device: AxisDevice) -> None:
+    def __init__(
+        self,
+        device: AxisDevice,
+    ) -> None:
         """Initialize stream manager."""
         self.device = device
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
         self.event = False
+        self._event_subscription: EventTopicFilter = EventTopicFilter.for_all_events()
         self.stream: StreamTransport | None = None
 
         self.connection_status_callback: list[Callable[[Signal], None]] = []
@@ -124,10 +129,13 @@ class StreamManager:
     def _build_stream(self) -> StreamTransport:
         """Build transport based on device capabilities and manager settings."""
         if self.use_websocket:
+            topic_filters = self._event_subscription.transport_topic_filters
             return WebSocketClient(
                 self.device,
                 self.websocket_url,
                 self.session_callback,
+                event_filter_list=[{"topicFilter": t} for t in topic_filters]
+                or [{"topicFilter": "//."}],
             )
 
         return RTSPClient(
@@ -137,6 +145,10 @@ class StreamManager:
             self.device.config.password,
             self.session_callback,
         )
+
+    def set_event_subscription(self, request: EventTopicFilter) -> None:
+        """Set the event topic filter for future WebSocket stream sessions."""
+        self._event_subscription = request
 
     def session_callback(self, signal: Signal) -> None:
         """Signalling from stream session.

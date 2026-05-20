@@ -8,13 +8,14 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.models.event import Event
-from axis.models.event_instance import (
+from axis.models.events.event_instance import (
     EventInstance,
     EventInstanceData,
     EventInstanceSimpleItem,
     EventInstanceSource,
     get_events,
 )
+from axis.models.events.topic_filter import EventTopicFilter, to_topic_filter
 
 from .event_fixtures import (
     EVENT_INSTANCE_PIR_SENSOR,
@@ -27,7 +28,7 @@ from .event_fixtures import (
 )
 
 if TYPE_CHECKING:
-    from axis.interfaces.event_instances import EventInstanceHandler
+    from axis.interfaces.events.event_instances import EventInstanceHandler
 
 
 @pytest.fixture
@@ -355,6 +356,55 @@ async def test_event_instance_synthesizes_unknown_topics(
     assert (
         per_topic["tns1:Media/ProfileChanged"][0].topic == "tns1:Media/ProfileChanged"
     )
+
+
+async def test_supported_event_descriptors_and_filter_payloads(
+    http_route_mock, event_instances
+) -> None:
+    """Extension helpers should expose normalized descriptors and payloads."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    descriptors = event_instances.get_supported_event_descriptors()
+    assert "tns1:Device/tnsaxis:Sensor/PIR" in descriptors
+    assert (
+        descriptors["tns1:Device/tnsaxis:Sensor/PIR"]["topic_filter"]
+        == "onvif:Device/axis:Sensor/PIR"
+    )
+
+    payloads = event_instances.build_transport_filter_payloads(
+        event_filter=EventTopicFilter.from_topics(["onvif:Device/axis:Sensor/PIR"])
+    )
+    assert payloads == {
+        "canonical_topics": ["tns1:Device/tnsaxis:Sensor/PIR"],
+        "mqtt_topics": ["onvif:Device/axis:Sensor/PIR"],
+        "websocket_topic_filters": ["onvif:Device/axis:Sensor/PIR"],
+    }
+
+
+async def test_transport_filter_payloads_default_to_supported_topics(
+    http_route_mock, event_instances
+) -> None:
+    """No explicit filter should build payloads from supported topics."""
+    http_route_mock.post("/vapix/services").respond(
+        text=EVENT_INSTANCES,
+        headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+    )
+
+    await event_instances.update()
+
+    expected_topics = list(event_instances.get_supported_topics())
+    payloads = event_instances.build_transport_filter_payloads()
+
+    assert payloads["canonical_topics"] == expected_topics
+    assert payloads["mqtt_topics"] == [
+        to_topic_filter(topic) for topic in expected_topics
+    ]
+    assert payloads["websocket_topic_filters"] == payloads["mqtt_topics"]
 
 
 async def test_expected_events_protocol_normalization(http_route_mock, event_instances):
