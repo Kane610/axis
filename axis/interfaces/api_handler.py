@@ -62,6 +62,8 @@ class SubscriptionHandler:
             _id_filter = (ID_FILTER_ALL,)
         elif isinstance(id_filter, str):
             _id_filter = (id_filter,)
+        else:
+            _id_filter = id_filter
 
         for obj_id in _id_filter:
             if obj_id not in self._subscribers:
