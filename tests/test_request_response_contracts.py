@@ -83,13 +83,28 @@ from axis.models.pir_sensor_configuration import (
     ListSensorsRequest,
     ListSensorsResponse,
 )
+from axis.models.port_cgi import PortActionRequest
 from axis.models.port_management import (
     GetPortsRequest,
     GetPortsResponse,
     GetSupportedVersionsRequest as PortManagementGetSupportedVersionsRequest,
     GetSupportedVersionsResponse as PortManagementGetSupportedVersionsResponse,
+    SetPortsRequest,
+    SetStateSequenceRequest,
 )
-from axis.models.pwdgrp_cgi import GetUsersRequest, GetUsersResponse
+from axis.models.ptz_cgi import (
+    DeviceDriverRequest,
+    PtzCommandRequest,
+    PtzControlRequest,
+    QueryRequest,
+)
+from axis.models.pwdgrp_cgi import (
+    CreateUserRequest,
+    DeleteUserRequest,
+    GetUsersRequest,
+    GetUsersResponse,
+    ModifyUserRequest,
+)
 from axis.models.stream_profile import (
     GetSupportedVersionsRequest as StreamProfileGetSupportedVersionsRequest,
     GetSupportedVersionsResponse as StreamProfileGetSupportedVersionsResponse,
@@ -187,3 +202,23 @@ from axis.models.view_area import (
 def test_request_response_type_contracts(request_cls, response_cls) -> None:
     """Verify request classes expose the intended typed response contract."""
     assert request_cls.response_type is response_cls
+
+
+@pytest.mark.parametrize(
+    "request_cls",
+    [
+        PortActionRequest,
+        SetPortsRequest,
+        SetStateSequenceRequest,
+        CreateUserRequest,
+        ModifyUserRequest,
+        DeleteUserRequest,
+        PtzControlRequest,
+        QueryRequest,
+        DeviceDriverRequest,
+        PtzCommandRequest,
+    ],
+)
+def test_write_and_bytes_requests_have_no_response_contract(request_cls) -> None:
+    """Verify non-decoded request classes keep an empty typed response contract."""
+    assert request_cls.response_type is None
