@@ -676,6 +676,7 @@ class GetClientStatusRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/mqtt/client.cgi"
     content_type = "application/json"
+    response_type = GetClientStatusResponse
     error_codes = general_error_codes
 
     api_version: str = API_VERSION
@@ -724,6 +725,7 @@ class GetEventPublicationConfigRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/mqtt/event.cgi"
     content_type = "application/json"
+    response_type = GetEventPublicationConfigResponse
     error_codes = general_error_codes
 
     api_version: str = API_VERSION
