@@ -26,6 +26,7 @@ from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_management import GetPortsRequest
 from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.models.stream_profile import ListStreamProfilesRequest, StreamProfile
+from axis.models.user_group import GetUserGroupRequest, GetUserGroupResponse
 from axis.models.view_area import ListViewAreasRequest, ListViewAreasResponse
 
 from .applications.test_applications import (
@@ -352,6 +353,25 @@ async def test_api_request_typed_requires_response_type(vapix: Vapix):
     """Verify typed request helper errors when request has no response contract."""
     with pytest.raises(ValueError, match="No response type configured"):
         await vapix.api_request_typed(ParamRequest())
+
+
+async def test_api_request_typed_accepts_explicit_response_type(
+    mock_vapix_request, vapix: Vapix
+):
+    """Verify typed helper accepts an explicit response type override argument."""
+    mock_vapix_request(
+        GetUserGroupRequest,
+        text="root\nroot admin operator ptz viewer\n",
+        headers={"Content-Type": "text/plain"},
+    )
+
+    response = await vapix.api_request_typed(
+        GetUserGroupRequest(),
+        response_type=GetUserGroupResponse,
+    )
+
+    assert isinstance(response, GetUserGroupResponse)
+    assert response.data["0"].admin
 
 
 async def test_initialize_api_discovery_unauthorized(http_route_mock, vapix: Vapix):

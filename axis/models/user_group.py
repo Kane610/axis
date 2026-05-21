@@ -43,3 +43,6 @@ class GetUserGroupResponse(ApiResponse[dict[str, User]]):
             "ptz": "ptz" in group_list,
         }
         return cls(data={"0": User.decode(user)})
+
+
+GetUserGroupRequest.response_type = GetUserGroupResponse
