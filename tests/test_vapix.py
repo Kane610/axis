@@ -390,20 +390,17 @@ async def test_api_request_typed_requires_response_type(vapix: Vapix):
         await vapix.api_request_typed(SetPortsRequest(PortConfiguration(port="0")))
 
 
-async def test_api_request_typed_accepts_explicit_response_type(
+async def test_api_request_typed_decodes_using_request_response_type(
     mock_vapix_request, vapix: Vapix
 ):
-    """Verify typed helper accepts an explicit response type override argument."""
+    """Verify typed helper decodes response using the request's response_type contract."""
     mock_vapix_request(
         GetUserGroupRequest,
         text="root\nroot admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
     )
 
-    response = await vapix.api_request_typed(
-        GetUserGroupRequest(),
-        response_type=GetUserGroupResponse,
-    )
+    response = await vapix.api_request_typed(GetUserGroupRequest())
 
     assert isinstance(response, GetUserGroupResponse)
     assert response.data["0"].admin

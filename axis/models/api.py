@@ -30,7 +30,7 @@ class ApiItem(ABC):
 
 
 @dataclass
-class ApiResponseSupportDecode(ABC):
+class ApiResponseBase(ABC):
     """Response from API request."""
 
     @classmethod
@@ -40,7 +40,7 @@ class ApiResponseSupportDecode(ABC):
 
 
 @dataclass
-class ApiResponse[ApiDataT](ApiResponseSupportDecode):
+class ApiResponse[ApiDataT](ApiResponseBase):
     """Response from API request."""
 
     data: ApiDataT
@@ -54,7 +54,7 @@ class ApiRequest:
     method: str = field(init=False)
     path: str = field(init=False)
     content_type: str = field(init=False)
-    response_type: ClassVar[type[ApiResponseSupportDecode] | None] = None
+    response_type: ClassVar[type[ApiResponseBase] | None] = None
 
     @property
     def content(self) -> bytes | None:

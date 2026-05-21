@@ -34,7 +34,7 @@ from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
-    from ..models.api import ApiRequest, ApiResponseSupportDecode
+    from ..models.api import ApiRequest, ApiResponseBase
     from ..models.stream_profile import StreamProfile
 
 LOGGER = logging.getLogger(__name__)
@@ -268,22 +268,17 @@ class Vapix:
             params=params,
         )
 
-    async def api_request_typed[ApiResponseT: ApiResponseSupportDecode](
+    async def api_request_typed[ApiResponseT: ApiResponseBase](
         self,
         api_request: ApiRequest,
-        response_type: type[ApiResponseT] | None = None,
     ) -> ApiResponseT:
         """Make a request and decode response using the typed response contract."""
-        selected_response_type = response_type or api_request.response_type
-        if selected_response_type is None:
-            msg = (
-                "No response type configured on request; pass response_type "
-                "explicitly or set request.response_type"
-            )
+        if api_request.response_type is None:
+            msg = "No response type configured on request; set request.response_type"
             raise ValueError(msg)
 
         bytes_data = await self.api_request(api_request)
-        decoder = cast("type[ApiResponseT]", selected_response_type)
+        decoder = cast("type[ApiResponseT]", api_request.response_type)
         return decoder.decode(bytes_data)
 
     async def request(
