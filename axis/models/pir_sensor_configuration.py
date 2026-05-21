@@ -147,6 +147,7 @@ class ListSensorsRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
     content_type = "application/json"
+    response_type = ListSensorsResponse
     error_codes = general_error_codes
 
     api_version: str = API_VERSION
@@ -193,6 +194,7 @@ class GetSensitivityRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
     content_type = "application/json"
+    response_type = GetSensitivityResponse
     error_codes = sensor_specific_error_codes
 
     id: int
@@ -288,3 +290,6 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
             method=data["method"],
             data=data.get("data", {}).get("apiVersions", []),
         )
+
+
+GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse
