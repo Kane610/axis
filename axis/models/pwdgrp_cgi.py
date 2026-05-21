@@ -118,6 +118,9 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
         return cls(data=User.decode_to_dict(users))
 
 
+GetUsersRequest.response_type = GetUsersResponse
+
+
 @dataclass
 class CreateUserRequest(ApiRequest):
     """Request object for creating a user."""
