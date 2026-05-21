@@ -38,8 +38,6 @@ Initial `ty` support is configured as an opt-in check and does not replace `mypy
 uvx ty check
 ```
 
-Typing style follows PEP 695 for new and updated code (class type parameters and `type` aliases).
-
 ## Initialization architecture
 
 Vapix initialization is phase-based and driven by handler metadata:
