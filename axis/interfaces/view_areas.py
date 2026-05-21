@@ -36,10 +36,9 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
 
     async def list_view_areas(self) -> dict[str, ViewArea]:
         """List all view areas of device."""
-        bytes_data = await self.vapix.api_request(
+        response: ListViewAreasResponse = await self.vapix.api_request_typed(
             ListViewAreasRequest(self.api_version)
         )
-        response = ListViewAreasResponse.decode(bytes_data)
         return response.data
 
     async def set_geometry(self, id: int, geometry: Geometry) -> dict[str, ViewArea]:
@@ -48,14 +47,13 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        bytes_data = await self.vapix.api_request(
+        response: ListViewAreasResponse = await self.vapix.api_request_typed(
             SetGeometryRequest(
                 id=id,
                 geometry=geometry,
                 api_version=self.api_version,
             )
         )
-        response = ListViewAreasResponse.decode(bytes_data)
         return response.data
 
     async def reset_geometry(self, id: int) -> dict[str, ViewArea]:
@@ -64,20 +62,21 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        bytes_data = await self.vapix.api_request(
+        response: ListViewAreasResponse = await self.vapix.api_request_typed(
             ResetGeometryRequest(id=id, api_version=self.api_version)
         )
-        response = ListViewAreasResponse.decode(bytes_data)
         return response.data
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        bytes_data = await self.vapix.api_request(GetSupportedVersionsRequest())
-        response = GetSupportedVersionsResponse.decode(bytes_data)
+        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+            GetSupportedVersionsRequest()
+        )
         return response.data
 
     async def get_supported_config_versions(self) -> list[str]:
         """List supported configure API versions."""
-        bytes_data = await self.vapix.api_request(GetSupportedConfigVersionsRequest())
-        response = GetSupportedVersionsResponse.decode(bytes_data)
+        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+            GetSupportedConfigVersionsRequest()
+        )
         return response.data

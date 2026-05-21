@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import aiohttp
 
@@ -34,7 +34,7 @@ from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
-    from ..models.api import ApiRequest
+    from ..models.api import ApiRequest, ApiResponseSupportDecode
     from ..models.stream_profile import StreamProfile
 
 LOGGER = logging.getLogger(__name__)
@@ -267,6 +267,24 @@ class Vapix:
             headers=api_request.headers,
             params=params,
         )
+
+    async def api_request_typed[ApiResponseT: ApiResponseSupportDecode](
+        self,
+        api_request: ApiRequest,
+        response_type: type[ApiResponseT] | None = None,
+    ) -> ApiResponseT:
+        """Make a request and decode response using the typed response contract."""
+        selected_response_type = response_type or api_request.response_type
+        if selected_response_type is None:
+            msg = (
+                "No response type configured on request; pass response_type "
+                "explicitly or set request.response_type"
+            )
+            raise ValueError(msg)
+
+        bytes_data = await self.api_request(api_request)
+        decoder = cast("type[ApiResponseT]", selected_response_type)
+        return decoder.decode(bytes_data)
 
     async def request(
         self,

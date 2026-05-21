@@ -196,6 +196,7 @@ class ListViewAreasRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/viewarea/info.cgi"
     content_type = "application/json"
+    response_type = ListViewAreasResponse
     error_codes = general_error_codes
 
     api_version: str = API_VERSION
@@ -220,6 +221,7 @@ class SetGeometryRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
     content_type = "application/json"
+    response_type = ListViewAreasResponse
     error_codes = general_error_codes
 
     id: int
@@ -258,6 +260,7 @@ class ResetGeometryRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
     content_type = "application/json"
+    response_type = ListViewAreasResponse
     error_codes = general_error_codes
 
     id: int
@@ -327,3 +330,6 @@ class GetSupportedConfigVersionsRequest(GetSupportedVersionsRequest):
     """Request object for listing supported API versions."""
 
     path = "/axis-cgi/viewarea/configure.cgi"
+
+
+GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse

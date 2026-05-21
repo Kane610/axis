@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 
 CONTEXT = "Axis library"
 
@@ -54,6 +54,7 @@ class ApiRequest:
     method: str = field(init=False)
     path: str = field(init=False)
     content_type: str = field(init=False)
+    response_type: ClassVar[type[ApiResponseSupportDecode] | None] = None
 
     @property
     def content(self) -> bytes | None:

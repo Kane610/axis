@@ -26,7 +26,7 @@ from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_management import GetPortsRequest
 from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.models.stream_profile import ListStreamProfilesRequest, StreamProfile
-from axis.models.view_area import ListViewAreasRequest
+from axis.models.view_area import ListViewAreasRequest, ListViewAreasResponse
 
 from .applications.test_applications import (
     LIST_APPLICATIONS_RESPONSE as APPLICATIONS_RESPONSE,
@@ -326,6 +326,32 @@ async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     assert len(vapix.light_control) == 1
     assert len(vapix.mqtt) == 0
     assert len(vapix.stream_profiles) == 1
+
+
+async def test_api_request_typed_uses_request_response_type(
+    mock_vapix_request, vapix: Vapix
+):
+    """Verify typed request decoding can use request-level response metadata."""
+    mock_vapix_request(
+        ListViewAreasRequest,
+        json={
+            "apiVersion": "1.0",
+            "context": "",
+            "method": "list",
+            "data": {"viewAreas": []},
+        },
+    )
+
+    response = await vapix.api_request_typed(ListViewAreasRequest(api_version="1.0"))
+
+    assert isinstance(response, ListViewAreasResponse)
+    assert response.data == {}
+
+
+async def test_api_request_typed_requires_response_type(vapix: Vapix):
+    """Verify typed request helper errors when request has no response contract."""
+    with pytest.raises(ValueError, match="No response type configured"):
+        await vapix.api_request_typed(ParamRequest())
 
 
 async def test_initialize_api_discovery_unauthorized(http_route_mock, vapix: Vapix):
