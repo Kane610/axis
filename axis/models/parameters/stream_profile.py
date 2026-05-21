@@ -1,9 +1,7 @@
 """Stream profile parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import Any, NotRequired, Self, cast
-
-from typing_extensions import TypedDict
+from typing import Any, NotRequired, Self, TypedDict, cast
 
 from ..stream_profile import StreamProfile
 from .param_cgi import ParamItem

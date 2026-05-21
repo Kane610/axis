@@ -148,7 +148,7 @@ lint.select = [
     "TD",   # flake8-todos
     # "TID", # flake8-tidy-imports
     # "TRY", # tryceratops
-    "UP", # pyupgrade
+    "UP", # pyupgrade -- PEP 695 enforcement: UP040 (type aliases), UP046 (generic classes), UP047 (generic functions)
     "W",  # pycodestyle
 ]
 
@@ -165,11 +165,10 @@ lint.ignore = [
     "PLR0915", # Too many statements ({statements} > {max_statements})
     "PLR2004", # Magic value used in comparison, consider replacing {value} with a constant variable
     "S324", # Probable use of insecure hash functions in {library}: {string}
-    "UP046",  # 82 | class APIHandler(SubscriptionHandler, Generic[ApiItemT]):
 ]
 
 [tool.ruff.per-file-target-version]
-"axis/__main__.py" = "py313"
+"axis/__main__.py" = "py314"
 
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false

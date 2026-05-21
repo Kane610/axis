@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any, Self, TypeVar
+from typing import Any, Self
 
 from ..api import ApiItem, ApiRequest
 
@@ -90,9 +90,6 @@ class ParamItem(ApiItem):
     def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
         """Create objects from dict."""
         return {"0": cls.decode(data[0])}
-
-
-ParamItemT = TypeVar("ParamItemT", bound=ParamItem)
 
 
 @dataclass

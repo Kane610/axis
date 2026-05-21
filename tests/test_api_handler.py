@@ -55,6 +55,30 @@ def test_id_1_filter_subscribers(test_class) -> None:
     callback.assert_called_once_with("1")
 
 
+def test_tuple_id_filter_subscribers(test_class) -> None:
+    """Validate tuple id_filter subscribes for each provided object id."""
+    test_class.subscribe(callback := Mock(), ("1", "2"))
+
+    test_class.signal_subscribers("1")
+    test_class.signal_subscribers("2")
+    test_class.signal_subscribers("3")
+
+    assert callback.call_count == 2
+    callback.assert_any_call("1")
+    callback.assert_any_call("2")
+
+
+def test_tuple_id_filter_unsubscribe(test_class) -> None:
+    """Validate tuple id_filter unsubscribe removes all tuple subscriptions."""
+    unsubscribe = test_class.subscribe(callback := Mock(), ("1", "2"))
+
+    unsubscribe()
+    test_class.signal_subscribers("1")
+    test_class.signal_subscribers("2")
+
+    callback.assert_not_called()
+
+
 def test_multiple_subscribers(test_class) -> None:
     """Validate signalling multiple subscribers."""
     assert len(test_class._subscribers) == 1

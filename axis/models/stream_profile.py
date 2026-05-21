@@ -6,10 +6,9 @@ and should be used to retrieve a video stream from your Axis product.
 """
 
 from dataclasses import dataclass, field
-from typing import NotRequired, Self
+from typing import NotRequired, Self, TypedDict
 
 import orjson
-from typing_extensions import TypedDict
 
 from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 

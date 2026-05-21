@@ -4,8 +4,6 @@ Implements library-managed RFC 2617 digest authentication for aiohttp requests
 to handle special characters in request parameters that break middleware-based auth.
 """
 
-from __future__ import annotations
-
 import hashlib
 import logging
 import re

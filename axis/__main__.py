@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
-def event_handler(event: "Event") -> None:
+def event_handler(event: Event) -> None:
     """Receive and print events from RTSP stream."""
     LOGGER.info(event)
 
@@ -61,7 +61,7 @@ async def axis_device(
             "Connected to device at %s but not registered or user not admin.", host
         )
 
-    except (TimeoutError, axis.RequestError):
+    except TimeoutError, axis.RequestError:
         LOGGER.error("Error connecting to the Axis device at %s", host)
 
     except axis.AxisException:

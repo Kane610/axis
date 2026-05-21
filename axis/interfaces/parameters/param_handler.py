@@ -12,11 +12,11 @@ if TYPE_CHECKING:
 
     from .param_cgi import Params
 
-from ...models.parameters.param_cgi import ParameterGroup, ParamItemT
+from ...models.parameters.param_cgi import ParameterGroup, ParamItem
 from ..api_handler import ApiHandler
 
 
-class ParamHandler(ApiHandler[ParamItemT]):
+class ParamHandler[ParamItemT: ParamItem](ApiHandler[ParamItemT]):
     """Base class for a map of API Items."""
 
     parameter_group: ParameterGroup

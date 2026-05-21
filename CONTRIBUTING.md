@@ -45,6 +45,13 @@ uv run ruff check axis/<file>.py
 
 Run broader checks only when your change affects shared behavior (for example, base classes, event parsing, or configuration).
 
+## Branch and scope policy
+
+- Never commit directly on `master`; always use a feature branch and open a pull request.
+- Keep migrations that change typing syntax or lint policy behavior-neutral.
+- Split large migrations into reviewable commits with one clear objective per commit.
+- For syntax-only migrations, require full lint/type/test validation before merge.
+
 Coverage must stay at or above 95% overall. All new code you introduce must have 100% test coverage. `axis/stream_transport.py` is excluded from the threshold. `TYPE_CHECKING` blocks are automatically excluded.
 
 ## Pre-commit hooks
@@ -127,6 +134,12 @@ All code must pass strict `mypy` (see `[tool.mypy]` in `pyproject.toml`). Key re
 - `disallow_untyped_defs = true` — annotate every function/method.
 - `disallow_any_generics = true` — avoid bare `list`, `dict`, `tuple`; use parameterized forms.
 - Guard imports only needed for type checking with `if TYPE_CHECKING:`.
+
+This project uses PEP 695 syntax for new or updated typing code:
+
+- Use class type parameters instead of `Generic[...]` base classes.
+- Use `type` statements for aliases instead of assignment-style aliases.
+- Do not introduce new module-level `TypeVar(...)` declarations when class or function type parameters are sufficient.
 
 ## Tests
 

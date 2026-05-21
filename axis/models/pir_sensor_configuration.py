@@ -5,10 +5,9 @@ the sensitivity of the PIR (passive infrared) sensors on your Axis device.
 """
 
 from dataclasses import dataclass
-from typing import NotRequired, Self
+from typing import NotRequired, Self, TypedDict
 
 import orjson
-from typing_extensions import TypedDict
 
 from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
 

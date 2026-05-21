@@ -1,9 +1,7 @@
 """Brand parameters from param.cgi."""
 
 from dataclasses import dataclass
-from typing import NotRequired, Self
-
-from typing_extensions import TypedDict
+from typing import NotRequired, Self, TypedDict
 
 from .param_cgi import ParamItem
 

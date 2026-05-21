@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Generic, Self, TypeVar
+from typing import Any, Self
 
 CONTEXT = "Axis library"
 
@@ -29,10 +29,6 @@ class ApiItem(ABC):
         return {v.id: v for v in cls.decode_to_list(data)}
 
 
-ApiItemT = TypeVar("ApiItemT", bound=ApiItem)
-ApiDataT = TypeVar("ApiDataT")
-
-
 @dataclass
 class ApiResponseSupportDecode(ABC):
     """Response from API request."""
@@ -44,17 +40,11 @@ class ApiResponseSupportDecode(ABC):
 
 
 @dataclass
-class ApiResponse(ApiResponseSupportDecode, Generic[ApiDataT]):
-    """Response from API request.
-
-    Class with generic can't be used in a TypeVar("X", bound=class) statement.
-    """
+class ApiResponse[ApiDataT](ApiResponseSupportDecode):
+    """Response from API request."""
 
     data: ApiDataT
     # error: str
-
-
-ApiResponseT = TypeVar("ApiResponseT", bound=ApiResponseSupportDecode)
 
 
 @dataclass
