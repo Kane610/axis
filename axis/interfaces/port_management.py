@@ -33,10 +33,10 @@ class IoPortManagement(ApiHandler[Port]):
 
     async def get_ports(self) -> dict[str, Port]:
         """List ports."""
-        bytes_data = await self.vapix.api_request(
+        response: GetPortsResponse = await self.vapix.api_request_typed(
             GetPortsRequest(api_version=self.api_version)
         )
-        return GetPortsResponse.decode(bytes_data).data
+        return response.data
 
     async def set_ports(
         self, ports: list[PortConfiguration] | PortConfiguration
@@ -69,8 +69,10 @@ class IoPortManagement(ApiHandler[Port]):
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        bytes_data = await self.vapix.api_request(GetSupportedVersionsRequest())
-        return GetSupportedVersionsResponse.decode(bytes_data).data
+        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+            GetSupportedVersionsRequest()
+        )
+        return response.data
 
     async def open(self, port_id: str) -> None:
         """Shortcut method to open a port."""

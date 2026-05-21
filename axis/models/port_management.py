@@ -323,3 +323,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
             method=data["method"],
             data=data.get("data", {}).get("apiVersions", []),
         )
+
+
+GetPortsRequest.response_type = GetPortsResponse
+GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse

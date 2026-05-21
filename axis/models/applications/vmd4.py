@@ -149,3 +149,6 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
             method=data["method"],
             data=Configuration.decode(data["data"]),
         )
+
+
+GetConfigurationRequest.response_type = GetConfigurationResponse

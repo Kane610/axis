@@ -21,6 +21,7 @@ class MotionGuardHandler(ApplicationHandler[Configuration]):
 
     async def get_configuration(self) -> Configuration:
         """Get configuration of VMD4 application."""
-        bytes_data = await self.vapix.api_request(GetConfigurationRequest())
-        response = GetConfigurationResponse.decode(bytes_data)
+        response: GetConfigurationResponse = await self.vapix.api_request_typed(
+            GetConfigurationRequest()
+        )
         return response.data
