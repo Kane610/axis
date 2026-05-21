@@ -123,6 +123,7 @@ class ListStreamProfilesRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/streamprofile.cgi"
     content_type = "application/json"
+    response_type = ListStreamProfilesResponse
     error_codes = error_codes
 
     profiles: list[str] = field(default_factory=list)
@@ -186,3 +187,6 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
             method=data["method"],
             data=data.get("data", {}).get("apiVersions", []),
         )
+
+
+GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse
