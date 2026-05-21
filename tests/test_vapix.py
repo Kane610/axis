@@ -353,6 +353,37 @@ async def test_api_request_typed_uses_request_response_type(
     assert response.data == {}
 
 
+async def test_api_request_typed_uses_param_request_response_type(
+    mock_vapix_request, vapix: Vapix
+):
+    """Verify typed request decoding uses ParamRequest response metadata."""
+    mock_vapix_request(
+        ParamRequest,
+        text=PARAM_CGI_RESPONSE,
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
+
+    response = await vapix.api_request_typed(ParamRequest())
+
+    assert "Brand" in response.data
+    assert response.data["Brand"]["Brand"] == "AXIS"
+
+
+async def test_api_request_typed_uses_applications_request_response_type(
+    mock_vapix_request, vapix: Vapix
+):
+    """Verify typed request decoding uses ListApplicationsRequest metadata."""
+    mock_vapix_request(
+        ListApplicationsRequest,
+        text=APPLICATIONS_RESPONSE,
+        headers={"Content-Type": "text/xml"},
+    )
+
+    response = await vapix.api_request_typed(ListApplicationsRequest())
+
+    assert response.data["vmd"].status == ApplicationStatus.RUNNING
+
+
 async def test_api_request_typed_requires_response_type(vapix: Vapix):
     """Verify typed request helper errors when request has no response contract."""
     with pytest.raises(ValueError, match="No response type configured"):
