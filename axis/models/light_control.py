@@ -1094,3 +1094,21 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
             method=data["method"],
             data=data.get("data", {}).get("apiVersions", []),
         )
+
+
+GetLightInformationRequest.response_type = GetLightInformationResponse
+GetServiceCapabilitiesRequest.response_type = GetServiceCapabilitiesResponse
+GetLightStatusRequest.response_type = GetLightStatusResponse
+GetValidIntensityRequest.response_type = GetValidIntensityResponse
+GetManualIntensityRequest.response_type = GetManualIntensityResponse
+GetIndividualIntensityRequest.response_type = GetIndividualIntensityResponse
+GetCurrentIntensityRequest.response_type = GetCurrentIntensityResponse
+GetValidAngleOfIlluminationRequest.response_type = GetValidAngleOfIlluminationResponse
+GetManualAngleOfIlluminationRequest.response_type = GetManualAngleOfIlluminationResponse
+GetCurrentAngleOfIlluminationRequest.response_type = (
+    GetCurrentAngleOfIlluminationResponse
+)
+GetLightSynchronizeDayNightModeRequest.response_type = (
+    GetLightSynchronizeDayNightModeResponse
+)
+GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse
