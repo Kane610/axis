@@ -417,3 +417,6 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
         raw_events = traverse(data, EVENT_INSTANCE)  # Move past the irrelevant keys
         events = get_events(raw_events)  # Create topic/data dictionary of events
         return cls(data=EventInstance.decode_to_dict(events))
+
+
+ListEventInstancesRequest.response_type = ListEventInstancesResponse
