@@ -235,30 +235,6 @@ class Range:
 
 
 @dataclass
-class GetLightInformationRequest(ApiRequest):
-    """Request object for getting light information."""
-
-    method = "post"
-    path = "/axis-cgi/lightcontrol.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getLightInformation",
-            }
-        )
-
-
-@dataclass
 class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
     """Response object for getting light information."""
 
@@ -277,6 +253,31 @@ class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
             context=data["context"],
             method=data["method"],
             data=LightInformation.decode_to_dict(data.get("data", {}).get("items", [])),
+        )
+
+
+@dataclass
+class GetLightInformationRequest(ApiRequest):
+    """Request object for getting light information."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    response_type = GetLightInformationResponse
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getLightInformation",
+            }
         )
 
 
@@ -311,30 +312,6 @@ class ServiceCapabilities:
 
 
 @dataclass
-class GetServiceCapabilitiesRequest(ApiRequest):
-    """Request object for getting service capabilities."""
-
-    method = "post"
-    path = "/axis-cgi/lightcontrol.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getServiceCapabilities",
-            }
-        )
-
-
-@dataclass
 class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
     """Response object for getting service capabilities."""
 
@@ -353,6 +330,31 @@ class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
             context=data["context"],
             method=data["method"],
             data=ServiceCapabilities.from_dict(data["data"]),
+        )
+
+
+@dataclass
+class GetServiceCapabilitiesRequest(ApiRequest):
+    """Request object for getting service capabilities."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    response_type = GetServiceCapabilitiesResponse
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getServiceCapabilities",
+            }
         )
 
 
@@ -435,33 +437,6 @@ class DisableLightRequest(ActivateLightRequest):
 
 
 @dataclass
-class GetLightStatusRequest(ApiRequest):
-    """Request object for getting light status."""
-
-    method = "post"
-    path = "/axis-cgi/lightcontrol.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    light_id: str
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getLightStatus",
-                "params": {"lightID": self.light_id},
-            }
-        )
-
-
-@dataclass
 class GetLightStatusResponse(ApiResponse[bool]):
     """Response object for getting light status."""
 
@@ -480,6 +455,34 @@ class GetLightStatusResponse(ApiResponse[bool]):
             context=data["context"],
             method=data["method"],
             data=data["data"]["status"],
+        )
+
+
+@dataclass
+class GetLightStatusRequest(ApiRequest):
+    """Request object for getting light status."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    response_type = GetLightStatusResponse
+    error_codes = general_error_codes
+
+    light_id: str
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getLightStatus",
+                "params": {"lightID": self.light_id},
+            }
         )
 
 
@@ -512,33 +515,6 @@ class SetAutomaticIntensityModeRequest(ApiRequest):
 
 
 @dataclass
-class GetValidIntensityRequest(ApiRequest):
-    """Request object for getting valid intensity range of light."""
-
-    method = "post"
-    path = "/axis-cgi/lightcontrol.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    light_id: str
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getValidIntensity",
-                "params": {"lightID": self.light_id},
-            }
-        )
-
-
-@dataclass
 class GetValidIntensityResponse(ApiResponse[Range]):
     """Response object for getting valid intensity range of light."""
 
@@ -557,6 +533,34 @@ class GetValidIntensityResponse(ApiResponse[Range]):
             context=data["context"],
             method=data["method"],
             data=Range.from_dict(data["data"]["ranges"][0]),
+        )
+
+
+@dataclass
+class GetValidIntensityRequest(ApiRequest):
+    """Request object for getting valid intensity range of light."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    response_type = GetValidIntensityResponse
+    error_codes = general_error_codes
+
+    light_id: str
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getValidIntensity",
+                "params": {"lightID": self.light_id},
+            }
         )
 
 
@@ -589,33 +593,6 @@ class SetManualIntensityRequest(ApiRequest):
 
 
 @dataclass
-class GetManualIntensityRequest(ApiRequest):
-    """Request object for getting manual intensity."""
-
-    method = "post"
-    path = "/axis-cgi/lightcontrol.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    light_id: str
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getManualIntensity",
-                "params": {"lightID": self.light_id},
-            }
-        )
-
-
-@dataclass
 class GetManualIntensityResponse(ApiResponse[int]):
     """Response object for getting manual intensity."""
 
@@ -634,6 +611,34 @@ class GetManualIntensityResponse(ApiResponse[int]):
             context=data["context"],
             method=data["method"],
             data=data["data"]["intensity"],
+        )
+
+
+@dataclass
+class GetManualIntensityRequest(ApiRequest):
+    """Request object for getting manual intensity."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    response_type = GetManualIntensityResponse
+    error_codes = general_error_codes
+
+    light_id: str
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getManualIntensity",
+                "params": {"lightID": self.light_id},
+            }
         )
 
 
@@ -671,12 +676,35 @@ class SetIndividualIntensityRequest(ApiRequest):
 
 
 @dataclass
+class GetIndividualIntensityResponse(ApiResponse[int]):
+    """Response object for getting individual intensity."""
+
+    api_version: str
+    context: str
+    method: str
+    data: int
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetIntensityResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["intensity"],
+        )
+
+
+@dataclass
 class GetIndividualIntensityRequest(ApiRequest):
     """Request object for getting individual intensity."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = GetIndividualIntensityResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -699,8 +727,8 @@ class GetIndividualIntensityRequest(ApiRequest):
 
 
 @dataclass
-class GetIndividualIntensityResponse(ApiResponse[int]):
-    """Response object for getting individual intensity."""
+class GetCurrentIntensityResponse(ApiResponse[int]):
+    """Response object for getting current intensity."""
 
     api_version: str
     context: str
@@ -727,6 +755,7 @@ class GetCurrentIntensityRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = GetCurrentIntensityResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -744,28 +773,6 @@ class GetCurrentIntensityRequest(ApiRequest):
                 "method": "getCurrentIntensity",
                 "params": {"lightID": self.light_id},
             }
-        )
-
-
-@dataclass
-class GetCurrentIntensityResponse(ApiResponse[int]):
-    """Response object for getting current intensity."""
-
-    api_version: str
-    context: str
-    method: str
-    data: int
-    # error: ErrorDataT | None = None
-
-    @classmethod
-    def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
-        data: GetIntensityResponseT = orjson.loads(bytes_data)
-        return cls(
-            api_version=data["apiVersion"],
-            context=data["context"],
-            method=data["method"],
-            data=data["data"]["intensity"],
         )
 
 
@@ -798,33 +805,6 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest):
 
 
 @dataclass
-class GetValidAngleOfIlluminationRequest(ApiRequest):
-    """Request object for getting valid angle of illumination range."""
-
-    method = "post"
-    path = "/axis-cgi/lightcontrol.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    light_id: str
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getValidAngleOfIllumination",
-                "params": {"lightID": self.light_id},
-            }
-        )
-
-
-@dataclass
 class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
     """Response object for getting valid angle of illumination range."""
 
@@ -843,6 +823,34 @@ class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
             context=data["context"],
             method=data["method"],
             data=Range.from_list(data["data"]["ranges"]),
+        )
+
+
+@dataclass
+class GetValidAngleOfIlluminationRequest(ApiRequest):
+    """Request object for getting valid angle of illumination range."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    response_type = GetValidAngleOfIlluminationResponse
+    error_codes = general_error_codes
+
+    light_id: str
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getValidAngleOfIllumination",
+                "params": {"lightID": self.light_id},
+            }
         )
 
 
@@ -878,12 +886,35 @@ class SetManualAngleOfIlluminationModeRequest(ApiRequest):
 
 
 @dataclass
+class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
+    """Response object for getting manual angle of illumination."""
+
+    api_version: str
+    context: str
+    method: str
+    data: int
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare API description dictionary."""
+        data: GetAngleOfIlluminationResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=data["data"]["angleOfIllumination"],
+        )
+
+
+@dataclass
 class GetManualAngleOfIlluminationRequest(ApiRequest):
     """Request object for getting manual angle of illumination."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = GetManualAngleOfIlluminationResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -905,8 +936,8 @@ class GetManualAngleOfIlluminationRequest(ApiRequest):
 
 
 @dataclass
-class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
-    """Response object for getting manual angle of illumination."""
+class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
+    """Response object for getting current angle of illumination."""
 
     api_version: str
     context: str
@@ -933,6 +964,7 @@ class GetCurrentAngleOfIlluminationRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = GetCurrentAngleOfIlluminationResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -950,28 +982,6 @@ class GetCurrentAngleOfIlluminationRequest(ApiRequest):
                 "method": "getCurrentAngleOfIllumination",
                 "params": {"lightID": self.light_id},
             }
-        )
-
-
-@dataclass
-class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
-    """Response object for getting current angle of illumination."""
-
-    api_version: str
-    context: str
-    method: str
-    data: int
-    # error: ErrorDataT | None = None
-
-    @classmethod
-    def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
-        data: GetAngleOfIlluminationResponseT = orjson.loads(bytes_data)
-        return cls(
-            api_version=data["apiVersion"],
-            context=data["context"],
-            method=data["method"],
-            data=data["data"]["angleOfIllumination"],
         )
 
 
@@ -1004,33 +1014,6 @@ class SetLightSynchronizeDayNightModeRequest(ApiRequest):
 
 
 @dataclass
-class GetLightSynchronizeDayNightModeRequest(ApiRequest):
-    """Request object for getting day night mode synchronization setting."""
-
-    method = "post"
-    path = "/axis-cgi/lightcontrol.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    light_id: str
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getLightSynchronizationDayNightMode",
-                "params": {"lightID": self.light_id},
-            }
-        )
-
-
-@dataclass
 class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
     """Response object for getting day night mode synchronization setting."""
 
@@ -1053,14 +1036,18 @@ class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
-    """Request object for listing supported API versions."""
+class GetLightSynchronizeDayNightModeRequest(ApiRequest):
+    """Request object for getting day night mode synchronization setting."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = GetLightSynchronizeDayNightModeResponse
     error_codes = general_error_codes
 
+    light_id: str
+
+    api_version: str = API_VERSION
     context: str = CONTEXT
 
     @property
@@ -1068,8 +1055,10 @@ class GetSupportedVersionsRequest(ApiRequest):
         """Initialize request data."""
         return orjson.dumps(
             {
+                "apiVersion": self.api_version,
                 "context": self.context,
-                "method": "getSupportedVersions",
+                "method": "getLightSynchronizationDayNightMode",
+                "params": {"lightID": self.light_id},
             }
         )
 
@@ -1096,19 +1085,24 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
         )
 
 
-GetLightInformationRequest.response_type = GetLightInformationResponse
-GetServiceCapabilitiesRequest.response_type = GetServiceCapabilitiesResponse
-GetLightStatusRequest.response_type = GetLightStatusResponse
-GetValidIntensityRequest.response_type = GetValidIntensityResponse
-GetManualIntensityRequest.response_type = GetManualIntensityResponse
-GetIndividualIntensityRequest.response_type = GetIndividualIntensityResponse
-GetCurrentIntensityRequest.response_type = GetCurrentIntensityResponse
-GetValidAngleOfIlluminationRequest.response_type = GetValidAngleOfIlluminationResponse
-GetManualAngleOfIlluminationRequest.response_type = GetManualAngleOfIlluminationResponse
-GetCurrentAngleOfIlluminationRequest.response_type = (
-    GetCurrentAngleOfIlluminationResponse
-)
-GetLightSynchronizeDayNightModeRequest.response_type = (
-    GetLightSynchronizeDayNightModeResponse
-)
-GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse
+@dataclass
+class GetSupportedVersionsRequest(ApiRequest):
+    """Request object for listing supported API versions."""
+
+    method = "post"
+    path = "/axis-cgi/lightcontrol.cgi"
+    content_type = "application/json"
+    response_type = GetSupportedVersionsResponse
+    error_codes = general_error_codes
+
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )
