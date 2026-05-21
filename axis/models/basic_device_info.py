@@ -150,6 +150,7 @@ class GetAllPropertiesRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/basicdeviceinfo.cgi"
     content_type = "application/json"
+    response_type = GetAllPropertiesResponse
     error_codes = error_codes
 
     api_version: str = API_VERSION
@@ -196,6 +197,7 @@ class GetSupportedVersionsRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/basicdeviceinfo.cgi"
     content_type = "application/json"
+    response_type = GetSupportedVersionsResponse
     error_codes = error_codes
 
     context: str = CONTEXT
