@@ -166,3 +166,6 @@ class ListApplicationsResponse(ApiResponse[dict[str, Application]]):
         data = xmltodict.parse(bytes_data, attr_prefix="", force_list={"application"})
         apps: list[ApplicationObjectT] = data.get("reply", {}).get("application", [])
         return cls(data=Application.decode_to_dict(apps))
+
+
+ListApplicationsRequest.response_type = ListApplicationsResponse

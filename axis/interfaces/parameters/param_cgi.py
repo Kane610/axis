@@ -1,22 +1,12 @@
 """Axis Vapix parameter management."""
 
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    class _DetectResultType(TypedDict):
-        encoding: str
-        confidence: float
-
-    def detect(byte_str: bytes | bytearray) -> _DetectResultType:
-        """Typed interface for chardet detect method."""
-        ...
-else:
-    from cchardet import detect
-
 from ...models.api_discovery import ApiId
-from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, params_to_dict
+from ...models.parameters.param_cgi import ParameterGroup, ParamRequest, ParamResponse
 from ..api_handler import ApiHandler
 from .brand import BrandParameterHandler
 from .image import ImageParameterHandler
@@ -47,9 +37,10 @@ class Params(ApiHandler[Any]):
 
     async def _api_request(self, group: ParameterGroup | None = None) -> dict[str, Any]:
         """Fetch parameter data and convert it into a dictionary."""
-        bytes_data = await self.vapix.api_request(ParamRequest(group))
-        encoding = detect(bytes_data)["encoding"] or "utf-8"
-        return params_to_dict(bytes_data.decode(encoding=encoding)).get("root") or {}
+        response: ParamResponse = await self.vapix.api_request_typed(
+            ParamRequest(group)
+        )
+        return response.data
 
     async def _update(self, group: ParameterGroup | None = None) -> Sequence[str]:
         """Request parameter data and update items."""

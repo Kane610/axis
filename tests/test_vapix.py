@@ -23,7 +23,11 @@ from axis.models.applications.application import (
 from axis.models.basic_device_info import GetAllPropertiesRequest
 from axis.models.light_control import GetLightInformationRequest
 from axis.models.parameters.param_cgi import ParamRequest
-from axis.models.port_management import GetPortsRequest
+from axis.models.port_management import (
+    GetPortsRequest,
+    PortConfiguration,
+    SetPortsRequest,
+)
 from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.models.stream_profile import ListStreamProfilesRequest, StreamProfile
 from axis.models.user_group import GetUserGroupRequest, GetUserGroupResponse
@@ -352,7 +356,7 @@ async def test_api_request_typed_uses_request_response_type(
 async def test_api_request_typed_requires_response_type(vapix: Vapix):
     """Verify typed request helper errors when request has no response contract."""
     with pytest.raises(ValueError, match="No response type configured"):
-        await vapix.api_request_typed(ParamRequest())
+        await vapix.api_request_typed(SetPortsRequest(PortConfiguration(port="0")))
 
 
 async def test_api_request_typed_accepts_explicit_response_type(

@@ -3,9 +3,20 @@
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self, TypedDict
 
-from ..api import ApiItem, ApiRequest
+if TYPE_CHECKING:
+
+    class _DetectResultType(TypedDict):
+        encoding: str
+
+    def detect(byte_str: bytes | bytearray) -> _DetectResultType:
+        """Typed interface for chardet detect method."""
+        ...
+else:
+    from cchardet import detect
+
+from ..api import ApiItem, ApiRequest, ApiResponse
 
 LOGGER = logging.getLogger(__name__)
 
@@ -109,3 +120,21 @@ class ParamRequest(ApiRequest):
         if self.group:
             query["group"] = f"root.{self.group}"
         return query
+
+
+@dataclass
+class ParamResponse(ApiResponse[dict[str, Any]]):
+    """Response object for listing parameters."""
+
+    data: dict[str, Any]
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Decode parameter bytes into nested root dictionary."""
+        encoding = detect(bytes_data)["encoding"] or "utf-8"
+        return cls(
+            data=params_to_dict(bytes_data.decode(encoding=encoding)).get("root") or {}
+        )
+
+
+ParamRequest.response_type = ParamResponse
