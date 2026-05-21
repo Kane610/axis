@@ -69,6 +69,10 @@ from axis.models.light_control import (
     GetValidIntensityResponse,
 )
 from axis.models.mqtt import (
+    ActivateClientRequest,
+    ConfigureClientRequest,
+    ConfigureEventPublicationRequest,
+    DeactivateClientRequest,
     GetClientStatusRequest,
     GetClientStatusResponse,
     GetEventPublicationConfigRequest,
@@ -207,6 +211,10 @@ def test_request_response_type_contracts(request_cls, response_cls) -> None:
 @pytest.mark.parametrize(
     "request_cls",
     [
+        ActivateClientRequest,
+        ConfigureClientRequest,
+        ConfigureEventPublicationRequest,
+        DeactivateClientRequest,
         PortActionRequest,
         SetPortsRequest,
         SetStateSequenceRequest,
