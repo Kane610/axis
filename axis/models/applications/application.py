@@ -146,15 +146,6 @@ class Application(ApiItem):
 
 
 @dataclass
-class ListApplicationsRequest(ApiRequest):
-    """Request object for listing installed applications."""
-
-    method = "post"
-    path = "/axis-cgi/applications/list.cgi"
-    content_type = "text/xml"
-
-
-@dataclass
 class ListApplicationsResponse(ApiResponse[dict[str, Application]]):
     """Response object for listing all applications."""
 
@@ -168,4 +159,11 @@ class ListApplicationsResponse(ApiResponse[dict[str, Application]]):
         return cls(data=Application.decode_to_dict(apps))
 
 
-ListApplicationsRequest.response_type = ListApplicationsResponse
+@dataclass
+class ListApplicationsRequest(ApiRequest):
+    """Request object for listing installed applications."""
+
+    method = "post"
+    path = "/axis-cgi/applications/list.cgi"
+    content_type = "text/xml"
+    response_type = ListApplicationsResponse

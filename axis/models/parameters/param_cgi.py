@@ -104,25 +104,6 @@ class ParamItem(ApiItem):
 
 
 @dataclass
-class ParamRequest(ApiRequest):
-    """Request object for listing parameters."""
-
-    method = "post"
-    path = "/axis-cgi/param.cgi"
-    content_type = "text/plain"
-
-    group: ParameterGroup | None = None
-
-    @property
-    def data(self) -> dict[str, str]:
-        """Request query parameters."""
-        query = {"action": "list"}
-        if self.group:
-            query["group"] = f"root.{self.group}"
-        return query
-
-
-@dataclass
 class ParamResponse(ApiResponse[dict[str, Any]]):
     """Response object for listing parameters."""
 
@@ -137,4 +118,21 @@ class ParamResponse(ApiResponse[dict[str, Any]]):
         )
 
 
-ParamRequest.response_type = ParamResponse
+@dataclass
+class ParamRequest(ApiRequest):
+    """Request object for listing parameters."""
+
+    method = "post"
+    path = "/axis-cgi/param.cgi"
+    content_type = "text/plain"
+    response_type = ParamResponse
+
+    group: ParameterGroup | None = None
+
+    @property
+    def data(self) -> dict[str, str]:
+        """Request query parameters."""
+        query = {"action": "list"}
+        if self.group:
+            query["group"] = f"root.{self.group}"
+        return query

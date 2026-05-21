@@ -109,29 +109,6 @@ class Configuration(ApiItem):
 
 
 @dataclass
-class GetConfigurationRequest(ApiRequest):
-    """Request object for listing VMD4 configuration."""
-
-    method = "post"
-    path = "/local/vmd/control.cgi"
-    content_type = "application/json"
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getConfiguration",
-            }
-        )
-
-
-@dataclass
 class GetConfigurationResponse(ApiResponse[Configuration]):
     """Response object for VMD4 configuration."""
 
@@ -151,4 +128,25 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
         )
 
 
-GetConfigurationRequest.response_type = GetConfigurationResponse
+@dataclass
+class GetConfigurationRequest(ApiRequest):
+    """Request object for listing VMD4 configuration."""
+
+    method = "post"
+    path = "/local/vmd/control.cgi"
+    content_type = "application/json"
+    response_type = GetConfigurationResponse
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getConfiguration",
+            }
+        )

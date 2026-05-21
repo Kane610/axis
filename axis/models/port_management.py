@@ -177,30 +177,6 @@ class Port(ApiItem):
 
 
 @dataclass
-class GetPortsRequest(ApiRequest):
-    """Request object for listing ports."""
-
-    method = "post"
-    path = "/axis-cgi/io/portmanagement.cgi"
-    content_type = "application/json"
-    error_codes = error_codes
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getPorts",
-            }
-        )
-
-
-@dataclass
 class GetPortsResponse(ApiResponse[dict[str, Port]]):
     """Response object for listing ports."""
 
@@ -219,6 +195,31 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
             context=data["context"],
             method=data["method"],
             data=Port.decode_to_dict(data["data"].get("items", [])),
+        )
+
+
+@dataclass
+class GetPortsRequest(ApiRequest):
+    """Request object for listing ports."""
+
+    method = "post"
+    path = "/axis-cgi/io/portmanagement.cgi"
+    content_type = "application/json"
+    response_type = GetPortsResponse
+    error_codes = error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getPorts",
+            }
         )
 
 
@@ -282,28 +283,6 @@ class SetStateSequenceRequest(ApiRequest):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
-    """Request object for listing supported API versions."""
-
-    method = "post"
-    path = "/axis-cgi/io/portmanagement.cgi"
-    content_type = "application/json"
-    error_codes = error_codes
-
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "context": self.context,
-                "method": "getSupportedVersions",
-            }
-        )
-
-
-@dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
     """Response object for supported versions."""
 
@@ -325,5 +304,24 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
         )
 
 
-GetPortsRequest.response_type = GetPortsResponse
-GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse
+@dataclass
+class GetSupportedVersionsRequest(ApiRequest):
+    """Request object for listing supported API versions."""
+
+    method = "post"
+    path = "/axis-cgi/io/portmanagement.cgi"
+    content_type = "application/json"
+    response_type = GetSupportedVersionsResponse
+    error_codes = error_codes
+
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )

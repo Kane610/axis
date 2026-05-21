@@ -177,30 +177,6 @@ class Configuration(ApiItem):
 
 
 @dataclass
-class GetConfigurationRequest(ApiRequest):
-    """Request object for listing Object analytics configuration."""
-
-    method = "post"
-    path = "/local/objectanalytics/control.cgi"
-    content_type = "application/json"
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getConfiguration",
-                "params": {},  # Early version of AOA (v1.0-20) requires this
-            }
-        )
-
-
-@dataclass
 class GetConfigurationResponse(ApiResponse[Configuration]):
     """Response object for Object analytics configuration."""
 
@@ -220,4 +196,26 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
         )
 
 
-GetConfigurationRequest.response_type = GetConfigurationResponse
+@dataclass
+class GetConfigurationRequest(ApiRequest):
+    """Request object for listing Object analytics configuration."""
+
+    method = "post"
+    path = "/local/objectanalytics/control.cgi"
+    content_type = "application/json"
+    response_type = GetConfigurationResponse
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getConfiguration",
+                "params": {},  # Early version of AOA (v1.0-20) requires this
+            }
+        )

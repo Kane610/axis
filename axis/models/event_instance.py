@@ -370,35 +370,6 @@ class EventInstance(ApiItem):
 
 
 @dataclass
-class ListEventInstancesRequest(ApiRequest):
-    """Request object for listing installed applications."""
-
-    method = "post"
-    path = "/vapix/services"
-    content_type = "application/soap+xml"
-
-    @property
-    def content(self) -> bytes:
-        """Request content."""
-        return (
-            b'<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">'
-            b'<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-            b'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
-            b'<GetEventInstances xmlns="http://www.axis.com/vapix/ws/event1"/>'
-            b"</s:Body>"
-            b"</s:Envelope>"
-        )
-
-    @property
-    def headers(self) -> dict[str, str]:
-        """Request headers."""
-        return {
-            "Content-Type": "application/soap+xml",
-            "SOAPAction": "http://www.axis.com/vapix/ws/event1/GetEventInstances",
-        }
-
-
-@dataclass
 class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
     """Response object for listing all applications."""
 
@@ -419,4 +390,31 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
         return cls(data=EventInstance.decode_to_dict(events))
 
 
-ListEventInstancesRequest.response_type = ListEventInstancesResponse
+@dataclass
+class ListEventInstancesRequest(ApiRequest):
+    """Request object for listing installed applications."""
+
+    method = "post"
+    path = "/vapix/services"
+    content_type = "application/soap+xml"
+    response_type = ListEventInstancesResponse
+
+    @property
+    def content(self) -> bytes:
+        """Request content."""
+        return (
+            b'<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">'
+            b'<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            b'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
+            b'<GetEventInstances xmlns="http://www.axis.com/vapix/ws/event1"/>'
+            b"</s:Body>"
+            b"</s:Envelope>"
+        )
+
+    @property
+    def headers(self) -> dict[str, str]:
+        """Request headers."""
+        return {
+            "Content-Type": "application/soap+xml",
+            "SOAPAction": "http://www.axis.com/vapix/ws/event1/GetEventInstances",
+        }

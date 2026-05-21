@@ -282,28 +282,6 @@ class ResetGeometryRequest(ApiRequest):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
-    """Request object for listing supported API versions."""
-
-    method = "post"
-    path = "/axis-cgi/viewarea/info.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "context": self.context,
-                "method": "getSupportedVersions",
-            }
-        )
-
-
-@dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
     """Response object for supported versions."""
 
@@ -326,10 +304,30 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
+class GetSupportedVersionsRequest(ApiRequest):
+    """Request object for listing supported API versions."""
+
+    method = "post"
+    path = "/axis-cgi/viewarea/info.cgi"
+    content_type = "application/json"
+    response_type = GetSupportedVersionsResponse
+    error_codes = general_error_codes
+
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )
+
+
+@dataclass
 class GetSupportedConfigVersionsRequest(GetSupportedVersionsRequest):
     """Request object for listing supported API versions."""
 
     path = "/axis-cgi/viewarea/configure.cgi"
-
-
-GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse

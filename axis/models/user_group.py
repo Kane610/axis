@@ -11,15 +11,6 @@ from .pwdgrp_cgi import User, UserGroupsT
 
 
 @dataclass
-class GetUserGroupRequest(ApiRequest):
-    """Request object for listing users."""
-
-    method = "get"
-    path = "/axis-cgi/usergroup.cgi"
-    content_type = "text/plain"
-
-
-@dataclass
 class GetUserGroupResponse(ApiResponse[dict[str, User]]):
     """Response object for listing ports."""
 
@@ -45,4 +36,11 @@ class GetUserGroupResponse(ApiResponse[dict[str, User]]):
         return cls(data={"0": User.decode(user)})
 
 
-GetUserGroupRequest.response_type = GetUserGroupResponse
+@dataclass
+class GetUserGroupRequest(ApiRequest):
+    """Request object for listing users."""
+
+    method = "get"
+    path = "/axis-cgi/usergroup.cgi"
+    content_type = "text/plain"
+    response_type = GetUserGroupResponse

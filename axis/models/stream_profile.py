@@ -146,28 +146,6 @@ class ListStreamProfilesRequest(ApiRequest):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
-    """Request object for listing supported API versions."""
-
-    method = "post"
-    path = "/axis-cgi/streamprofile.cgi"
-    content_type = "application/json"
-    error_codes = error_codes
-
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "context": self.context,
-                "method": "getSupportedVersions",
-            }
-        )
-
-
-@dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
     """Response object for supported versions."""
 
@@ -189,4 +167,24 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
         )
 
 
-GetSupportedVersionsRequest.response_type = GetSupportedVersionsResponse
+@dataclass
+class GetSupportedVersionsRequest(ApiRequest):
+    """Request object for listing supported API versions."""
+
+    method = "post"
+    path = "/axis-cgi/streamprofile.cgi"
+    content_type = "application/json"
+    response_type = GetSupportedVersionsResponse
+    error_codes = error_codes
+
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "context": self.context,
+                "method": "getSupportedVersions",
+            }
+        )

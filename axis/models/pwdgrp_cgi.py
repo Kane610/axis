@@ -71,20 +71,6 @@ class User(ApiItem):
 
 
 @dataclass
-class GetUsersRequest(ApiRequest):
-    """Request object for listing users."""
-
-    method = "post"
-    path = "/axis-cgi/pwdgrp.cgi"
-    content_type = "text/plain"
-
-    @property
-    def data(self) -> dict[str, str]:
-        """Request data."""
-        return {"action": "get"}
-
-
-@dataclass
 class GetUsersResponse(ApiResponse[dict[str, User]]):
     """Response object for listing ports."""
 
@@ -118,7 +104,19 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
         return cls(data=User.decode_to_dict(users))
 
 
-GetUsersRequest.response_type = GetUsersResponse
+@dataclass
+class GetUsersRequest(ApiRequest):
+    """Request object for listing users."""
+
+    method = "post"
+    path = "/axis-cgi/pwdgrp.cgi"
+    content_type = "text/plain"
+    response_type = GetUsersResponse
+
+    @property
+    def data(self) -> dict[str, str]:
+        """Request data."""
+        return {"action": "get"}
 
 
 @dataclass
