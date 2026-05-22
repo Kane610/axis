@@ -62,10 +62,7 @@ class BytesResponse(ApiResponse[bytes]):
 
 @dataclass
 class ApiRequest[ResponseT = ApiResponse[bytes]]:
-    """Create API request body with typed response contract.
-
-    Subclasses must set ``response_type`` to the decoder for ``ResponseT``.
-    """
+    """Create API request body with typed response contract."""
 
     method: str = field(init=False)
     path: str = field(init=False)
