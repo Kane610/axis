@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import enum
+from typing import Never
 
 from .api import ApiRequest
 

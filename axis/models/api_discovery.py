@@ -1,9 +1,12 @@
 """API Discovery api item."""
 
+from __future__ import annotations
+
+
 from dataclasses import dataclass
 import enum
 import logging
-from typing import NotRequired, Self, TypedDict
+from typing import Never, NotRequired, Self, TypedDict
 
 import orjson
 
@@ -16,8 +19,6 @@ LOGGER = logging.getLogger(__name__)
 
 class ApiId(enum.StrEnum):
     """The API discovery ID."""
-from __future__ import annotations
-
 
     AIR_QUALITY = "airquality"
     ANALYTICS_METADATA_CONFIG = "analytics-metadata-config"

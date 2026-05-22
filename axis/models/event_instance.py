@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 import enum
-from typing import Any, Self
+from typing import Never, Any, Self
 
 import xmltodict
 
