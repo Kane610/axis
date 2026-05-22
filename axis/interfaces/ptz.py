@@ -72,7 +72,7 @@ class PtzControl(ApiHandler[PtzParam]):
         backlight: bool | None = None,
     ) -> None:
         """Control the pan, tilt and zoom behavior of a PTZ unit."""
-        await self.vapix.api_request(
+        await self.vapix._api_request_bytes(
             PtzControlRequest(
                 camera=camera,
                 center=center,
@@ -112,12 +112,12 @@ class PtzControl(ApiHandler[PtzParam]):
 
     async def query(self, query: PtzQuery) -> bytes:
         """Retrieve current status."""
-        return await self.vapix.api_request(QueryRequest(query))
+        return await self.vapix._api_request_bytes(QueryRequest(query))
 
     async def configured_device_driver(self) -> bytes:
         """Name of the system-configured device driver."""
-        return await self.vapix.api_request(DeviceDriverRequest())
+        return await self.vapix._api_request_bytes(DeviceDriverRequest())
 
     async def available_ptz_commands(self) -> bytes:
         """Available PTZ commands."""
-        return await self.vapix.api_request(PtzCommandRequest())
+        return await self.vapix._api_request_bytes(PtzCommandRequest())

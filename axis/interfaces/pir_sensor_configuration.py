@@ -33,7 +33,7 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     async def list_sensors(self) -> dict[str, PirSensorConfiguration]:
         """List all PIR sensors of device."""
         api_version = self.api_version
-        response: ListSensorsResponse = await self.vapix.api_request_typed(
+        response: ListSensorsResponse = await self.vapix.api_request(
             ListSensorsRequest(api_version)
         )
         return response.data
@@ -41,7 +41,7 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     async def get_sensitivity(self, id: int) -> float | None:
         """Retrieve configured sensitivity of specific sensor."""
         api_version = self.api_version
-        response: GetSensitivityResponse = await self.vapix.api_request_typed(
+        response: GetSensitivityResponse = await self.vapix.api_request(
             GetSensitivityRequest(id, api_version)
         )
         return response.data
@@ -49,13 +49,13 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     async def set_sensitivity(self, id: int, sensitivity: float) -> None:
         """Configure sensitivity of specific sensor."""
         api_version = self.api_version
-        await self.vapix.api_request(
+        await self.vapix._api_request_bytes(
             SetSensitivityRequest(id, sensitivity, api_version)
         )
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+        response: GetSupportedVersionsResponse = await self.vapix.api_request(
             GetSupportedVersionsRequest()
         )
         return response.data

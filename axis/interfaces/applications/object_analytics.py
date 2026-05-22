@@ -19,7 +19,7 @@ class ObjectAnalyticsHandler(ApplicationHandler[Configuration]):
 
     async def get_configuration(self) -> Configuration:
         """Get configuration of object analytics application."""
-        response: GetConfigurationResponse = await self.vapix.api_request_typed(
+        response: GetConfigurationResponse = await self.vapix.api_request(
             GetConfigurationRequest()
         )
         return response.data

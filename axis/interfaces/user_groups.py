@@ -17,7 +17,7 @@ class UserGroups(ApiHandler[User]):
 
     async def get_user_groups(self) -> dict[str, User]:
         """Retrieve privilege rights for current user."""
-        response: GetUserGroupResponse = await self.vapix.api_request_typed(
+        response: GetUserGroupResponse = await self.vapix.api_request(
             GetUserGroupRequest()
         )
         return response.data

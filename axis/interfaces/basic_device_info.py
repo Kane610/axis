@@ -30,14 +30,14 @@ class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
 
     async def get_all_properties(self) -> dict[str, DeviceInformation]:
         """List all properties of basic device info."""
-        response: GetAllPropertiesResponse = await self.vapix.api_request_typed(
+        response: GetAllPropertiesResponse = await self.vapix.api_request(
             GetAllPropertiesRequest(self.api_version)
         )
         return {"0": response.data}
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+        response: GetSupportedVersionsResponse = await self.vapix.api_request(
             GetSupportedVersionsRequest()
         )
         return response.data

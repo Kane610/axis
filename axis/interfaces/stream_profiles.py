@@ -33,14 +33,14 @@ class StreamProfilesHandler(ApiHandler[StreamProfile]):
 
     async def list_stream_profiles(self) -> dict[str, StreamProfile]:
         """List all stream profiles."""
-        response: ListStreamProfilesResponse = await self.vapix.api_request_typed(
+        response: ListStreamProfilesResponse = await self.vapix.api_request(
             ListStreamProfilesRequest(api_version=self.api_version)
         )
         return response.data
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+        response: GetSupportedVersionsResponse = await self.vapix.api_request(
             GetSupportedVersionsRequest()
         )
         return response.data

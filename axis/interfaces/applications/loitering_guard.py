@@ -20,7 +20,7 @@ class LoiteringGuardHandler(ApplicationHandler[Configuration]):
 
     async def get_configuration(self) -> Configuration:
         """Get configuration of VMD4 application."""
-        response: GetConfigurationResponse = await self.vapix.api_request_typed(
+        response: GetConfigurationResponse = await self.vapix.api_request(
             GetConfigurationRequest()
         )
         return response.data

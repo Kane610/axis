@@ -254,8 +254,8 @@ class Vapix:
             return
         self.user_groups._items.update(user_groups)
 
-    async def api_request(self, api_request: ApiRequest[Any]) -> bytes:
-        """Make a request to the device."""
+    async def _api_request_bytes(self, api_request: ApiRequest[Any]) -> bytes:
+        """Make a request to the device and return response bytes."""
         params = api_request.params or {}
         if self.device.config.is_companion:
             params["Axis-Orig-Sw"] = "true"
@@ -268,16 +268,16 @@ class Vapix:
             params=params,
         )
 
-    async def api_request_typed[ApiResponseT: ApiResponseBase](
+    async def api_request[ApiResponseT: ApiResponseBase](
         self,
         api_request: ApiRequest[ApiResponseT],
     ) -> ApiResponseT:
-        """Make a request and decode response using the typed response contract."""
+        """Make a request and decode response using request response metadata."""
         if api_request.response_type is None:
-            msg = "No response type configured on request; set request.response_type"
+            msg = "No response type configured on request; use _api_request_bytes"
             raise ValueError(msg)
 
-        bytes_data = await self.api_request(api_request)
+        bytes_data = await self._api_request_bytes(api_request)
         decoder = cast("type[ApiResponseT]", api_request.response_type)
         return decoder.decode(bytes_data)
 

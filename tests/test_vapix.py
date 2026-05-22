@@ -333,7 +333,7 @@ async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     assert len(vapix.stream_profiles) == 1
 
 
-async def test_api_request_typed_uses_request_response_type(
+async def test_api_request_uses_request_response_type(
     mock_vapix_request, vapix: Vapix
 ):
     """Verify typed request decoding can use request-level response metadata."""
@@ -347,13 +347,13 @@ async def test_api_request_typed_uses_request_response_type(
         },
     )
 
-    response = await vapix.api_request_typed(ListViewAreasRequest(api_version="1.0"))
+    response = await vapix.api_request(ListViewAreasRequest(api_version="1.0"))
 
     assert isinstance(response, ListViewAreasResponse)
     assert response.data == {}
 
 
-async def test_api_request_typed_uses_param_request_response_type(
+async def test_api_request_uses_param_request_response_type(
     mock_vapix_request, vapix: Vapix
 ):
     """Verify typed request decoding uses ParamRequest response metadata."""
@@ -363,13 +363,13 @@ async def test_api_request_typed_uses_param_request_response_type(
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
     )
 
-    response = await vapix.api_request_typed(ParamRequest())
+    response = await vapix.api_request(ParamRequest())
 
     assert "Brand" in response.data
     assert response.data["Brand"]["Brand"] == "AXIS"
 
 
-async def test_api_request_typed_uses_applications_request_response_type(
+async def test_api_request_uses_applications_request_response_type(
     mock_vapix_request, vapix: Vapix
 ):
     """Verify typed request decoding uses ListApplicationsRequest metadata."""
@@ -379,18 +379,31 @@ async def test_api_request_typed_uses_applications_request_response_type(
         headers={"Content-Type": "text/xml"},
     )
 
-    response = await vapix.api_request_typed(ListApplicationsRequest())
+    response = await vapix.api_request(ListApplicationsRequest())
 
     assert response.data["vmd"].status == ApplicationStatus.RUNNING
 
 
-async def test_api_request_typed_requires_response_type(vapix: Vapix):
-    """Verify typed request helper errors when request has no response contract."""
+async def test_api_request_requires_response_type(vapix: Vapix):
+    """Verify api_request errors when request has no response contract."""
     with pytest.raises(ValueError, match="No response type configured"):
-        await vapix.api_request_typed(SetPortsRequest(PortConfiguration(port="0")))
+        await vapix.api_request(SetPortsRequest(PortConfiguration(port="0")))
 
 
-async def test_api_request_typed_decodes_using_request_response_type(
+async def test_api_request_bytes_returns_raw_bytes_for_request_without_response_type(
+    mock_vapix_request, vapix: Vapix
+):
+    """Verify private bytes helper returns raw bytes for requests without response metadata."""
+    mock_vapix_request(SetPortsRequest, json={})
+
+    response = await vapix._api_request_bytes(
+        SetPortsRequest(PortConfiguration(port="0"))
+    )
+
+    assert isinstance(response, bytes)
+
+
+async def test_api_request_decodes_using_request_response_type(
     mock_vapix_request, vapix: Vapix
 ):
     """Verify typed helper decodes response using the request's response_type contract."""
@@ -400,7 +413,7 @@ async def test_api_request_typed_decodes_using_request_response_type(
         headers={"Content-Type": "text/plain"},
     )
 
-    response = await vapix.api_request_typed(GetUserGroupRequest())
+    response = await vapix.api_request(GetUserGroupRequest())
 
     assert isinstance(response, GetUserGroupResponse)
     assert response.data["0"].admin

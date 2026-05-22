@@ -36,7 +36,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
 
     async def list_view_areas(self) -> dict[str, ViewArea]:
         """List all view areas of device."""
-        response: ListViewAreasResponse = await self.vapix.api_request_typed(
+        response: ListViewAreasResponse = await self.vapix.api_request(
             ListViewAreasRequest(self.api_version)
         )
         return response.data
@@ -47,7 +47,7 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        response: ListViewAreasResponse = await self.vapix.api_request_typed(
+        response: ListViewAreasResponse = await self.vapix.api_request(
             SetGeometryRequest(
                 id=id,
                 geometry=geometry,
@@ -62,21 +62,21 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         Security level: Admin
         Method: POST
         """
-        response: ListViewAreasResponse = await self.vapix.api_request_typed(
+        response: ListViewAreasResponse = await self.vapix.api_request(
             ResetGeometryRequest(id=id, api_version=self.api_version)
         )
         return response.data
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+        response: GetSupportedVersionsResponse = await self.vapix.api_request(
             GetSupportedVersionsRequest()
         )
         return response.data
 
     async def get_supported_config_versions(self) -> list[str]:
         """List supported configure API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
+        response: GetSupportedVersionsResponse = await self.vapix.api_request(
             GetSupportedConfigVersionsRequest()
         )
         return response.data

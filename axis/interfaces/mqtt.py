@@ -32,7 +32,7 @@ class MqttClientHandler(ApiHandler[Any]):
 
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""
-        await self.vapix.api_request(
+        await self.vapix._api_request_bytes(
             ConfigureClientRequest(
                 api_version=self.api_version, client_config=client_config
             )
@@ -40,19 +40,19 @@ class MqttClientHandler(ApiHandler[Any]):
 
     async def activate(self) -> None:
         """Activate MQTT Client."""
-        await self.vapix.api_request(
+        await self.vapix._api_request_bytes(
             ActivateClientRequest(api_version=self.api_version)
         )
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
-        await self.vapix.api_request(
+        await self.vapix._api_request_bytes(
             DeactivateClientRequest(api_version=self.api_version)
         )
 
     async def get_client_status(self) -> ClientConfigStatus:
         """Get MQTT Client status."""
-        response: GetClientStatusResponse = await self.vapix.api_request_typed(
+        response: GetClientStatusResponse = await self.vapix.api_request(
             GetClientStatusRequest(api_version=self.api_version)
         )
         return response.data
@@ -60,7 +60,7 @@ class MqttClientHandler(ApiHandler[Any]):
     async def get_event_publication_config(self) -> EventPublicationConfig:
         """Get MQTT Client event publication config."""
         response: GetEventPublicationConfigResponse = (
-            await self.vapix.api_request_typed(
+            await self.vapix.api_request(
                 GetEventPublicationConfigRequest(api_version=self.api_version)
             )
         )
@@ -74,7 +74,7 @@ class MqttClientHandler(ApiHandler[Any]):
             [{"topicFilter": topic} for topic in topics]
         )
         config = EventPublicationConfig(event_filter_list=event_filters)
-        await self.vapix.api_request(
+        await self.vapix._api_request_bytes(
             ConfigureEventPublicationRequest(
                 api_version=self.api_version, config=config
             )

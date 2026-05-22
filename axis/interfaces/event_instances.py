@@ -23,7 +23,7 @@ class EventInstanceHandler(ApiHandler[EventInstance]):
 
     async def get_event_instances(self) -> dict[str, EventInstance]:
         """List all event instances."""
-        response: ListEventInstancesResponse = await self.vapix.api_request_typed(
+        response: ListEventInstancesResponse = await self.vapix.api_request(
             ListEventInstancesRequest()
         )
         return response.data
