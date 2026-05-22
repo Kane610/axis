@@ -38,8 +38,11 @@ class ApiResponseDecoder[DecodedT](Protocol):
 
 
 @dataclass
-class ApiResponseBase(ABC):
+class ApiResponse[ApiDataT](ABC):
     """Response from API request."""
+
+    data: ApiDataT
+    # error: str
 
     @classmethod
     @abstractmethod
@@ -54,14 +57,6 @@ class BytesResponse(ApiResponseDecoder[bytes]):
     def decode(cls, bytes_data: bytes) -> bytes:
         """Return raw response payload bytes unchanged."""
         return bytes_data
-
-
-@dataclass
-class ApiResponse[ApiDataT](ApiResponseBase):
-    """Response from API request."""
-
-    data: ApiDataT
-    # error: str
 
 
 @dataclass
