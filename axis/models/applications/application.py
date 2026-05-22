@@ -4,8 +4,6 @@ Use VAPIX® Application API to upload, control and manage applications
 and their license keys.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import enum
 from typing import Literal, NotRequired, Self, TypedDict
