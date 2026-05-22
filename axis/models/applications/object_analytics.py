@@ -197,7 +197,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
 
 @dataclass
-class GetConfigurationRequest(ApiRequest):
+class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
     """Request object for listing Object analytics configuration."""
 
     method = "post"

@@ -12,9 +12,7 @@ from ..models.api_discovery import ApiId
 from ..models.stream_profile import (
     API_VERSION,
     GetSupportedVersionsRequest,
-    GetSupportedVersionsResponse,
     ListStreamProfilesRequest,
-    ListStreamProfilesResponse,
     StreamProfile,
 )
 from .api_handler import ApiHandler, HandlerGroup
@@ -33,14 +31,12 @@ class StreamProfilesHandler(ApiHandler[StreamProfile]):
 
     async def list_stream_profiles(self) -> dict[str, StreamProfile]:
         """List all stream profiles."""
-        response: ListStreamProfilesResponse = await self.vapix.api_request_typed(
+        response = await self.vapix.api_request(
             ListStreamProfilesRequest(api_version=self.api_version)
         )
         return response.data
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
-            GetSupportedVersionsRequest()
-        )
+        response = await self.vapix.api_request(GetSupportedVersionsRequest())
         return response.data

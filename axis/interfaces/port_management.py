@@ -8,9 +8,7 @@ from ..models.api_discovery import ApiId
 from ..models.port_management import (
     API_VERSION,
     GetPortsRequest,
-    GetPortsResponse,
     GetSupportedVersionsRequest,
-    GetSupportedVersionsResponse,
     Port,
     PortConfiguration,
     Sequence,
@@ -33,7 +31,7 @@ class IoPortManagement(ApiHandler[Port]):
 
     async def get_ports(self) -> dict[str, Port]:
         """List ports."""
-        response: GetPortsResponse = await self.vapix.api_request_typed(
+        response = await self.vapix.api_request(
             GetPortsRequest(api_version=self.api_version)
         )
         return response.data
@@ -69,9 +67,7 @@ class IoPortManagement(ApiHandler[Port]):
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
-            GetSupportedVersionsRequest()
-        )
+        response = await self.vapix.api_request(GetSupportedVersionsRequest())
         return response.data
 
     async def open(self, port_id: str) -> None:

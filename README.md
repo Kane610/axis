@@ -48,6 +48,30 @@ Vapix initialization is phase-based and driven by handler metadata:
 
 Handlers declare phase membership through `handler_groups` and may customize phase eligibility through `should_initialize_in_group`.
 
+## Request and response typing
+
+`Vapix.api_request()` is the single typed request entrypoint.
+
+- Request models declare their decode contract with `ApiRequest[ResponseT]`.
+- Every `ApiRequest` subclass must set `response_type` explicitly.
+- Decoded/read requests use their concrete response model as `response_type`.
+- Write-style requests use `BytesResponse` as `response_type`.
+
+Examples:
+
+```python
+@dataclass
+class ListApisRequest(ApiRequest[GetAllApisResponse]):
+	response_type = GetAllApisResponse
+
+
+@dataclass
+class SetPortsRequest(ApiRequest[ApiResponse[bytes]]):
+	response_type = BytesResponse
+```
+
+Handler methods may unwrap `.data` when they intentionally preserve a bytes-returning boundary.
+
 Example fallback policy:
 
 - `LightHandler` participates in both `API_DISCOVERY` and `PARAM_CGI_FALLBACK`.

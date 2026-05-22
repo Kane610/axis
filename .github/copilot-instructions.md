@@ -30,6 +30,8 @@
 - Prefer root-cause fixes over workarounds.
 - For enums and external inputs, preserve existing defensive normalization patterns (for example `_missing_` fallbacks and constructor normalization).
 - For event/XML handling, preserve namespace-aware parsing and root-shape guards instead of assuming a fixed payload shape.
+- For request models, keep the generic `ApiRequest[T]` contract aligned with runtime `response_type` metadata on every subclass.
+- Use `BytesResponse` for write/raw-byte request classes instead of implicit defaults.
 
 ## Testing Conventions
 
@@ -66,6 +68,7 @@ Related issue: [link or #number].
 - Overall coverage must stay ≥95%
 - Reuse fixtures from tests/conftest.py
 - If enums are involved, include _missing_ fallback
+- Every ApiRequest subclass must declare an explicit response_type consistent with its generic argument
 - Keep changes minimal and targeted (no unrelated refactoring)
 
 [TASK]

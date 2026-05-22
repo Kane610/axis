@@ -119,7 +119,7 @@ class ParamResponse(ApiResponse[dict[str, Any]]):
 
 
 @dataclass
-class ParamRequest(ApiRequest):
+class ParamRequest(ApiRequest[ParamResponse]):
     """Request object for listing parameters."""
 
     method = "post"

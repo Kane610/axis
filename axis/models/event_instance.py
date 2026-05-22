@@ -391,7 +391,7 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
 
 
 @dataclass
-class ListEventInstancesRequest(ApiRequest):
+class ListEventInstancesRequest(ApiRequest[ListEventInstancesResponse]):
     """Request object for listing installed applications."""
 
     method = "post"

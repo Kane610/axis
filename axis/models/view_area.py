@@ -190,7 +190,7 @@ class ListViewAreasResponse(ApiResponse[dict[str, ViewArea]]):
 
 
 @dataclass
-class ListViewAreasRequest(ApiRequest):
+class ListViewAreasRequest(ApiRequest[ListViewAreasResponse]):
     """Request object for listing view areas."""
 
     method = "post"
@@ -215,7 +215,7 @@ class ListViewAreasRequest(ApiRequest):
 
 
 @dataclass
-class SetGeometryRequest(ApiRequest):
+class SetGeometryRequest(ApiRequest[ListViewAreasResponse]):
     """Request object for setting geometry of a view area."""
 
     method = "post"
@@ -254,7 +254,7 @@ class SetGeometryRequest(ApiRequest):
 
 
 @dataclass
-class ResetGeometryRequest(ApiRequest):
+class ResetGeometryRequest(ApiRequest[ListViewAreasResponse]):
     """Request object for resetting geometry of a view area."""
 
     method = "post"
@@ -304,7 +304,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
@@ -34,7 +34,7 @@ from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
     from ..device import AxisDevice
-    from ..models.api import ApiRequest, ApiResponseBase
+    from ..models.api import ApiRequest
     from ..models.stream_profile import StreamProfile
 
 LOGGER = logging.getLogger(__name__)
@@ -254,12 +254,15 @@ class Vapix:
             return
         self.user_groups._items.update(user_groups)
 
-    async def api_request(self, api_request: ApiRequest) -> bytes:
-        """Make a request to the device."""
+    async def api_request[ApiResponseT](
+        self,
+        api_request: ApiRequest[ApiResponseT],
+    ) -> ApiResponseT:
+        """Make a request and decode response based on the request contract."""
         params = api_request.params or {}
         if self.device.config.is_companion:
             params["Axis-Orig-Sw"] = "true"
-        return await self.request(
+        bytes_data = await self.request(
             method=api_request.method,
             path=api_request.path,
             content=api_request.content,
@@ -268,17 +271,7 @@ class Vapix:
             params=params,
         )
 
-    async def api_request_typed[ApiResponseT: ApiResponseBase](
-        self,
-        api_request: ApiRequest,
-    ) -> ApiResponseT:
-        """Make a request and decode response using the typed response contract."""
-        if api_request.response_type is None:
-            msg = "No response type configured on request; set request.response_type"
-            raise ValueError(msg)
-
-        bytes_data = await self.api_request(api_request)
-        decoder = cast("type[ApiResponseT]", api_request.response_type)
+        decoder = api_request.response_type
         return decoder.decode(bytes_data)
 
     async def request(

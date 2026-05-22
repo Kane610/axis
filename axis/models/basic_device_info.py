@@ -144,7 +144,7 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
 
 
 @dataclass
-class GetAllPropertiesRequest(ApiRequest):
+class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesResponse]):
     """Request object for basic device info."""
 
     method = "post"
@@ -191,7 +191,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

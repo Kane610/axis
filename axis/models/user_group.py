@@ -37,7 +37,7 @@ class GetUserGroupResponse(ApiResponse[dict[str, User]]):
 
 
 @dataclass
-class GetUserGroupRequest(ApiRequest):
+class GetUserGroupRequest(ApiRequest[GetUserGroupResponse]):
     """Request object for listing users."""
 
     method = "get"

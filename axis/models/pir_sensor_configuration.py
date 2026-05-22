@@ -9,7 +9,7 @@ from typing import NotRequired, Self, TypedDict
 
 import orjson
 
-from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse, BytesResponse
 
 API_VERSION = "1.0"
 
@@ -141,7 +141,7 @@ class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
 
 
 @dataclass
-class ListSensorsRequest(ApiRequest):
+class ListSensorsRequest(ApiRequest[ListSensorsResponse]):
     """Request object for listing PIR sensors."""
 
     method = "post"
@@ -188,7 +188,7 @@ class GetSensitivityResponse(ApiResponse[float | None]):
 
 
 @dataclass
-class GetSensitivityRequest(ApiRequest):
+class GetSensitivityRequest(ApiRequest[GetSensitivityResponse]):
     """Request object for getting PIR sensor sensitivity."""
 
     method = "post"
@@ -218,12 +218,13 @@ class GetSensitivityRequest(ApiRequest):
 
 
 @dataclass
-class SetSensitivityRequest(ApiRequest):
+class SetSensitivityRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for setting PIR sensor sensitivity."""
 
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = sensor_specific_error_codes
 
     id: int
@@ -271,7 +272,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

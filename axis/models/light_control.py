@@ -5,7 +5,7 @@ from typing import NotRequired, Self, TypedDict
 
 import orjson
 
-from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse, BytesResponse
 
 API_VERSION = "1.1"
 
@@ -257,7 +257,7 @@ class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
 
 
 @dataclass
-class GetLightInformationRequest(ApiRequest):
+class GetLightInformationRequest(ApiRequest[GetLightInformationResponse]):
     """Request object for getting light information."""
 
     method = "post"
@@ -334,7 +334,7 @@ class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
 
 
 @dataclass
-class GetServiceCapabilitiesRequest(ApiRequest):
+class GetServiceCapabilitiesRequest(ApiRequest[GetServiceCapabilitiesResponse]):
     """Request object for getting service capabilities."""
 
     method = "post"
@@ -359,12 +359,13 @@ class GetServiceCapabilitiesRequest(ApiRequest):
 
 
 @dataclass
-class ActivateLightRequest(ApiRequest):
+class ActivateLightRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for activating light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -459,7 +460,7 @@ class GetLightStatusResponse(ApiResponse[bool]):
 
 
 @dataclass
-class GetLightStatusRequest(ApiRequest):
+class GetLightStatusRequest(ApiRequest[GetLightStatusResponse]):
     """Request object for getting light status."""
 
     method = "post"
@@ -487,12 +488,13 @@ class GetLightStatusRequest(ApiRequest):
 
 
 @dataclass
-class SetAutomaticIntensityModeRequest(ApiRequest):
+class SetAutomaticIntensityModeRequest(ApiRequest[ApiResponse[bytes]]):
     """Enable the automatic light intensity control."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -537,7 +539,7 @@ class GetValidIntensityResponse(ApiResponse[Range]):
 
 
 @dataclass
-class GetValidIntensityRequest(ApiRequest):
+class GetValidIntensityRequest(ApiRequest[GetValidIntensityResponse]):
     """Request object for getting valid intensity range of light."""
 
     method = "post"
@@ -565,12 +567,13 @@ class GetValidIntensityRequest(ApiRequest):
 
 
 @dataclass
-class SetManualIntensityRequest(ApiRequest):
+class SetManualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
     """Set manual light intensity."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -615,7 +618,7 @@ class GetManualIntensityResponse(ApiResponse[int]):
 
 
 @dataclass
-class GetManualIntensityRequest(ApiRequest):
+class GetManualIntensityRequest(ApiRequest[GetManualIntensityResponse]):
     """Request object for getting manual intensity."""
 
     method = "post"
@@ -643,12 +646,13 @@ class GetManualIntensityRequest(ApiRequest):
 
 
 @dataclass
-class SetIndividualIntensityRequest(ApiRequest):
+class SetIndividualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
     """Set individual light intensity."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -698,7 +702,7 @@ class GetIndividualIntensityResponse(ApiResponse[int]):
 
 
 @dataclass
-class GetIndividualIntensityRequest(ApiRequest):
+class GetIndividualIntensityRequest(ApiRequest[GetIndividualIntensityResponse]):
     """Request object for getting individual intensity."""
 
     method = "post"
@@ -749,7 +753,7 @@ class GetCurrentIntensityResponse(ApiResponse[int]):
 
 
 @dataclass
-class GetCurrentIntensityRequest(ApiRequest):
+class GetCurrentIntensityRequest(ApiRequest[GetCurrentIntensityResponse]):
     """Request object for getting current intensity."""
 
     method = "post"
@@ -777,12 +781,13 @@ class GetCurrentIntensityRequest(ApiRequest):
 
 
 @dataclass
-class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest):
+class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]]):
     """Enable the automatic angle of illumination control."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -827,7 +832,9 @@ class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
 
 
 @dataclass
-class GetValidAngleOfIlluminationRequest(ApiRequest):
+class GetValidAngleOfIlluminationRequest(
+    ApiRequest[GetValidAngleOfIlluminationResponse]
+):
     """Request object for getting valid angle of illumination range."""
 
     method = "post"
@@ -855,12 +862,13 @@ class GetValidAngleOfIlluminationRequest(ApiRequest):
 
 
 @dataclass
-class SetManualAngleOfIlluminationModeRequest(ApiRequest):
+class SetManualAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]]):
     """Set the manual angle of illumination."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -908,7 +916,9 @@ class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
 
 
 @dataclass
-class GetManualAngleOfIlluminationRequest(ApiRequest):
+class GetManualAngleOfIlluminationRequest(
+    ApiRequest[GetManualAngleOfIlluminationResponse]
+):
     """Request object for getting manual angle of illumination."""
 
     method = "post"
@@ -958,7 +968,9 @@ class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
 
 
 @dataclass
-class GetCurrentAngleOfIlluminationRequest(ApiRequest):
+class GetCurrentAngleOfIlluminationRequest(
+    ApiRequest[GetCurrentAngleOfIlluminationResponse]
+):
     """Request object for getting current angle of illumination."""
 
     method = "post"
@@ -986,12 +998,13 @@ class GetCurrentAngleOfIlluminationRequest(ApiRequest):
 
 
 @dataclass
-class SetLightSynchronizeDayNightModeRequest(ApiRequest):
+class SetLightSynchronizeDayNightModeRequest(ApiRequest[ApiResponse[bytes]]):
     """Enable automatic synchronization with the day/night mode."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     light_id: str
@@ -1036,7 +1049,9 @@ class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
 
 
 @dataclass
-class GetLightSynchronizeDayNightModeRequest(ApiRequest):
+class GetLightSynchronizeDayNightModeRequest(
+    ApiRequest[GetLightSynchronizeDayNightModeResponse]
+):
     """Request object for getting day night mode synchronization setting."""
 
     method = "post"
@@ -1086,7 +1101,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

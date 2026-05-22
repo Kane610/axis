@@ -8,7 +8,7 @@ and actual parameter values, check the specification of the Axis PTZ driver used
 from dataclasses import dataclass
 import enum
 
-from .api import ApiRequest
+from .api import ApiRequest, ApiResponse, BytesResponse
 
 
 class PtzMove(enum.StrEnum):
@@ -92,12 +92,13 @@ class PtzQuery(enum.StrEnum):
 
 
 @dataclass
-class PtzControlRequest(ApiRequest):
+class PtzControlRequest(ApiRequest[ApiResponse[bytes]]):
     """Control pan, tilt and zoom behavior of a PTZ unit."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     camera: int | None = None
     """Selects the video channel.
@@ -337,12 +338,13 @@ class PtzControlRequest(ApiRequest):
 
 
 @dataclass
-class PtzCommandRequest(ApiRequest):
+class PtzCommandRequest(ApiRequest[ApiResponse[bytes]]):
     """Retrieve available PTZ commands."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     @property
     def data(self) -> dict[str, str]:
@@ -351,12 +353,13 @@ class PtzCommandRequest(ApiRequest):
 
 
 @dataclass
-class DeviceDriverRequest(ApiRequest):
+class DeviceDriverRequest(ApiRequest[ApiResponse[bytes]]):
     """Retrieve name of the device driver."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     @property
     def data(self) -> dict[str, str]:
@@ -365,12 +368,13 @@ class DeviceDriverRequest(ApiRequest):
 
 
 @dataclass
-class QueryRequest(ApiRequest):
+class QueryRequest(ApiRequest[ApiResponse[bytes]]):
     """Retrieve current status."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     query: PtzQuery
 

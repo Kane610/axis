@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from ..models.event_instance import (
     EventInstance,
     ListEventInstancesRequest,
-    ListEventInstancesResponse,
 )
 from .api_handler import ApiHandler
 from .event_manager import BLACK_LISTED_TOPICS
@@ -23,9 +22,7 @@ class EventInstanceHandler(ApiHandler[EventInstance]):
 
     async def get_event_instances(self) -> dict[str, EventInstance]:
         """List all event instances."""
-        response: ListEventInstancesResponse = await self.vapix.api_request_typed(
-            ListEventInstancesRequest()
-        )
+        response = await self.vapix.api_request(ListEventInstancesRequest())
         return response.data
 
     def get_expected_events_per_topic(

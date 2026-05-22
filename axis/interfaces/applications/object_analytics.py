@@ -7,7 +7,6 @@ from ...models.applications.application import ApplicationName
 from ...models.applications.object_analytics import (
     Configuration,
     GetConfigurationRequest,
-    GetConfigurationResponse,
 )
 from .application_handler import ApplicationHandler
 
@@ -19,7 +18,5 @@ class ObjectAnalyticsHandler(ApplicationHandler[Configuration]):
 
     async def get_configuration(self) -> Configuration:
         """Get configuration of object analytics application."""
-        response: GetConfigurationResponse = await self.vapix.api_request_typed(
-            GetConfigurationRequest()
-        )
+        response = await self.vapix.api_request(GetConfigurationRequest())
         return response.data

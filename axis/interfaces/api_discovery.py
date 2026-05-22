@@ -8,9 +8,7 @@ from ..models.api_discovery import (
     API_VERSION,
     Api,
     ApiId,
-    GetAllApisResponse,
     GetSupportedVersionsRequest,
-    GetSupportedVersionsResponse,
     ListApisRequest,
 )
 from .api_handler import ApiHandler
@@ -33,14 +31,10 @@ class ApiDiscoveryHandler(ApiHandler[Api]):
 
     async def get_api_list(self) -> dict[str, Api]:
         """List all APIs registered on API Discovery service."""
-        response: GetAllApisResponse = await self.vapix.api_request_typed(
-            ListApisRequest()
-        )
+        response = await self.vapix.api_request(ListApisRequest())
         return response.data
 
     async def get_supported_versions(self) -> list[str]:
         """List supported API versions."""
-        response: GetSupportedVersionsResponse = await self.vapix.api_request_typed(
-            GetSupportedVersionsRequest()
-        )
+        response = await self.vapix.api_request(GetSupportedVersionsRequest())
         return response.data

@@ -9,7 +9,7 @@ from typing import Literal, NotRequired, Self, TypedDict
 
 import orjson
 
-from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse, BytesResponse
 
 API_VERSION = "1.0"
 
@@ -199,7 +199,7 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
 
 
 @dataclass
-class GetPortsRequest(ApiRequest):
+class GetPortsRequest(ApiRequest[GetPortsResponse]):
     """Request object for listing ports."""
 
     method = "post"
@@ -224,12 +224,13 @@ class GetPortsRequest(ApiRequest):
 
 
 @dataclass
-class SetPortsRequest(ApiRequest):
+class SetPortsRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for configuring ports."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = error_codes
 
     port_config: list[PortConfiguration] | PortConfiguration
@@ -254,12 +255,13 @@ class SetPortsRequest(ApiRequest):
 
 
 @dataclass
-class SetStateSequenceRequest(ApiRequest):
+class SetStateSequenceRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for configuring port sequence."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = error_codes
 
     port: str
@@ -305,7 +307,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

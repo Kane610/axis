@@ -18,7 +18,6 @@ from ..models.pwdgrp_cgi import (
     CreateUserRequest,
     DeleteUserRequest,
     GetUsersRequest,
-    GetUsersResponse,
     ModifyUserRequest,
     SecondaryGroup,
     User,
@@ -44,9 +43,7 @@ class Users(ApiHandler[User]):
 
     async def list(self) -> dict[str, User]:
         """List current users."""
-        response: GetUsersResponse = await self.vapix.api_request_typed(
-            GetUsersRequest()
-        )
+        response = await self.vapix.api_request(GetUsersRequest())
         return response.data
 
     async def create(

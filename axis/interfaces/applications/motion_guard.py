@@ -9,7 +9,6 @@ from ...models.applications.application import ApplicationName
 from ...models.applications.motion_guard import (
     Configuration,
     GetConfigurationRequest,
-    GetConfigurationResponse,
 )
 from .application_handler import ApplicationHandler
 
@@ -21,7 +20,5 @@ class MotionGuardHandler(ApplicationHandler[Configuration]):
 
     async def get_configuration(self) -> Configuration:
         """Get configuration of VMD4 application."""
-        response: GetConfigurationResponse = await self.vapix.api_request_typed(
-            GetConfigurationRequest()
-        )
+        response = await self.vapix.api_request(GetConfigurationRequest())
         return response.data

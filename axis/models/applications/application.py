@@ -160,7 +160,7 @@ class ListApplicationsResponse(ApiResponse[dict[str, Application]]):
 
 
 @dataclass
-class ListApplicationsRequest(ApiRequest):
+class ListApplicationsRequest(ApiRequest[ListApplicationsResponse]):
     """Request object for listing installed applications."""
 
     method = "post"
