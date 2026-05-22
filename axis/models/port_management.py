@@ -5,7 +5,7 @@ information about the ports and apply product dependent configurations
 """
 
 from dataclasses import dataclass
-from typing import Literal, NotRequired, Self, TypedDict
+from typing import Never, Literal, NotRequired, Self, TypedDict
 
 import orjson
 
@@ -199,7 +199,7 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
 
 
 @dataclass
-class GetPortsRequest(ApiRequest):
+class GetPortsRequest(ApiRequest[GetPortsResponse]):
     """Request object for listing ports."""
 
     method = "post"
@@ -224,7 +224,7 @@ class GetPortsRequest(ApiRequest):
 
 
 @dataclass
-class SetPortsRequest(ApiRequest):
+class SetPortsRequest(ApiRequest[Never]):
     """Request object for configuring ports."""
 
     method = "post"

@@ -16,6 +16,8 @@ LOGGER = logging.getLogger(__name__)
 
 class ApiId(enum.StrEnum):
     """The API discovery ID."""
+from __future__ import annotations
+
 
     AIR_QUALITY = "airquality"
     ANALYTICS_METADATA_CONFIG = "analytics-metadata-config"
@@ -222,7 +224,7 @@ class GetAllApisResponse(ApiResponse[dict[str, Api]]):
 
 
 @dataclass
-class ListApisRequest(ApiRequest):
+class ListApisRequest(ApiRequest[GetAllApisResponse]):
     """Request object for listing API descriptions."""
 
     method = "post"
@@ -269,7 +271,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

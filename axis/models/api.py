@@ -48,8 +48,8 @@ class ApiResponse[ApiDataT](ApiResponseBase):
 
 
 @dataclass
-class ApiRequest:
-    """Create API request body."""
+class ApiRequest[ResponseT: ApiResponseBase]:
+    """Create API request body with typed response contract."""
 
     method: str = field(init=False)
     path: str = field(init=False)

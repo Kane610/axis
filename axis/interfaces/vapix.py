@@ -270,7 +270,7 @@ class Vapix:
 
     async def api_request_typed[ApiResponseT: ApiResponseBase](
         self,
-        api_request: ApiRequest,
+        api_request: ApiRequest[ApiResponseT],
     ) -> ApiResponseT:
         """Make a request and decode response using the typed response contract."""
         if api_request.response_type is None:

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 """MQTT Client api."""
 
 from dataclasses import dataclass
 import enum
-from typing import Any, Literal, NotRequired, Self, TypedDict
+from typing import Never, Any, Literal, NotRequired, Self, TypedDict
 
 import orjson
 
@@ -581,7 +583,7 @@ class EventPublicationConfig:
 
 
 @dataclass
-class ConfigureClientRequest(ApiRequest):
+class ConfigureClientRequest(ApiRequest[GetClientStatusResponse]):
     """Request object for configuring MQTT client."""
 
     method = "post"
@@ -608,7 +610,7 @@ class ConfigureClientRequest(ApiRequest):
 
 
 @dataclass
-class ActivateClientRequest(ApiRequest):
+class ActivateClientRequest(ApiRequest[Never]):
     """Request object for activating MQTT client."""
 
     method = "post"
@@ -719,7 +721,7 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
 
 
 @dataclass
-class GetEventPublicationConfigRequest(ApiRequest):
+class GetEventPublicationConfigRequest(ApiRequest[GetEventPublicationConfigResponse]):
     """Request object for getting MQTT event publication config."""
 
     method = "post"
@@ -744,7 +746,7 @@ class GetEventPublicationConfigRequest(ApiRequest):
 
 
 @dataclass
-class ConfigureEventPublicationRequest(ApiRequest):
+class ConfigureEventPublicationRequest(ApiRequest[Never]):
     """Request object for configuring event publication over MQTT."""
 
     method = "post"

@@ -5,6 +5,9 @@ The PTZ control is device-dependent. For information about supported parameters
 and actual parameter values, check the specification of the Axis PTZ driver used.
 """
 
+from __future__ import annotations
+
+
 from dataclasses import dataclass
 import enum
 
@@ -92,7 +95,7 @@ class PtzQuery(enum.StrEnum):
 
 
 @dataclass
-class PtzControlRequest(ApiRequest):
+class PtzControlRequest(ApiRequest[Never]):
     """Control pan, tilt and zoom behavior of a PTZ unit."""
 
     method = "post"
@@ -337,7 +340,7 @@ class PtzControlRequest(ApiRequest):
 
 
 @dataclass
-class PtzCommandRequest(ApiRequest):
+class PtzCommandRequest(ApiRequest[Never]):
     """Retrieve available PTZ commands."""
 
     method = "post"
@@ -351,7 +354,7 @@ class PtzCommandRequest(ApiRequest):
 
 
 @dataclass
-class DeviceDriverRequest(ApiRequest):
+class DeviceDriverRequest(ApiRequest[Never]):
     """Retrieve name of the device driver."""
 
     method = "post"
@@ -365,7 +368,7 @@ class DeviceDriverRequest(ApiRequest):
 
 
 @dataclass
-class QueryRequest(ApiRequest):
+class QueryRequest(ApiRequest[Never]):
     """Retrieve current status."""
 
     method = "post"

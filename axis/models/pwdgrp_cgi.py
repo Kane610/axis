@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 import enum
-from typing import Self, TypedDict
+from typing import Never, Self, TypedDict
 
 from .api import ApiItem, ApiRequest, ApiResponse
 
@@ -105,7 +105,7 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
 
 
 @dataclass
-class GetUsersRequest(ApiRequest):
+class GetUsersRequest(ApiRequest[GetUsersResponse]):
     """Request object for listing users."""
 
     method = "post"
@@ -180,7 +180,7 @@ class ModifyUserRequest(ApiRequest):
 
 
 @dataclass
-class DeleteUserRequest(ApiRequest):
+class DeleteUserRequest(ApiRequest[Never]):
     """Request object for deleting a user."""
 
     method = "post"

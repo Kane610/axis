@@ -39,9 +39,11 @@ NAMESPACES = {
 
 def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
     """Get all events.
+    from __future__ import annotations
 
-    Ignore keys with "@" while traversing structure. Indicates an attribute in value.
-    When @topic is reached, return event data and build topic structure.
+
+        Ignore keys with "@" while traversing structure. Indicates an attribute in value.
+        When @topic is reached, return event data and build topic structure.
     """
     events = []
     for key, value in data.items():
@@ -391,7 +393,7 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
 
 
 @dataclass
-class ListEventInstancesRequest(ApiRequest):
+class ListEventInstancesRequest(ApiRequest[ListEventInstancesResponse]):
     """Request object for listing installed applications."""
 
     method = "post"

@@ -134,7 +134,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
 
 @dataclass
-class GetConfigurationRequest(ApiRequest):
+class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
     """Request object for listing Loitering guard configuration."""
 
     method = "post"
