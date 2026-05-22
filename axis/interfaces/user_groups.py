@@ -4,7 +4,7 @@ Figure out what access rights an account has.
 """
 
 from ..models.pwdgrp_cgi import User
-from ..models.user_group import GetUserGroupRequest, GetUserGroupResponse
+from ..models.user_group import GetUserGroupRequest
 from .api_handler import ApiHandler
 
 
@@ -17,7 +17,5 @@ class UserGroups(ApiHandler[User]):
 
     async def get_user_groups(self) -> dict[str, User]:
         """Retrieve privilege rights for current user."""
-        response: GetUserGroupResponse = await self.vapix.api_request(
-            GetUserGroupRequest()
-        )
+        response = await self.vapix.api_request(GetUserGroupRequest())
         return response.data

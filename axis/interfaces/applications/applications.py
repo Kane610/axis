@@ -9,7 +9,6 @@ from packaging import version
 from ...models.applications.application import (
     Application,
     ListApplicationsRequest,
-    ListApplicationsResponse,
 )
 from ..api_handler import ApiHandler
 
@@ -36,7 +35,5 @@ class ApplicationsHandler(ApiHandler[Application]):
 
     async def list_applications(self) -> dict[str, Application]:
         """List all APIs registered on API Discovery service."""
-        response: ListApplicationsResponse = await self.vapix.api_request(
-            ListApplicationsRequest()
-        )
+        response = await self.vapix.api_request(ListApplicationsRequest())
         return response.data

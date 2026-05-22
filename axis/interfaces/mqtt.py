@@ -14,9 +14,7 @@ from ..models.mqtt import (
     EventFilter,
     EventPublicationConfig,
     GetClientStatusRequest,
-    GetClientStatusResponse,
     GetEventPublicationConfigRequest,
-    GetEventPublicationConfigResponse,
 )
 from .api_handler import ApiHandler, HandlerGroup
 
@@ -52,14 +50,14 @@ class MqttClientHandler(ApiHandler[Any]):
 
     async def get_client_status(self) -> ClientConfigStatus:
         """Get MQTT Client status."""
-        response: GetClientStatusResponse = await self.vapix.api_request(
+        response = await self.vapix.api_request(
             GetClientStatusRequest(api_version=self.api_version)
         )
         return response.data
 
     async def get_event_publication_config(self) -> EventPublicationConfig:
         """Get MQTT Client event publication config."""
-        response: GetEventPublicationConfigResponse = await self.vapix.api_request(
+        response = await self.vapix.api_request(
             GetEventPublicationConfigRequest(api_version=self.api_version)
         )
         return response.data
