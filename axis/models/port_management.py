@@ -9,7 +9,7 @@ from typing import Literal, NotRequired, Self, TypedDict
 
 import orjson
 
-from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse, BytesResponse
 
 API_VERSION = "1.0"
 
@@ -224,12 +224,13 @@ class GetPortsRequest(ApiRequest[GetPortsResponse]):
 
 
 @dataclass
-class SetPortsRequest(ApiRequest[bytes]):
+class SetPortsRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for configuring ports."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = error_codes
 
     port_config: list[PortConfiguration] | PortConfiguration
@@ -254,12 +255,13 @@ class SetPortsRequest(ApiRequest[bytes]):
 
 
 @dataclass
-class SetStateSequenceRequest(ApiRequest[bytes]):
+class SetStateSequenceRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for configuring port sequence."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = error_codes
 
     port: str

@@ -112,12 +112,15 @@ class PtzControl(ApiHandler[PtzParam]):
 
     async def query(self, query: PtzQuery) -> bytes:
         """Retrieve current status."""
-        return await self.vapix.api_request(QueryRequest(query))
+        response = await self.vapix.api_request(QueryRequest(query))
+        return response.data
 
     async def configured_device_driver(self) -> bytes:
         """Name of the system-configured device driver."""
-        return await self.vapix.api_request(DeviceDriverRequest())
+        response = await self.vapix.api_request(DeviceDriverRequest())
+        return response.data
 
     async def available_ptz_commands(self) -> bytes:
         """Available PTZ commands."""
-        return await self.vapix.api_request(PtzCommandRequest())
+        response = await self.vapix.api_request(PtzCommandRequest())
+        return response.data

@@ -15,6 +15,7 @@ from axis.errors import (
     Unauthorized,
 )
 from axis.interfaces.api_handler import HandlerGroup
+from axis.models.api import BytesResponse
 from axis.models.api_discovery import ListApisRequest
 from axis.models.applications.application import (
     ApplicationStatus,
@@ -385,12 +386,13 @@ async def test_api_request_uses_applications_request_response_type(
 async def test_api_request_returns_raw_bytes_for_request_without_response_type(
     mock_vapix_request, vapix: Vapix
 ):
-    """Verify api_request returns raw bytes for requests without response metadata."""
+    """Verify api_request returns wrapped bytes for requests using byte responses."""
     mock_vapix_request(SetPortsRequest, json={})
 
     response = await vapix.api_request(SetPortsRequest(PortConfiguration(port="0")))
 
-    assert isinstance(response, bytes)
+    assert isinstance(response, BytesResponse)
+    assert isinstance(response.data, bytes)
 
 
 async def test_api_request_decodes_using_request_response_type(

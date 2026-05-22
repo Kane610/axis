@@ -8,11 +8,11 @@ Virtual input API.
 
 from dataclasses import dataclass
 
-from .api import ApiRequest
+from .api import ApiRequest, ApiResponse, BytesResponse
 
 
 @dataclass
-class PortActionRequest(ApiRequest[bytes]):
+class PortActionRequest(ApiRequest[ApiResponse[bytes]]):
     r"""Request object for activate or deactivate an output.
 
     Use the <wait> option to activate/deactivate the port for a
@@ -33,6 +33,7 @@ class PortActionRequest(ApiRequest[bytes]):
     method = "get"
     path = "/axis-cgi/io/port.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     port: str
     action: str

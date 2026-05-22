@@ -9,7 +9,7 @@ from typing import NotRequired, Self, TypedDict
 
 import orjson
 
-from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse
+from .api import CONTEXT, ApiItem, ApiRequest, ApiResponse, BytesResponse
 
 API_VERSION = "1.0"
 
@@ -218,12 +218,13 @@ class GetSensitivityRequest(ApiRequest[GetSensitivityResponse]):
 
 
 @dataclass
-class SetSensitivityRequest(ApiRequest[bytes]):
+class SetSensitivityRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for setting PIR sensor sensitivity."""
 
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = sensor_specific_error_codes
 
     id: int

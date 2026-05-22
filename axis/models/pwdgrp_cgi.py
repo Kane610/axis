@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import enum
 from typing import Self, TypedDict
 
-from .api import ApiItem, ApiRequest, ApiResponse
+from .api import ApiItem, ApiRequest, ApiResponse, BytesResponse
 
 
 class SecondaryGroup(enum.StrEnum):
@@ -120,12 +120,13 @@ class GetUsersRequest(ApiRequest[GetUsersResponse]):
 
 
 @dataclass
-class CreateUserRequest(ApiRequest[bytes]):
+class CreateUserRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for creating a user."""
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     user: str
     pwd: str
@@ -150,12 +151,13 @@ class CreateUserRequest(ApiRequest[bytes]):
 
 
 @dataclass
-class ModifyUserRequest(ApiRequest[bytes]):
+class ModifyUserRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for modifying a user."""
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     user: str
     pwd: str | None = None
@@ -180,12 +182,13 @@ class ModifyUserRequest(ApiRequest[bytes]):
 
 
 @dataclass
-class DeleteUserRequest(ApiRequest[bytes]):
+class DeleteUserRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for deleting a user."""
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
     user: str
 

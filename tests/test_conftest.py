@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import axis.models
-from axis.models.api import ApiRequest
+from axis.models.api import ApiRequest, BytesResponse
 
 from tests.conftest import (
     MOCK_API_REQUEST_DIRECT_CONTENT_TYPES,
@@ -26,54 +26,63 @@ class _JsonApiRequest(ApiRequest):
     method = "POST"
     path = "/axis-cgi/mock/json.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
 
 
 class _PlainTextApiRequest(ApiRequest):
     method = "GET"
     path = "/axis-cgi/mock/plain.cgi"
     content_type = "text/plain"
+    response_type = BytesResponse
 
 
 class _XmlApiRequest(ApiRequest):
     method = "POST"
     path = "/axis-cgi/mock/xml.cgi"
     content_type = "text/xml"
+    response_type = BytesResponse
 
 
 class _UnsupportedTypeApiRequest(ApiRequest):
     method = "POST"
     path = "/axis-cgi/mock/unsupported-type.cgi"
     content_type = "application/octet-stream"
+    response_type = BytesResponse
 
 
 class _UnsupportedMethodApiRequest(ApiRequest):
     method = "DELETE"
     path = "/axis-cgi/mock/unsupported-method.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
 
 
 class _LowerCaseMethodApiRequest(ApiRequest):
     method = "post"
     path = "/axis-cgi/mock/lowercase-method.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
 
 
 class _BlankMethodApiRequest(ApiRequest):
     method = "   "
     path = "/axis-cgi/mock/blank-method.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
 
 
 class _AssertionApiRequest(ApiRequest):
     method = "POST"
     path = "/axis-cgi/mock/assertions.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
 
 
 class _ExplicitResponseOnlyApiRequest(ApiRequest):
     method = "POST"
     path = "/axis-cgi/mock/explicit-only.cgi"
     content_type = "application/octet-stream"
+    response_type = BytesResponse
 
 
 def _iter_api_request_classes() -> list[type[ApiRequest]]:

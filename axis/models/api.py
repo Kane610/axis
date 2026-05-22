@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Protocol, Self, cast
+from typing import Any, ClassVar, Protocol, Self
 
 CONTEXT = "Axis library"
 
@@ -50,25 +50,27 @@ class ApiResponse[ApiDataT](ABC):
         """Decode data to class object."""
 
 
-class BytesResponse(ApiResponseDecoder[bytes]):
-    """Decoder that keeps the response payload as raw bytes."""
+@dataclass
+class BytesResponse(ApiResponse[bytes]):
+    """Response wrapper for APIs that only return raw bytes."""
 
     @classmethod
-    def decode(cls, bytes_data: bytes) -> bytes:
-        """Return raw response payload bytes unchanged."""
-        return bytes_data
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Wrap raw response payload bytes in an ApiResponse object."""
+        return cls(data=bytes_data)
 
 
 @dataclass
-class ApiRequest[ResponseT = bytes]:
-    """Create API request body with typed response contract."""
+class ApiRequest[ResponseT = ApiResponse[bytes]]:
+    """Create API request body with typed response contract.
+
+    Subclasses must set ``response_type`` to the decoder for ``ResponseT``.
+    """
 
     method: str = field(init=False)
     path: str = field(init=False)
     content_type: str = field(init=False)
-    response_type: ClassVar[type[ApiResponseDecoder[ResponseT]]] = cast(
-        "type[ApiResponseDecoder[ResponseT]]", BytesResponse
-    )
+    response_type: ClassVar[type[ApiResponseDecoder[ResponseT]]]
 
     @property
     def content(self) -> bytes | None:

@@ -4,7 +4,7 @@ from typing import get_args, get_origin
 
 import pytest
 
-from axis.models.api import ApiRequest, BytesResponse
+from axis.models.api import ApiRequest, ApiResponse, BytesResponse
 from axis.models.api_discovery import (
     GetAllApisResponse,
     GetSupportedVersionsRequest as ApiDiscoveryGetSupportedVersionsRequest,
@@ -234,8 +234,8 @@ def test_request_response_type_contracts(request_cls, response_cls) -> None:
     ],
 )
 def test_write_and_bytes_requests_have_no_response_contract(request_cls) -> None:
-    """Verify non-decoded request classes use the raw-bytes response contract."""
+    """Verify write requests use wrapped raw-byte response contracts."""
     assert request_cls.response_type is BytesResponse
     generic_base = request_cls.__orig_bases__[0]
     assert get_origin(generic_base) is ApiRequest
-    assert get_args(generic_base) == (bytes,)
+    assert get_args(generic_base) == (ApiResponse[bytes],)

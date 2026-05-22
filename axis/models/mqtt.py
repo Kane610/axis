@@ -8,7 +8,7 @@ from typing import Any, Literal, NotRequired, Self, TypedDict
 
 import orjson
 
-from .api import CONTEXT, ApiRequest, ApiResponse
+from .api import CONTEXT, ApiRequest, ApiResponse, BytesResponse
 
 API_VERSION = "1.0"
 
@@ -629,12 +629,13 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
 
 
 @dataclass
-class ConfigureClientRequest(ApiRequest[bytes]):
+class ConfigureClientRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for configuring MQTT client."""
 
     method = "post"
     path = "/axis-cgi/mqtt/client.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     client_config: ClientConfig
@@ -656,12 +657,13 @@ class ConfigureClientRequest(ApiRequest[bytes]):
 
 
 @dataclass
-class ActivateClientRequest(ApiRequest[bytes]):
+class ActivateClientRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for activating MQTT client."""
 
     method = "post"
     path = "/axis-cgi/mqtt/client.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     api_version: str = API_VERSION
@@ -746,12 +748,13 @@ class GetEventPublicationConfigRequest(ApiRequest[GetEventPublicationConfigRespo
 
 
 @dataclass
-class ConfigureEventPublicationRequest(ApiRequest[bytes]):
+class ConfigureEventPublicationRequest(ApiRequest[ApiResponse[bytes]]):
     """Request object for configuring event publication over MQTT."""
 
     method = "post"
     path = "/axis-cgi/mqtt/event.cgi"
     content_type = "application/json"
+    response_type = BytesResponse
     error_codes = general_error_codes
 
     config: EventPublicationConfig
