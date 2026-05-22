@@ -37,9 +37,7 @@ class Params(ApiHandler[Any]):
 
     async def _api_request(self, group: ParameterGroup | None = None) -> dict[str, Any]:
         """Fetch parameter data and convert it into a dictionary."""
-        response: ParamResponse = await self.vapix.api_request(
-            ParamRequest(group)
-        )
+        response: ParamResponse = await self.vapix.api_request(ParamRequest(group))
         return response.data
 
     async def _update(self, group: ParameterGroup | None = None) -> Sequence[str]:

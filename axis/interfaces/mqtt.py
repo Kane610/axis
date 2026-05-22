@@ -59,10 +59,8 @@ class MqttClientHandler(ApiHandler[Any]):
 
     async def get_event_publication_config(self) -> EventPublicationConfig:
         """Get MQTT Client event publication config."""
-        response: GetEventPublicationConfigResponse = (
-            await self.vapix.api_request(
-                GetEventPublicationConfigRequest(api_version=self.api_version)
-            )
+        response: GetEventPublicationConfigResponse = await self.vapix.api_request(
+            GetEventPublicationConfigRequest(api_version=self.api_version)
         )
         return response.data
 

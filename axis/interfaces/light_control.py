@@ -203,11 +203,9 @@ class LightHandler(ApiHandler[LightInformation]):
 
     async def get_valid_angle_of_illumination(self, light_id: str) -> list[Range]:
         """List the valid angle of illumination values."""
-        response: GetValidAngleOfIlluminationResponse = (
-            await self.vapix.api_request(
-                GetValidAngleOfIlluminationRequest(
-                    api_version=self.api_version, light_id=light_id
-                )
+        response: GetValidAngleOfIlluminationResponse = await self.vapix.api_request(
+            GetValidAngleOfIlluminationRequest(
+                api_version=self.api_version, light_id=light_id
             )
         )
         return response.data
@@ -230,22 +228,18 @@ class LightHandler(ApiHandler[LightInformation]):
 
     async def get_manual_angle_of_illumination(self, light_id: str) -> int:
         """Get the angle of illumination."""
-        response: GetManualAngleOfIlluminationResponse = (
-            await self.vapix.api_request(
-                GetManualAngleOfIlluminationRequest(
-                    api_version=self.api_version, light_id=light_id
-                )
+        response: GetManualAngleOfIlluminationResponse = await self.vapix.api_request(
+            GetManualAngleOfIlluminationRequest(
+                api_version=self.api_version, light_id=light_id
             )
         )
         return response.data
 
     async def get_current_angle_of_illumination(self, light_id: str) -> int:
         """Receive the current angle of illumination."""
-        response: GetCurrentAngleOfIlluminationResponse = (
-            await self.vapix.api_request(
-                GetCurrentAngleOfIlluminationRequest(
-                    api_version=self.api_version, light_id=light_id
-                )
+        response: GetCurrentAngleOfIlluminationResponse = await self.vapix.api_request(
+            GetCurrentAngleOfIlluminationRequest(
+                api_version=self.api_version, light_id=light_id
             )
         )
         return response.data

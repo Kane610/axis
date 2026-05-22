@@ -333,9 +333,7 @@ async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     assert len(vapix.stream_profiles) == 1
 
 
-async def test_api_request_uses_request_response_type(
-    mock_vapix_request, vapix: Vapix
-):
+async def test_api_request_uses_request_response_type(mock_vapix_request, vapix: Vapix):
     """Verify typed request decoding can use request-level response metadata."""
     mock_vapix_request(
         ListViewAreasRequest,

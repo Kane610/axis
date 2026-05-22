@@ -33,9 +33,7 @@ class ApiDiscoveryHandler(ApiHandler[Api]):
 
     async def get_api_list(self) -> dict[str, Api]:
         """List all APIs registered on API Discovery service."""
-        response: GetAllApisResponse = await self.vapix.api_request(
-            ListApisRequest()
-        )
+        response: GetAllApisResponse = await self.vapix.api_request(ListApisRequest())
         return response.data
 
     async def get_supported_versions(self) -> list[str]:

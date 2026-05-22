@@ -44,9 +44,7 @@ class Users(ApiHandler[User]):
 
     async def list(self) -> dict[str, User]:
         """List current users."""
-        response: GetUsersResponse = await self.vapix.api_request(
-            GetUsersRequest()
-        )
+        response: GetUsersResponse = await self.vapix.api_request(GetUsersRequest())
         return response.data
 
     async def create(
