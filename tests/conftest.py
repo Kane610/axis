@@ -432,9 +432,11 @@ def aiohttp_mock_server(aiohttp_server):
                             else:
                                 # For other content types, capture as text
                                 req_entry["payload"] = await request.text()
-                        except ValueError, RuntimeError:
+                        except (ValueError, RuntimeError) as err:
                             # Skip payload if reading fails (e.g., already consumed)
-                            pass
+                            LOGGER.debug(
+                                "Skipping payload capture due to read error: %s", err
+                            )
                     requests.append(req_entry)
 
                 return build_response(
