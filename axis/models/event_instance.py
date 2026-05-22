@@ -1,7 +1,5 @@
 """Event service and action service APIs available in Axis network device."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import enum
 from typing import Any, Self

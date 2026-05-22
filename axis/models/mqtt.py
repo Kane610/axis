@@ -1,7 +1,5 @@
 """MQTT Client api."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import enum
 from typing import Any, Literal, NotRequired, Self, TypedDict
