@@ -120,7 +120,7 @@ class GetUsersRequest(ApiRequest[GetUsersResponse]):
 
 
 @dataclass
-class CreateUserRequest(ApiRequest):
+class CreateUserRequest(ApiRequest[Never]):
     """Request object for creating a user."""
 
     method = "post"
@@ -150,7 +150,7 @@ class CreateUserRequest(ApiRequest):
 
 
 @dataclass
-class ModifyUserRequest(ApiRequest):
+class ModifyUserRequest(ApiRequest[Never]):
     """Request object for modifying a user."""
 
     method = "post"

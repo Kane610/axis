@@ -254,7 +254,7 @@ class SetPortsRequest(ApiRequest[Never]):
 
 
 @dataclass
-class SetStateSequenceRequest(ApiRequest):
+class SetStateSequenceRequest(ApiRequest[Never]):
     """Request object for configuring port sequence."""
 
     method = "post"
@@ -305,7 +305,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

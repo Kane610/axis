@@ -117,7 +117,7 @@ class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
 
 
 @dataclass
-class ListStreamProfilesRequest(ApiRequest):
+class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesResponse]):
     """Request object for listing stream profiles descriptions."""
 
     method = "post"
@@ -168,7 +168,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 
 @dataclass
-class GetSupportedVersionsRequest(ApiRequest):
+class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     """Request object for listing supported API versions."""
 
     method = "post"

@@ -254,7 +254,7 @@ class Vapix:
             return
         self.user_groups._items.update(user_groups)
 
-    async def api_request(self, api_request: ApiRequest) -> bytes:
+    async def api_request(self, api_request: ApiRequest[Any]) -> bytes:
         """Make a request to the device."""
         params = api_request.params or {}
         if self.device.config.is_companion:

@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """MQTT Client api."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 import enum
-from typing import Never, Any, Literal, NotRequired, Self, TypedDict
+from typing import Any, Literal, Never, NotRequired, Self, TypedDict
 
 import orjson
 
@@ -582,7 +582,6 @@ class EventPublicationConfig:
         return data
 
 
-
 @dataclass
 class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
     """Response object for get client status request."""
@@ -603,7 +602,6 @@ class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
             method=data["method"],
             data=ClientConfigStatus.from_dict(data["data"]),
         )
-
 
 
 @dataclass
@@ -628,7 +626,6 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
                 data["data"]["eventPublicationConfig"]
             ),
         )
-
 
 
 @dataclass
@@ -699,7 +696,7 @@ class DeactivateClientRequest(ActivateClientRequest):
 
 
 @dataclass
-class GetClientStatusRequest(ApiRequest):
+class GetClientStatusRequest(ApiRequest[GetClientStatusResponse]):
     """Request object for getting MQTT client status."""
 
     method = "post"
