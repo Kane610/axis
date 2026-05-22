@@ -1,7 +1,7 @@
 """View area API data model."""
 
 from dataclasses import dataclass
-from typing import Never, NotRequired, Self, TypedDict
+from typing import NotRequired, Self, TypedDict
 
 import orjson
 
@@ -215,7 +215,7 @@ class ListViewAreasRequest(ApiRequest[ListViewAreasResponse]):
 
 
 @dataclass
-class SetGeometryRequest(ApiRequest[Never]):
+class SetGeometryRequest(ApiRequest[ListViewAreasResponse]):
     """Request object for setting geometry of a view area."""
 
     method = "post"
@@ -254,7 +254,7 @@ class SetGeometryRequest(ApiRequest[Never]):
 
 
 @dataclass
-class ResetGeometryRequest(ApiRequest[Never]):
+class ResetGeometryRequest(ApiRequest[ListViewAreasResponse]):
     """Request object for resetting geometry of a view area."""
 
     method = "post"

@@ -629,7 +629,7 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
 
 
 @dataclass
-class ConfigureClientRequest(ApiRequest[GetClientStatusResponse]):
+class ConfigureClientRequest(ApiRequest[Never]):
     """Request object for configuring MQTT client."""
 
     method = "post"
