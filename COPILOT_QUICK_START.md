@@ -23,6 +23,10 @@ This guide helps you get the most out of Copilot when contributing to the Axis l
 3. Register it on `Vapix` in `axis/interfaces/vapix.py`.
 4. Add tests in `tests/test_<name>.py` using fixtures from `tests/conftest.py`.
 
+For request models:
+- Use `ApiRequest[ConcreteResponse]` plus `response_type = ConcreteResponse` for decoded responses.
+- Use `ApiRequest[ApiResponse[bytes]]` plus `response_type = BytesResponse` for write/raw-byte responses.
+
 **Copilot request:**
 ```
 I need to add a new handler for [feature].
@@ -41,6 +45,7 @@ This handler should participate in the [API_DISCOVERY / PARAM_CGI_FALLBACK / APP
 - 100% test coverage for new code
 - All enums have _missing_ fallback
 - Input normalization in __post_init__
+- Explicit request response_type on every ApiRequest subclass
 - Preserve existing behavior
 
 [VERIFICATION]

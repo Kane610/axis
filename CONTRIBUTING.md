@@ -141,6 +141,18 @@ This project uses PEP 695 syntax for new or updated typing code:
 - Use `type` statements for aliases instead of assignment-style aliases.
 - Do not introduce new module-level `TypeVar(...)` declarations when class or function type parameters are sufficient.
 
+### Request and response contracts
+
+Request classes are part of the public typing boundary and must keep static and runtime decode contracts aligned.
+
+- Use `ApiRequest[ConcreteResponse]` for decoded/read requests.
+- Set `response_type = ConcreteResponse` on every decoded/read request class.
+- Use `ApiRequest[ApiResponse[bytes]]` for write/raw-byte requests.
+- Set `response_type = BytesResponse` on every write/raw-byte request class.
+- Do not rely on implicit `response_type` defaults.
+
+If an interface method intentionally preserves a legacy `bytes` return type, unwrap `.data` at the handler boundary rather than changing `Vapix.api_request()` semantics.
+
 ## Tests
 
 Tests live in `tests/` and mirror the `axis/` structure. Use the nearest relevant test module for any behavior change.
