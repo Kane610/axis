@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-
 from dataclasses import dataclass
 import enum
 import logging
-from typing import Never, NotRequired, Self, TypedDict
+from typing import NotRequired, Self, TypedDict
 
 import orjson
 

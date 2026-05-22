@@ -5,7 +5,7 @@ information about the ports and apply product dependent configurations
 """
 
 from dataclasses import dataclass
-from typing import Never, Literal, NotRequired, Self, TypedDict
+from typing import Literal, Never, NotRequired, Self, TypedDict
 
 import orjson
 

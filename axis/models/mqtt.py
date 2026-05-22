@@ -195,255 +195,6 @@ class ServerProtocol(enum.StrEnum):
 
 
 @dataclass
-class ClientConfigStatus:
-    """GetClientStatus response."""
-
-    config: ClientConfig
-    """The Config of the MQTT client."""
-    status: ClientStatus
-    """The Status of the MQTT client."""
-
-    @classmethod
-    def from_dict(cls, data: ClientStatusDataT) -> Self:
-        """Create client config status object from dict."""
-        return cls(
-            config=ClientConfig.from_dict(data["config"]),
-            status=ClientStatus.from_dict(data["status"]),
-        )
-
-
-@dataclass
-class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
-    """Response object for get client status request."""
-
-    api_version: str
-    context: str
-    method: str
-    data: ClientConfigStatus
-    # error: ErrorDataT | None = None
-
-    @classmethod
-    def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
-        data: GetClientStatusResponseT = orjson.loads(bytes_data)
-        return cls(
-            api_version=data["apiVersion"],
-            context=data["context"],
-            method=data["method"],
-            data=ClientConfigStatus.from_dict(data["data"]),
-        )
-
-
-@dataclass
-class ConfigureClientRequest(ApiRequest[GetClientStatusResponse]):
-    """Request object for configuring MQTT client."""
-
-    method = "post"
-    path = "/axis-cgi/mqtt/client.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    client_config: ClientConfig
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "configureClient",
-                "params": self.client_config.to_dict(),
-            }
-        )
-
-
-@dataclass
-class ActivateClientRequest(ApiRequest[Never]):
-    """Request object for activating MQTT client."""
-
-    method = "post"
-    path = "/axis-cgi/mqtt/client.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "activateClient",
-            }
-        )
-
-
-@dataclass
-class DeactivateClientRequest(ActivateClientRequest):
-    """Request object for deactivating MQTT client."""
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "deactivateClient",
-            }
-        )
-
-
-@dataclass
-class GetClientStatusRequest(ApiRequest):
-    """Request object for getting MQTT client status."""
-
-    method = "post"
-    path = "/axis-cgi/mqtt/client.cgi"
-    content_type = "application/json"
-    response_type = GetClientStatusResponse
-    error_codes = general_error_codes
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getClientStatus",
-            }
-        )
-
-
-@dataclass
-class EventPublicationConfig:
-    """Event publication config."""
-
-    topic_prefix: str | None = None
-    custom_topic_prefix: str | None = None
-    append_event_topic: bool | None = None
-    include_topic_namespaces: bool | None = None
-    include_serial_number_in_payload: bool | None = None
-    event_filter_list: list[EventFilter] | None = None
-
-    @classmethod
-    def from_dict(cls, data: EventPublicationConfigT) -> Self:
-        """Create client config status object from dict."""
-        return cls(
-            topic_prefix=data["topicPrefix"],
-            custom_topic_prefix=data["customTopicPrefix"],
-            append_event_topic=data["appendEventTopic"],
-            include_topic_namespaces=data["includeTopicNamespaces"],
-            include_serial_number_in_payload=data["includeSerialNumberInPayload"],
-            event_filter_list=EventFilter.from_list(data["eventFilterList"]),
-        )
-
-    def to_dict(self) -> EventPublicationConfigT:
-        """Create json dict from object."""
-        data: EventPublicationConfigT = {}
-        if self.topic_prefix is not None:
-            data["topicPrefix"] = self.topic_prefix
-        if self.custom_topic_prefix is not None:
-            data["customTopicPrefix"] = self.custom_topic_prefix
-        if self.append_event_topic is not None:
-            data["appendEventTopic"] = self.append_event_topic
-        if self.include_topic_namespaces is not None:
-            data["includeTopicNamespaces"] = self.include_topic_namespaces
-        if self.include_serial_number_in_payload is not None:
-            data["includeSerialNumberInPayload"] = self.include_serial_number_in_payload
-        if self.event_filter_list is not None:
-            data["eventFilterList"] = EventFilter.to_list(self.event_filter_list)
-        return data
-
-
-@dataclass
-class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
-    """Response object for event publication config get request."""
-
-    api_version: str
-    context: str
-    method: str
-    data: EventPublicationConfig
-    # error: ErrorDataT | None = None
-
-    @classmethod
-    def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
-        data: GetEventPublicationConfigResponseT = orjson.loads(bytes_data)
-        return cls(
-            api_version=data["apiVersion"],
-            context=data["context"],
-            method=data["method"],
-            data=EventPublicationConfig.from_dict(
-                data["data"]["eventPublicationConfig"]
-            ),
-        )
-
-
-@dataclass
-class GetEventPublicationConfigRequest(ApiRequest[GetEventPublicationConfigResponse]):
-    """Request object for getting MQTT event publication config."""
-
-    method = "post"
-    path = "/axis-cgi/mqtt/event.cgi"
-    content_type = "application/json"
-    response_type = GetEventPublicationConfigResponse
-    error_codes = general_error_codes
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "getEventPublicationConfig",
-            }
-        )
-
-
-@dataclass
-class ConfigureEventPublicationRequest(ApiRequest[Never]):
-    """Request object for configuring event publication over MQTT."""
-
-    method = "post"
-    path = "/axis-cgi/mqtt/event.cgi"
-    content_type = "application/json"
-    error_codes = general_error_codes
-
-    config: EventPublicationConfig
-
-    api_version: str = API_VERSION
-    context: str = CONTEXT
-
-    @property
-    def content(self) -> bytes:
-        """Initialize request data."""
-        return orjson.dumps(
-            {
-                "apiVersion": self.api_version,
-                "context": self.context,
-                "method": "configureEventPublication",
-                "params": self.config.to_dict(),
-            }
-        )
-
-
-@dataclass
 class Message:
     """Message description."""
 
@@ -736,6 +487,24 @@ class ClientStatus:
 
 
 @dataclass
+class ClientConfigStatus:
+    """GetClientStatus response."""
+
+    config: ClientConfig
+    """The Config of the MQTT client."""
+    status: ClientStatus
+    """The Status of the MQTT client."""
+
+    @classmethod
+    def from_dict(cls, data: ClientStatusDataT) -> Self:
+        """Create client config status object from dict."""
+        return cls(
+            config=ClientConfig.from_dict(data["config"]),
+            status=ClientStatus.from_dict(data["status"]),
+        )
+
+
+@dataclass
 class EventFilter:
     """Event filter."""
 
@@ -770,3 +539,237 @@ class EventFilter:
     def to_list(cls, data: list[EventFilter]) -> list[EventFilterT]:
         """Create json list from object."""
         return [item.to_dict() for item in data]
+
+
+@dataclass
+class EventPublicationConfig:
+    """Event publication config."""
+
+    topic_prefix: str | None = None
+    custom_topic_prefix: str | None = None
+    append_event_topic: bool | None = None
+    include_topic_namespaces: bool | None = None
+    include_serial_number_in_payload: bool | None = None
+    event_filter_list: list[EventFilter] | None = None
+
+    @classmethod
+    def from_dict(cls, data: EventPublicationConfigT) -> Self:
+        """Create client config status object from dict."""
+        return cls(
+            topic_prefix=data["topicPrefix"],
+            custom_topic_prefix=data["customTopicPrefix"],
+            append_event_topic=data["appendEventTopic"],
+            include_topic_namespaces=data["includeTopicNamespaces"],
+            include_serial_number_in_payload=data["includeSerialNumberInPayload"],
+            event_filter_list=EventFilter.from_list(data["eventFilterList"]),
+        )
+
+    def to_dict(self) -> EventPublicationConfigT:
+        """Create json dict from object."""
+        data: EventPublicationConfigT = {}
+        if self.topic_prefix is not None:
+            data["topicPrefix"] = self.topic_prefix
+        if self.custom_topic_prefix is not None:
+            data["customTopicPrefix"] = self.custom_topic_prefix
+        if self.append_event_topic is not None:
+            data["appendEventTopic"] = self.append_event_topic
+        if self.include_topic_namespaces is not None:
+            data["includeTopicNamespaces"] = self.include_topic_namespaces
+        if self.include_serial_number_in_payload is not None:
+            data["includeSerialNumberInPayload"] = self.include_serial_number_in_payload
+        if self.event_filter_list is not None:
+            data["eventFilterList"] = EventFilter.to_list(self.event_filter_list)
+        return data
+
+
+
+@dataclass
+class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
+    """Response object for get client status request."""
+
+    api_version: str
+    context: str
+    method: str
+    data: ClientConfigStatus
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetClientStatusResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=ClientConfigStatus.from_dict(data["data"]),
+        )
+
+
+
+@dataclass
+class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
+    """Response object for event publication config get request."""
+
+    api_version: str
+    context: str
+    method: str
+    data: EventPublicationConfig
+    # error: ErrorDataT | None = None
+
+    @classmethod
+    def decode(cls, bytes_data: bytes) -> Self:
+        """Prepare response data."""
+        data: GetEventPublicationConfigResponseT = orjson.loads(bytes_data)
+        return cls(
+            api_version=data["apiVersion"],
+            context=data["context"],
+            method=data["method"],
+            data=EventPublicationConfig.from_dict(
+                data["data"]["eventPublicationConfig"]
+            ),
+        )
+
+
+
+@dataclass
+class ConfigureClientRequest(ApiRequest[GetClientStatusResponse]):
+    """Request object for configuring MQTT client."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/client.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    client_config: ClientConfig
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "configureClient",
+                "params": self.client_config.to_dict(),
+            }
+        )
+
+
+@dataclass
+class ActivateClientRequest(ApiRequest[Never]):
+    """Request object for activating MQTT client."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/client.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "activateClient",
+            }
+        )
+
+
+@dataclass
+class DeactivateClientRequest(ActivateClientRequest):
+    """Request object for deactivating MQTT client."""
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "deactivateClient",
+            }
+        )
+
+
+@dataclass
+class GetClientStatusRequest(ApiRequest):
+    """Request object for getting MQTT client status."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/client.cgi"
+    content_type = "application/json"
+    response_type = GetClientStatusResponse
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getClientStatus",
+            }
+        )
+
+
+@dataclass
+class GetEventPublicationConfigRequest(ApiRequest[GetEventPublicationConfigResponse]):
+    """Request object for getting MQTT event publication config."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/event.cgi"
+    content_type = "application/json"
+    response_type = GetEventPublicationConfigResponse
+    error_codes = general_error_codes
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "getEventPublicationConfig",
+            }
+        )
+
+
+@dataclass
+class ConfigureEventPublicationRequest(ApiRequest[Never]):
+    """Request object for configuring event publication over MQTT."""
+
+    method = "post"
+    path = "/axis-cgi/mqtt/event.cgi"
+    content_type = "application/json"
+    error_codes = general_error_codes
+
+    config: EventPublicationConfig
+
+    api_version: str = API_VERSION
+    context: str = CONTEXT
+
+    @property
+    def content(self) -> bytes:
+        """Initialize request data."""
+        return orjson.dumps(
+            {
+                "apiVersion": self.api_version,
+                "context": self.context,
+                "method": "configureEventPublication",
+                "params": self.config.to_dict(),
+            }
+        )

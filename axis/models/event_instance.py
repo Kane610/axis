@@ -1,8 +1,10 @@
 """Event service and action service APIs available in Axis network device."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import enum
-from typing import Never, Any, Self
+from typing import Any, Self
 
 import xmltodict
 
@@ -39,11 +41,9 @@ NAMESPACES = {
 
 def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
     """Get all events.
-    from __future__ import annotations
 
-
-        Ignore keys with "@" while traversing structure. Indicates an attribute in value.
-        When @topic is reached, return event data and build topic structure.
+    Ignore keys with "@" while traversing structure. Indicates an attribute in value.
+    When @topic is reached, return event data and build topic structure.
     """
     events = []
     for key, value in data.items():

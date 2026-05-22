@@ -7,7 +7,6 @@ and actual parameter values, check the specification of the Axis PTZ driver used
 
 from __future__ import annotations
 
-
 from dataclasses import dataclass
 import enum
 from typing import Never

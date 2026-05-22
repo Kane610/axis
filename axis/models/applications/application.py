@@ -6,10 +6,9 @@ and their license keys.
 
 from __future__ import annotations
 
-
 from dataclasses import dataclass
 import enum
-from typing import Never, Literal, NotRequired, Self, TypedDict
+from typing import Literal, NotRequired, Self, TypedDict
 
 import xmltodict
 
