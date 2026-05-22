@@ -382,21 +382,13 @@ async def test_api_request_uses_applications_request_response_type(
     assert response.data["vmd"].status == ApplicationStatus.RUNNING
 
 
-async def test_api_request_requires_response_type(vapix: Vapix):
-    """Verify api_request errors when request has no response contract."""
-    with pytest.raises(ValueError, match="No response type configured"):
-        await vapix.api_request(SetPortsRequest(PortConfiguration(port="0")))
-
-
-async def test_api_request_bytes_returns_raw_bytes_for_request_without_response_type(
+async def test_api_request_returns_raw_bytes_for_request_without_response_type(
     mock_vapix_request, vapix: Vapix
 ):
-    """Verify private bytes helper returns raw bytes for requests without response metadata."""
+    """Verify api_request returns raw bytes for requests without response metadata."""
     mock_vapix_request(SetPortsRequest, json={})
 
-    response = await vapix._api_request_bytes(
-        SetPortsRequest(PortConfiguration(port="0"))
-    )
+    response = await vapix.api_request(SetPortsRequest(PortConfiguration(port="0")))
 
     assert isinstance(response, bytes)
 

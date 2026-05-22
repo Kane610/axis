@@ -1,7 +1,7 @@
 """Light Control API data model."""
 
 from dataclasses import dataclass
-from typing import Never, NotRequired, Self, TypedDict
+from typing import NotRequired, Self, TypedDict
 
 import orjson
 
@@ -359,7 +359,7 @@ class GetServiceCapabilitiesRequest(ApiRequest[GetServiceCapabilitiesResponse]):
 
 
 @dataclass
-class ActivateLightRequest(ApiRequest[Never]):
+class ActivateLightRequest(ApiRequest[bytes]):
     """Request object for activating light."""
 
     method = "post"
@@ -487,7 +487,7 @@ class GetLightStatusRequest(ApiRequest[GetLightStatusResponse]):
 
 
 @dataclass
-class SetAutomaticIntensityModeRequest(ApiRequest[Never]):
+class SetAutomaticIntensityModeRequest(ApiRequest[bytes]):
     """Enable the automatic light intensity control."""
 
     method = "post"
@@ -565,7 +565,7 @@ class GetValidIntensityRequest(ApiRequest[GetValidIntensityResponse]):
 
 
 @dataclass
-class SetManualIntensityRequest(ApiRequest[Never]):
+class SetManualIntensityRequest(ApiRequest[bytes]):
     """Set manual light intensity."""
 
     method = "post"
@@ -643,7 +643,7 @@ class GetManualIntensityRequest(ApiRequest[GetManualIntensityResponse]):
 
 
 @dataclass
-class SetIndividualIntensityRequest(ApiRequest[Never]):
+class SetIndividualIntensityRequest(ApiRequest[bytes]):
     """Set individual light intensity."""
 
     method = "post"
@@ -777,7 +777,7 @@ class GetCurrentIntensityRequest(ApiRequest[GetCurrentIntensityResponse]):
 
 
 @dataclass
-class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[Never]):
+class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[bytes]):
     """Enable the automatic angle of illumination control."""
 
     method = "post"
@@ -857,7 +857,7 @@ class GetValidAngleOfIlluminationRequest(
 
 
 @dataclass
-class SetManualAngleOfIlluminationModeRequest(ApiRequest[Never]):
+class SetManualAngleOfIlluminationModeRequest(ApiRequest[bytes]):
     """Set the manual angle of illumination."""
 
     method = "post"
@@ -992,7 +992,7 @@ class GetCurrentAngleOfIlluminationRequest(
 
 
 @dataclass
-class SetLightSynchronizeDayNightModeRequest(ApiRequest[Never]):
+class SetLightSynchronizeDayNightModeRequest(ApiRequest[bytes]):
     """Enable automatic synchronization with the day/night mode."""
 
     method = "post"

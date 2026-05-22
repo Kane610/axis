@@ -30,7 +30,7 @@ class MqttClientHandler(ApiHandler[Any]):
 
     async def configure_client(self, client_config: ClientConfig) -> None:
         """Configure MQTT Client."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             ConfigureClientRequest(
                 api_version=self.api_version, client_config=client_config
             )
@@ -38,13 +38,13 @@ class MqttClientHandler(ApiHandler[Any]):
 
     async def activate(self) -> None:
         """Activate MQTT Client."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             ActivateClientRequest(api_version=self.api_version)
         )
 
     async def deactivate(self) -> None:
         """Deactivate MQTT Client."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             DeactivateClientRequest(api_version=self.api_version)
         )
 
@@ -70,7 +70,7 @@ class MqttClientHandler(ApiHandler[Any]):
             [{"topicFilter": topic} for topic in topics]
         )
         config = EventPublicationConfig(event_filter_list=event_filters)
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             ConfigureEventPublicationRequest(
                 api_version=self.api_version, config=config
             )

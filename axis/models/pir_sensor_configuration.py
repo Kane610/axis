@@ -5,7 +5,7 @@ the sensitivity of the PIR (passive infrared) sensors on your Axis device.
 """
 
 from dataclasses import dataclass
-from typing import Never, NotRequired, Self, TypedDict
+from typing import NotRequired, Self, TypedDict
 
 import orjson
 
@@ -218,7 +218,7 @@ class GetSensitivityRequest(ApiRequest[GetSensitivityResponse]):
 
 
 @dataclass
-class SetSensitivityRequest(ApiRequest[Never]):
+class SetSensitivityRequest(ApiRequest[bytes]):
     """Request object for setting PIR sensor sensitivity."""
 
     method = "post"

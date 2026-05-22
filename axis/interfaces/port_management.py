@@ -51,13 +51,13 @@ class IoPortManagement(ApiHandler[Port]):
         Devices with configurable ports can change the direction
           to either input or output.
         """
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetPortsRequest(ports, api_version=self.api_version)
         )
 
     async def set_state_sequence(self, port_id: str, sequence: list[Sequence]) -> None:
         """Apply a sequence of state changes with a delay in milliseconds between states."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetStateSequenceRequest(
                 port_id,
                 sequence,

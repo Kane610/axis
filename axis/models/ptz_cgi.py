@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import enum
-from typing import Never
 
 from .api import ApiRequest
 
@@ -95,7 +94,7 @@ class PtzQuery(enum.StrEnum):
 
 
 @dataclass
-class PtzControlRequest(ApiRequest[Never]):
+class PtzControlRequest(ApiRequest[bytes]):
     """Control pan, tilt and zoom behavior of a PTZ unit."""
 
     method = "post"
@@ -340,7 +339,7 @@ class PtzControlRequest(ApiRequest[Never]):
 
 
 @dataclass
-class PtzCommandRequest(ApiRequest[Never]):
+class PtzCommandRequest(ApiRequest[bytes]):
     """Retrieve available PTZ commands."""
 
     method = "post"
@@ -354,7 +353,7 @@ class PtzCommandRequest(ApiRequest[Never]):
 
 
 @dataclass
-class DeviceDriverRequest(ApiRequest[Never]):
+class DeviceDriverRequest(ApiRequest[bytes]):
     """Retrieve name of the device driver."""
 
     method = "post"
@@ -368,7 +367,7 @@ class DeviceDriverRequest(ApiRequest[Never]):
 
 
 @dataclass
-class QueryRequest(ApiRequest[Never]):
+class QueryRequest(ApiRequest[bytes]):
     """Retrieve current status."""
 
     method = "post"

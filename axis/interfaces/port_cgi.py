@@ -44,7 +44,7 @@ class Ports(ApiHandler[IOPortParam]):
         """Activate or deactivate an output."""
         if (port := self[id]) and port.direction != PortDirection.OUT:
             return
-        await self.vapix._api_request_bytes(PortActionRequest(id, action))
+        await self.vapix.api_request(PortActionRequest(id, action))
 
     async def open(self, id: str) -> None:
         """Open port."""

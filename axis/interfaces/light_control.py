@@ -80,25 +80,25 @@ class LightHandler(ApiHandler[LightInformation]):
 
     async def activate_light(self, light_id: str) -> None:
         """Activate the light."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             ActivateLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
     async def deactivate_light(self, light_id: str) -> None:
         """Deactivate the light."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             DeactivateLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
     async def enable_light(self, light_id: str) -> None:
         """Activate the light."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             EnableLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
     async def disable_light(self, light_id: str) -> None:
         """Deactivate the light."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             DisableLightRequest(api_version=self.api_version, light_id=light_id)
         )
 
@@ -111,7 +111,7 @@ class LightHandler(ApiHandler[LightInformation]):
 
     async def set_automatic_intensity_mode(self, light_id: str, enabled: bool) -> None:
         """Enable the automatic light intensity control."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetAutomaticIntensityModeRequest(
                 api_version=self.api_version,
                 light_id=light_id,
@@ -128,7 +128,7 @@ class LightHandler(ApiHandler[LightInformation]):
 
     async def set_manual_intensity(self, light_id: str, intensity: int) -> None:
         """Manually sets the intensity."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetManualIntensityRequest(
                 api_version=self.api_version,
                 light_id=light_id,
@@ -147,7 +147,7 @@ class LightHandler(ApiHandler[LightInformation]):
         self, light_id: str, led_id: int, intensity: int
     ) -> None:
         """Manually sets the intensity for an individual LED."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetIndividualIntensityRequest(
                 api_version=self.api_version,
                 light_id=light_id,
@@ -182,7 +182,7 @@ class LightHandler(ApiHandler[LightInformation]):
         Using this mode means that the angle of illumination
         is the same as the camera's angle of view.
         """
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetAutomaticAngleOfIlluminationModeRequest(
                 api_version=self.api_version,
                 light_id=light_id,
@@ -207,7 +207,7 @@ class LightHandler(ApiHandler[LightInformation]):
         This is useful when the angle of illumination needs
         to be different from the camera's view angle.
         """
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetManualAngleOfIlluminationModeRequest(
                 api_version=self.api_version,
                 light_id=light_id,
@@ -237,7 +237,7 @@ class LightHandler(ApiHandler[LightInformation]):
         self, light_id: str, enabled: bool
     ) -> None:
         """Enable automatic synchronization with the day/night mode."""
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetLightSynchronizeDayNightModeRequest(
                 api_version=self.api_version,
                 light_id=light_id,

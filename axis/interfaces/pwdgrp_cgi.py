@@ -55,7 +55,7 @@ class Users(ApiHandler[User]):
         comment: str | None = None,
     ) -> None:
         """Create new user."""
-        await self.vapix._api_request_bytes(CreateUserRequest(user, pwd, sgrp, comment))
+        await self.vapix.api_request(CreateUserRequest(user, pwd, sgrp, comment))
 
     async def modify(
         self,
@@ -66,8 +66,8 @@ class Users(ApiHandler[User]):
         comment: str | None = None,
     ) -> None:
         """Update user."""
-        await self.vapix._api_request_bytes(ModifyUserRequest(user, pwd, sgrp, comment))
+        await self.vapix.api_request(ModifyUserRequest(user, pwd, sgrp, comment))
 
     async def delete(self, user: str) -> None:
         """Remove user."""
-        await self.vapix._api_request_bytes(DeleteUserRequest(user))
+        await self.vapix.api_request(DeleteUserRequest(user))

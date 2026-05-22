@@ -42,7 +42,7 @@ class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
     async def set_sensitivity(self, id: int, sensitivity: float) -> None:
         """Configure sensitivity of specific sensor."""
         api_version = self.api_version
-        await self.vapix._api_request_bytes(
+        await self.vapix.api_request(
             SetSensitivityRequest(id, sensitivity, api_version)
         )
 

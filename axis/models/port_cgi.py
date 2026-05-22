@@ -7,13 +7,12 @@ Virtual input API.
 """
 
 from dataclasses import dataclass
-from typing import Never
 
 from .api import ApiRequest
 
 
 @dataclass
-class PortActionRequest(ApiRequest[Never]):
+class PortActionRequest(ApiRequest[bytes]):
     r"""Request object for activate or deactivate an output.
 
     Use the <wait> option to activate/deactivate the port for a
