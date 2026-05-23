@@ -3,9 +3,7 @@
 from ..models.api_discovery import ApiId
 from ..models.temperature_control import (
     API_VERSION,
-    ActuatorTemperatureControlStatus,
     GetStatusAllRequest,
-    SensorTemperatureControlStatus,
     TemperatureControlStatus,
     TemperatureDeviceStatus,
     TemperatureDeviceType,
@@ -30,64 +28,55 @@ class TemperatureControlHandler(ApiHandler[TemperatureControlStatus]):
         return response.data
 
     @property
-    def sensors(self) -> dict[str, SensorTemperatureControlStatus]:
+    def sensors(self) -> dict[str, TemperatureControlStatus]:
         """Return all temperature sensors keyed by id."""
         return {
             item_id: item
             for item_id, item in self.items()
             if item.device_type == TemperatureDeviceType.SENSOR
-            and isinstance(item, SensorTemperatureControlStatus)
         }
 
     @property
-    def heaters(self) -> dict[str, ActuatorTemperatureControlStatus]:
+    def heaters(self) -> dict[str, TemperatureControlStatus]:
         """Return all heaters keyed by id."""
         return {
             item_id: item
             for item_id, item in self.items()
             if item.device_type == TemperatureDeviceType.HEATER
-            and isinstance(item, ActuatorTemperatureControlStatus)
         }
 
     @property
-    def fans(self) -> dict[str, ActuatorTemperatureControlStatus]:
+    def fans(self) -> dict[str, TemperatureControlStatus]:
         """Return all fans keyed by id."""
         return {
             item_id: item
             for item_id, item in self.items()
             if item.device_type == TemperatureDeviceType.FAN
-            and isinstance(item, ActuatorTemperatureControlStatus)
         }
 
-    def get_sensor(self, sensor_id: str) -> SensorTemperatureControlStatus | None:
+    def get_sensor(self, sensor_id: str) -> TemperatureControlStatus | None:
         """Return a specific sensor by id when available."""
         sensor = self.get(sensor_id)
-        if not isinstance(sensor, SensorTemperatureControlStatus):
+        if sensor is None or sensor.device_type != TemperatureDeviceType.SENSOR:
             return None
         return sensor
 
-    def get_heater(self, heater_id: str) -> ActuatorTemperatureControlStatus | None:
+    def get_heater(self, heater_id: str) -> TemperatureControlStatus | None:
         """Return a specific heater by id when available."""
         heater = self.get(heater_id)
-        if (
-            not isinstance(heater, ActuatorTemperatureControlStatus)
-            or heater.device_type != TemperatureDeviceType.HEATER
-        ):
+        if heater is None or heater.device_type != TemperatureDeviceType.HEATER:
             return None
         return heater
 
-    def get_fan(self, fan_id: str) -> ActuatorTemperatureControlStatus | None:
+    def get_fan(self, fan_id: str) -> TemperatureControlStatus | None:
         """Return a specific fan by id when available."""
         fan = self.get(fan_id)
-        if (
-            not isinstance(fan, ActuatorTemperatureControlStatus)
-            or fan.device_type != TemperatureDeviceType.FAN
-        ):
+        if fan is None or fan.device_type != TemperatureDeviceType.FAN:
             return None
         return fan
 
     @property
-    def running_heaters(self) -> dict[str, ActuatorTemperatureControlStatus]:
+    def running_heaters(self) -> dict[str, TemperatureControlStatus]:
         """Return all currently running heaters keyed by id."""
         return {
             item_id: item
@@ -96,7 +85,7 @@ class TemperatureControlHandler(ApiHandler[TemperatureControlStatus]):
         }
 
     @property
-    def running_fans(self) -> dict[str, ActuatorTemperatureControlStatus]:
+    def running_fans(self) -> dict[str, TemperatureControlStatus]:
         """Return all currently running fans keyed by id."""
         return {
             item_id: item

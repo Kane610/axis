@@ -72,16 +72,6 @@ class TemperatureControlStatus(ApiItem):
         )
 
 
-@dataclass(frozen=True)
-class ActuatorTemperatureControlStatus(TemperatureControlStatus):
-    """Temperature actuator (heater/fan) status item."""
-
-
-@dataclass(frozen=True)
-class SensorTemperatureControlStatus(TemperatureControlStatus):
-    """Temperature sensor status item."""
-
-
 @dataclass
 class GetStatusAllResponse(ApiResponse[dict[str, TemperatureControlStatus]]):
     """Response object for temperature statusall."""
@@ -145,13 +135,8 @@ def _decode_temperature_item(
     item_id: str,
     fields: dict[str, str],
 ) -> TemperatureControlStatus:
-    """Decode an entry to the specialized status model."""
-    data = {"id": item_id, **fields}
-    if item_id.startswith("Sensor."):
-        return SensorTemperatureControlStatus.decode(data)
-    if item_id.startswith(("Heater.", "Fan.")):
-        return ActuatorTemperatureControlStatus.decode(data)
-    return TemperatureControlStatus.decode(data)
+    """Decode an entry to a temperature status model."""
+    return TemperatureControlStatus.decode({"id": item_id, **fields})
 
 
 def _device_type_from_id(item_id: str) -> str:
