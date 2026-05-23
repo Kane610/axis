@@ -1,4 +1,8 @@
-"""Temperature control API."""
+"""VAPIX temperature control handler for Axis devices.
+
+Implements the handler for the Axis VAPIX temperature control API, providing access to device temperature sensors, heaters, and fans through standardized endpoints.
+Coordinates API requests and response parsing for temperature-related device features.
+"""
 
 from ..models.api_discovery import ApiId
 from ..models.temperature_control import (

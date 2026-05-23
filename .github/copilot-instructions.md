@@ -22,6 +22,7 @@
 - Prefer boundary normalization for incoming values (for example, enum coercion and defaults in model constructors/post-init).
 
 ## Conventions
+- For every new model or interface file, add a brief, informative module-level docstring at the top of the file. Summarize the file's purpose and, for VAPIX-related code, reference the relevant VAPIX API or feature. Use the official VAPIX library documentation as a source for the summary when possible.
 
 - Prefer minimal, targeted changes that preserve existing behavior unless the task explicitly requires a behavior change.
 - Do not modify unrelated code, formatting, or tests.

@@ -1,4 +1,8 @@
-"""Temperature control API data model."""
+"""VAPIX temperature control support for Axis devices.
+
+Defines models for the Axis VAPIX temperature control API, enabling integration and management of device temperature sensors, heaters, and fans via standardized endpoints.
+Implements parsing, normalization, and status representation for temperature-related device features.
+"""
 
 from dataclasses import dataclass
 import enum
