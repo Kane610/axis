@@ -135,3 +135,25 @@ Fan.F9.Status=Fan Failure
 
     fan = data["Fan.F9"]
     assert fan.status == TemperatureDeviceStatus.FAILURE
+
+
+async def test_grouped_accessors(
+    mock_temperature_request,
+    temperature_control: TemperatureControlHandler,
+) -> None:
+    """Test grouped typed accessors for sensors, heaters and fans."""
+    mock_temperature_request(STATUS_ALL_RESPONSE)
+
+    await temperature_control.update()
+
+    sensors = temperature_control.sensors
+    heaters = temperature_control.heaters
+    fans = temperature_control.fans
+
+    assert list(sensors) == ["Sensor.S0"]
+    assert list(heaters) == ["Heater.H0"]
+    assert list(fans) == ["Fan.F0"]
+
+    assert isinstance(sensors["Sensor.S0"], SensorTemperatureControlStatus)
+    assert isinstance(heaters["Heater.H0"], ActuatorTemperatureControlStatus)
+    assert isinstance(fans["Fan.F0"], ActuatorTemperatureControlStatus)

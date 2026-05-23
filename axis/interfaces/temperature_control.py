@@ -3,8 +3,11 @@
 from ..models.api_discovery import ApiId
 from ..models.temperature_control import (
     API_VERSION,
+    ActuatorTemperatureControlStatus,
     GetStatusAllRequest,
+    SensorTemperatureControlStatus,
     TemperatureControlStatus,
+    TemperatureDeviceType,
 )
 from .api_handler import ApiHandler, HandlerGroup
 
@@ -24,3 +27,33 @@ class TemperatureControlHandler(ApiHandler[TemperatureControlStatus]):
         """Retrieve current status for all temperature devices."""
         response = await self.vapix.api_request(GetStatusAllRequest())
         return response.data
+
+    @property
+    def sensors(self) -> dict[str, SensorTemperatureControlStatus]:
+        """Return all temperature sensors keyed by id."""
+        return {
+            item_id: item
+            for item_id, item in self.items()
+            if item.device_type == TemperatureDeviceType.SENSOR
+            and isinstance(item, SensorTemperatureControlStatus)
+        }
+
+    @property
+    def heaters(self) -> dict[str, ActuatorTemperatureControlStatus]:
+        """Return all heaters keyed by id."""
+        return {
+            item_id: item
+            for item_id, item in self.items()
+            if item.device_type == TemperatureDeviceType.HEATER
+            and isinstance(item, ActuatorTemperatureControlStatus)
+        }
+
+    @property
+    def fans(self) -> dict[str, ActuatorTemperatureControlStatus]:
+        """Return all fans keyed by id."""
+        return {
+            item_id: item
+            for item_id, item in self.items()
+            if item.device_type == TemperatureDeviceType.FAN
+            and isinstance(item, ActuatorTemperatureControlStatus)
+        }
