@@ -6,7 +6,9 @@ import pytest
 
 from axis.models.api_discovery import Api
 from axis.models.temperature_control import (
+    ActuatorTemperatureControlStatus,
     GetStatusAllRequest,
+    SensorTemperatureControlStatus,
     TemperatureControlStatus,
     TemperatureDeviceStatus,
     TemperatureDeviceType,
@@ -81,12 +83,14 @@ async def test_update(
     assert temperature_control.initialized
 
     sensor = temperature_control["Sensor.S0"]
+    assert isinstance(sensor, SensorTemperatureControlStatus)
     assert sensor.device_type == TemperatureDeviceType.SENSOR
     assert sensor.name == "Main"
     assert sensor.celsius == 43.5
     assert sensor.fahrenheit == 110.3
 
     heater = temperature_control["Heater.H0"]
+    assert isinstance(heater, ActuatorTemperatureControlStatus)
     assert heater.device_type == TemperatureDeviceType.HEATER
     assert heater.status == TemperatureDeviceStatus.RUNNING
     assert heater.status_raw == "Running[85%]"
@@ -94,6 +98,7 @@ async def test_update(
     assert heater.time_until_stop == 95
 
     fan = temperature_control["Fan.F0"]
+    assert isinstance(fan, ActuatorTemperatureControlStatus)
     assert fan.device_type == TemperatureDeviceType.FAN
     assert fan.status == TemperatureDeviceStatus.STOPPED
     assert fan.intensity is None
