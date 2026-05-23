@@ -15,9 +15,9 @@ _RUNNING_INTENSITY_RE = re.compile(r"Running\[(\d+)%?\]")
 class TemperatureDeviceType(enum.StrEnum):
     """Temperature device category."""
 
-    SENSOR = "sensor"
-    HEATER = "heater"
     FAN = "fan"
+    HEATER = "heater"
+    SENSOR = "sensor"
     UNKNOWN = "unknown"
 
     @classmethod
@@ -29,9 +29,9 @@ class TemperatureDeviceType(enum.StrEnum):
 class TemperatureDeviceStatus(enum.StrEnum):
     """Normalized state for fan/heater status strings."""
 
+    FAILURE = "failure"
     RUNNING = "running"
     STOPPED = "stopped"
-    FAILURE = "failure"
     UNKNOWN = "unknown"
 
     @classmethod
@@ -45,12 +45,12 @@ class TemperatureControlStatus(ApiItem):
     """Temperature status item from statusall response."""
 
     device_type: TemperatureDeviceType
-    name: str | None = None
     celsius: float | None = None
     fahrenheit: float | None = None
+    intensity: int | None = None
+    name: str | None = None
     status: TemperatureDeviceStatus = TemperatureDeviceStatus.UNKNOWN
     status_raw: str | None = None
-    intensity: int | None = None
     time_until_stop: int | None = None
 
     @classmethod
@@ -61,25 +61,25 @@ class TemperatureControlStatus(ApiItem):
         status, intensity = _parse_status(status_raw)
         return cls(
             id=item_id,
-            device_type=TemperatureDeviceType(_device_type_from_id(item_id)),
-            name=data.get("Name"),
             celsius=_to_float(data.get("Celsius")),
+            device_type=TemperatureDeviceType(_device_type_from_id(item_id)),
             fahrenheit=_to_float(data.get("Fahrenheit")),
+            intensity=intensity,
+            name=data.get("Name"),
             status=status,
             status_raw=status_raw,
-            intensity=intensity,
             time_until_stop=_to_int(data.get("TimeUntilStop")),
         )
 
 
 @dataclass(frozen=True)
-class SensorTemperatureControlStatus(TemperatureControlStatus):
-    """Temperature sensor status item."""
+class ActuatorTemperatureControlStatus(TemperatureControlStatus):
+    """Temperature actuator (heater/fan) status item."""
 
 
 @dataclass(frozen=True)
-class ActuatorTemperatureControlStatus(TemperatureControlStatus):
-    """Temperature actuator (heater/fan) status item."""
+class SensorTemperatureControlStatus(TemperatureControlStatus):
+    """Temperature sensor status item."""
 
 
 @dataclass
