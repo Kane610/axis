@@ -28,6 +28,7 @@
 - Never revert user changes unless explicitly asked.
 - Before changing patterns or APIs, inspect nearby code and follow existing local style.
 - Prefer root-cause fixes over workarounds.
+- In `axis/models/`, keep enum members and dataclass fields alphabetized to match local style when practical; for dataclasses, preserve Python's required-before-default field rule even when that prevents perfect alphabetical ordering.
 - For enums and external inputs, preserve existing defensive normalization patterns (for example `_missing_` fallbacks and constructor normalization).
 - For event/XML handling, preserve namespace-aware parsing and root-shape guards instead of assuming a fixed payload shape.
 - For request models, keep the generic `ApiRequest[T]` contract aligned with runtime `response_type` metadata on every subclass.
