@@ -57,3 +57,30 @@ class TemperatureControlHandler(ApiHandler[TemperatureControlStatus]):
             if item.device_type == TemperatureDeviceType.FAN
             and isinstance(item, ActuatorTemperatureControlStatus)
         }
+
+    def get_sensor(self, sensor_id: str) -> SensorTemperatureControlStatus | None:
+        """Return a specific sensor by id when available."""
+        sensor = self.get(sensor_id)
+        if not isinstance(sensor, SensorTemperatureControlStatus):
+            return None
+        return sensor
+
+    def get_heater(self, heater_id: str) -> ActuatorTemperatureControlStatus | None:
+        """Return a specific heater by id when available."""
+        heater = self.get(heater_id)
+        if (
+            not isinstance(heater, ActuatorTemperatureControlStatus)
+            or heater.device_type != TemperatureDeviceType.HEATER
+        ):
+            return None
+        return heater
+
+    def get_fan(self, fan_id: str) -> ActuatorTemperatureControlStatus | None:
+        """Return a specific fan by id when available."""
+        fan = self.get(fan_id)
+        if (
+            not isinstance(fan, ActuatorTemperatureControlStatus)
+            or fan.device_type != TemperatureDeviceType.FAN
+        ):
+            return None
+        return fan

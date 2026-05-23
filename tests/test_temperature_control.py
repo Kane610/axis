@@ -157,3 +157,25 @@ async def test_grouped_accessors(
     assert isinstance(sensors["Sensor.S0"], SensorTemperatureControlStatus)
     assert isinstance(heaters["Heater.H0"], ActuatorTemperatureControlStatus)
     assert isinstance(fans["Fan.F0"], ActuatorTemperatureControlStatus)
+
+
+async def test_item_accessors(
+    mock_temperature_request,
+    temperature_control: TemperatureControlHandler,
+) -> None:
+    """Test single-item typed accessors for sensors, heaters and fans."""
+    mock_temperature_request(STATUS_ALL_RESPONSE)
+
+    await temperature_control.update()
+
+    sensor = temperature_control.get_sensor("Sensor.S0")
+    heater = temperature_control.get_heater("Heater.H0")
+    fan = temperature_control.get_fan("Fan.F0")
+
+    assert isinstance(sensor, SensorTemperatureControlStatus)
+    assert isinstance(heater, ActuatorTemperatureControlStatus)
+    assert isinstance(fan, ActuatorTemperatureControlStatus)
+
+    assert temperature_control.get_sensor("Sensor.Missing") is None
+    assert temperature_control.get_heater("Fan.F0") is None
+    assert temperature_control.get_fan("Heater.H0") is None
