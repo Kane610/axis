@@ -85,7 +85,7 @@ class GetStatusAllResponse(ApiResponse[dict[str, TemperatureControlStatus]]):
         parsed = _parse_statusall_entries(text_data)
         return cls(
             data={
-                item_id: _decode_temperature_item(item_id, fields)
+                item_id: TemperatureControlStatus.decode({"id": item_id, **fields})
                 for item_id, fields in parsed.items()
             }
         )
@@ -129,14 +129,6 @@ def _parse_statusall_entries(payload: str) -> dict[str, dict[str, str]]:
         entries.setdefault(item_id, {})[field] = value
 
     return entries
-
-
-def _decode_temperature_item(
-    item_id: str,
-    fields: dict[str, str],
-) -> TemperatureControlStatus:
-    """Decode an entry to a temperature status model."""
-    return TemperatureControlStatus.decode({"id": item_id, **fields})
 
 
 def _device_type_from_id(item_id: str) -> str:
