@@ -27,7 +27,7 @@ class EventTopic(enum.StrEnum):
     AUDIO_CLASSIFICATION = "tnsaxis:AudioClassification"
     DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
     FENCE_GUARD = "tnsaxis:CameraApplicationPlatform/FenceGuard"
-    INTERCOM_DOORSTATE = "tns1:Device/tnsaxis:Intercom/DoorState"
+    INTERCOM_DOOR_STATE = "tns1:Device/tnsaxis:Intercom/DoorState"
     LIGHT_STATUS = "tns1:Device/tnsaxis:Light/Status"
     LOITERING_GUARD = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
     MOTION_DETECTION = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
