@@ -179,3 +179,29 @@ async def test_item_accessors(
     assert temperature_control.get_sensor("Sensor.Missing") is None
     assert temperature_control.get_heater("Fan.F0") is None
     assert temperature_control.get_fan("Heater.H0") is None
+
+
+async def test_running_actuator_accessors(
+    mock_temperature_request,
+    temperature_control: TemperatureControlHandler,
+) -> None:
+    """Test convenience accessors for currently running heaters and fans."""
+    mock_temperature_request(
+        """Sensor.S0.Name=Main
+Heater.H0.Status=Running[85%]
+Heater.H1.Status=Stopped
+Fan.F0.Status=Running
+Fan.F1.Status=Stopped
+"""
+    )
+
+    await temperature_control.update()
+
+    running_heaters = temperature_control.running_heaters
+    running_fans = temperature_control.running_fans
+
+    assert list(running_heaters) == ["Heater.H0"]
+    assert list(running_fans) == ["Fan.F0"]
+
+    assert isinstance(running_heaters["Heater.H0"], ActuatorTemperatureControlStatus)
+    assert isinstance(running_fans["Fan.F0"], ActuatorTemperatureControlStatus)

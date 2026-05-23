@@ -7,6 +7,7 @@ from ..models.temperature_control import (
     GetStatusAllRequest,
     SensorTemperatureControlStatus,
     TemperatureControlStatus,
+    TemperatureDeviceStatus,
     TemperatureDeviceType,
 )
 from .api_handler import ApiHandler, HandlerGroup
@@ -84,3 +85,21 @@ class TemperatureControlHandler(ApiHandler[TemperatureControlStatus]):
         ):
             return None
         return fan
+
+    @property
+    def running_heaters(self) -> dict[str, ActuatorTemperatureControlStatus]:
+        """Return all currently running heaters keyed by id."""
+        return {
+            item_id: item
+            for item_id, item in self.heaters.items()
+            if item.status == TemperatureDeviceStatus.RUNNING
+        }
+
+    @property
+    def running_fans(self) -> dict[str, ActuatorTemperatureControlStatus]:
+        """Return all currently running fans keyed by id."""
+        return {
+            item_id: item
+            for item_id, item in self.fans.items()
+            if item.status == TemperatureDeviceStatus.RUNNING
+        }
