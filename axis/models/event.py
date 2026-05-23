@@ -24,8 +24,10 @@ class EventOperation(enum.StrEnum):
 class EventTopic(enum.StrEnum):
     """Supported event topics."""
 
+    AUDIO_CLASSIFICATION = "tnsaxis:AudioClassification"
     DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
     FENCE_GUARD = "tnsaxis:CameraApplicationPlatform/FenceGuard"
+    INTERCOM_DOOR_STATE = "tns1:Device/tnsaxis:Intercom/DoorState"
     LIGHT_STATUS = "tns1:Device/tnsaxis:Light/Status"
     LOITERING_GUARD = "tnsaxis:CameraApplicationPlatform/LoiteringGuard"
     MOTION_DETECTION = "tns1:VideoAnalytics/tnsaxis:MotionDetection"
@@ -36,11 +38,13 @@ class EventTopic(enum.StrEnum):
     OBJECT_ANALYTICS = "tnsaxis:CameraApplicationPlatform/ObjectAnalytics"
     PIR = "tns1:Device/tnsaxis:Sensor/PIR"
     PORT_INPUT = "tns1:Device/tnsaxis:IO/Port"
+    PORT_OUTPUT = "tns1:Device/tnsaxis:IO/OutputPort"
     PORT_SUPERVISED_INPUT = "tns1:Device/tnsaxis:IO/SupervisedPort"
     PTZ_IS_MOVING = "tns1:PTZController/tnsaxis:Move"
     PTZ_ON_PRESET = "tns1:PTZController/tnsaxis:PTZPresets"
     RELAY = "tns1:Device/Trigger/Relay"
     SOUND_TRIGGER_LEVEL = "tns1:AudioSource/tnsaxis:TriggerLevel"
+    VIRTUAL_INPUT = "tns1:Device/tnsaxis:IO/VirtualInput"
     UNKNOWN = "unknown"
 
     @classmethod
