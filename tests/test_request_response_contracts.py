@@ -118,6 +118,7 @@ from axis.models.stream_profile import (
     ListStreamProfilesRequest,
     ListStreamProfilesResponse,
 )
+from axis.models.temperature_control import GetStatusAllRequest, GetStatusAllResponse
 from axis.models.user_group import GetUserGroupRequest, GetUserGroupResponse
 from axis.models.view_area import (
     GetSupportedVersionsRequest as ViewAreaGetSupportedVersionsRequest,
@@ -199,6 +200,7 @@ from axis.models.view_area import (
             StreamProfileGetSupportedVersionsRequest,
             StreamProfileGetSupportedVersionsResponse,
         ),
+        (GetStatusAllRequest, GetStatusAllResponse),
         (GetUserGroupRequest, GetUserGroupResponse),
         (ListViewAreasRequest, ListViewAreasResponse),
         (SetGeometryRequest, ListViewAreasResponse),

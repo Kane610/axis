@@ -1,0 +1,132 @@
+"""Test Axis Temperature Control API."""
+
+from typing import TYPE_CHECKING
+
+import pytest
+
+from axis.models.api_discovery import Api
+from axis.models.temperature_control import (
+    GetStatusAllRequest,
+    TemperatureControlStatus,
+    TemperatureDeviceStatus,
+    TemperatureDeviceType,
+)
+
+from tests.conftest import (
+    MockApiRequestAssertions,
+    bind_mock_api_request,
+)
+
+if TYPE_CHECKING:
+    from axis.device import AxisDevice
+    from axis.interfaces.temperature_control import TemperatureControlHandler
+
+
+STATUS_ALL_RESPONSE = """Sensor.S0.Name=Main
+Sensor.S0.Celsius=43.50
+Sensor.S0.Fahrenheit=110.30
+Heater.H0.Status=Running[85%]
+Heater.H0.TimeUntilStop=95
+Fan.F0.Status=Stopped
+Fan.F0.TimeUntilStop=0
+"""
+
+
+@pytest.fixture
+async def temperature_control(axis_device: AxisDevice) -> TemperatureControlHandler:
+    """Return the temperature_control handler."""
+    axis_device.vapix.api_discovery._items = {
+        api.id: api
+        for api in [
+            Api.decode(
+                {
+                    "id": "temperaturecontrol",
+                    "version": "1.0",
+                    "name": "Temperature control",
+                    "docLink": "https://developer.axis.com/vapix/network-video/temperature-control/",
+                }
+            )
+        ]
+    }
+    return axis_device.vapix.temperature_control
+
+
+@pytest.fixture
+def mock_temperature_request(mock_api_request):
+    """Register temperature route mocks via explicit ApiRequest classes."""
+    bound_request = bind_mock_api_request(mock_api_request, GetStatusAllRequest)
+
+    def _register(text_data: str):
+        return bound_request(
+            text_data,
+            assertions=MockApiRequestAssertions(params={"action": "statusall"}),
+        )
+
+    return _register
+
+
+async def test_update(
+    mock_temperature_request,
+    temperature_control: TemperatureControlHandler,
+) -> None:
+    """Test update method for statusall endpoint."""
+    route = mock_temperature_request(STATUS_ALL_RESPONSE)
+
+    await temperature_control.update()
+
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert route.calls.last.request.url.path == "/axis-cgi/temperaturecontrol.cgi"
+    assert route.calls.last.request.url.params == {"action": "statusall"}
+    assert temperature_control.initialized
+
+    sensor = temperature_control["Sensor.S0"]
+    assert sensor.device_type == TemperatureDeviceType.SENSOR
+    assert sensor.name == "Main"
+    assert sensor.celsius == 43.5
+    assert sensor.fahrenheit == 110.3
+
+    heater = temperature_control["Heater.H0"]
+    assert heater.device_type == TemperatureDeviceType.HEATER
+    assert heater.status == TemperatureDeviceStatus.RUNNING
+    assert heater.status_raw == "Running[85%]"
+    assert heater.intensity == 85
+    assert heater.time_until_stop == 95
+
+    fan = temperature_control["Fan.F0"]
+    assert fan.device_type == TemperatureDeviceType.FAN
+    assert fan.status == TemperatureDeviceStatus.STOPPED
+    assert fan.intensity is None
+    assert fan.time_until_stop == 0
+
+
+async def test_get_status_all_unknown_and_partial_data(
+    mock_temperature_request,
+    temperature_control: TemperatureControlHandler,
+) -> None:
+    """Test parser behavior for unknown states and malformed numbers."""
+    route = mock_temperature_request(
+        """Heater.H1.Status=Running[X]
+Heater.H1.TimeUntilStop=bad
+Sensor.S1.Celsius=NaNValue
+Sensor.S1.Fahrenheit=100.5
+Fan.F9.Status=Fan Failure
+"""
+    )
+
+    data = await temperature_control.get_status_all()
+
+    assert route.called
+
+    heater = data["Heater.H1"]
+    assert isinstance(heater, TemperatureControlStatus)
+    assert heater.status == TemperatureDeviceStatus.RUNNING
+    assert heater.intensity is None
+    assert heater.time_until_stop is None
+
+    sensor = data["Sensor.S1"]
+    assert sensor.celsius is None
+    assert sensor.fahrenheit == 100.5
+
+    fan = data["Fan.F9"]
+    assert fan.status == TemperatureDeviceStatus.FAILURE

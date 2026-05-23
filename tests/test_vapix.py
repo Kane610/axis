@@ -32,6 +32,7 @@ from axis.models.port_management import (
 )
 from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.models.stream_profile import ListStreamProfilesRequest, StreamProfile
+from axis.models.temperature_control import GetStatusAllRequest
 from axis.models.user_group import GetUserGroupRequest, GetUserGroupResponse
 from axis.models.view_area import ListViewAreasRequest, ListViewAreasResponse
 
@@ -62,6 +63,9 @@ from .test_basic_device_info import (
 from .test_light_control import GET_LIGHT_INFORMATION_RESPONSE as LIGHT_CONTROL_RESPONSE
 from .test_port_management import GET_PORTS_RESPONSE as IO_PORT_MANAGEMENT_RESPONSE
 from .test_stream_profiles import LIST_RESPONSE as STREAM_PROFILE_RESPONSE
+from .test_temperature_control import (
+    STATUS_ALL_RESPONSE as TEMPERATURE_CONTROL_RESPONSE,
+)
 
 from tests.conftest import MockApiResponseSpec, bind_mock_api_request
 
@@ -144,6 +148,7 @@ def test_api_discovery_handlers_registration(vapix: Vapix) -> None:
         vapix.light_control,
         vapix.mqtt,
         vapix.pir_sensor_configuration,
+        vapix.temperature_control,
         vapix.stream_profiles,
         vapix.view_areas,
     )
@@ -205,6 +210,25 @@ def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
     assert vapix.event_instances not in param_fallback_handlers
 
 
+def _api_discovery_with_temperature() -> dict:
+    """Return API discovery fixture extended with temperaturecontrol."""
+    return {
+        **API_DISCOVERY_RESPONSE,
+        "data": {
+            **API_DISCOVERY_RESPONSE["data"],
+            "apiList": [
+                *API_DISCOVERY_RESPONSE["data"]["apiList"],
+                {
+                    "id": "temperaturecontrol",
+                    "version": "1.0",
+                    "name": "Temperature Control",
+                    "docLink": "https://developer.axis.com/vapix/network-video/temperature-control/",
+                },
+            ],
+        },
+    }
+
+
 def test_interfaces_returns_dynamic_handler_mapping(vapix: Vapix) -> None:
     """Verify interface mapping exposes all ApiHandler attributes."""
     interfaces = vapix.interfaces()
@@ -258,7 +282,7 @@ async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
     """Verify that you can initialize all APIs."""
     mock_vapix_request(
         ListApisRequest,
-        json=API_DISCOVERY_RESPONSE,
+        json=_api_discovery_with_temperature(),
     )
     mock_vapix_request(
         GetAllPropertiesRequest,
@@ -271,6 +295,10 @@ async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
     mock_vapix_request(
         GetLightInformationRequest,
         json=LIGHT_CONTROL_RESPONSE,
+    )
+    mock_vapix_request(
+        GetStatusAllRequest,
+        text=TEMPERATURE_CONTROL_RESPONSE,
     )
     mock_vapix_request(
         ListStreamProfilesRequest,
@@ -315,6 +343,7 @@ async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
     assert vapix.basic_device_info.initialized
     assert vapix.light_control.initialized
     assert not vapix.mqtt.initialized
+    assert vapix.temperature_control.initialized
     assert vapix.stream_profiles.initialized
     assert vapix.view_areas.initialized
 
@@ -334,7 +363,7 @@ async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     """Verify that you can initialize API Discovery and that devicelist parameters."""
     mock_vapix_request(
         ListApisRequest,
-        json=API_DISCOVERY_RESPONSE,
+        json=_api_discovery_with_temperature(),
     )
     mock_vapix_request(
         GetAllPropertiesRequest,
@@ -347,6 +376,10 @@ async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     mock_vapix_request(
         GetLightInformationRequest,
         json=LIGHT_CONTROL_RESPONSE,
+    )
+    mock_vapix_request(
+        GetStatusAllRequest,
+        text=TEMPERATURE_CONTROL_RESPONSE,
     )
     mock_vapix_request(
         ListStreamProfilesRequest,
@@ -368,6 +401,7 @@ async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     assert vapix.basic_device_info
     assert vapix.light_control
     assert vapix.mqtt is not None
+    assert vapix.temperature_control
     assert vapix.stream_profiles
     assert len(vapix.view_areas) == 0
 
@@ -381,6 +415,7 @@ async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
     assert len(vapix.ports) == 1
     assert len(vapix.light_control) == 1
     assert len(vapix.mqtt) == 0
+    assert len(vapix.temperature_control) == 3
     assert len(vapix.stream_profiles) == 1
 
 
