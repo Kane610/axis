@@ -103,12 +103,37 @@ def to_toml_compatible(value: Any) -> Any:
 
 async def fetch_device_serial_and_extra(
     config: Configuration,
-) -> tuple[str, dict[str, Any]]:
-    """Fetch device serial and extra info from a device."""
+) -> tuple[str, str, dict[str, Any]]:
+    """Fetch device serial, model number, and extra info from a device."""
     device = AxisDevice(config)
     info = await device.vapix.basic_device_info.get_all_properties()
     serial = extract_serial_number(info)
-    return serial, info
+    model = extract_model_number(info)
+    return serial, model, info
+
+
+def extract_model_number(info: dict[str, Any]) -> str:
+    """Extract the product/model number from a basic-device-info payload."""
+    for key in ("product_number", "ProdNbr"):
+        value = info.get(key)
+        if value:
+            return str(value)
+
+    item = info.get("0")
+    if item is None:
+        return ""
+
+    model = getattr(item, "product_number", None)
+    if model:
+        return str(model)
+
+    if isinstance(item, dict):
+        for key in ("product_number", "ProdNbr"):
+            value = item.get(key)
+            if value:
+                return str(value)
+
+    return ""
 
 
 def extract_serial_number(info: dict[str, Any]) -> str:
@@ -159,10 +184,17 @@ def config_to_toml_dict(config: Configuration) -> dict[str, Any]:
     }
 
 
+def _format_device_label(model: str, serial: str, host: str) -> str:
+    """Format a device label as 'Model serial (IP)' or 'serial (IP)' if no model."""
+    if model:
+        return f"{model} {serial} ({host})"
+    return f"{serial} ({host})"
+
+
 async def validate_and_fetch_device(
     device_info: dict[str, str],
-) -> tuple[Configuration | None, str | None, dict[str, Any] | None]:
-    """Validate a device and fetch serial/extra info."""
+) -> tuple[Configuration | None, str | None, str | None, dict[str, Any] | None]:
+    """Validate a device and fetch serial/model/extra info."""
     try:
         async with ClientSession() as session:
             config = Configuration(
@@ -171,16 +203,16 @@ async def validate_and_fetch_device(
                 username=device_info["username"],
                 password=device_info["password"],
             )
-            serial, extra = await fetch_device_serial_and_extra(config)
-            return config, serial, extra
+            serial, model, extra = await fetch_device_serial_and_extra(config)
+            return config, serial, model, extra
     except RequestError as exc:
         print(f"Failed to connect to device: {exc}")  # noqa: T201
         print("Please verify host reachability and credentials, then try again.")  # noqa: T201
-        return None, None, None
+        return None, None, None, None
     except (ValueError, KeyError, OSError) as exc:
         print(f"Failed to fetch device info: {exc}")  # noqa: T201
         print("Please check your credentials and try again.")  # noqa: T201
-        return None, None, None
+        return None, None, None, None
 
 
 def print_registered_devices(devices: DeviceStore) -> None:
@@ -192,7 +224,8 @@ def print_registered_devices(devices: DeviceStore) -> None:
     print("\nRegistered devices:")  # noqa: T201
     for idx, (serial, device_data) in enumerate(devices.items(), 1):
         host = str(device_data.get("config", {}).get("host", "<unknown>"))
-        print(f"  {idx}. {serial} ({host})")  # noqa: T201
+        model = str(device_data.get("model", ""))
+        print(f"  {idx}. {_format_device_label(model, serial, host)}")  # noqa: T201
 
 
 def migrate_unknown_entry(devices: DeviceStore, serial: str, host: str) -> None:
@@ -224,10 +257,15 @@ def select_device(devices: DeviceStore) -> tuple[str, DeviceEntry] | None:
     print("\nSelect a device:")  # noqa: T201
     for idx, (serial, device_data) in enumerate(entries, 1):
         host = str(device_data.get("config", {}).get("host", "<unknown>"))
-        print(f"  {idx}. {serial} ({host})")  # noqa: T201
+        model = str(device_data.get("model", ""))
+        print(f"  {idx}. {_format_device_label(model, serial, host)}")  # noqa: T201
     print("  b. Back")  # noqa: T201
+    print("  e. Exit")  # noqa: T201
 
-    selection = input("Select device: ").strip().lower()
+    selection = input("Select device [b/e]: ").strip().lower()
+    if selection == "e":
+        print("Exiting.")  # noqa: T201
+        raise SystemExit(0)
     if selection == "b":
         return None
 
@@ -383,8 +421,12 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
                 f"v{api['version']} | {api['status']}"
             )
         print("  b. Back")  # noqa: T201
+        print("  e. Exit")  # noqa: T201
 
-        selection = input("Select API: ").strip().lower()
+        selection = input("Select API [b/e]: ").strip().lower()
+        if selection == "e":
+            print("Exiting.")  # noqa: T201
+            raise SystemExit(0)
         if selection == "b":
             return
 
@@ -407,12 +449,16 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
 
         print("\nAPI actions:")  # noqa: T201
         print("  1. Run read action")  # noqa: T201
-        print("  2. Back")  # noqa: T201
-        action_choice = input("Select action [1/2]: ").strip()
-        if action_choice == "2":
+        print("  b. Back")  # noqa: T201
+        print("  e. Exit")  # noqa: T201
+        action_choice = input("Select action [1/b/e]: ").strip().lower()
+        if action_choice == "e":
+            print("Exiting.")  # noqa: T201
+            raise SystemExit(0)
+        if action_choice == "b":
             continue
         if action_choice != "1":
-            print("Invalid option. Please enter 1 or 2.")  # noqa: T201
+            print("Invalid option. Please enter 1, b, or e.")  # noqa: T201
             continue
 
         asyncio.run(run_api_read_action(device_entry, selected_api["id"]))
@@ -475,10 +521,14 @@ def events_flow(serial: str, device_entry: DeviceEntry) -> None:
         print("  1. List event instances")  # noqa: T201
         print("  2. Listen to events (all topics)")  # noqa: T201
         print("  3. Listen to events (select topic)")  # noqa: T201
-        print("  4. Back")  # noqa: T201
-        choice = input("Select option [1/2/3/4]: ").strip()
+        print("  b. Back")  # noqa: T201
+        print("  e. Exit")  # noqa: T201
+        choice = input("Select option [1/2/3/b/e]: ").strip().lower()
 
-        if choice == "4":
+        if choice == "e":
+            print("Exiting.")  # noqa: T201
+            raise SystemExit(0)
+        if choice == "b":
             return
 
         if choice == "1":
@@ -506,7 +556,7 @@ def events_flow(serial: str, device_entry: DeviceEntry) -> None:
             _live_listen_flow(device_entry, topic_filter=selected_topic)
             continue
 
-        print("Invalid option. Please enter 1, 2, 3, or 4.")  # noqa: T201
+        print("Invalid option. Please enter 1, 2, 3, b, or e.")  # noqa: T201
 
 
 def _live_listen_flow(device_entry: DeviceEntry, topic_filter: str | None) -> None:
@@ -586,7 +636,11 @@ def _select_privilege() -> SecondaryGroup | None:
     for idx, (label, _) in enumerate(options, 1):
         print(f"  {idx}. {label}")  # noqa: T201
     print("  b. Back")  # noqa: T201
-    sel = input("Select privilege: ").strip().lower()
+    print("  e. Exit")  # noqa: T201
+    sel = input("Select privilege [b/e]: ").strip().lower()
+    if sel == "e":
+        print("Exiting.")  # noqa: T201
+        raise SystemExit(0)
     if sel == "b":
         return None
     try:
@@ -664,10 +718,14 @@ def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
         print("  1. List users")  # noqa: T201
         print("  2. Create or update user")  # noqa: T201
         print("  3. Delete user")  # noqa: T201
-        print("  4. Back")  # noqa: T201
-        choice = input("Select option [1/2/3/4]: ").strip()
+        print("  b. Back")  # noqa: T201
+        print("  e. Exit")  # noqa: T201
+        choice = input("Select option [1/2/3/b/e]: ").strip().lower()
 
-        if choice == "4":
+        if choice == "e":
+            print("Exiting.")  # noqa: T201
+            raise SystemExit(0)
+        if choice == "b":
             return
 
         if choice == "1":
@@ -682,7 +740,7 @@ def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
             _delete_user_flow(device_entry)
             continue
 
-        print("Invalid option. Please enter 1, 2, 3, or 4.")  # noqa: T201
+        print("Invalid option. Please enter 1, 2, 3, b, or e.")  # noqa: T201
 
 
 def _list_users_flow(device_entry: DeviceEntry) -> None:
@@ -764,8 +822,9 @@ def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
         print("  2. API drill-down")  # noqa: T201
         print("  3. Event instances & live listen")  # noqa: T201
         print("  4. Account management")  # noqa: T201
-        print("  5. Back")  # noqa: T201
-        choice = input("Select option [1-5]: ").strip()
+        print("  b. Back")  # noqa: T201
+        print("  e. Exit")  # noqa: T201
+        choice = input("Select option [1-4/b/e]: ").strip().lower()
 
         if choice == "1":
             list_supported_apis_flow(serial, device_entry)
@@ -783,10 +842,14 @@ def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
             account_management_flow(serial, device_entry)
             continue
 
-        if choice == "5":
+        if choice == "b":
             return
 
-        print("Invalid option. Please enter 1, 2, 3, 4, or 5.")  # noqa: T201
+        if choice == "e":
+            print("Exiting.")  # noqa: T201
+            raise SystemExit(0)
+
+        print("Invalid option. Please enter 1, 2, 3, 4, b, or e.")  # noqa: T201
 
 
 def main() -> None:
@@ -800,10 +863,10 @@ def main() -> None:
         print("\nOptions:")  # noqa: T201
         print("  1. Add additional device")  # noqa: T201
         print("  2. Device operations")  # noqa: T201
-        print("  3. Exit")  # noqa: T201
-        choice = input("Select an option [1/2/3]: ").strip()
+        print("  e. Exit")  # noqa: T201
+        choice = input("Select an option [1/2/e]: ").strip().lower()
 
-        if choice == "3":
+        if choice == "e":
             print("Exiting.")  # noqa: T201
             raise SystemExit(0)
 
@@ -816,7 +879,7 @@ def main() -> None:
             continue
 
         if choice != "1":
-            print("Invalid option. Please enter 1, 2, or 3.")  # noqa: T201
+            print("Invalid option. Please enter 1, 2, or e.")  # noqa: T201
             continue
 
         device_info = prompt_for_device()
@@ -834,8 +897,10 @@ def main() -> None:
                 print("Device registration aborted.")  # noqa: T201
                 continue
 
-        config, serial, extra = asyncio.run(validate_and_fetch_device(device_info))
-        if config is None or serial is None or extra is None:
+        config, serial, model, extra = asyncio.run(
+            validate_and_fetch_device(device_info)
+        )
+        if config is None or serial is None or model is None or extra is None:
             continue
 
         migrate_unknown_entry(devices, serial, device_info["host"])
@@ -855,6 +920,7 @@ def main() -> None:
 
         devices[serial] = {
             "config": config_to_toml_dict(config),
+            "model": model,
             "extra": extra,
         }
         save_devices(config_path, devices)

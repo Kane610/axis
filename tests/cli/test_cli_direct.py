@@ -170,15 +170,24 @@ def test_list_event_instances_with_results(
 # ---------------------------------------------------------------------------
 
 
+def test_events_flow_exit(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting 'e' raises SystemExit."""
+    with (
+        patch("builtins.input", side_effect=["e"]),
+        pytest.raises(SystemExit),
+    ):
+        events_flow("SN1", _make_device_entry())
+
+
 def test_events_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
-    """Selecting '4' exits immediately."""
-    with patch("builtins.input", side_effect=["4"]):
+    """Selecting 'b' exits immediately."""
+    with patch("builtins.input", side_effect=["b"]):
         events_flow("SN1", _make_device_entry())  # must return without looping
 
 
 def test_events_flow_invalid_then_back(capsys: pytest.CaptureFixture[str]) -> None:
-    """Invalid input shows message then second input '4' exits."""
-    with patch("builtins.input", side_effect=["9", "4"]):
+    """Invalid input shows message then 'b' exits."""
+    with patch("builtins.input", side_effect=["9", "b"]):
         events_flow("SN1", _make_device_entry())
     out = capsys.readouterr().out
     assert "Invalid" in out
@@ -189,17 +198,26 @@ def test_events_flow_invalid_then_back(capsys: pytest.CaptureFixture[str]) -> No
 # ---------------------------------------------------------------------------
 
 
+def test_account_management_flow_exit(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting 'e' raises SystemExit."""
+    with (
+        patch("builtins.input", side_effect=["e"]),
+        pytest.raises(SystemExit),
+    ):
+        account_management_flow("SN1", _make_device_entry())
+
+
 def test_account_management_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
-    """Selecting '4' exits without calling any account operation."""
-    with patch("builtins.input", side_effect=["4"]):
+    """Selecting 'b' exits without calling any account operation."""
+    with patch("builtins.input", side_effect=["b"]):
         account_management_flow("SN1", _make_device_entry())
 
 
 def test_account_management_flow_invalid_then_back(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Invalid input shows message; then '4' exits."""
-    with patch("builtins.input", side_effect=["9", "4"]):
+    """Invalid input shows message; then 'b' exits."""
+    with patch("builtins.input", side_effect=["9", "b"]):
         account_management_flow("SN1", _make_device_entry())
     out = capsys.readouterr().out
     assert "Invalid" in out
@@ -280,7 +298,7 @@ def test_delete_user_flow_empty_input(
 def test_validate_and_fetch_device_request_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Returns (None, None, None) and prints message on RequestError."""
+    """Returns (None, None, None, None) and prints message on RequestError."""
     with (
         patch(
             "axis.cli.main.fetch_device_serial_and_extra",
@@ -293,7 +311,7 @@ def test_validate_and_fetch_device_request_error(
                 {"host": "192.168.1.1", "username": "u", "password": "p"}
             )
         )
-    assert result == (None, None, None)
+    assert result == (None, None, None, None)
     out = capsys.readouterr().out
     assert "Failed to connect" in out
 
@@ -301,7 +319,7 @@ def test_validate_and_fetch_device_request_error(
 def test_validate_and_fetch_device_value_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Returns (None, None, None) and prints message on ValueError."""
+    """Returns (None, None, None, None) and prints message on ValueError."""
     with (
         patch(
             "axis.cli.main.fetch_device_serial_and_extra",
@@ -314,7 +332,7 @@ def test_validate_and_fetch_device_value_error(
                 {"host": "192.168.1.1", "username": "u", "password": "p"}
             )
         )
-    assert result == (None, None, None)
+    assert result == (None, None, None, None)
     out = capsys.readouterr().out
     assert "Failed to fetch" in out
 
@@ -432,13 +450,13 @@ def test_api_drill_down_flow_non_numeric(capsys: pytest.CaptureFixture[str]) -> 
 
 
 def test_api_drill_down_flow_action_back(capsys: pytest.CaptureFixture[str]) -> None:
-    """Selecting API then action '2' (back) loops back to API list."""
+    """Selecting API then action 'b' (back) loops back to API list."""
     fake_apis = [
         {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
     ]
     with patch("axis.cli.main.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_apis
-        with patch("builtins.input", side_effect=["1", "2", "b"]):
+        with patch("builtins.input", side_effect=["1", "b", "b"]):
             api_drill_down_flow(_make_device_entry())
 
 
@@ -460,17 +478,26 @@ def test_api_drill_down_flow_action_invalid(capsys: pytest.CaptureFixture[str]) 
 # ---------------------------------------------------------------------------
 
 
+def test_selected_device_operations_exit(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting 'e' raises SystemExit."""
+    with (
+        patch("builtins.input", side_effect=["e"]),
+        pytest.raises(SystemExit),
+    ):
+        selected_device_operations("SN1", _make_device_entry())
+
+
 def test_selected_device_operations_back(capsys: pytest.CaptureFixture[str]) -> None:
-    """Selecting '5' returns without calling any operation."""
-    with patch("builtins.input", return_value="5"):
+    """Selecting 'b' returns without calling any operation."""
+    with patch("builtins.input", return_value="b"):
         selected_device_operations("SN1", _make_device_entry())
 
 
 def test_selected_device_operations_invalid_then_back(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Invalid option prints message; '5' exits."""
-    with patch("builtins.input", side_effect=["9", "5"]):
+    """Invalid option prints message; 'b' exits."""
+    with patch("builtins.input", side_effect=["9", "b"]):
         selected_device_operations("SN1", _make_device_entry())
     out = capsys.readouterr().out
     assert "Invalid" in out
@@ -482,7 +509,7 @@ def test_selected_device_operations_list_apis(
     """Option '1' delegates to list_supported_apis_flow."""
     with (
         patch("axis.cli.main.list_supported_apis_flow") as mock_list,
-        patch("builtins.input", side_effect=["1", "5"]),
+        patch("builtins.input", side_effect=["1", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
     mock_list.assert_called_once()
@@ -494,7 +521,7 @@ def test_selected_device_operations_api_drilldown(
     """Option '2' delegates to api_drill_down_flow."""
     with (
         patch("axis.cli.main.api_drill_down_flow") as mock_drill,
-        patch("builtins.input", side_effect=["2", "5"]),
+        patch("builtins.input", side_effect=["2", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
     mock_drill.assert_called_once()
@@ -504,7 +531,7 @@ def test_selected_device_operations_events(capsys: pytest.CaptureFixture[str]) -
     """Option '3' delegates to events_flow."""
     with (
         patch("axis.cli.main.events_flow") as mock_events,
-        patch("builtins.input", side_effect=["3", "5"]),
+        patch("builtins.input", side_effect=["3", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
     mock_events.assert_called_once()
@@ -516,7 +543,7 @@ def test_selected_device_operations_accounts(
     """Option '4' delegates to account_management_flow."""
     with (
         patch("axis.cli.main.account_management_flow") as mock_acct,
-        patch("builtins.input", side_effect=["4", "5"]),
+        patch("builtins.input", side_effect=["4", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
     mock_acct.assert_called_once()
@@ -528,22 +555,22 @@ def test_selected_device_operations_accounts(
 
 
 def test_main_exit(capsys: pytest.CaptureFixture[str]) -> None:
-    """Selecting '3' exits the main loop via SystemExit."""
+    """Selecting 'e' exits the main loop via SystemExit."""
     with (
         patch("axis.cli.main.load_devices", return_value={}),
         patch("axis.cli.main.get_config_path"),
-        patch("builtins.input", return_value="3"),
+        patch("builtins.input", return_value="e"),
         pytest.raises(SystemExit),
     ):
         main()
 
 
 def test_main_invalid_option(capsys: pytest.CaptureFixture[str]) -> None:
-    """Invalid option prints message; then '3' exits."""
+    """Invalid option prints message; then 'e' exits."""
     with (
         patch("axis.cli.main.load_devices", return_value={}),
         patch("axis.cli.main.get_config_path"),
-        patch("builtins.input", side_effect=["9", "3"]),
+        patch("builtins.input", side_effect=["9", "e"]),
         pytest.raises(SystemExit),
     ):
         main()
@@ -557,7 +584,7 @@ def test_main_device_operations_no_devices(capsys: pytest.CaptureFixture[str]) -
         patch("axis.cli.main.load_devices", return_value={}),
         patch("axis.cli.main.get_config_path"),
         patch("axis.cli.main.select_device", return_value=None),
-        patch("builtins.input", side_effect=["2", "3"]),
+        patch("builtins.input", side_effect=["2", "e"]),
         pytest.raises(SystemExit),
     ):
         main()
@@ -573,7 +600,7 @@ def test_main_device_operations_runs_submenu(
         patch("axis.cli.main.get_config_path"),
         patch("axis.cli.main.select_device", return_value=("SN1", fake_entry)),
         patch("axis.cli.main.selected_device_operations") as mock_ops,
-        patch("builtins.input", side_effect=["2", "3"]),
+        patch("builtins.input", side_effect=["2", "e"]),
         pytest.raises(SystemExit),
     ):
         main()
@@ -593,7 +620,7 @@ def test_main_add_device_aborted_by_host_check(
             "axis.cli.main.prompt_for_device",
             return_value={"host": "192.168.1.1", "username": "a", "password": "b"},
         ),
-        patch("builtins.input", side_effect=["1", "n", "3"]),
+        patch("builtins.input", side_effect=["1", "n", "e"]),
         pytest.raises(SystemExit),
     ):
         main()
@@ -629,7 +656,7 @@ def test_account_management_flow_list_users(
     """Option '1' delegates to _list_users_flow."""
     with (
         patch("axis.cli.main._list_users_flow") as mock_list,
-        patch("builtins.input", side_effect=["1", "4"]),
+        patch("builtins.input", side_effect=["1", "b"]),
     ):
         account_management_flow("SN1", _make_device_entry())
     mock_list.assert_called_once()
@@ -641,7 +668,7 @@ def test_account_management_flow_create_user(
     """Option '2' delegates to _create_or_update_user_flow."""
     with (
         patch("axis.cli.main._create_or_update_user_flow") as mock_create,
-        patch("builtins.input", side_effect=["2", "4"]),
+        patch("builtins.input", side_effect=["2", "b"]),
     ):
         account_management_flow("SN1", _make_device_entry())
     mock_create.assert_called_once()
@@ -653,7 +680,7 @@ def test_account_management_flow_delete_user(
     """Option '3' delegates to _delete_user_flow."""
     with (
         patch("axis.cli.main._delete_user_flow") as mock_del,
-        patch("builtins.input", side_effect=["3", "4"]),
+        patch("builtins.input", side_effect=["3", "b"]),
     ):
         account_management_flow("SN1", _make_device_entry())
     mock_del.assert_called_once()
@@ -780,9 +807,14 @@ def test_main_add_device_success(capsys: pytest.CaptureFixture[str]) -> None:
         ),
         patch("axis.cli.main.asyncio") as mock_asyncio,
         patch("axis.cli.main.save_devices") as mock_save,
-        patch("builtins.input", side_effect=["1", "3"]),
+        patch("builtins.input", side_effect=["1", "e"]),
     ):
-        mock_asyncio.run.return_value = (mock_config, "AABBCC", {"extra": "data"})
+        mock_asyncio.run.return_value = (
+            mock_config,
+            "AABBCC",
+            "P3245-V",
+            {"extra": "data"},
+        )
         with pytest.raises(SystemExit):
             main()
     mock_save.assert_called_once()

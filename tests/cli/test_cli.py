@@ -271,6 +271,19 @@ def test_select_device_no_devices(capsys: pytest.CaptureFixture[str]) -> None:
     assert "No devices" in out
 
 
+def test_select_device_exit_input(capsys: pytest.CaptureFixture[str]) -> None:
+    """Returns SystemExit when user types 'e'."""
+    devices: DeviceStore = {"SN1": {"config": {"host": "10.0.0.1"}}}
+    with patch("builtins.input", return_value="e"):
+        try:
+            select_device(devices)
+        except SystemExit:
+            pass
+        else:
+            msg = "Expected SystemExit"
+            raise AssertionError(msg)
+
+
 def test_select_device_back_input(capsys: pytest.CaptureFixture[str]) -> None:
     """Returns None when user types 'b'."""
     devices: DeviceStore = {"SN1": {"config": {"host": "10.0.0.1"}}}
@@ -421,7 +434,7 @@ def test_config_to_toml_dict() -> None:
 def test_validate_and_fetch_device_os_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Returns (None, None, None) on OSError."""
+    """Returns (None, None, None, None) on OSError."""
     with (
         patch(
             "axis.cli.main.fetch_device_serial_and_extra",
@@ -434,6 +447,6 @@ def test_validate_and_fetch_device_os_error(
                 {"host": "192.168.1.1", "username": "u", "password": "p"}
             )
         )
-    assert result == (None, None, None)
+    assert result == (None, None, None, None)
     out = capsys.readouterr().out
     assert "Failed to fetch" in out
