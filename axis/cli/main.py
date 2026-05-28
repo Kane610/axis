@@ -4,10 +4,15 @@ This CLI allows users to input minimal configuration parameters (host, username,
 validates them using the Configuration model, and saves the result to a TOML file.
 """
 
-import argparse
 import asyncio
+import getpass
 from pathlib import Path
 import sys
+from types import SimpleNamespace
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import types
 
 from aiohttp import ClientSession
 import tomli_w
@@ -15,7 +20,7 @@ import tomli_w
 from axis.models.configuration import Configuration
 
 
-async def main_async(args: argparse.Namespace) -> int:
+async def main_async(args: types.SimpleNamespace) -> int:
     """Run the main async logic for the CLI.
 
     Args:
@@ -56,30 +61,16 @@ validates them using the Configuration model, and saves the result to a TOML fil
 """
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments for the Axis CLI.
-
-    Returns:
-        argparse.Namespace: Parsed arguments with host, username, password, and output file.
-
-    """
-    parser = argparse.ArgumentParser(
-        description="Axis CLI: Validate configuration and export to TOML."
-    )
-    parser.add_argument("--host", required=True, help="Device hostname or IP address.")
-    parser.add_argument(
-        "--username", required=True, help="Username for device authentication."
-    )
-    parser.add_argument(
-        "--password", required=True, help="Password for device authentication."
-    )
-    parser.add_argument(
-        "--output",
-        required=True,
-        type=Path,
-        help="Path to output TOML file.",
-    )
-    return parser.parse_args()
+def prompt_for_config() -> tuple[str, str, str, Path]:
+    """Interactively prompt for host, username, password. Output path is always ~/.axis/config.toml."""
+    print("Register a new Axis device configuration:\n")  # noqa: T201
+    host = input("Device hostname or IP address: ").strip()
+    username = input("Username: ").strip()
+    password = getpass.getpass("Password: ")
+    config_dir = Path.home() / ".axis"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    output_path = config_dir / "config.toml"
+    return host, username, password, output_path
 
 
 def config_to_toml_dict(config: Configuration) -> dict[str, object]:
@@ -109,11 +100,14 @@ def config_to_toml_dict(config: Configuration) -> dict[str, object]:
 
 
 def main() -> None:
-    """Run the synchronous entry point for the CLI.
-
-    Parses arguments and runs the async main logic.
-    """
-    args = parse_args()
+    """Run the synchronous entry point for the interactive CLI."""
+    host, username, password, output = prompt_for_config()
+    args = SimpleNamespace(
+        host=host,
+        username=username,
+        password=password,
+        output=output,
+    )
     exit_code = asyncio.run(main_async(args))
     sys.exit(exit_code)
 
