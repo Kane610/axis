@@ -1,62 +1,788 @@
-"""Direct coverage test for axis.cli.main (no subprocess).
+"""Direct-import tests for axis.cli.main Phase 3+4 helpers.
 
-Covers argument parsing, configuration validation, and TOML output by calling main_async directly.
+Covers event-instance listing, account management confirm/validate helpers,
+and operations that orchestrate device calls via mocked AxisDevice.
 """
 
-from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import patch
+from __future__ import annotations
+
+import asyncio as _asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import tomli
 
-from axis.cli import main as cli_main
+from axis.cli.main import (
+    DeviceEntry,
+    _account_init_confirm,
+    _create_or_update_user_flow,
+    _delete_user_flow,
+    _list_users_flow,
+    _select_privilege,
+    _validate_username,
+    account_management_flow,
+    api_drill_down_flow,
+    events_flow,
+    list_event_instances_flow,
+    list_supported_apis_flow,
+    main,
+    run_on_selected_device,
+    selected_device_operations,
+    validate_and_fetch_device,
+)
+from axis.errors import RequestError
+from axis.models.pwdgrp_cgi import SecondaryGroup
 
-
-@pytest.mark.asyncio
-async def test_cli_valid_config_direct(tmp_path: Path):
-    """Test direct CLI call with valid config."""
-    args = SimpleNamespace(
-        host="192.0.2.1",
-        username="user",
-        password="pass",
-        output=tmp_path / "config.toml",
-    )
-    with patch("sys.stdout"):
-        code = await cli_main.main_async(args)
-    assert code == 0
-    assert args.output.exists()
-    with args.output.open("rb") as f:
-        data = tomli.load(f)
-    assert data["host"] == "192.0.2.1"
-    assert data["username"] == "user"
-    assert data["password"] == "pass"
-
-
-@pytest.mark.asyncio
-async def test_cli_invalid_host_direct(tmp_path: Path):
-    """Test direct CLI call with invalid host."""
-    args = SimpleNamespace(
-        host="bad host",
-        username="user",
-        password="pass",
-        output=tmp_path / "config.toml",
-    )
-    with patch("sys.stderr"):
-        code = await cli_main.main_async(args)
-    assert code == 1
-    assert not args.output.exists()
+# ---------------------------------------------------------------------------
+# _validate_username
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_cli_output_write_error(tmp_path: Path):
-    """Test direct CLI call with unwritable output path."""
-    args = SimpleNamespace(
-        host="192.0.2.1",
-        username="user",
-        password="pass",
-        output=Path("/this/path/does/not/exist/config.toml"),
-    )
-    with patch("sys.stderr"):
-        code = await cli_main.main_async(args)
-    assert code == 1
+def test_validate_username_valid() -> None:
+    """Valid usernames pass without an error message."""
+    assert _validate_username("admin") is None
+    assert _validate_username("a" * 14) is None
+    assert _validate_username("A1b2C3") is None
+
+
+def test_validate_username_empty() -> None:
+    """Empty string is invalid."""
+    assert _validate_username("") is not None
+
+
+def test_validate_username_too_long() -> None:
+    """More than 14 characters is invalid."""
+    assert _validate_username("a" * 15) is not None
+
+
+def test_validate_username_special_chars() -> None:
+    """Special characters are invalid."""
+    assert _validate_username("bad@user") is not None
+    assert _validate_username("has space") is not None
+
+
+# ---------------------------------------------------------------------------
+# _account_init_confirm
+# ---------------------------------------------------------------------------
+
+
+def test_account_init_confirm_create_yes() -> None:
+    """Returns True when user confirms creation."""
+    with patch("builtins.input", return_value="y"):
+        result = _account_init_confirm("testuser", SecondaryGroup.VIEWER, exists=False)
+    assert result is True
+
+
+def test_account_init_confirm_create_no() -> None:
+    """Returns False when user declines creation."""
+    with patch("builtins.input", return_value="n"):
+        result = _account_init_confirm("testuser", SecondaryGroup.VIEWER, exists=False)
+    assert result is False
+
+
+def test_account_init_confirm_update_yes() -> None:
+    """Returns True when user confirms update."""
+    with patch("builtins.input", return_value="y"):
+        result = _account_init_confirm("testuser", SecondaryGroup.ADMIN, exists=True)
+    assert result is True
+
+
+def test_account_init_confirm_update_no() -> None:
+    """Returns False when user declines update."""
+    with patch("builtins.input", return_value="n"):
+        result = _account_init_confirm("testuser", SecondaryGroup.ADMIN, exists=True)
+    assert result is False
+
+
+# ---------------------------------------------------------------------------
+# list_event_instances_flow (mocked device)
+# ---------------------------------------------------------------------------
+
+
+def _make_device_entry() -> DeviceEntry:
+    """Return a minimal device entry for testing."""
+    return {
+        "config": {
+            "host": "192.168.1.1",
+            "username": "admin",
+            "password": "pass",
+        }
+    }
+
+
+def _make_event_instance(
+    topic: str = "tnsaxis:HardwareFailure/Fan",
+    name: str = "Fan failure",
+    stateful: bool = True,
+    stateless: bool = False,
+    is_available: bool = True,
+) -> MagicMock:
+    ev = MagicMock()
+    ev.topic = topic
+    ev.name = name
+    ev.stateful = stateful
+    ev.stateless = stateless
+    ev.is_available = is_available
+    return ev
+
+
+def test_list_event_instances_empty(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prints 'No event instances' when none are returned."""
+    with (
+        patch(
+            "axis.cli.main.fetch_event_instances",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch("axis.cli.main.asyncio") as mock_asyncio,
+    ):
+        mock_asyncio.run.return_value = []
+        result = list_event_instances_flow("SN1", _make_device_entry())
+    assert result == []
+    out = capsys.readouterr().out
+    assert "No event instances" in out
+
+
+def test_list_event_instances_with_results(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prints event list when instances are returned."""
+    fake_events = [
+        {
+            "topic": "tnsaxis:HardwareFailure/Fan",
+            "name": "Fan failure",
+            "stateful": "True",
+            "stateless": "False",
+            "available": "True",
+        }
+    ]
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_events
+        result = list_event_instances_flow("SN1", _make_device_entry())
+    assert len(result) == 1
+    out = capsys.readouterr().out
+    assert "Fan failure" in out
+    assert "tnsaxis:HardwareFailure/Fan" in out
+
+
+# ---------------------------------------------------------------------------
+# events_flow navigation
+# ---------------------------------------------------------------------------
+
+
+def test_events_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting '4' exits immediately."""
+    with patch("builtins.input", side_effect=["4"]):
+        events_flow("SN1", _make_device_entry())  # must return without looping
+
+
+def test_events_flow_invalid_then_back(capsys: pytest.CaptureFixture[str]) -> None:
+    """Invalid input shows message then second input '4' exits."""
+    with patch("builtins.input", side_effect=["9", "4"]):
+        events_flow("SN1", _make_device_entry())
+    out = capsys.readouterr().out
+    assert "Invalid" in out
+
+
+# ---------------------------------------------------------------------------
+# account_management_flow navigation
+# ---------------------------------------------------------------------------
+
+
+def test_account_management_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting '4' exits without calling any account operation."""
+    with patch("builtins.input", side_effect=["4"]):
+        account_management_flow("SN1", _make_device_entry())
+
+
+def test_account_management_flow_invalid_then_back(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Invalid input shows message; then '4' exits."""
+    with patch("builtins.input", side_effect=["9", "4"]):
+        account_management_flow("SN1", _make_device_entry())
+    out = capsys.readouterr().out
+    assert "Invalid" in out
+
+
+# ---------------------------------------------------------------------------
+# _list_users_flow
+# ---------------------------------------------------------------------------
+
+
+def test_list_users_flow_empty(capsys: pytest.CaptureFixture[str]) -> None:
+    """Prints 'No users found' when run_on_selected_device returns None."""
+    with (
+        patch(
+            "axis.cli.main.run_on_selected_device",
+            new=AsyncMock(return_value=None),
+        ),
+        patch("axis.cli.main.asyncio") as mock_asyncio,
+    ):
+        mock_asyncio.run.return_value = None
+        _list_users_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "No users" in out
+
+
+def test_list_users_flow_with_users(capsys: pytest.CaptureFixture[str]) -> None:
+    """Prints usernames when users are returned."""
+    user = MagicMock()
+    user.privileges = SecondaryGroup.VIEWER
+    fake_users = {"vieweruser": user}
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_users
+        _list_users_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "vieweruser" in out
+
+
+# ---------------------------------------------------------------------------
+# _delete_user_flow
+# ---------------------------------------------------------------------------
+
+
+def test_delete_user_flow_aborted(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Deletion aborted when user types 'n' at confirmation."""
+    user = MagicMock()
+    user.privileges = SecondaryGroup.VIEWER
+    fake_users = {"vieweruser": user}
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_users
+        with patch("builtins.input", side_effect=["vieweruser", "n"]):
+            _delete_user_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "aborted" in out.lower()
+
+
+def test_delete_user_flow_empty_input(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Does nothing when an empty username is entered."""
+    user = MagicMock()
+    user.privileges = SecondaryGroup.VIEWER
+    fake_users: dict[str, object] = {"vieweruser": user}
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_users
+        with patch("builtins.input", side_effect=["", ""]):
+            _delete_user_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "No username" in out
+
+
+# ---------------------------------------------------------------------------
+# validate_and_fetch_device
+# ---------------------------------------------------------------------------
+
+
+def test_validate_and_fetch_device_request_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Returns (None, None, None) and prints message on RequestError."""
+    with (
+        patch(
+            "axis.cli.main.fetch_device_serial_and_extra",
+            side_effect=RequestError("timeout"),
+        ),
+        patch("axis.cli.main.ClientSession"),
+    ):
+        result = _asyncio.run(
+            validate_and_fetch_device(
+                {"host": "192.168.1.1", "username": "u", "password": "p"}
+            )
+        )
+    assert result == (None, None, None)
+    out = capsys.readouterr().out
+    assert "Failed to connect" in out
+
+
+def test_validate_and_fetch_device_value_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Returns (None, None, None) and prints message on ValueError."""
+    with (
+        patch(
+            "axis.cli.main.fetch_device_serial_and_extra",
+            side_effect=ValueError("bad value"),
+        ),
+        patch("axis.cli.main.ClientSession"),
+    ):
+        result = _asyncio.run(
+            validate_and_fetch_device(
+                {"host": "192.168.1.1", "username": "u", "password": "p"}
+            )
+        )
+    assert result == (None, None, None)
+    out = capsys.readouterr().out
+    assert "Failed to fetch" in out
+
+
+# ---------------------------------------------------------------------------
+# run_on_selected_device
+# ---------------------------------------------------------------------------
+
+
+def test_run_on_selected_device_incomplete_credentials(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Returns None when device_entry has no host."""
+    entry: DeviceEntry = {"config": {"host": "", "username": "admin"}}
+    result = _asyncio.run(run_on_selected_device(entry, AsyncMock(return_value="x")))
+    assert result is None
+    out = capsys.readouterr().out
+    assert "incomplete" in out
+
+
+def test_run_on_selected_device_request_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Returns None and prints message on RequestError."""
+    op = AsyncMock(side_effect=RequestError("refused"))
+    with patch("axis.cli.main.AxisDevice"), patch("axis.cli.main.ClientSession"):
+        result = _asyncio.run(run_on_selected_device(_make_device_entry(), op))
+    assert result is None
+    out = capsys.readouterr().out
+    assert "request failed" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# list_supported_apis_flow
+# ---------------------------------------------------------------------------
+
+
+def test_list_supported_apis_flow_empty(capsys: pytest.CaptureFixture[str]) -> None:
+    """Prints 'No APIs discovered' when none returned."""
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = []
+        list_supported_apis_flow("SN1", _make_device_entry())
+    out = capsys.readouterr().out
+    assert "No APIs" in out
+
+
+def test_list_supported_apis_flow_with_apis(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Prints API table when APIs are returned."""
+    fake_apis = [
+        {
+            "id": "basic-device-info",
+            "name": "Basic Device Info",
+            "version": "2.0",
+            "status": "Released",
+        },
+    ]
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_apis
+        list_supported_apis_flow("SN1", _make_device_entry())
+    out = capsys.readouterr().out
+    assert "basic-device-info" in out
+
+
+# ---------------------------------------------------------------------------
+# api_drill_down_flow
+# ---------------------------------------------------------------------------
+
+
+def test_api_drill_down_flow_no_apis(capsys: pytest.CaptureFixture[str]) -> None:
+    """Returns immediately when no APIs are discovered."""
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = []
+        api_drill_down_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "No APIs" in out
+
+
+def test_api_drill_down_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
+    """Typing 'b' exits the drill-down immediately."""
+    fake_apis = [
+        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    ]
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_apis
+        with patch("builtins.input", return_value="b"):
+            api_drill_down_flow(_make_device_entry())
+
+
+def test_api_drill_down_flow_invalid_index(capsys: pytest.CaptureFixture[str]) -> None:
+    """Invalid index shows error then 'b' exits."""
+    fake_apis = [
+        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    ]
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_apis
+        with patch("builtins.input", side_effect=["99", "b"]):
+            api_drill_down_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "Invalid" in out
+
+
+def test_api_drill_down_flow_non_numeric(capsys: pytest.CaptureFixture[str]) -> None:
+    """Non-numeric input shows error then 'b' exits."""
+    fake_apis = [
+        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    ]
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_apis
+        with patch("builtins.input", side_effect=["abc", "b"]):
+            api_drill_down_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "Invalid" in out
+
+
+def test_api_drill_down_flow_action_back(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting API then action '2' (back) loops back to API list."""
+    fake_apis = [
+        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    ]
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_apis
+        with patch("builtins.input", side_effect=["1", "2", "b"]):
+            api_drill_down_flow(_make_device_entry())
+
+
+def test_api_drill_down_flow_action_invalid(capsys: pytest.CaptureFixture[str]) -> None:
+    """Invalid action choice shows message then 'b' exits."""
+    fake_apis = [
+        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    ]
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_apis
+        with patch("builtins.input", side_effect=["1", "9", "b"]):
+            api_drill_down_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "Invalid" in out
+
+
+# ---------------------------------------------------------------------------
+# selected_device_operations
+# ---------------------------------------------------------------------------
+
+
+def test_selected_device_operations_back(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting '5' returns without calling any operation."""
+    with patch("builtins.input", return_value="5"):
+        selected_device_operations("SN1", _make_device_entry())
+
+
+def test_selected_device_operations_invalid_then_back(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Invalid option prints message; '5' exits."""
+    with patch("builtins.input", side_effect=["9", "5"]):
+        selected_device_operations("SN1", _make_device_entry())
+    out = capsys.readouterr().out
+    assert "Invalid" in out
+
+
+def test_selected_device_operations_list_apis(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '1' delegates to list_supported_apis_flow."""
+    with (
+        patch("axis.cli.main.list_supported_apis_flow") as mock_list,
+        patch("builtins.input", side_effect=["1", "5"]),
+    ):
+        selected_device_operations("SN1", _make_device_entry())
+    mock_list.assert_called_once()
+
+
+def test_selected_device_operations_api_drilldown(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '2' delegates to api_drill_down_flow."""
+    with (
+        patch("axis.cli.main.api_drill_down_flow") as mock_drill,
+        patch("builtins.input", side_effect=["2", "5"]),
+    ):
+        selected_device_operations("SN1", _make_device_entry())
+    mock_drill.assert_called_once()
+
+
+def test_selected_device_operations_events(capsys: pytest.CaptureFixture[str]) -> None:
+    """Option '3' delegates to events_flow."""
+    with (
+        patch("axis.cli.main.events_flow") as mock_events,
+        patch("builtins.input", side_effect=["3", "5"]),
+    ):
+        selected_device_operations("SN1", _make_device_entry())
+    mock_events.assert_called_once()
+
+
+def test_selected_device_operations_accounts(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '4' delegates to account_management_flow."""
+    with (
+        patch("axis.cli.main.account_management_flow") as mock_acct,
+        patch("builtins.input", side_effect=["4", "5"]),
+    ):
+        selected_device_operations("SN1", _make_device_entry())
+    mock_acct.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# main() key paths
+# ---------------------------------------------------------------------------
+
+
+def test_main_exit(capsys: pytest.CaptureFixture[str]) -> None:
+    """Selecting '3' exits the main loop via SystemExit."""
+    with (
+        patch("axis.cli.main.load_devices", return_value={}),
+        patch("axis.cli.main.get_config_path"),
+        patch("builtins.input", return_value="3"),
+        pytest.raises(SystemExit),
+    ):
+        main()
+
+
+def test_main_invalid_option(capsys: pytest.CaptureFixture[str]) -> None:
+    """Invalid option prints message; then '3' exits."""
+    with (
+        patch("axis.cli.main.load_devices", return_value={}),
+        patch("axis.cli.main.get_config_path"),
+        patch("builtins.input", side_effect=["9", "3"]),
+        pytest.raises(SystemExit),
+    ):
+        main()
+    out = capsys.readouterr().out
+    assert "Invalid" in out
+
+
+def test_main_device_operations_no_devices(capsys: pytest.CaptureFixture[str]) -> None:
+    """Option '2' with empty registry selects nothing and loops back to '3'."""
+    with (
+        patch("axis.cli.main.load_devices", return_value={}),
+        patch("axis.cli.main.get_config_path"),
+        patch("axis.cli.main.select_device", return_value=None),
+        patch("builtins.input", side_effect=["2", "3"]),
+        pytest.raises(SystemExit),
+    ):
+        main()
+
+
+def test_main_device_operations_runs_submenu(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '2' with a device selected calls selected_device_operations."""
+    fake_entry = _make_device_entry()
+    with (
+        patch("axis.cli.main.load_devices", return_value={"SN1": fake_entry}),
+        patch("axis.cli.main.get_config_path"),
+        patch("axis.cli.main.select_device", return_value=("SN1", fake_entry)),
+        patch("axis.cli.main.selected_device_operations") as mock_ops,
+        patch("builtins.input", side_effect=["2", "3"]),
+        pytest.raises(SystemExit),
+    ):
+        main()
+    mock_ops.assert_called_once()
+
+
+def test_main_add_device_aborted_by_host_check(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Adding a device whose host already exists can be aborted."""
+    fake_entry = _make_device_entry()
+    with (
+        patch("axis.cli.main.load_devices", return_value={"SN1": fake_entry}),
+        patch("axis.cli.main.get_config_path"),
+        patch("axis.cli.main.find_serial_by_host", return_value="SN1"),
+        patch(
+            "axis.cli.main.prompt_for_device",
+            return_value={"host": "192.168.1.1", "username": "a", "password": "b"},
+        ),
+        patch("builtins.input", side_effect=["1", "n", "3"]),
+        pytest.raises(SystemExit),
+    ):
+        main()
+    out = capsys.readouterr().out
+    assert "aborted" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# run_on_selected_device - OSError/ValueError branch
+# ---------------------------------------------------------------------------
+
+
+def test_run_on_selected_device_value_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Returns None and prints message on ValueError."""
+    op = AsyncMock(side_effect=ValueError("bad state"))
+    with patch("axis.cli.main.AxisDevice"), patch("axis.cli.main.ClientSession"):
+        result = _asyncio.run(run_on_selected_device(_make_device_entry(), op))
+    assert result is None
+    out = capsys.readouterr().out
+    assert "Failed to connect" in out
+
+
+# ---------------------------------------------------------------------------
+# account_management_flow - sub-option delegation
+# ---------------------------------------------------------------------------
+
+
+def test_account_management_flow_list_users(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '1' delegates to _list_users_flow."""
+    with (
+        patch("axis.cli.main._list_users_flow") as mock_list,
+        patch("builtins.input", side_effect=["1", "4"]),
+    ):
+        account_management_flow("SN1", _make_device_entry())
+    mock_list.assert_called_once()
+
+
+def test_account_management_flow_create_user(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '2' delegates to _create_or_update_user_flow."""
+    with (
+        patch("axis.cli.main._create_or_update_user_flow") as mock_create,
+        patch("builtins.input", side_effect=["2", "4"]),
+    ):
+        account_management_flow("SN1", _make_device_entry())
+    mock_create.assert_called_once()
+
+
+def test_account_management_flow_delete_user(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '3' delegates to _delete_user_flow."""
+    with (
+        patch("axis.cli.main._delete_user_flow") as mock_del,
+        patch("builtins.input", side_effect=["3", "4"]),
+    ):
+        account_management_flow("SN1", _make_device_entry())
+    mock_del.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _create_or_update_user_flow paths
+# ---------------------------------------------------------------------------
+
+
+def test_create_or_update_user_flow_invalid_username(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Invalid username aborts the flow immediately."""
+    with patch("builtins.input", return_value="bad@user"):
+        _create_or_update_user_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "Invalid username" in out
+
+
+def test_create_or_update_user_flow_empty_password(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Empty password aborts the flow."""
+    with (
+        patch("builtins.input", return_value="validuser"),
+        patch("axis.cli.main.getpass") as mock_gp,
+    ):
+        mock_gp.getpass.return_value = ""
+        _create_or_update_user_flow(_make_device_entry())
+    out = capsys.readouterr().out
+    assert "Password must be" in out
+
+
+def test_create_or_update_user_flow_privilege_back(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Selecting 'b' at privilege prompt aborts the flow."""
+    with (
+        patch("builtins.input", side_effect=["validuser", "b"]),
+        patch("axis.cli.main.getpass") as mock_gp,
+    ):
+        mock_gp.getpass.return_value = "password1"
+        _create_or_update_user_flow(_make_device_entry())
+
+
+# ---------------------------------------------------------------------------
+# _delete_user_flow confirmed deletion
+# ---------------------------------------------------------------------------
+
+
+def test_delete_user_flow_confirmed(capsys: pytest.CaptureFixture[str]) -> None:
+    """Confirmed deletion calls asyncio.run with the delete operation."""
+    user = MagicMock()
+    user.privileges = SecondaryGroup.VIEWER
+    fake_users = {"vieweruser": user}
+    with patch("axis.cli.main.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_users
+        with patch("builtins.input", side_effect=["vieweruser", "y"]):
+            _delete_user_flow(_make_device_entry())
+    # asyncio.run should have been called twice: once for list, once for delete
+    assert mock_asyncio.run.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# _select_privilege helper
+# ---------------------------------------------------------------------------
+
+
+def test_select_privilege_valid(capsys: pytest.CaptureFixture[str]) -> None:
+    """Returns correct SecondaryGroup for valid index."""
+    with patch("builtins.input", return_value="1"):
+        result = _select_privilege()
+    assert result == SecondaryGroup.VIEWER
+
+
+def test_select_privilege_back(capsys: pytest.CaptureFixture[str]) -> None:
+    """Returns None when user types 'b'."""
+    with patch("builtins.input", return_value="b"):
+        result = _select_privilege()
+    assert result is None
+
+
+def test_select_privilege_invalid_number(capsys: pytest.CaptureFixture[str]) -> None:
+    """Returns None for out-of-range index."""
+    with patch("builtins.input", return_value="99"):
+        result = _select_privilege()
+    assert result is None
+
+
+def test_select_privilege_non_numeric(capsys: pytest.CaptureFixture[str]) -> None:
+    """Returns None for non-numeric, non-'b' input."""
+    with patch("builtins.input", return_value="xyz"):
+        result = _select_privilege()
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# main() - successful add device flow
+# ---------------------------------------------------------------------------
+
+
+def test_main_add_device_success(capsys: pytest.CaptureFixture[str]) -> None:
+    """Successfully adding a new device saves it to the registry."""
+    mock_config = MagicMock()
+    mock_config.host = "10.0.0.1"
+    mock_config.username = "admin"
+    mock_config.password = "pass"
+    mock_config.port = 80
+    mock_config.web_proto = MagicMock(__str__=MagicMock(return_value="http"))
+    mock_config.verify_ssl = False
+    mock_config.is_companion = False
+    mock_config.auth_scheme = MagicMock(__str__=MagicMock(return_value="digest"))
+    mock_config.websocket_enabled = True
+    mock_config.websocket_force = False
+
+    with (
+        patch("axis.cli.main.load_devices", return_value={}),
+        patch("axis.cli.main.get_config_path"),
+        patch("axis.cli.main.find_serial_by_host", return_value=None),
+        patch(
+            "axis.cli.main.prompt_for_device",
+            return_value={"host": "10.0.0.1", "username": "admin", "password": "pass"},
+        ),
+        patch("axis.cli.main.asyncio") as mock_asyncio,
+        patch("axis.cli.main.save_devices") as mock_save,
+        patch("builtins.input", side_effect=["1", "3"]),
+    ):
+        mock_asyncio.run.return_value = (mock_config, "AABBCC", {"extra": "data"})
+        with pytest.raises(SystemExit):
+            main()
+    mock_save.assert_called_once()

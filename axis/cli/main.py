@@ -34,15 +34,19 @@ Extension points:
 import asyncio
 import getpass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession
 import tomli
 import tomli_w
 
 from axis.device import AxisDevice
-from axis.errors import RequestError
+from axis.errors import Forbidden, PathNotFound, RequestError
 from axis.models.configuration import Configuration
+from axis.models.pwdgrp_cgi import SecondaryGroup
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable, Mapping
 
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
@@ -210,6 +214,581 @@ def find_serial_by_host(devices: DeviceStore, host: str) -> str | None:
     return None
 
 
+def select_device(devices: DeviceStore) -> tuple[str, DeviceEntry] | None:
+    """Prompt for device selection from the registry."""
+    if not devices:
+        print("\nNo devices available.")  # noqa: T201
+        return None
+
+    entries = list(devices.items())
+    print("\nSelect a device:")  # noqa: T201
+    for idx, (serial, device_data) in enumerate(entries, 1):
+        host = str(device_data.get("config", {}).get("host", "<unknown>"))
+        print(f"  {idx}. {serial} ({host})")  # noqa: T201
+    print("  b. Back")  # noqa: T201
+
+    selection = input("Select device: ").strip().lower()
+    if selection == "b":
+        return None
+
+    try:
+        index = int(selection)
+    except ValueError:
+        print("Invalid selection.")  # noqa: T201
+        return None
+
+    if index < 1 or index > len(entries):
+        print("Invalid selection.")  # noqa: T201
+        return None
+
+    return entries[index - 1]
+
+
+def get_device_credentials(device_entry: DeviceEntry) -> dict[str, str] | None:
+    """Extract credentials for connecting to a stored device entry."""
+    config_data = device_entry.get("config", {})
+    if not isinstance(config_data, dict):
+        return None
+
+    host = str(config_data.get("host", "")).strip()
+    username = str(config_data.get("username", "")).strip()
+    password = str(config_data.get("password", ""))
+    if not host or not username:
+        return None
+
+    return {
+        "host": host,
+        "username": username,
+        "password": password,
+    }
+
+
+async def run_on_selected_device[ReturnT](
+    device_entry: DeviceEntry,
+    operation: Callable[[AxisDevice], Awaitable[ReturnT]],
+) -> ReturnT | None:
+    """Run an async operation against a selected device with shared error handling."""
+    credentials = get_device_credentials(device_entry)
+    if credentials is None:
+        print("Stored device config is incomplete. Please re-add the device.")  # noqa: T201
+        return None
+
+    try:
+        async with ClientSession() as session:
+            config = Configuration(
+                session=session,
+                host=credentials["host"],
+                username=credentials["username"],
+                password=credentials["password"],
+            )
+            device = AxisDevice(config)
+            return await operation(device)
+    except RequestError as exc:
+        print(f"Device request failed: {exc}")  # noqa: T201
+    except (ValueError, KeyError, OSError) as exc:
+        print(f"Failed to connect to selected device: {exc}")  # noqa: T201
+    return None
+
+
+async def fetch_supported_apis(device_entry: DeviceEntry) -> list[dict[str, str]]:
+    """Retrieve supported APIs from API discovery for a selected device."""
+
+    async def _operation(device: AxisDevice) -> list[dict[str, str]]:
+        await device.vapix.api_discovery.update()
+        return [
+            {
+                "id": api.id,
+                "name": api.name,
+                "version": api.version,
+                "status": str(api.status),
+            }
+            for api in device.vapix.api_discovery.values()
+        ]
+
+    result = await run_on_selected_device(device_entry, _operation)
+    if result is None:
+        return []
+    return result
+
+
+def list_supported_apis_flow(serial: str, device_entry: DeviceEntry) -> None:
+    """List supported APIs for a selected device."""
+    apis = asyncio.run(fetch_supported_apis(device_entry))
+    if not apis:
+        print("No APIs discovered for this device.")  # noqa: T201
+        return
+
+    print(f"\nSupported APIs for {serial}:")  # noqa: T201
+    for idx, api in enumerate(apis, 1):
+        print(  # noqa: T201
+            f"  {idx}. {api['id']} | {api['name']} | "
+            f"v{api['version']} | {api['status']}"
+        )
+
+
+async def run_api_read_action(device_entry: DeviceEntry, api_id: str) -> None:
+    """Run a safe read-only action for the selected API."""
+
+    async def _operation(device: AxisDevice) -> None:
+        if api_id == "basic-device-info":
+            info = await device.vapix.basic_device_info.get_all_properties()
+            item = info.get("0")
+            if item is None:
+                print("No basic device information found.")  # noqa: T201
+                return
+            serial_number = str(getattr(item, "serial_number", "unknown"))
+            product_name = str(getattr(item, "product_full_name", "unknown"))
+            firmware = str(getattr(item, "firmware_version", "unknown"))
+            print("\nBasic device info:")  # noqa: T201
+            print(f"  Serial: {serial_number}")  # noqa: T201
+            print(f"  Product: {product_name}")  # noqa: T201
+            print(f"  Firmware: {firmware}")  # noqa: T201
+            return
+
+        if api_id == "api-discovery":
+            versions = await device.vapix.api_discovery.get_supported_versions()
+            print("\nAPI Discovery supported versions:")  # noqa: T201
+            for version in versions:
+                print(f"  - {version}")  # noqa: T201
+            return
+
+        if api_id == "user-management":
+            groups = await device.vapix.user_groups.get_user_groups()
+            user = groups.get("0")
+            if user is None:
+                print("Current user group information is unavailable.")  # noqa: T201
+                return
+            print("\nCurrent user rights:")  # noqa: T201
+            print(f"  Username: {user.name}")  # noqa: T201
+            print(f"  Privileges: {user.privileges.value}")  # noqa: T201
+            return
+
+        print(f"No read action implemented yet for API '{api_id}'.")  # noqa: T201
+
+    await run_on_selected_device(device_entry, _operation)
+
+
+def api_drill_down_flow(device_entry: DeviceEntry) -> None:
+    """Allow selecting an API and running API-specific actions."""
+    apis = asyncio.run(fetch_supported_apis(device_entry))
+    if not apis:
+        print("No APIs discovered for this device.")  # noqa: T201
+        return
+
+    while True:
+        print("\nAPI drill-down:")  # noqa: T201
+        for idx, api in enumerate(apis, 1):
+            print(  # noqa: T201
+                f"  {idx}. {api['id']} | {api['name']} | "
+                f"v{api['version']} | {api['status']}"
+            )
+        print("  b. Back")  # noqa: T201
+
+        selection = input("Select API: ").strip().lower()
+        if selection == "b":
+            return
+
+        try:
+            index = int(selection)
+        except ValueError:
+            print("Invalid selection.")  # noqa: T201
+            continue
+
+        if index < 1 or index > len(apis):
+            print("Invalid selection.")  # noqa: T201
+            continue
+
+        selected_api = apis[index - 1]
+        print("\nSelected API:")  # noqa: T201
+        print(f"  ID: {selected_api['id']}")  # noqa: T201
+        print(f"  Name: {selected_api['name']}")  # noqa: T201
+        print(f"  Version: {selected_api['version']}")  # noqa: T201
+        print(f"  Status: {selected_api['status']}")  # noqa: T201
+
+        print("\nAPI actions:")  # noqa: T201
+        print("  1. Run read action")  # noqa: T201
+        print("  2. Back")  # noqa: T201
+        action_choice = input("Select action [1/2]: ").strip()
+        if action_choice == "2":
+            continue
+        if action_choice != "1":
+            print("Invalid option. Please enter 1 or 2.")  # noqa: T201
+            continue
+
+        asyncio.run(run_api_read_action(device_entry, selected_api["id"]))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 - Event workflows
+# ---------------------------------------------------------------------------
+
+
+async def fetch_event_instances(
+    device_entry: DeviceEntry,
+) -> list[dict[str, str]]:
+    """Retrieve event instances from a selected device."""
+
+    async def _operation(device: AxisDevice) -> list[dict[str, str]]:
+        await device.vapix.event_instances.update()
+        return [
+            {
+                "topic": ev.topic,
+                "name": ev.name,
+                "stateful": str(ev.stateful),
+                "stateless": str(ev.stateless),
+                "available": str(ev.is_available),
+            }
+            for ev in device.vapix.event_instances.values()
+        ]
+
+    result = await run_on_selected_device(device_entry, _operation)
+    return result if result is not None else []
+
+
+def list_event_instances_flow(
+    serial: str, device_entry: DeviceEntry
+) -> list[dict[str, str]]:
+    """List available event instances for a selected device and return them."""
+    events = asyncio.run(fetch_event_instances(device_entry))
+    if not events:
+        print(f"No event instances found for {serial}.")  # noqa: T201
+        return []
+
+    print(f"\nEvent instances for {serial}:")  # noqa: T201
+    for idx, ev in enumerate(events, 1):
+        flags = []
+        if ev["stateful"] == "True":
+            flags.append("stateful")
+        if ev["stateless"] == "True":
+            flags.append("stateless")
+        if ev["available"] == "True":
+            flags.append("available")
+        flag_str = ", ".join(flags) if flags else "none"
+        print(f"  {idx}. {ev['name']} [{ev['topic']}] ({flag_str})")  # noqa: T201
+    return events
+
+
+def events_flow(serial: str, device_entry: DeviceEntry) -> None:
+    """Event workflow: list instances and optionally start live listening."""
+    while True:
+        print(f"\nEvent options for {serial}:")  # noqa: T201
+        print("  1. List event instances")  # noqa: T201
+        print("  2. Listen to events (all topics)")  # noqa: T201
+        print("  3. Listen to events (select topic)")  # noqa: T201
+        print("  4. Back")  # noqa: T201
+        choice = input("Select option [1/2/3/4]: ").strip()
+
+        if choice == "4":
+            return
+
+        if choice == "1":
+            list_event_instances_flow(serial, device_entry)
+            continue
+
+        if choice == "2":
+            _live_listen_flow(device_entry, topic_filter=None)
+            continue
+
+        if choice == "3":
+            events = list_event_instances_flow(serial, device_entry)
+            if not events:
+                continue
+            topic_choice = input("Enter event number to filter by: ").strip()
+            try:
+                topic_idx = int(topic_choice)
+            except ValueError:
+                print("Invalid selection.")  # noqa: T201
+                continue
+            if topic_idx < 1 or topic_idx > len(events):
+                print("Invalid selection.")  # noqa: T201
+                continue
+            selected_topic = events[topic_idx - 1]["topic"]
+            _live_listen_flow(device_entry, topic_filter=selected_topic)
+            continue
+
+        print("Invalid option. Please enter 1, 2, 3, or 4.")  # noqa: T201
+
+
+def _live_listen_flow(device_entry: DeviceEntry, topic_filter: str | None) -> None:
+    """Start live event listening via the device stream manager."""
+    credentials = get_device_credentials(device_entry)
+    if credentials is None:
+        print("Stored device config is incomplete. Please re-add the device.")  # noqa: T201
+        return
+
+    if topic_filter:
+        print(f"\nListening for events on topic '{topic_filter}' (Ctrl+C to stop)...")  # noqa: T201
+    else:
+        print("\nListening for all events (Ctrl+C to stop)...")  # noqa: T201
+
+    async def _run_listener() -> None:
+        async with ClientSession() as session:
+            config = Configuration(
+                session=session,
+                host=credentials["host"],
+                username=credentials["username"],
+                password=credentials["password"],
+            )
+            device = AxisDevice(config)
+
+            def _on_event(event: object) -> None:
+                print(f"  [event] {event}")  # noqa: T201
+
+            unsubscribe = device.event.subscribe(
+                callback=_on_event,
+                id_filter=topic_filter,
+            )
+            stop_event = asyncio.Event()
+            try:
+                device.enable_events()
+                await stop_event.wait()
+            except asyncio.CancelledError:
+                pass
+            finally:
+                unsubscribe()
+
+    try:
+        asyncio.run(_run_listener())
+    except KeyboardInterrupt:
+        print("\nStopped listening.")  # noqa: T201
+    except RequestError as exc:
+        print(f"Device request failed: {exc}")  # noqa: T201
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 - Account management
+# ---------------------------------------------------------------------------
+
+
+import re  # noqa: E402
+
+_USERNAME_RE = re.compile(r"^[a-zA-Z0-9]{1,14}$")
+
+
+def _validate_username(username: str) -> str | None:
+    """Return error message if username is invalid, else None."""
+    if not _USERNAME_RE.match(username):
+        return "Username must be 1-14 alphanumeric characters (a-z, A-Z, 0-9)."
+    return None
+
+
+def _select_privilege() -> SecondaryGroup | None:
+    """Prompt user to choose a privilege level and return the SecondaryGroup."""
+    options: list[tuple[str, SecondaryGroup]] = [
+        ("Viewer", SecondaryGroup.VIEWER),
+        ("Viewer + PTZ", SecondaryGroup.VIEWER_PTZ),
+        ("Operator", SecondaryGroup.OPERATOR),
+        ("Operator + PTZ", SecondaryGroup.OPERATOR_PTZ),
+        ("Admin", SecondaryGroup.ADMIN),
+        ("Admin + PTZ", SecondaryGroup.ADMIN_PTZ),
+    ]
+    print("\nPrivilege levels:")  # noqa: T201
+    for idx, (label, _) in enumerate(options, 1):
+        print(f"  {idx}. {label}")  # noqa: T201
+    print("  b. Back")  # noqa: T201
+    sel = input("Select privilege: ").strip().lower()
+    if sel == "b":
+        return None
+    try:
+        idx = int(sel)
+    except ValueError:
+        print("Invalid selection.")  # noqa: T201
+        return None
+    if idx < 1 or idx > len(options):
+        print("Invalid selection.")  # noqa: T201
+        return None
+    return options[idx - 1][1]
+
+
+def _account_init_confirm(
+    target_user: str,
+    sgrp: SecondaryGroup,
+    exists: bool,
+) -> bool:
+    """Prompt for create/update confirmation outside async context. Returns True to proceed."""
+    if exists:
+        answer = (
+            input(
+                f"User '{target_user}' already exists. "
+                "Update password and privilege? (y/n): "
+            )
+            .strip()
+            .lower()
+        )
+        if answer != "y":
+            print("Account update aborted.")  # noqa: T201
+            return False
+    else:
+        answer = (
+            input(
+                f"Create user '{target_user}' with "
+                f"{sgrp.name.lower()} privileges? (y/n): "
+            )
+            .strip()
+            .lower()
+        )
+        if answer != "y":
+            print("Account creation aborted.")  # noqa: T201
+            return False
+    return True
+
+
+async def _account_init_operation(
+    device: AxisDevice,
+    target_user: str,
+    target_pwd: str,
+    sgrp: SecondaryGroup,
+    existing_users: Mapping[str, object],
+) -> None:
+    """Perform the actual create-or-update on the device inside a live session."""
+    exists = target_user in existing_users
+    if not _account_init_confirm(target_user, sgrp, exists):
+        return
+    if exists:
+        await device.vapix.users.modify(target_user, pwd=target_pwd, sgrp=sgrp)
+        print(f"User '{target_user}' updated.")  # noqa: T201
+    else:
+        await device.vapix.users.create(
+            target_user,
+            pwd=target_pwd,
+            sgrp=sgrp,
+            comment="Created via Axis CLI",
+        )
+        print(f"User '{target_user}' created.")  # noqa: T201
+
+
+def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
+    """Interactive account initialization and management workflow."""
+    while True:
+        print(f"\nAccount management for {serial}:")  # noqa: T201
+        print("  1. List users")  # noqa: T201
+        print("  2. Create or update user")  # noqa: T201
+        print("  3. Delete user")  # noqa: T201
+        print("  4. Back")  # noqa: T201
+        choice = input("Select option [1/2/3/4]: ").strip()
+
+        if choice == "4":
+            return
+
+        if choice == "1":
+            _list_users_flow(device_entry)
+            continue
+
+        if choice == "2":
+            _create_or_update_user_flow(device_entry)
+            continue
+
+        if choice == "3":
+            _delete_user_flow(device_entry)
+            continue
+
+        print("Invalid option. Please enter 1, 2, 3, or 4.")  # noqa: T201
+
+
+def _list_users_flow(device_entry: DeviceEntry) -> None:
+    """Fetch and display all users on the device."""
+
+    async def _op(device: AxisDevice) -> dict[str, object]:
+        return dict(await device.vapix.users.list())
+
+    users = asyncio.run(run_on_selected_device(device_entry, _op))
+    if not users:
+        print("No users found (or insufficient privileges).")  # noqa: T201
+        return
+    print("\nUsers:")  # noqa: T201
+    for name, user in users.items():
+        privs = str(getattr(user, "privileges", "unknown"))
+        print(f"  - {name} ({privs})")  # noqa: T201
+
+
+def _create_or_update_user_flow(device_entry: DeviceEntry) -> None:
+    """Guided create/update user flow with explicit confirmation."""
+    target_user = input("Username: ").strip()
+    err = _validate_username(target_user)
+    if err:
+        print(f"Invalid username: {err}")  # noqa: T201
+        return
+
+    target_pwd = getpass.getpass("Password: ")
+    if not (1 <= len(target_pwd) <= 64):
+        print("Password must be 1-64 characters.")  # noqa: T201
+        return
+
+    sgrp = _select_privilege()
+    if sgrp is None:
+        return
+
+    async def _op(device: AxisDevice) -> None:
+        existing = await device.vapix.users.list()
+        await _account_init_operation(device, target_user, target_pwd, sgrp, existing)
+
+    try:
+        asyncio.run(run_on_selected_device(device_entry, _op))
+    except (Forbidden, PathNotFound) as exc:
+        print(f"Access denied or unsupported on this device: {exc}")  # noqa: T201
+
+
+def _delete_user_flow(device_entry: DeviceEntry) -> None:
+    """Prompt for a username and delete it after explicit confirmation."""
+    _list_users_flow(device_entry)
+    target_user = input("\nUsername to delete: ").strip()
+    if not target_user:
+        print("No username provided.")  # noqa: T201
+        return
+
+    confirm = input(f"Permanently delete user '{target_user}'? (y/n): ").strip().lower()
+    if confirm != "y":
+        print("Deletion aborted.")  # noqa: T201
+        return
+
+    async def _op(device: AxisDevice) -> None:
+        await device.vapix.users.delete(target_user)
+        print(f"User '{target_user}' deleted.")  # noqa: T201
+
+    try:
+        asyncio.run(run_on_selected_device(device_entry, _op))
+    except (Forbidden, PathNotFound) as exc:
+        print(f"Access denied or unsupported on this device: {exc}")  # noqa: T201
+
+
+# ---------------------------------------------------------------------------
+# Device operations submenu
+# ---------------------------------------------------------------------------
+
+
+def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
+    """Run submenu operations for a selected registered device."""
+    while True:
+        print(f"\nDevice operations for {serial}:")  # noqa: T201
+        print("  1. List supported APIs")  # noqa: T201
+        print("  2. API drill-down")  # noqa: T201
+        print("  3. Event instances & live listen")  # noqa: T201
+        print("  4. Account management")  # noqa: T201
+        print("  5. Back")  # noqa: T201
+        choice = input("Select option [1-5]: ").strip()
+
+        if choice == "1":
+            list_supported_apis_flow(serial, device_entry)
+            continue
+
+        if choice == "2":
+            api_drill_down_flow(device_entry)
+            continue
+
+        if choice == "3":
+            events_flow(serial, device_entry)
+            continue
+
+        if choice == "4":
+            account_management_flow(serial, device_entry)
+            continue
+
+        if choice == "5":
+            return
+
+        print("Invalid option. Please enter 1, 2, 3, 4, or 5.")  # noqa: T201
+
+
 def main() -> None:
     """Run the interactive device registry CLI."""
     config_path = get_config_path()
@@ -220,15 +799,24 @@ def main() -> None:
 
         print("\nOptions:")  # noqa: T201
         print("  1. Add additional device")  # noqa: T201
-        print("  2. Exit")  # noqa: T201
-        choice = input("Select an option [1/2]: ").strip()
+        print("  2. Device operations")  # noqa: T201
+        print("  3. Exit")  # noqa: T201
+        choice = input("Select an option [1/2/3]: ").strip()
 
-        if choice == "2":
+        if choice == "3":
             print("Exiting.")  # noqa: T201
             raise SystemExit(0)
 
+        if choice == "2":
+            selected = select_device(devices)
+            if selected is None:
+                continue
+            selected_serial, selected_entry = selected
+            selected_device_operations(selected_serial, selected_entry)
+            continue
+
         if choice != "1":
-            print("Invalid option. Please enter 1 or 2.")  # noqa: T201
+            print("Invalid option. Please enter 1, 2, or 3.")  # noqa: T201
             continue
 
         device_info = prompt_for_device()
