@@ -131,10 +131,10 @@ def test_list_event_instances_empty(
     """Prints 'No event instances' when none are returned."""
     with (
         patch(
-            "axis.cli.main.fetch_event_instances",
+            "axis.cli.packs.events.fetch_event_instances",
             new=AsyncMock(return_value=[]),
         ),
-        patch("axis.cli.main.asyncio") as mock_asyncio,
+        patch("axis.cli.packs.events.asyncio") as mock_asyncio,
     ):
         mock_asyncio.run.return_value = []
         result = list_event_instances_flow("SN1", _make_device_entry())
@@ -156,7 +156,7 @@ def test_list_event_instances_with_results(
             "available": "True",
         }
     ]
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.events.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_events
         result = list_event_instances_flow("SN1", _make_device_entry())
     assert len(result) == 1
@@ -232,10 +232,10 @@ def test_list_users_flow_empty(capsys: pytest.CaptureFixture[str]) -> None:
     """Prints 'No users found' when run_on_selected_device returns None."""
     with (
         patch(
-            "axis.cli.main.run_on_selected_device",
+            "axis.cli.packs.accounts.run_on_selected_device",
             new=AsyncMock(return_value=None),
         ),
-        patch("axis.cli.main.asyncio") as mock_asyncio,
+        patch("axis.cli.packs.accounts.asyncio") as mock_asyncio,
     ):
         mock_asyncio.run.return_value = None
         _list_users_flow(_make_device_entry())
@@ -248,7 +248,7 @@ def test_list_users_flow_with_users(capsys: pytest.CaptureFixture[str]) -> None:
     user = MagicMock()
     user.privileges = SecondaryGroup.VIEWER
     fake_users = {"vieweruser": user}
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.accounts.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_users
         _list_users_flow(_make_device_entry())
     out = capsys.readouterr().out
@@ -267,7 +267,7 @@ def test_delete_user_flow_aborted(
     user = MagicMock()
     user.privileges = SecondaryGroup.VIEWER
     fake_users = {"vieweruser": user}
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.accounts.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_users
         with patch("builtins.input", side_effect=["vieweruser", "n"]):
             _delete_user_flow(_make_device_entry())
@@ -282,7 +282,7 @@ def test_delete_user_flow_empty_input(
     user = MagicMock()
     user.privileges = SecondaryGroup.VIEWER
     fake_users: dict[str, object] = {"vieweruser": user}
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.accounts.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_users
         with patch("builtins.input", side_effect=["", ""]):
             _delete_user_flow(_make_device_entry())
@@ -301,10 +301,10 @@ def test_validate_and_fetch_device_request_error(
     """Returns (None, None, None, None) and prints message on RequestError."""
     with (
         patch(
-            "axis.cli.main.fetch_device_serial_and_extra",
+            "axis.cli.packs.devices.fetch_device_serial_and_extra",
             side_effect=RequestError("timeout"),
         ),
-        patch("axis.cli.main.ClientSession"),
+        patch("axis.cli.packs.devices.ClientSession"),
     ):
         result = _asyncio.run(
             validate_and_fetch_device(
@@ -322,10 +322,10 @@ def test_validate_and_fetch_device_value_error(
     """Returns (None, None, None, None) and prints message on ValueError."""
     with (
         patch(
-            "axis.cli.main.fetch_device_serial_and_extra",
+            "axis.cli.packs.devices.fetch_device_serial_and_extra",
             side_effect=ValueError("bad value"),
         ),
-        patch("axis.cli.main.ClientSession"),
+        patch("axis.cli.packs.devices.ClientSession"),
     ):
         result = _asyncio.run(
             validate_and_fetch_device(
@@ -358,7 +358,10 @@ def test_run_on_selected_device_request_error(
 ) -> None:
     """Returns None and prints message on RequestError."""
     op = AsyncMock(side_effect=RequestError("refused"))
-    with patch("axis.cli.main.AxisDevice"), patch("axis.cli.main.ClientSession"):
+    with (
+        patch("axis.cli.packs.devices.AxisDevice"),
+        patch("axis.cli.packs.devices.ClientSession"),
+    ):
         result = _asyncio.run(run_on_selected_device(_make_device_entry(), op))
     assert result is None
     out = capsys.readouterr().out
@@ -372,7 +375,7 @@ def test_run_on_selected_device_request_error(
 
 def test_list_supported_apis_flow_empty(capsys: pytest.CaptureFixture[str]) -> None:
     """Prints 'No APIs discovered' when none returned."""
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = []
         list_supported_apis_flow("SN1", _make_device_entry())
     out = capsys.readouterr().out
@@ -391,7 +394,7 @@ def test_list_supported_apis_flow_with_apis(
             "status": "Released",
         },
     ]
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_apis
         list_supported_apis_flow("SN1", _make_device_entry())
     out = capsys.readouterr().out
@@ -405,7 +408,7 @@ def test_list_supported_apis_flow_with_apis(
 
 def test_api_drill_down_flow_no_apis(capsys: pytest.CaptureFixture[str]) -> None:
     """Returns immediately when no APIs are discovered."""
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = []
         api_drill_down_flow(_make_device_entry())
     out = capsys.readouterr().out
@@ -417,7 +420,7 @@ def test_api_drill_down_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
     fake_apis = [
         {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
     ]
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_apis
         with patch("builtins.input", return_value="b"):
             api_drill_down_flow(_make_device_entry())
@@ -428,7 +431,7 @@ def test_api_drill_down_flow_invalid_index(capsys: pytest.CaptureFixture[str]) -
     fake_apis = [
         {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
     ]
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_apis
         with patch("builtins.input", side_effect=["99", "b"]):
             api_drill_down_flow(_make_device_entry())
@@ -441,7 +444,7 @@ def test_api_drill_down_flow_non_numeric(capsys: pytest.CaptureFixture[str]) -> 
     fake_apis = [
         {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
     ]
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_apis
         with patch("builtins.input", side_effect=["abc", "b"]):
             api_drill_down_flow(_make_device_entry())
@@ -454,7 +457,7 @@ def test_api_drill_down_flow_action_back(capsys: pytest.CaptureFixture[str]) -> 
     fake_apis = [
         {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
     ]
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_apis
         with patch("builtins.input", side_effect=["1", "b", "b"]):
             api_drill_down_flow(_make_device_entry())
@@ -465,7 +468,7 @@ def test_api_drill_down_flow_action_invalid(capsys: pytest.CaptureFixture[str]) 
     fake_apis = [
         {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
     ]
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_apis
         with patch("builtins.input", side_effect=["1", "9", "b"]):
             api_drill_down_flow(_make_device_entry())
@@ -508,7 +511,7 @@ def test_selected_device_operations_list_apis(
 ) -> None:
     """Option '1' delegates to list_supported_apis_flow."""
     with (
-        patch("axis.cli.main.list_supported_apis_flow") as mock_list,
+        patch("axis.cli.packs.navigation.list_supported_apis_flow") as mock_list,
         patch("builtins.input", side_effect=["1", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
@@ -520,7 +523,7 @@ def test_selected_device_operations_api_drilldown(
 ) -> None:
     """Option '2' delegates to api_drill_down_flow."""
     with (
-        patch("axis.cli.main.api_drill_down_flow") as mock_drill,
+        patch("axis.cli.packs.navigation.api_drill_down_flow") as mock_drill,
         patch("builtins.input", side_effect=["2", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
@@ -530,7 +533,7 @@ def test_selected_device_operations_api_drilldown(
 def test_selected_device_operations_events(capsys: pytest.CaptureFixture[str]) -> None:
     """Option '3' delegates to events_flow."""
     with (
-        patch("axis.cli.main.events_flow") as mock_events,
+        patch("axis.cli.packs.navigation.events_flow") as mock_events,
         patch("builtins.input", side_effect=["3", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
@@ -542,7 +545,7 @@ def test_selected_device_operations_accounts(
 ) -> None:
     """Option '4' delegates to account_management_flow."""
     with (
-        patch("axis.cli.main.account_management_flow") as mock_acct,
+        patch("axis.cli.packs.navigation.account_management_flow") as mock_acct,
         patch("builtins.input", side_effect=["4", "b"]),
     ):
         selected_device_operations("SN1", _make_device_entry())
@@ -557,8 +560,8 @@ def test_selected_device_operations_accounts(
 def test_main_exit(capsys: pytest.CaptureFixture[str]) -> None:
     """Selecting 'e' exits the main loop via SystemExit."""
     with (
-        patch("axis.cli.main.load_devices", return_value={}),
-        patch("axis.cli.main.get_config_path"),
+        patch("axis.cli.packs.navigation.load_devices", return_value={}),
+        patch("axis.cli.packs.navigation.get_config_path"),
         patch("builtins.input", return_value="e"),
         pytest.raises(SystemExit),
     ):
@@ -568,8 +571,8 @@ def test_main_exit(capsys: pytest.CaptureFixture[str]) -> None:
 def test_main_invalid_option(capsys: pytest.CaptureFixture[str]) -> None:
     """Invalid option prints message; then 'e' exits."""
     with (
-        patch("axis.cli.main.load_devices", return_value={}),
-        patch("axis.cli.main.get_config_path"),
+        patch("axis.cli.packs.navigation.load_devices", return_value={}),
+        patch("axis.cli.packs.navigation.get_config_path"),
         patch("builtins.input", side_effect=["9", "e"]),
         pytest.raises(SystemExit),
     ):
@@ -581,9 +584,9 @@ def test_main_invalid_option(capsys: pytest.CaptureFixture[str]) -> None:
 def test_main_device_operations_no_devices(capsys: pytest.CaptureFixture[str]) -> None:
     """Option '2' with empty registry selects nothing and loops back to '3'."""
     with (
-        patch("axis.cli.main.load_devices", return_value={}),
-        patch("axis.cli.main.get_config_path"),
-        patch("axis.cli.main.select_device", return_value=None),
+        patch("axis.cli.packs.navigation.load_devices", return_value={}),
+        patch("axis.cli.packs.navigation.get_config_path"),
+        patch("axis.cli.packs.navigation.select_device", return_value=None),
         patch("builtins.input", side_effect=["2", "e"]),
         pytest.raises(SystemExit),
     ):
@@ -596,10 +599,14 @@ def test_main_device_operations_runs_submenu(
     """Option '2' with a device selected calls selected_device_operations."""
     fake_entry = _make_device_entry()
     with (
-        patch("axis.cli.main.load_devices", return_value={"SN1": fake_entry}),
-        patch("axis.cli.main.get_config_path"),
-        patch("axis.cli.main.select_device", return_value=("SN1", fake_entry)),
-        patch("axis.cli.main.selected_device_operations") as mock_ops,
+        patch(
+            "axis.cli.packs.navigation.load_devices", return_value={"SN1": fake_entry}
+        ),
+        patch("axis.cli.packs.navigation.get_config_path"),
+        patch(
+            "axis.cli.packs.navigation.select_device", return_value=("SN1", fake_entry)
+        ),
+        patch("axis.cli.packs.navigation.selected_device_operations") as mock_ops,
         patch("builtins.input", side_effect=["2", "e"]),
         pytest.raises(SystemExit),
     ):
@@ -613,11 +620,13 @@ def test_main_add_device_aborted_by_host_check(
     """Adding a device whose host already exists can be aborted."""
     fake_entry = _make_device_entry()
     with (
-        patch("axis.cli.main.load_devices", return_value={"SN1": fake_entry}),
-        patch("axis.cli.main.get_config_path"),
-        patch("axis.cli.main.find_serial_by_host", return_value="SN1"),
         patch(
-            "axis.cli.main.prompt_for_device",
+            "axis.cli.packs.navigation.load_devices", return_value={"SN1": fake_entry}
+        ),
+        patch("axis.cli.packs.navigation.get_config_path"),
+        patch("axis.cli.packs.navigation.find_serial_by_host", return_value="SN1"),
+        patch(
+            "axis.cli.packs.navigation.prompt_for_device",
             return_value={"host": "192.168.1.1", "username": "a", "password": "b"},
         ),
         patch("builtins.input", side_effect=["1", "n", "e"]),
@@ -638,7 +647,10 @@ def test_run_on_selected_device_value_error(
 ) -> None:
     """Returns None and prints message on ValueError."""
     op = AsyncMock(side_effect=ValueError("bad state"))
-    with patch("axis.cli.main.AxisDevice"), patch("axis.cli.main.ClientSession"):
+    with (
+        patch("axis.cli.packs.devices.AxisDevice"),
+        patch("axis.cli.packs.devices.ClientSession"),
+    ):
         result = _asyncio.run(run_on_selected_device(_make_device_entry(), op))
     assert result is None
     out = capsys.readouterr().out
@@ -655,7 +667,7 @@ def test_account_management_flow_list_users(
 ) -> None:
     """Option '1' delegates to _list_users_flow."""
     with (
-        patch("axis.cli.main._list_users_flow") as mock_list,
+        patch("axis.cli.packs.accounts._list_users_flow") as mock_list,
         patch("builtins.input", side_effect=["1", "b"]),
     ):
         account_management_flow("SN1", _make_device_entry())
@@ -667,7 +679,7 @@ def test_account_management_flow_create_user(
 ) -> None:
     """Option '2' delegates to _create_or_update_user_flow."""
     with (
-        patch("axis.cli.main._create_or_update_user_flow") as mock_create,
+        patch("axis.cli.packs.accounts._create_or_update_user_flow") as mock_create,
         patch("builtins.input", side_effect=["2", "b"]),
     ):
         account_management_flow("SN1", _make_device_entry())
@@ -679,7 +691,7 @@ def test_account_management_flow_delete_user(
 ) -> None:
     """Option '3' delegates to _delete_user_flow."""
     with (
-        patch("axis.cli.main._delete_user_flow") as mock_del,
+        patch("axis.cli.packs.accounts._delete_user_flow") as mock_del,
         patch("builtins.input", side_effect=["3", "b"]),
     ):
         account_management_flow("SN1", _make_device_entry())
@@ -707,7 +719,7 @@ def test_create_or_update_user_flow_empty_password(
     """Empty password aborts the flow."""
     with (
         patch("builtins.input", return_value="validuser"),
-        patch("axis.cli.main.getpass") as mock_gp,
+        patch("axis.cli.packs.accounts.getpass") as mock_gp,
     ):
         mock_gp.getpass.return_value = ""
         _create_or_update_user_flow(_make_device_entry())
@@ -721,7 +733,7 @@ def test_create_or_update_user_flow_privilege_back(
     """Selecting 'b' at privilege prompt aborts the flow."""
     with (
         patch("builtins.input", side_effect=["validuser", "b"]),
-        patch("axis.cli.main.getpass") as mock_gp,
+        patch("axis.cli.packs.accounts.getpass") as mock_gp,
     ):
         mock_gp.getpass.return_value = "password1"
         _create_or_update_user_flow(_make_device_entry())
@@ -737,7 +749,7 @@ def test_delete_user_flow_confirmed(capsys: pytest.CaptureFixture[str]) -> None:
     user = MagicMock()
     user.privileges = SecondaryGroup.VIEWER
     fake_users = {"vieweruser": user}
-    with patch("axis.cli.main.asyncio") as mock_asyncio:
+    with patch("axis.cli.packs.accounts.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_users
         with patch("builtins.input", side_effect=["vieweruser", "y"]):
             _delete_user_flow(_make_device_entry())
@@ -798,15 +810,15 @@ def test_main_add_device_success(capsys: pytest.CaptureFixture[str]) -> None:
     mock_config.websocket_force = False
 
     with (
-        patch("axis.cli.main.load_devices", return_value={}),
-        patch("axis.cli.main.get_config_path"),
-        patch("axis.cli.main.find_serial_by_host", return_value=None),
+        patch("axis.cli.packs.navigation.load_devices", return_value={}),
+        patch("axis.cli.packs.navigation.get_config_path"),
+        patch("axis.cli.packs.navigation.find_serial_by_host", return_value=None),
         patch(
-            "axis.cli.main.prompt_for_device",
+            "axis.cli.packs.navigation.prompt_for_device",
             return_value={"host": "10.0.0.1", "username": "admin", "password": "pass"},
         ),
-        patch("axis.cli.main.asyncio") as mock_asyncio,
-        patch("axis.cli.main.save_devices") as mock_save,
+        patch("axis.cli.packs.navigation.asyncio") as mock_asyncio,
+        patch("axis.cli.packs.navigation.save_devices") as mock_save,
         patch("builtins.input", side_effect=["1", "e"]),
     ):
         mock_asyncio.run.return_value = (
@@ -818,3 +830,15 @@ def test_main_add_device_success(capsys: pytest.CaptureFixture[str]) -> None:
         with pytest.raises(SystemExit):
             main()
     mock_save.assert_called_once()
+
+
+def test_main_swallows_ctrl_c(capsys: pytest.CaptureFixture[str]) -> None:
+    """Ctrl+C is swallowed and the loop continues until explicit exit."""
+    with patch("axis.cli.main.navigation_pack.run_main_loop") as mock_loop:
+        mock_loop.side_effect = [KeyboardInterrupt, SystemExit(0)]
+        with pytest.raises(SystemExit):
+            main()
+
+    assert mock_loop.call_count == 2
+    out = capsys.readouterr().out
+    assert "Interrupted" in out

@@ -352,7 +352,7 @@ def test_print_registered_devices_lists_entries(
 def test_get_config_path_creates_directory(tmp_path: Path) -> None:
     """get_config_path creates the ~/.axis directory and returns the right path."""
     fake_home = tmp_path / "home"
-    with patch("axis.cli.main.Path") as mock_path:
+    with patch("axis.cli.packs.devices.Path") as mock_path:
         # Make Path.home() return our fake home
         fake_config_dir = fake_home / ".axis"
         fake_config_dir.mkdir(parents=True, exist_ok=True)
@@ -437,10 +437,10 @@ def test_validate_and_fetch_device_os_error(
     """Returns (None, None, None, None) on OSError."""
     with (
         patch(
-            "axis.cli.main.fetch_device_serial_and_extra",
+            "axis.cli.packs.devices.fetch_device_serial_and_extra",
             side_effect=OSError("network unreachable"),
         ),
-        patch("axis.cli.main.ClientSession"),
+        patch("axis.cli.packs.devices.ClientSession"),
     ):
         result = _asyncio.run(
             validate_and_fetch_device(
