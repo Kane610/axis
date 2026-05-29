@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+from pprint import pformat
 
 from aiohttp import ClientSession
 
@@ -14,6 +16,16 @@ from axis.cli.packs.devices import (
 from axis.device import AxisDevice
 from axis.errors import RequestError
 from axis.models.configuration import Configuration
+
+
+def _debug_enabled() -> bool:
+    value = os.getenv("AXIS_CLI_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _debug_dump(label: str, payload: object) -> None:
+    if _debug_enabled():
+        print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
 def register(registry: object, router: object) -> None:
@@ -42,6 +54,7 @@ def list_event_instances_flow(
     serial: str, device_entry: DeviceEntry
 ) -> list[dict[str, str]]:
     events = asyncio.run(fetch_event_instances(device_entry))
+    _debug_dump("event instances", events)
     if not events:
         print(f"No event instances found for {serial}.")  # noqa: T201
         return []

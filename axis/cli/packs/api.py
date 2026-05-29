@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 import asyncio
+import os
+from pprint import pformat
 
 from axis.cli.packs.devices import DeviceEntry, run_on_selected_device
 from axis.device import AxisDevice
+
+
+def _debug_enabled() -> bool:
+    value = os.getenv("AXIS_CLI_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _debug_dump(label: str, payload: object) -> None:
+    if _debug_enabled():
+        print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
 def register(registry: object, router: object) -> None:
@@ -33,6 +45,7 @@ async def fetch_supported_apis(device_entry: DeviceEntry) -> list[dict[str, str]
 
 def list_supported_apis_flow(serial: str, device_entry: DeviceEntry) -> None:
     apis = asyncio.run(fetch_supported_apis(device_entry))
+    _debug_dump("supported APIs", apis)
     if not apis:
         print("No APIs discovered for this device.")  # noqa: T201
         return
@@ -49,6 +62,7 @@ async def run_api_read_action(device_entry: DeviceEntry, api_id: str) -> None:
     async def _operation(device: AxisDevice) -> None:
         if api_id == "basic-device-info":
             info = await device.vapix.basic_device_info.get_all_properties()
+            _debug_dump("basic-device-info read action raw", info)
             item = info.get("0")
             if item is None:
                 print("No basic device information found.")  # noqa: T201
@@ -64,6 +78,7 @@ async def run_api_read_action(device_entry: DeviceEntry, api_id: str) -> None:
 
         if api_id == "api-discovery":
             versions = await device.vapix.api_discovery.get_supported_versions()
+            _debug_dump("api-discovery versions raw", versions)
             print("\nAPI Discovery supported versions:")  # noqa: T201
             for version in versions:
                 print(f"  - {version}")  # noqa: T201
@@ -71,6 +86,7 @@ async def run_api_read_action(device_entry: DeviceEntry, api_id: str) -> None:
 
         if api_id == "user-management":
             groups = await device.vapix.user_groups.get_user_groups()
+            _debug_dump("user-management groups raw", groups)
             user = groups.get("0")
             if user is None:
                 print("Current user group information is unavailable.")  # noqa: T201

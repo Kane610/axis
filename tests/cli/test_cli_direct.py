@@ -7,6 +7,8 @@ and operations that orchestrate device calls via mocked AxisDevice.
 from __future__ import annotations
 
 import asyncio as _asyncio
+import logging
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -335,6 +337,68 @@ def test_validate_and_fetch_device_value_error(
     assert result == (None, None, None, None)
     out = capsys.readouterr().out
     assert "Failed to fetch" in out
+
+
+def test_validate_and_fetch_device_retries_with_companion(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Retries with companion mode on connection-style failure."""
+    companion_attempts: list[bool] = []
+
+    async def side_effect(config: object) -> tuple[str, str, dict[str, object]]:
+        companion_attempts.append(bool(getattr(config, "is_companion", False)))
+        if companion_attempts == [False]:
+            msg = "timeout"
+            raise RequestError(msg)
+        return "SN1", "P3245", {"ok": True}
+
+    with (
+        patch(
+            "axis.cli.packs.devices.fetch_device_serial_and_extra",
+            side_effect=side_effect,
+        ),
+        patch("axis.cli.packs.devices.ClientSession"),
+    ):
+        config, serial, model, extra = _asyncio.run(
+            validate_and_fetch_device(
+                {"host": "192.168.1.1", "username": "u", "password": "p"}
+            )
+        )
+
+    assert config is not None
+    assert config.is_companion is True
+    assert serial == "SN1"
+    assert model == "P3245"
+    assert extra == {"ok": True}
+    assert companion_attempts == [False, True]
+    out = capsys.readouterr().out
+    assert "Retrying with companion mode enabled" in out
+
+
+def test_validate_and_fetch_device_debug_failure_details(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Debug mode prints attempt and failure details for both retries."""
+    with (
+        patch.dict(os.environ, {"AXIS_CLI_DEBUG": "1"}, clear=True),
+        patch(
+            "axis.cli.packs.devices.fetch_device_serial_and_extra",
+            side_effect=RequestError("timeout"),
+        ),
+        patch("axis.cli.packs.devices.ClientSession"),
+    ):
+        result = _asyncio.run(
+            validate_and_fetch_device(
+                {"host": "10.0.0.113", "username": "root", "password": "p"}
+            )
+        )
+
+    assert result == (None, None, None, None)
+    out = capsys.readouterr().out
+    assert "[debug] device validation attempt" in out
+    assert "is_companion': False" in out
+    assert "is_companion': True" in out
+    assert "error_type': 'RequestError'" in out
 
 
 # ---------------------------------------------------------------------------
@@ -842,3 +906,58 @@ def test_main_swallows_ctrl_c(capsys: pytest.CaptureFixture[str]) -> None:
     assert mock_loop.call_count == 2
     out = capsys.readouterr().out
     assert "Interrupted" in out
+
+
+def test_main_debug_argument_enables_verbose_mode(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Explicit debug argument enables verbose mode and env toggle."""
+    debug_env_value = ""
+
+    def _capture_debug_and_exit(*_args: object, **_kwargs: object) -> None:
+        nonlocal debug_env_value
+        debug_env_value = os.environ.get("AXIS_CLI_DEBUG", "")
+        raise SystemExit(0)
+
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch("axis.cli.main.logging.basicConfig") as mock_basic_config,
+        patch(
+            "axis.cli.main.navigation_pack.run_main_loop",
+            side_effect=_capture_debug_and_exit,
+        ),
+        pytest.raises(SystemExit),
+    ):
+        main(debug=True)
+
+    assert debug_env_value == "1"
+    mock_basic_config.assert_called_once_with(
+        format="%(message)s",
+        level=logging.DEBUG,
+        force=True,
+    )
+
+    out = capsys.readouterr().out
+    assert "Debug mode enabled" in out
+
+
+def test_main_debug_env_enables_verbose_mode(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """AXIS_CLI_DEBUG environment variable enables verbose mode."""
+    with (
+        patch.dict(os.environ, {"AXIS_CLI_DEBUG": "1"}, clear=True),
+        patch("axis.cli.main.logging.basicConfig") as mock_basic_config,
+        patch("axis.cli.main.navigation_pack.run_main_loop", side_effect=SystemExit(0)),
+        pytest.raises(SystemExit),
+    ):
+        main()
+
+    mock_basic_config.assert_called_once_with(
+        format="%(message)s",
+        level=logging.DEBUG,
+        force=True,
+    )
+
+    out = capsys.readouterr().out
+    assert "Debug mode enabled" in out

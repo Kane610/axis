@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import getpass
+import os
 from pathlib import Path
+from pprint import pformat
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession
@@ -12,7 +14,7 @@ import tomli
 import tomli_w
 
 from axis.device import AxisDevice
-from axis.errors import RequestError
+from axis.errors import Forbidden, PathNotFound, RequestError, Unauthorized
 from axis.models.configuration import Configuration
 
 if TYPE_CHECKING:
@@ -20,6 +22,16 @@ if TYPE_CHECKING:
 
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
+
+
+def _debug_enabled() -> bool:
+    value = os.getenv("AXIS_CLI_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _debug_dump(label: str, payload: object) -> None:
+    if _debug_enabled():
+        print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
 def register(registry: object, router: object) -> None:
@@ -73,10 +85,37 @@ async def fetch_device_serial_and_extra(
     config: Configuration,
 ) -> tuple[str, str, dict[str, Any]]:
     device = AxisDevice(config)
-    info = await device.vapix.basic_device_info.get_all_properties()
-    serial = extract_serial_number(info)
-    model = extract_model_number(info)
-    return serial, model, info
+    try:
+        basic_info = await device.vapix.basic_device_info.get_all_properties()
+        _debug_dump("basic-device-info raw", basic_info)
+        serial = extract_serial_number(basic_info)
+        model = extract_model_number(basic_info)
+        return serial, model, basic_info
+    except (Forbidden, PathNotFound, RequestError, Unauthorized) as exc:
+        _debug_dump(
+            "basic-device-info failed, trying param.cgi fallback",
+            {
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            },
+        )
+
+    property_loaded = await device.vapix.params.property_handler.update()
+    brand_loaded = await device.vapix.params.brand_handler.update()
+
+    if property_loaded:
+        serial = str(device.vapix.serial_number or "unknown")
+        model = str(device.vapix.product_number or "") if brand_loaded else ""
+        fallback_info: dict[str, Any] = {
+            "serial_number": serial,
+            "product_number": model,
+            "source": "param.cgi",
+        }
+        _debug_dump("param.cgi fallback raw", fallback_info)
+        return serial, model, fallback_info
+
+    msg = "Unable to fetch device info from basic-device-info or param.cgi"
+    raise RequestError(msg)
 
 
 def extract_model_number(info: dict[str, Any]) -> str:
@@ -156,21 +195,72 @@ def _format_device_label(model: str, serial: str, host: str) -> str:
 async def validate_and_fetch_device(
     device_info: dict[str, str],
 ) -> tuple[Configuration | None, str | None, str | None, dict[str, Any] | None]:
+    async def _attempt(
+        session: ClientSession,
+        is_companion: bool,
+    ) -> tuple[Configuration, str, str, dict[str, Any]]:
+        config = Configuration(
+            session=session,
+            host=device_info["host"],
+            username=device_info["username"],
+            password=device_info["password"],
+            is_companion=is_companion,
+        )
+        serial, model, extra = await fetch_device_serial_and_extra(config)
+        return config, serial, model, extra
+
     try:
         async with ClientSession() as session:
-            config = Configuration(
-                session=session,
-                host=device_info["host"],
-                username=device_info["username"],
-                password=device_info["password"],
-            )
-            serial, model, extra = await fetch_device_serial_and_extra(config)
-            return config, serial, model, extra
+            try:
+                _debug_dump(
+                    "device validation attempt",
+                    {
+                        "host": device_info.get("host", ""),
+                        "is_companion": False,
+                    },
+                )
+                return await _attempt(session, is_companion=False)
+            except (RequestError, OSError) as exc:
+                _debug_dump(
+                    "device validation failure",
+                    {
+                        "host": device_info.get("host", ""),
+                        "is_companion": False,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    },
+                )
+                print("Retrying with companion mode enabled...")  # noqa: T201
+                _debug_dump(
+                    "device validation attempt",
+                    {
+                        "host": device_info.get("host", ""),
+                        "is_companion": True,
+                    },
+                )
+                return await _attempt(session, is_companion=True)
     except RequestError as exc:
+        _debug_dump(
+            "device validation failure",
+            {
+                "host": device_info.get("host", ""),
+                "is_companion": True,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            },
+        )
         print(f"Failed to connect to device: {exc}")  # noqa: T201
         print("Please verify host reachability and credentials, then try again.")  # noqa: T201
         return None, None, None, None
     except (ValueError, KeyError, OSError) as exc:
+        _debug_dump(
+            "device validation failure",
+            {
+                "host": device_info.get("host", ""),
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            },
+        )
         print(f"Failed to fetch device info: {exc}")  # noqa: T201
         print("Please check your credentials and try again.")  # noqa: T201
         return None, None, None, None

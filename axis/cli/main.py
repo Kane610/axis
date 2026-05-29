@@ -8,6 +8,9 @@ plugin-pack based CLI architecture.
 
 from __future__ import annotations
 
+import argparse
+import logging
+import os
 from pathlib import Path
 
 from axis.cli.core.context import CliContext
@@ -66,6 +69,26 @@ _delete_user_flow = accounts_pack._delete_user_flow
 selected_device_operations = navigation_pack.selected_device_operations
 
 
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Axis interactive CLI")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable verbose debug output for raw device/API responses.",
+    )
+    return parser.parse_args(argv)
+
+
+def _debug_enabled_from_env() -> bool:
+    value = os.getenv("AXIS_CLI_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _configure_logging(debug_enabled: bool) -> None:
+    loglevel = logging.DEBUG if debug_enabled else logging.INFO
+    logging.basicConfig(format="%(message)s", level=loglevel, force=True)
+
+
 def compose_builtin_packs(registry: CommandRegistry, router: CliRouter) -> None:
     """Register built-in CLI packs explicitly from a single composition root."""
     devices_pack.register(registry, router)
@@ -83,8 +106,15 @@ def build_cli_runtime(config_path: Path) -> CliContext:
     return CliContext(config_path=config_path, device_gateway=DeviceGateway())
 
 
-def main() -> None:
+def main(*, debug: bool | None = None) -> None:
     """Run the interactive device registry CLI."""
+    debug_enabled = _debug_enabled_from_env() if debug is None else debug
+    _configure_logging(debug_enabled)
+
+    if debug_enabled:
+        os.environ["AXIS_CLI_DEBUG"] = "1"
+        print("Debug mode enabled. Verbose responses will be shown.")  # noqa: T201
+
     config_path = get_config_path()
     _runtime = build_cli_runtime(config_path)
     _ = _runtime
@@ -140,4 +170,5 @@ __all__ = [
 
 
 if __name__ == "__main__":
-    main()
+    args = _parse_args()
+    main(debug=args.debug)

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio as _asyncio
 import getpass as _getpass
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import tomli_w
 
@@ -18,6 +18,7 @@ from axis.cli.main import (
     DeviceStore,
     config_to_toml_dict,
     extract_serial_number,
+    fetch_device_serial_and_extra,
     find_serial_by_host,
     get_config_path,
     get_device_credentials,
@@ -30,6 +31,7 @@ from axis.cli.main import (
     to_toml_compatible,
     validate_and_fetch_device,
 )
+from axis.errors import PathNotFound
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -450,3 +452,24 @@ def test_validate_and_fetch_device_os_error(
     assert result == (None, None, None, None)
     out = capsys.readouterr().out
     assert "Failed to fetch" in out
+
+
+def test_fetch_device_serial_and_extra_falls_back_to_param_cgi() -> None:
+    """Falls back to param.cgi properties when basic-device-info is unavailable."""
+    fake_device = MagicMock()
+    fake_device.vapix.basic_device_info.get_all_properties = AsyncMock(
+        side_effect=PathNotFound(404)
+    )
+    fake_device.vapix.params.property_handler.update = AsyncMock(return_value=True)
+    fake_device.vapix.params.brand_handler.update = AsyncMock(return_value=True)
+    fake_device.vapix.serial_number = "SER123"
+    fake_device.vapix.product_number = "MODEL9"
+
+    with patch("axis.cli.packs.devices.AxisDevice", return_value=fake_device):
+        serial, model, info = _asyncio.run(fetch_device_serial_and_extra(MagicMock()))
+
+    assert serial == "SER123"
+    assert model == "MODEL9"
+    assert info["serial_number"] == "SER123"
+    assert info["product_number"] == "MODEL9"
+    assert info["source"] == "param.cgi"

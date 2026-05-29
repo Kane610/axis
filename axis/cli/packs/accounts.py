@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import getpass
+import os
+from pprint import pformat
 import re
 from typing import TYPE_CHECKING
 
@@ -16,6 +18,16 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9]{1,14}$")
+
+
+def _debug_enabled() -> bool:
+    value = os.getenv("AXIS_CLI_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _debug_dump(label: str, payload: object) -> None:
+    if _debug_enabled():
+        print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
 def register(registry: object, router: object) -> None:
@@ -119,6 +131,7 @@ def _list_users_flow(device_entry: DeviceEntry) -> None:
         return dict(await device.vapix.users.list())
 
     users = asyncio.run(run_on_selected_device(device_entry, _op))
+    _debug_dump("users list raw", users)
     if not users:
         print("No users found (or insufficient privileges).")  # noqa: T201
         return
