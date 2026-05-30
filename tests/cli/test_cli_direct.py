@@ -646,12 +646,12 @@ def test_main_invalid_option(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_main_device_operations_no_devices(capsys: pytest.CaptureFixture[str]) -> None:
-    """Option '2' with empty registry selects nothing and loops back to '3'."""
+    """Option '3' with empty registry selects nothing and loops back to exit."""
     with (
         patch("axis.cli.packs.navigation.load_devices", return_value={}),
         patch("axis.cli.packs.navigation.get_config_path"),
         patch("axis.cli.packs.navigation.select_device", return_value=None),
-        patch("builtins.input", side_effect=["2", "e"]),
+        patch("builtins.input", side_effect=["3", "e"]),
         pytest.raises(SystemExit),
     ):
         main()
@@ -660,7 +660,7 @@ def test_main_device_operations_no_devices(capsys: pytest.CaptureFixture[str]) -
 def test_main_device_operations_runs_submenu(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Option '2' with a device selected calls selected_device_operations."""
+    """Option '3' with a device selected calls selected_device_operations."""
     fake_entry = _make_device_entry()
     with (
         patch(
@@ -671,11 +671,123 @@ def test_main_device_operations_runs_submenu(
             "axis.cli.packs.navigation.select_device", return_value=("SN1", fake_entry)
         ),
         patch("axis.cli.packs.navigation.selected_device_operations") as mock_ops,
-        patch("builtins.input", side_effect=["2", "e"]),
+        patch("builtins.input", side_effect=["3", "e"]),
         pytest.raises(SystemExit),
     ):
         main()
     mock_ops.assert_called_once()
+
+
+def test_main_discovery_no_devices_found(capsys: pytest.CaptureFixture[str]) -> None:
+    """Option '2' returns to menu when no discoverable devices are found."""
+    with (
+        patch("axis.cli.packs.navigation.load_devices", return_value={}),
+        patch("axis.cli.packs.navigation.get_config_path"),
+        patch("axis.cli.packs.navigation.asyncio") as mock_asyncio,
+        patch("axis.cli.packs.navigation.select_discovered_device", return_value=None),
+        patch("builtins.input", side_effect=["2", "e"]),
+    ):
+        mock_asyncio.run.return_value = []
+        with pytest.raises(SystemExit):
+            main()
+
+
+def test_main_discovery_filters_already_registered_before_selection(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '2' excludes already-registered devices before listing selection."""
+    existing_entry = {
+        "config": {
+            "host": "10.0.0.211",
+            "username": "admin",
+            "password": "pass",
+        }
+    }
+    discovered = [
+        {
+            "host": "169.254.24.20",
+            "name": "Already added via serial",
+            "macaddress": "B8A44F909AFD",
+        },
+        {
+            "host": "10.0.0.250",
+            "name": "New device",
+            "macaddress": "B8A44FEEB430",
+        },
+    ]
+
+    with (
+        patch(
+            "axis.cli.packs.navigation.load_devices",
+            return_value={"B8A44F909AFD": existing_entry},
+        ),
+        patch("axis.cli.packs.navigation.get_config_path"),
+        patch("axis.cli.packs.navigation.asyncio") as mock_asyncio,
+        patch(
+            "axis.cli.packs.navigation.select_discovered_device",
+            return_value=None,
+        ) as mock_select_discovered,
+        patch("builtins.input", side_effect=["2", "e"]),
+    ):
+        mock_asyncio.run.return_value = discovered
+        with pytest.raises(SystemExit):
+            main()
+
+    filtered_arg = mock_select_discovered.call_args.args[0]
+    assert filtered_arg == [
+        {
+            "host": "10.0.0.250",
+            "name": "New device",
+            "macaddress": "B8A44FEEB430",
+        }
+    ]
+
+
+def test_main_discovery_registers_selected_device(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Option '2' can discover, validate, and persist a selected device."""
+    mock_config = MagicMock()
+    mock_config.host = "10.0.0.22"
+    mock_config.username = "admin"
+    mock_config.password = "pass"
+    mock_config.port = 80
+    mock_config.web_proto = MagicMock(__str__=MagicMock(return_value="http"))
+    mock_config.verify_ssl = False
+    mock_config.is_companion = False
+    mock_config.auth_scheme = MagicMock(__str__=MagicMock(return_value="digest"))
+    mock_config.websocket_enabled = True
+    mock_config.websocket_force = False
+
+    discovered = [
+        {
+            "host": "10.0.0.22",
+            "name": "Axis 10.0.0.22",
+            "macaddress": "00408c112233",
+        }
+    ]
+
+    with (
+        patch("axis.cli.packs.navigation.load_devices", return_value={}),
+        patch("axis.cli.packs.navigation.get_config_path"),
+        patch(
+            "axis.cli.packs.navigation.select_discovered_device",
+            return_value=discovered[0],
+        ),
+        patch("axis.cli.packs.navigation.find_serial_by_host", return_value=None),
+        patch("axis.cli.packs.navigation.asyncio") as mock_asyncio,
+        patch("axis.cli.packs.navigation.save_devices") as mock_save,
+        patch("axis.cli.packs.navigation.getpass.getpass", return_value="pass"),
+        patch("builtins.input", side_effect=["2", "admin", "e"]),
+    ):
+        mock_asyncio.run.side_effect = [
+            discovered,
+            (mock_config, "SN-DISC", "P3245", {"extra": "ok"}),
+        ]
+        with pytest.raises(SystemExit):
+            main()
+
+    mock_save.assert_called_once()
 
 
 def test_main_add_device_aborted_by_host_check(

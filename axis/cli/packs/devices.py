@@ -7,11 +7,14 @@ import getpass
 import os
 from pathlib import Path
 from pprint import pformat
+import re
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession
 import tomli
 import tomli_w
+from zeroconf import IPVersion, ServiceStateChange
+from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
 from axis.device import AxisDevice
 from axis.errors import Forbidden, PathNotFound, RequestError, Unauthorized
@@ -22,6 +25,13 @@ if TYPE_CHECKING:
 
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
+DiscoveredDevice = dict[str, str]
+
+AXIS_SERVICE_TYPE = "_axis-video._tcp.local."
+AXIS_OUI = {"00:40:8c", "ac:cc:8e", "b8:a4:4f", "e8:27:25"}
+
+_HEX_ONLY_RE = re.compile(r"[^0-9a-f]")
+_AXIS_OUI_NORMALIZED = {prefix.replace(":", "") for prefix in AXIS_OUI}
 
 
 def _debug_enabled() -> bool:
@@ -184,6 +194,168 @@ def config_to_toml_dict(config: Configuration) -> dict[str, Any]:
         "websocket_enabled": config.websocket_enabled,
         "websocket_force": config.websocket_force,
     }
+
+
+def _normalize_macaddress(value: str) -> str:
+    lowered = value.strip().lower().rstrip("*")
+    return _HEX_ONLY_RE.sub("", lowered)
+
+
+def is_axis_macaddress(macaddress: str) -> bool:
+    normalized = _normalize_macaddress(macaddress)
+    if len(normalized) < 6:
+        return False
+    return normalized[:6] in _AXIS_OUI_NORMALIZED
+
+
+def _extract_macaddress_property(properties: dict[bytes, bytes | None]) -> str | None:
+    for raw_key, raw_value in properties.items():
+        key = raw_key.decode("utf-8", errors="ignore").strip().lower()
+        if key != "macaddress":
+            continue
+        if raw_value is None:
+            continue
+        value = raw_value.decode("utf-8", errors="ignore").strip()
+        if value:
+            return value
+    return None
+
+
+def _zeroconf_instance_name(service_name: str) -> str:
+    suffix = f".{AXIS_SERVICE_TYPE}"
+    if service_name.endswith(suffix):
+        return service_name[: -len(suffix)]
+    return service_name
+
+
+def _normalize_device_identifier(value: str) -> str:
+    return _HEX_ONLY_RE.sub("", value.strip().lower())
+
+
+def filter_discovered_devices(
+    discovered_devices: list[DiscoveredDevice],
+    registered_devices: DeviceStore,
+) -> list[DiscoveredDevice]:
+    """Filter out discovered devices that are already registered."""
+    registered_hosts = {
+        str(entry.get("config", {}).get("host", "")).strip().lower()
+        for entry in registered_devices.values()
+    }
+
+    registered_serial_ids = {
+        _normalize_device_identifier(serial)
+        for serial in registered_devices
+        if _normalize_device_identifier(serial)
+    }
+
+    filtered: list[DiscoveredDevice] = []
+    for discovered in discovered_devices:
+        host = discovered.get("host", "").strip().lower()
+        if host and host in registered_hosts:
+            continue
+
+        macaddress = discovered.get("macaddress", "")
+        normalized_mac = _normalize_device_identifier(macaddress)
+        if normalized_mac and normalized_mac in registered_serial_ids:
+            continue
+
+        filtered.append(discovered)
+
+    return filtered
+
+
+async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDevice]:
+    """Discover Axis devices advertised via Zeroconf axis-video service."""
+    discovered_names: set[str] = set()
+
+    def _on_service_state_change(
+        zeroconf: object,
+        service_type: str,
+        name: str,
+        state_change: object,
+    ) -> None:
+        _ = (zeroconf, service_type)
+        if state_change in {ServiceStateChange.Added, ServiceStateChange.Updated}:
+            discovered_names.add(name)
+
+    azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
+    browser = AsyncServiceBrowser(
+        azc.zeroconf,
+        [AXIS_SERVICE_TYPE],
+        handlers=[_on_service_state_change],
+    )
+    try:
+        await asyncio.sleep(scan_seconds)
+
+        entries: list[DiscoveredDevice] = []
+        seen_hosts: set[str] = set()
+        for service_name in sorted(discovered_names):
+            info = AsyncServiceInfo(AXIS_SERVICE_TYPE, service_name)
+            if not await info.async_request(azc.zeroconf, timeout=1500):
+                continue
+
+            macaddress = _extract_macaddress_property(info.properties)
+            if not macaddress or not is_axis_macaddress(macaddress):
+                continue
+
+            addresses = info.parsed_addresses(IPVersion.V4Only)
+            if not addresses:
+                continue
+
+            host = addresses[0]
+            if host in seen_hosts:
+                continue
+            seen_hosts.add(host)
+
+            entries.append(
+                {
+                    "host": host,
+                    "name": _zeroconf_instance_name(service_name),
+                    "macaddress": macaddress,
+                }
+            )
+
+        return entries
+    finally:
+        await browser.async_cancel()
+        await azc.async_close()
+
+
+def select_discovered_device(
+    discovered_devices: list[DiscoveredDevice],
+) -> DiscoveredDevice | None:
+    """Select a discovered device from a numbered list."""
+    if not discovered_devices:
+        print("\nNo discoverable Axis devices were found.")  # noqa: T201
+        return None
+
+    print("\nDiscovered Axis devices:")  # noqa: T201
+    for idx, entry in enumerate(discovered_devices, 1):
+        print(  # noqa: T201
+            f"  {idx}. {entry.get('name', '<unknown>')} "
+            f"({entry.get('host', '<unknown>')}, mac={entry.get('macaddress', '')})"
+        )
+    print("  b. Back")  # noqa: T201
+    print("  e. Exit")  # noqa: T201
+
+    selection = input("Select discovered device [b/e]: ").strip().lower()
+    if selection == "e":
+        print("Exiting.")  # noqa: T201
+        raise SystemExit(0)
+    if selection == "b":
+        return None
+
+    try:
+        index = int(selection)
+    except ValueError:
+        print("Invalid selection.")  # noqa: T201
+        return None
+
+    if index < 1 or index > len(discovered_devices):
+        print("Invalid selection.")  # noqa: T201
+        return None
+
+    return discovered_devices[index - 1]
 
 
 def _format_device_label(model: str, serial: str, host: str) -> str:

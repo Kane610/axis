@@ -39,6 +39,12 @@ extract_serial_number = devices_pack.extract_serial_number
 prompt_for_device = devices_pack.prompt_for_device
 config_to_toml_dict = devices_pack.config_to_toml_dict
 _format_device_label = devices_pack._format_device_label
+AXIS_OUI = devices_pack.AXIS_OUI
+AXIS_SERVICE_TYPE = devices_pack.AXIS_SERVICE_TYPE
+is_axis_macaddress = devices_pack.is_axis_macaddress
+discover_axis_devices = devices_pack.discover_axis_devices
+select_discovered_device = devices_pack.select_discovered_device
+filter_discovered_devices = devices_pack.filter_discovered_devices
 validate_and_fetch_device = devices_pack.validate_and_fetch_device
 print_registered_devices = devices_pack.print_registered_devices
 migrate_unknown_entry = devices_pack.migrate_unknown_entry
@@ -46,6 +52,7 @@ find_serial_by_host = devices_pack.find_serial_by_host
 select_device = devices_pack.select_device
 get_device_credentials = devices_pack.get_device_credentials
 run_on_selected_device = devices_pack.run_on_selected_device
+register_or_update_device = devices_pack.register_or_update_device
 
 fetch_supported_apis = api_pack.fetch_supported_apis
 list_supported_apis_flow = api_pack.list_supported_apis_flow
@@ -142,6 +149,12 @@ __all__ = [
     "prompt_for_device",
     "config_to_toml_dict",
     "_format_device_label",
+    "AXIS_OUI",
+    "AXIS_SERVICE_TYPE",
+    "is_axis_macaddress",
+    "discover_axis_devices",
+    "select_discovered_device",
+    "filter_discovered_devices",
     "validate_and_fetch_device",
     "print_registered_devices",
     "migrate_unknown_entry",
@@ -149,6 +162,7 @@ __all__ = [
     "select_device",
     "get_device_credentials",
     "run_on_selected_device",
+    "register_or_update_device",
     "fetch_supported_apis",
     "list_supported_apis_flow",
     "run_api_read_action",

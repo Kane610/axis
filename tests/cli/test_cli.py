@@ -8,26 +8,33 @@ from __future__ import annotations
 
 import asyncio as _asyncio
 import getpass as _getpass
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import tomli_w
 
 from axis.cli.main import (
+    AXIS_OUI,
     DeviceEntry,
     DeviceStore,
     config_to_toml_dict,
+    discover_axis_devices,
     extract_serial_number,
     fetch_device_serial_and_extra,
+    filter_discovered_devices,
     find_serial_by_host,
     get_config_path,
     get_device_credentials,
+    is_axis_macaddress,
     load_devices,
     migrate_unknown_entry,
     print_registered_devices,
     prompt_for_device,
+    register_or_update_device,
     save_devices,
     select_device,
+    select_discovered_device,
     to_toml_compatible,
     validate_and_fetch_device,
 )
@@ -319,6 +326,152 @@ def test_select_device_non_numeric_input(capsys: pytest.CaptureFixture[str]) -> 
     assert result is None
 
 
+def test_is_axis_macaddress_matches_official_ouis() -> None:
+    """MAC addresses with Axis OUI prefixes are treated as discoverable."""
+    assert {"00:40:8c", "ac:cc:8e", "b8:a4:4f", "e8:27:25"} == AXIS_OUI
+    assert is_axis_macaddress("00:40:8C:11:22:33")
+    assert is_axis_macaddress("ac-cc-8e-aa-bb-cc")
+    assert is_axis_macaddress("b8a44f010203")
+    assert is_axis_macaddress("e82725*")
+
+
+def test_is_axis_macaddress_rejects_unknown_prefix() -> None:
+    """Non-Axis OUI prefixes are excluded from discovery."""
+    assert not is_axis_macaddress("00:11:22:33:44:55")
+    assert not is_axis_macaddress("xyz")
+
+
+def test_select_discovered_device_back_input() -> None:
+    """Back selection returns None for discovered devices list."""
+    discovered = [
+        {"host": "10.0.0.10", "name": "Axis Cam", "macaddress": "00408c123456"}
+    ]
+    with patch("builtins.input", return_value="b"):
+        assert select_discovered_device(discovered) is None
+
+
+def test_select_discovered_device_valid_selection() -> None:
+    """Valid discovered-device index returns the selected entry."""
+    discovered = [
+        {"host": "10.0.0.10", "name": "Axis Cam A", "macaddress": "00408c123456"},
+        {"host": "10.0.0.11", "name": "Axis Cam B", "macaddress": "accc8eabcdef"},
+    ]
+    with patch("builtins.input", return_value="2"):
+        result = select_discovered_device(discovered)
+    assert result is not None
+    assert result["host"] == "10.0.0.11"
+
+
+def test_discover_axis_devices_filters_axis_and_deduplicates_hosts() -> None:
+    """Discovery keeps only Axis OUI entries and deduplicates hosts."""
+    fake_azc = MagicMock()
+    fake_azc.zeroconf = object()
+    fake_azc.async_close = AsyncMock()
+
+    fake_browser = MagicMock()
+    fake_browser.async_cancel = AsyncMock()
+
+    service_names: list[str] = []
+
+    def browser_factory(
+        _zeroconf: object,
+        _service_types: list[str],
+        handlers: list[object],
+    ) -> object:
+        handler = handlers[0]
+        handler(
+            zeroconf=None,
+            service_type="_axis-video._tcp.local.",
+            name="AxisA._axis-video._tcp.local.",
+            state_change="added",
+        )
+        handler(
+            zeroconf=None,
+            service_type="_axis-video._tcp.local.",
+            name="AxisB._axis-video._tcp.local.",
+            state_change="added",
+        )
+        service_names.extend(
+            ["AxisA._axis-video._tcp.local.", "AxisB._axis-video._tcp.local."]
+        )
+        return fake_browser
+
+    def info_factory(_service_type: str, service_name: str) -> object:
+        info = MagicMock()
+        info.async_request = AsyncMock(return_value=True)
+        if service_name.startswith("AxisA"):
+            info.properties = {b"macaddress": b"00:40:8c:11:22:33"}
+            info.parsed_addresses.return_value = ["10.0.0.10"]
+        else:
+            info.properties = {b"macaddress": b"00:11:22:33:44:55"}
+            info.parsed_addresses.return_value = ["10.0.0.10"]
+        return info
+
+    with (
+        patch(
+            "axis.cli.packs.devices.ServiceStateChange",
+            SimpleNamespace(Added="added", Updated="updated"),
+        ),
+        patch("axis.cli.packs.devices.AsyncZeroconf", return_value=fake_azc),
+        patch(
+            "axis.cli.packs.devices.AsyncServiceBrowser", side_effect=browser_factory
+        ),
+        patch("axis.cli.packs.devices.AsyncServiceInfo", side_effect=info_factory),
+        patch("axis.cli.packs.devices.asyncio.sleep", new=AsyncMock()),
+    ):
+        discovered = _asyncio.run(discover_axis_devices(scan_seconds=0))
+
+    assert service_names
+    assert discovered == [
+        {
+            "host": "10.0.0.10",
+            "name": "AxisA",
+            "macaddress": "00:40:8c:11:22:33",
+        }
+    ]
+    fake_browser.async_cancel.assert_awaited_once()
+    fake_azc.async_close.assert_awaited_once()
+
+
+def test_filter_discovered_devices_excludes_registered_host_and_serial() -> None:
+    """Already registered devices are hidden from discovery results."""
+    registered: DeviceStore = {
+        "B8A44F909AFD": {
+            "config": {
+                "host": "10.0.0.211",
+                "username": "admin",
+                "password": "x",
+            }
+        }
+    }
+    discovered = [
+        {
+            "host": "10.0.0.211",
+            "name": "Axis host duplicate",
+            "macaddress": "112233445566",
+        },
+        {
+            "host": "169.254.24.20",
+            "name": "Axis serial duplicate",
+            "macaddress": "B8A44F909AFD",
+        },
+        {
+            "host": "10.0.0.250",
+            "name": "Axis new",
+            "macaddress": "B8A44FEEB430",
+        },
+    ]
+
+    filtered = filter_discovered_devices(discovered, registered)
+    assert filtered == [
+        {
+            "host": "10.0.0.250",
+            "name": "Axis new",
+            "macaddress": "B8A44FEEB430",
+        }
+    ]
+
+
 # ---------------------------------------------------------------------------
 # print_registered_devices
 # ---------------------------------------------------------------------------
@@ -344,6 +497,58 @@ def test_print_registered_devices_lists_entries(
     assert "SN1" in out
     assert "SN2" in out
     assert "10.0.0.1" in out
+
+
+def test_register_or_update_device_aborts_on_existing_host_decline(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Existing host confirmation decline aborts registration."""
+    devices: DeviceStore = {
+        "SN1": {"config": {"host": "10.0.0.1", "username": "admin", "password": "x"}}
+    }
+
+    with (
+        patch(
+            "axis.cli.packs.devices.prompt_for_device",
+            return_value={"host": "10.0.0.1", "username": "admin", "password": "pass"},
+        ),
+        patch("axis.cli.packs.devices.find_serial_by_host", return_value="SN1"),
+        patch("builtins.input", return_value="n"),
+    ):
+        register_or_update_device(devices)
+
+    out = capsys.readouterr().out
+    assert "aborted" in out.lower()
+    assert list(devices) == ["SN1"]
+
+
+def test_register_or_update_device_success() -> None:
+    """Successful helper flow stores validated config and metadata."""
+    devices: DeviceStore = {}
+    fake_config = MagicMock()
+
+    with (
+        patch(
+            "axis.cli.packs.devices.prompt_for_device",
+            return_value={"host": "10.0.0.2", "username": "admin", "password": "pass"},
+        ),
+        patch("axis.cli.packs.devices.find_serial_by_host", return_value=None),
+        patch(
+            "axis.cli.packs.devices.asyncio.run",
+            return_value=(fake_config, "SN2", "P3245", {"extra": "data"}),
+        ),
+        patch("axis.cli.packs.devices.migrate_unknown_entry") as mock_migrate,
+        patch(
+            "axis.cli.packs.devices.config_to_toml_dict",
+            return_value={"host": "10.0.0.2"},
+        ),
+    ):
+        register_or_update_device(devices)
+
+    assert "SN2" in devices
+    assert devices["SN2"]["model"] == "P3245"
+    assert devices["SN2"]["extra"] == {"extra": "data"}
+    mock_migrate.assert_called_once_with(devices, "SN2", "10.0.0.2")
 
 
 # ---------------------------------------------------------------------------
