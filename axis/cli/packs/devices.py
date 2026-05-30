@@ -221,6 +221,45 @@ def _extract_macaddress_property(properties: dict[bytes, bytes | None]) -> str |
     return None
 
 
+def _decode_discovery_properties(
+    properties: dict[bytes, bytes | None],
+) -> dict[str, str]:
+    """Decode Zeroconf TXT properties to normalized string key/value pairs."""
+    decoded: dict[str, str] = {}
+    for raw_key, raw_value in properties.items():
+        key = raw_key.decode("utf-8", errors="ignore").strip().lower()
+        if not key or raw_value is None:
+            continue
+        value = raw_value.decode("utf-8", errors="ignore").strip()
+        if value:
+            decoded[key] = value
+    return decoded
+
+
+def _extract_discovery_metadata(
+    properties: dict[bytes, bytes | None],
+) -> dict[str, str]:
+    """Extract user-facing metadata fields from Zeroconf TXT properties."""
+    decoded = _decode_discovery_properties(properties)
+    fields: dict[str, tuple[str, ...]] = {
+        "module": ("module", "hw", "hardware", "hardwareid"),
+        "model": ("model", "modelname", "prodshortname", "prodfullname"),
+        "serial": ("serial", "serialnumber"),
+        "firmware": ("firmware", "version", "firmwareversion"),
+        "vendor": ("vendor", "manufacturer", "brand"),
+    }
+
+    metadata: dict[str, str] = {}
+    for label, aliases in fields.items():
+        for alias in aliases:
+            value = decoded.get(alias)
+            if value:
+                metadata[label] = value
+                break
+
+    return metadata
+
+
 def _zeroconf_instance_name(service_name: str) -> str:
     suffix = f".{AXIS_SERVICE_TYPE}"
     if service_name.endswith(suffix):
@@ -312,6 +351,7 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
                     "host": host,
                     "name": _zeroconf_instance_name(service_name),
                     "macaddress": macaddress,
+                    **_extract_discovery_metadata(info.properties),
                 }
             )
 
@@ -331,9 +371,18 @@ def select_discovered_device(
 
     print("\nDiscovered Axis devices:")  # noqa: T201
     for idx, entry in enumerate(discovered_devices, 1):
+        metadata_parts = [
+            f"module={entry['module']}" if entry.get("module") else "",
+            f"model={entry['model']}" if entry.get("model") else "",
+            f"serial={entry['serial']}" if entry.get("serial") else "",
+            f"firmware={entry['firmware']}" if entry.get("firmware") else "",
+        ]
+        metadata = ", ".join(part for part in metadata_parts if part)
+        metadata_suffix = f", {metadata}" if metadata else ""
         print(  # noqa: T201
             f"  {idx}. {entry.get('name', '<unknown>')} "
-            f"({entry.get('host', '<unknown>')}, mac={entry.get('macaddress', '')})"
+            f"({entry.get('host', '<unknown>')}, mac={entry.get('macaddress', '')}"
+            f"{metadata_suffix})"
         )
     print("  b. Back")  # noqa: T201
     print("  e. Exit")  # noqa: T201
@@ -362,6 +411,14 @@ def _format_device_label(model: str, serial: str, host: str) -> str:
     if model:
         return f"{model} {serial} ({host})"
     return f"{serial} ({host})"
+
+
+def _format_device_operations_label(serial: str, device_entry: DeviceEntry) -> str:
+    config_data = device_entry.get("config", {})
+    host = str(config_data.get("host", "<unknown>"))
+    model = str(device_entry.get("model", "")).strip()
+    friendly_name = model if model else serial
+    return f"{friendly_name} ({host}, mac={serial})"
 
 
 async def validate_and_fetch_device(

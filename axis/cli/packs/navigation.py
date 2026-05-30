@@ -11,6 +11,7 @@ from axis.cli.packs.api import api_drill_down_flow, list_supported_apis_flow
 from axis.cli.packs.devices import (
     DeviceEntry,
     DeviceStore,
+    _format_device_operations_label,
     config_to_toml_dict,
     discover_axis_devices,
     filter_discovered_devices,
@@ -33,8 +34,9 @@ def register(registry: object, router: object) -> None:
 
 
 def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
+    device_label = _format_device_operations_label(serial, device_entry)
     while True:
-        print(f"\nDevice operations for {serial}:")  # noqa: T201
+        print(f"\nDevice operations for {device_label}:")  # noqa: T201
         print("  1. List supported APIs")  # noqa: T201
         print("  2. API drill-down")  # noqa: T201
         print("  3. Event instances & live listen")  # noqa: T201

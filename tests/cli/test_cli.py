@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio as _asyncio
 import getpass as _getpass
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import tomli_w
@@ -35,12 +35,14 @@ from axis.cli.main import (
     save_devices,
     select_device,
     select_discovered_device,
+    selected_device_operations,
     to_toml_compatible,
     validate_and_fetch_device,
 )
 from axis.errors import PathNotFound
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     import pytest
@@ -326,6 +328,22 @@ def test_select_device_non_numeric_input(capsys: pytest.CaptureFixture[str]) -> 
     assert result is None
 
 
+def test_selected_device_operations_shows_friendly_label(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Device operations header includes the model, host, and MAC/serial."""
+    device_entry: DeviceEntry = {
+        "config": {"host": "10.0.0.211", "username": "admin", "password": "x"},
+        "model": "I8116-E",
+    }
+
+    with patch("builtins.input", return_value="b"):
+        selected_device_operations("B8A44F909AFD", device_entry)
+
+    out = capsys.readouterr().out
+    assert "Device operations for I8116-E (10.0.0.211, mac=B8A44F909AFD):" in out
+
+
 def test_is_axis_macaddress_matches_official_ouis() -> None:
     """MAC addresses with Axis OUI prefixes are treated as discoverable."""
     assert {"00:40:8c", "ac:cc:8e", "b8:a4:4f", "e8:27:25"} == AXIS_OUI
@@ -372,20 +390,22 @@ def test_discover_axis_devices_filters_axis_and_deduplicates_hosts() -> None:
     fake_browser.async_cancel = AsyncMock()
 
     service_names: list[str] = []
+    service_state_callback: Callable[..., None]
 
     def browser_factory(
         _zeroconf: object,
         _service_types: list[str],
         handlers: list[object],
     ) -> object:
-        handler = handlers[0]
-        handler(
+        nonlocal service_state_callback
+        service_state_callback = cast("Callable[..., None]", handlers[0])
+        service_state_callback(
             zeroconf=None,
             service_type="_axis-video._tcp.local.",
             name="AxisA._axis-video._tcp.local.",
             state_change="added",
         )
-        handler(
+        service_state_callback(
             zeroconf=None,
             service_type="_axis-video._tcp.local.",
             name="AxisB._axis-video._tcp.local.",
@@ -431,6 +451,92 @@ def test_discover_axis_devices_filters_axis_and_deduplicates_hosts() -> None:
     ]
     fake_browser.async_cancel.assert_awaited_once()
     fake_azc.async_close.assert_awaited_once()
+
+
+def test_discover_axis_devices_includes_metadata_fields() -> None:
+    """Discovery includes optional metadata decoded from TXT properties."""
+    fake_azc = MagicMock()
+    fake_azc.zeroconf = object()
+    fake_azc.async_close = AsyncMock()
+
+    fake_browser = MagicMock()
+    fake_browser.async_cancel = AsyncMock()
+    service_state_callback: Callable[..., None]
+
+    def browser_factory(
+        _zeroconf: object,
+        _service_types: list[str],
+        handlers: list[object],
+    ) -> object:
+        nonlocal service_state_callback
+        service_state_callback = cast("Callable[..., None]", handlers[0])
+        service_state_callback(
+            zeroconf=None,
+            service_type="_axis-video._tcp.local.",
+            name="AxisMeta._axis-video._tcp.local.",
+            state_change="added",
+        )
+        return fake_browser
+
+    def info_factory(_service_type: str, _service_name: str) -> object:
+        info = MagicMock()
+        info.async_request = AsyncMock(return_value=True)
+        info.properties = {
+            b"macaddress": b"ac:cc:8e:aa:bb:cc",
+            b"module": b"M1075",
+            b"serialnumber": b"ACCC8E7EA36D",
+            b"firmwareversion": b"12.1.0",
+            b"vendor": b"Axis",
+        }
+        info.parsed_addresses.return_value = ["10.0.0.20"]
+        return info
+
+    with (
+        patch(
+            "axis.cli.packs.devices.ServiceStateChange",
+            SimpleNamespace(Added="added", Updated="updated"),
+        ),
+        patch("axis.cli.packs.devices.AsyncZeroconf", return_value=fake_azc),
+        patch(
+            "axis.cli.packs.devices.AsyncServiceBrowser", side_effect=browser_factory
+        ),
+        patch("axis.cli.packs.devices.AsyncServiceInfo", side_effect=info_factory),
+        patch("axis.cli.packs.devices.asyncio.sleep", new=AsyncMock()),
+    ):
+        discovered = _asyncio.run(discover_axis_devices(scan_seconds=0))
+
+    assert discovered == [
+        {
+            "host": "10.0.0.20",
+            "name": "AxisMeta",
+            "macaddress": "ac:cc:8e:aa:bb:cc",
+            "module": "M1075",
+            "serial": "ACCC8E7EA36D",
+            "firmware": "12.1.0",
+            "vendor": "Axis",
+        }
+    ]
+
+
+def test_select_discovered_device_shows_metadata(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Selection list prints optional discovered metadata when present."""
+    discovered = [
+        {
+            "host": "10.0.0.20",
+            "name": "AxisMeta",
+            "macaddress": "ac:cc:8e:aa:bb:cc",
+            "module": "M1075",
+            "firmware": "12.1.0",
+        }
+    ]
+    with patch("builtins.input", return_value="b"):
+        _ = select_discovered_device(discovered)
+
+    out = capsys.readouterr().out
+    assert "module=M1075" in out
+    assert "firmware=12.1.0" in out
 
 
 def test_filter_discovered_devices_excludes_registered_host_and_serial() -> None:
@@ -534,8 +640,10 @@ def test_register_or_update_device_success() -> None:
         ),
         patch("axis.cli.packs.devices.find_serial_by_host", return_value=None),
         patch(
-            "axis.cli.packs.devices.asyncio.run",
-            return_value=(fake_config, "SN2", "P3245", {"extra": "data"}),
+            "axis.cli.packs.devices.validate_and_fetch_device",
+            new=AsyncMock(
+                return_value=(fake_config, "SN2", "P3245", {"extra": "data"})
+            ),
         ),
         patch("axis.cli.packs.devices.migrate_unknown_entry") as mock_migrate,
         patch(
@@ -560,17 +668,11 @@ def test_get_config_path_creates_directory(tmp_path: Path) -> None:
     """get_config_path creates the ~/.axis directory and returns the right path."""
     fake_home = tmp_path / "home"
     with patch("axis.cli.packs.devices.Path") as mock_path:
-        # Make Path.home() return our fake home
         fake_config_dir = fake_home / ".axis"
         fake_config_dir.mkdir(parents=True, exist_ok=True)
-        mock_path_instance = MagicMock()
-        mock_path_instance.__truediv__ = MagicMock(
-            side_effect=lambda other: fake_home / other
-        )
-        mock_path.home.return_value = mock_path_instance
+        mock_path.home.return_value = fake_home
         result = get_config_path()
-    # Just verify it returns a Path-like object (real Path via side_effect)
-    assert result is not None
+    assert result == fake_config_dir / "config.toml"
 
 
 # ---------------------------------------------------------------------------
