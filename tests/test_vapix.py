@@ -204,6 +204,21 @@ def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
     assert vapix.event_instances not in param_fallback_handlers
 
 
+def test_interfaces_returns_dynamic_handler_mapping(vapix: Vapix) -> None:
+    """Verify interface mapping exposes all ApiHandler attributes."""
+    interfaces = vapix.interfaces()
+
+    assert interfaces["api_discovery"] is vapix.api_discovery
+    assert interfaces["params"] is vapix.params
+    assert interfaces["basic_device_info"] is vapix.basic_device_info
+    assert interfaces["event_instances"] is vapix.event_instances
+    assert interfaces["users"] is vapix.users
+    assert interfaces["user_groups"] is vapix.user_groups
+
+    assert "device" not in interfaces
+    assert "auth" not in interfaces
+
+
 async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
     """Verify that you can initialize all APIs."""
     mock_vapix_request(

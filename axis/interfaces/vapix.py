@@ -33,6 +33,8 @@ from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from ..device import AxisDevice
     from ..models.api import ApiRequest
     from ..models.stream_profile import StreamProfile
@@ -177,6 +179,18 @@ class Vapix:
         """Return handlers assigned to an initialization group."""
         return tuple(self._handler_registry[group])
 
+    def interfaces(self) -> dict[str, ApiHandler[Any]]:
+        """Return all Vapix interface handlers mapped by attribute name.
+
+        This is a read-only discovery helper and does not trigger initialization
+        or network requests.
+        """
+        return {
+            name: value
+            for name, value in vars(self).items()
+            if isinstance(value, ApiHandler)
+        }
+
     async def _initialize_handlers(self, group: HandlerGroup) -> None:
         """Initialize handlers in a group."""
         handlers = self._handlers_by_group(group)
@@ -190,7 +204,7 @@ class Vapix:
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
-        tasks = []
+        tasks: list[Awaitable[bool]] = []
 
         if preload_data:
             tasks.append(self.params.update())
@@ -252,7 +266,7 @@ class Vapix:
 
         if not user_groups and await self.user_groups.update():
             return
-        self.user_groups._items.update(user_groups)
+        self.user_groups.update_items(user_groups)
 
     async def api_request[ApiResponseT](
         self,

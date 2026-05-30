@@ -471,32 +471,46 @@ def test_list_supported_apis_flow_with_apis(
 
 
 def test_api_drill_down_flow_no_apis(capsys: pytest.CaptureFixture[str]) -> None:
-    """Returns immediately when no APIs are discovered."""
+    """Returns immediately when no interfaces are discovered."""
     with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = []
         api_drill_down_flow(_make_device_entry())
     out = capsys.readouterr().out
-    assert "No APIs" in out
+    assert "No interfaces" in out
 
 
 def test_api_drill_down_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
     """Typing 'b' exits the drill-down immediately."""
-    fake_apis = [
-        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    fake_interfaces = [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1",
+            "supported": True,
+            "initialized": False,
+            "items": 0,
+        },
     ]
     with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
-        mock_asyncio.run.return_value = fake_apis
+        mock_asyncio.run.return_value = fake_interfaces
         with patch("builtins.input", return_value="b"):
             api_drill_down_flow(_make_device_entry())
 
 
 def test_api_drill_down_flow_invalid_index(capsys: pytest.CaptureFixture[str]) -> None:
     """Invalid index shows error then 'b' exits."""
-    fake_apis = [
-        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    fake_interfaces = [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1",
+            "supported": True,
+            "initialized": False,
+            "items": 0,
+        },
     ]
     with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
-        mock_asyncio.run.return_value = fake_apis
+        mock_asyncio.run.return_value = fake_interfaces
         with patch("builtins.input", side_effect=["99", "b"]):
             api_drill_down_flow(_make_device_entry())
     out = capsys.readouterr().out
@@ -505,11 +519,18 @@ def test_api_drill_down_flow_invalid_index(capsys: pytest.CaptureFixture[str]) -
 
 def test_api_drill_down_flow_non_numeric(capsys: pytest.CaptureFixture[str]) -> None:
     """Non-numeric input shows error then 'b' exits."""
-    fake_apis = [
-        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    fake_interfaces = [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1",
+            "supported": True,
+            "initialized": False,
+            "items": 0,
+        },
     ]
     with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
-        mock_asyncio.run.return_value = fake_apis
+        mock_asyncio.run.return_value = fake_interfaces
         with patch("builtins.input", side_effect=["abc", "b"]):
             api_drill_down_flow(_make_device_entry())
     out = capsys.readouterr().out
@@ -517,23 +538,37 @@ def test_api_drill_down_flow_non_numeric(capsys: pytest.CaptureFixture[str]) -> 
 
 
 def test_api_drill_down_flow_action_back(capsys: pytest.CaptureFixture[str]) -> None:
-    """Selecting API then action 'b' (back) loops back to API list."""
-    fake_apis = [
-        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    """Selecting interface then action 'b' loops back to interface list."""
+    fake_interfaces = [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1",
+            "supported": True,
+            "initialized": False,
+            "items": 0,
+        },
     ]
     with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
-        mock_asyncio.run.return_value = fake_apis
+        mock_asyncio.run.return_value = fake_interfaces
         with patch("builtins.input", side_effect=["1", "b", "b"]):
             api_drill_down_flow(_make_device_entry())
 
 
 def test_api_drill_down_flow_action_invalid(capsys: pytest.CaptureFixture[str]) -> None:
     """Invalid action choice shows message then 'b' exits."""
-    fake_apis = [
-        {"id": "basic-device-info", "name": "Basic", "version": "1", "status": "OK"},
+    fake_interfaces = [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1",
+            "supported": True,
+            "initialized": False,
+            "items": 0,
+        },
     ]
     with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
-        mock_asyncio.run.return_value = fake_apis
+        mock_asyncio.run.return_value = fake_interfaces
         with patch("builtins.input", side_effect=["1", "9", "b"]):
             api_drill_down_flow(_make_device_entry())
     out = capsys.readouterr().out

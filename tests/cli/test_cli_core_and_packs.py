@@ -139,18 +139,17 @@ async def test_api_pack_fetch_supported_apis_and_empty() -> None:
 
 
 @pytest.mark.asyncio
-async def test_api_pack_read_action_branches(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """API read actions handle implemented and fallback branches."""
+async def test_api_pack_fetch_vapix_interfaces_and_empty() -> None:
+    """Dynamic interface listing returns handler metadata and handles empty result."""
+    fake_handler = MagicMock()
+    fake_handler.api_id = SimpleNamespace(value="basic-device-info")
+    fake_handler.api_version = "1.0"
+    fake_handler.supported = True
+    fake_handler.initialized = False
+    fake_handler.__len__.return_value = 0
+
     fake_device = MagicMock()
-    fake_device.vapix.basic_device_info.get_all_properties = AsyncMock(
-        return_value={"0": None}
-    )
-    fake_device.vapix.api_discovery.get_supported_versions = AsyncMock(
-        return_value=["1.0", "2.0"]
-    )
-    fake_device.vapix.user_groups.get_user_groups = AsyncMock(return_value={"0": None})
+    fake_device.vapix.interfaces.return_value = {"basic_device_info": fake_handler}
 
     async def invoke_with_device(device_entry: object, operation: object) -> object:
         return await operation(fake_device)
@@ -158,16 +157,58 @@ async def test_api_pack_read_action_branches(
     with patch(
         "axis.cli.packs.api.run_on_selected_device", side_effect=invoke_with_device
     ):
-        await api_pack.run_api_read_action({"config": {}}, "basic-device-info")
-        await api_pack.run_api_read_action({"config": {}}, "api-discovery")
-        await api_pack.run_api_read_action({"config": {}}, "user-management")
-        await api_pack.run_api_read_action({"config": {}}, "unknown-api")
+        result = await api_pack.fetch_vapix_interfaces({"config": {}})
+
+    assert result == [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1.0",
+            "supported": True,
+            "initialized": False,
+            "items": 0,
+        }
+    ]
+
+    with patch(
+        "axis.cli.packs.api.run_on_selected_device", new=AsyncMock(return_value=None)
+    ):
+        assert await api_pack.fetch_vapix_interfaces({"config": {}}) == []
+
+
+@pytest.mark.asyncio
+async def test_api_pack_run_api_read_action_dynamic(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Generic read action supports full dump, traversal, and missing interface."""
+    fake_handler = MagicMock()
+    fake_handler.initialized = False
+    fake_handler.update = AsyncMock(return_value=True)
+    fake_handler.__len__.return_value = 1
+    fake_handler.items.return_value = [
+        ("0", {"source": {"items": [{"name": "camera"}]}})
+    ]
+
+    fake_device = MagicMock()
+    fake_device.vapix.interfaces.return_value = {"event_instances": fake_handler}
+
+    async def invoke_with_device(device_entry: object, operation: object) -> object:
+        return await operation(fake_device)
+
+    with patch(
+        "axis.cli.packs.api.run_on_selected_device", side_effect=invoke_with_device
+    ):
+        await api_pack.run_api_read_action({"config": {}}, "event_instances")
+        await api_pack.run_api_read_action(
+            {"config": {}}, "event_instances", "0.source.items.0.name"
+        )
+        await api_pack.run_api_read_action({"config": {}}, "unknown-interface")
 
     out = capsys.readouterr().out
-    assert "No basic device information found." in out
-    assert "supported versions" in out
-    assert "Current user group information is unavailable." in out
-    assert "No read action implemented yet" in out
+    assert "Interface data: event_instances" in out
+    assert "Interface data: event_instances @ 0.source.items.0.name" in out
+    assert "camera" in out
+    assert "No interface named 'unknown-interface'." in out
 
 
 @pytest.mark.asyncio
