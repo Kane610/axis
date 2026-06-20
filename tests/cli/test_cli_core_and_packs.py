@@ -141,15 +141,33 @@ async def test_api_pack_fetch_supported_apis_and_empty() -> None:
 @pytest.mark.asyncio
 async def test_api_pack_fetch_vapix_interfaces_and_empty() -> None:
     """Dynamic interface listing returns handler metadata and handles empty result."""
-    fake_handler = MagicMock()
-    fake_handler.api_id = SimpleNamespace(value="basic-device-info")
-    fake_handler.api_version = "1.0"
-    fake_handler.supported = True
-    fake_handler.initialized = False
-    fake_handler.__len__.return_value = 0
-
     fake_device = MagicMock()
-    fake_device.vapix.interfaces.return_value = {"basic_device_info": fake_handler}
+    fake_device.vapix.inspect_interfaces = AsyncMock(
+        return_value={
+            "basic_device_info": SimpleNamespace(
+                name="basic_device_info",
+                api_id="basic-device-info",
+                api_version="1.0",
+                listed=True,
+                probe_attempted=True,
+                probe_succeeded=True,
+                supported=True,
+                initialized=False,
+                items=0,
+            ),
+            "unsupported": SimpleNamespace(
+                name="unsupported",
+                api_id="unsupported-api",
+                api_version="1.0",
+                listed=False,
+                probe_attempted=True,
+                probe_succeeded=False,
+                supported=False,
+                initialized=False,
+                items=0,
+            ),
+        }
+    )
 
     async def invoke_with_device(device_entry: object, operation: object) -> object:
         return await operation(fake_device)
@@ -159,21 +177,87 @@ async def test_api_pack_fetch_vapix_interfaces_and_empty() -> None:
     ):
         result = await api_pack.fetch_vapix_interfaces({"config": {}})
 
+    fake_device.vapix.inspect_interfaces.assert_awaited_once_with(
+        refresh_discovery=True,
+        probe=True,
+    )
+
     assert result == [
         {
             "name": "basic_device_info",
             "api_id": "basic-device-info",
             "api_version": "1.0",
+            "listed": True,
+            "probe_attempted": True,
+            "probe_succeeded": True,
             "supported": True,
             "initialized": False,
             "items": 0,
-        }
+        },
+        {
+            "name": "unsupported",
+            "api_id": "unsupported-api",
+            "api_version": "1.0",
+            "listed": False,
+            "probe_attempted": True,
+            "probe_succeeded": False,
+            "supported": False,
+            "initialized": False,
+            "items": 0,
+        },
     ]
 
     with patch(
         "axis.cli.packs.api.run_on_selected_device", new=AsyncMock(return_value=None)
     ):
         assert await api_pack.fetch_vapix_interfaces({"config": {}}) == []
+
+
+@pytest.mark.asyncio
+async def test_api_pack_fetch_vapix_interfaces_event_instances_probe() -> None:
+    """event_instances truth is provided by library inspect_interfaces output."""
+    fake_device = MagicMock()
+    fake_device.vapix.inspect_interfaces = AsyncMock(
+        return_value={
+            "event_instances": SimpleNamespace(
+                name="event_instances",
+                api_id="",
+                api_version="",
+                listed=False,
+                probe_attempted=True,
+                probe_succeeded=True,
+                supported=True,
+                initialized=True,
+                items=3,
+            )
+        }
+    )
+
+    async def invoke_with_device(device_entry: object, operation: object) -> object:
+        return await operation(fake_device)
+
+    with patch(
+        "axis.cli.packs.api.run_on_selected_device", side_effect=invoke_with_device
+    ):
+        result = await api_pack.fetch_vapix_interfaces({"config": {}})
+
+    fake_device.vapix.inspect_interfaces.assert_awaited_once_with(
+        refresh_discovery=True,
+        probe=True,
+    )
+    assert result == [
+        {
+            "name": "event_instances",
+            "api_id": "",
+            "api_version": "",
+            "listed": False,
+            "probe_attempted": True,
+            "probe_succeeded": True,
+            "supported": True,
+            "initialized": True,
+            "items": 3,
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -209,6 +293,57 @@ async def test_api_pack_run_api_read_action_dynamic(
     assert "Interface data: event_instances @ 0.source.items.0.name" in out
     assert "camera" in out
     assert "No interface named 'unknown-interface'." in out
+
+
+@pytest.mark.asyncio
+async def test_api_pack_run_api_read_action_api_discovery_table(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """API-discovery shaped payloads are rendered as normalized table columns."""
+    fake_handler = MagicMock()
+    fake_handler.initialized = True
+    fake_handler.__len__.return_value = 2
+    fake_handler.items.return_value = [
+        (
+            "basic-device-info",
+            {
+                "id": "basic-device-info",
+                "name": "Basic Device Information",
+                "version": "1.3",
+                "status": "official",
+            },
+        ),
+        (
+            "packagemanager",
+            {
+                "id": "packagemanager",
+                "name": "Package Manager",
+                "version": "1.4",
+                "status": "unknown",
+            },
+        ),
+    ]
+
+    fake_device = MagicMock()
+    fake_device.vapix.interfaces.return_value = {"api_discovery": fake_handler}
+
+    async def invoke_with_device(device_entry: object, operation: object) -> object:
+        return await operation(fake_device)
+
+    with patch(
+        "axis.cli.packs.api.run_on_selected_device", side_effect=invoke_with_device
+    ):
+        await api_pack.run_api_read_action({"config": {}}, "api_discovery")
+
+    out = capsys.readouterr().out
+    assert "Interface data: api_discovery" in out
+    assert "#" in out
+    assert "id" in out
+    assert "name" in out
+    assert "version" in out
+    assert "status" in out
+    assert "basic-device-info" in out
+    assert "Package Manager" in out
 
 
 @pytest.mark.asyncio

@@ -9,7 +9,11 @@ from pprint import pformat
 import re
 from typing import TYPE_CHECKING
 
-from axis.cli.packs.devices import DeviceEntry, run_on_selected_device
+from axis.cli.packs.devices import (
+    DeviceEntry,
+    _format_device_operations_label,
+    run_on_selected_device,
+)
 from axis.device import AxisDevice
 from axis.errors import Forbidden, PathNotFound
 from axis.models.pwdgrp_cgi import SecondaryGroup
@@ -190,8 +194,9 @@ def _delete_user_flow(device_entry: DeviceEntry) -> None:
 
 
 def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
+    device_label = _format_device_operations_label(serial, device_entry)
     while True:
-        print(f"\nAccount management for {serial}:")  # noqa: T201
+        print(f"\nAccount management for {device_label}:")  # noqa: T201
         print("  1. List users")  # noqa: T201
         print("  2. Create or update user")  # noqa: T201
         print("  3. Delete user")  # noqa: T201

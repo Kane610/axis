@@ -7,9 +7,13 @@ from dataclasses import asdict, is_dataclass
 from enum import Enum
 import os
 from pprint import pformat
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
-from axis.cli.packs.devices import DeviceEntry, run_on_selected_device
+from axis.cli.packs.devices import (
+    DeviceEntry,
+    _format_device_operations_label,
+    run_on_selected_device,
+)
 from axis.device import AxisDevice
 
 if TYPE_CHECKING:
@@ -53,17 +57,24 @@ async def fetch_vapix_interfaces(
     device_entry: DeviceEntry,
 ) -> list[dict[str, str | bool | int]]:
     async def _operation(device: AxisDevice) -> list[dict[str, str | bool | int]]:
-        interfaces = device.vapix.interfaces()
+        interface_states = await device.vapix.inspect_interfaces(
+            refresh_discovery=True,
+            probe=True,
+        )
+
         return [
             {
-                "name": name,
-                "api_id": str(getattr(handler.api_id, "value", "") or ""),
-                "api_version": handler.api_version,
-                "supported": handler.supported,
-                "initialized": handler.initialized,
-                "items": len(handler),
+                "name": state.name,
+                "api_id": state.api_id,
+                "api_version": state.api_version,
+                "listed": state.listed,
+                "probe_attempted": state.probe_attempted,
+                "probe_succeeded": state.probe_succeeded,
+                "supported": state.supported,
+                "initialized": state.initialized,
+                "items": state.items,
             }
-            for name, handler in sorted(interfaces.items())
+            for state in interface_states.values()
         ]
 
     result = await run_on_selected_device(device_entry, _operation)
@@ -72,40 +83,89 @@ async def fetch_vapix_interfaces(
     return result
 
 
-def _normalize_payload(value: object) -> Any:
+def _normalize_payload(value: object) -> object:
     if isinstance(value, Enum):
         return value.value
     if is_dataclass(value) and not isinstance(value, type):
         return _normalize_payload(asdict(value))
     if isinstance(value, dict):
-        normalized: dict[str, Any] = {}
-        for key, item in value.items():
-            normalized[str(key)] = _normalize_payload(item)
+        normalized: dict[str, object] = {}
+        items = cast("Iterable[tuple[object, object]]", value.items())
+        for raw_key, raw_item in items:
+            key = str(raw_key)
+            normalized[key] = _normalize_payload(raw_item)
         return normalized
     if isinstance(value, (list, tuple, set)):
-        payload_iterable = cast("Iterable[Any]", value)
+        payload_iterable = cast("Iterable[object]", value)
         return [_normalize_payload(item) for item in payload_iterable]
     return value
 
 
-def _traverse_payload(data: object, path: str) -> Any:
-    current: Any = data
+def _traverse_payload(data: object, path: str) -> object:
+    current: object = data
     for token in (part for part in path.split(".") if part):
         if isinstance(current, dict):
-            current_dict = cast("dict[str, Any]", current)
+            current_dict = cast("dict[str, object]", current)
             if token not in current:
                 raise KeyError(token)
-            current = current_dict[token]
+            next_dict_value: object = current_dict[token]
+            current = next_dict_value
             continue
 
         if isinstance(current, list):
+            current_list = cast("list[object]", current)
             index = int(token)
-            current = current[index]
+            next_list_value: object = current_list[index]
+            current = next_list_value
             continue
 
         raise TypeError(token)
 
     return current
+
+
+def _render_api_discovery_table(payload: object) -> bool:
+    if not isinstance(payload, dict) or not payload:
+        return False
+
+    rows: list[dict[str, str]] = []
+    for key, value in payload.items():
+        if not isinstance(value, dict):
+            return False
+        if not {"id", "name", "version", "status"}.issubset(value):
+            return False
+
+        row_id = str(value.get("id", key) or key)
+        row_name = str(value.get("name", "") or "<unnamed>")
+        row_version = str(value.get("version", "") or "-")
+        row_status = str(value.get("status", "") or "unknown")
+        rows.append(
+            {
+                "id": row_id,
+                "name": row_name,
+                "version": row_version,
+                "status": row_status,
+            }
+        )
+
+    id_width = max(len("id"), *(len(row["id"]) for row in rows))
+    name_width = max(len("name"), *(len(row["name"]) for row in rows))
+    version_width = max(len("version"), *(len(row["version"]) for row in rows))
+    status_width = max(len("status"), *(len(row["status"]) for row in rows))
+
+    print(  # noqa: T201
+        f"  {'#':>2}  {'id':<{id_width}}  {'name':<{name_width}}"
+        f"  {'version':<{version_width}}  {'status':<{status_width}}"
+    )
+    print(f"  {'-' * (18 + id_width + name_width + version_width + status_width)}")  # noqa: T201
+    for idx, row in enumerate(rows, 1):
+        print(  # noqa: T201
+            f"  {idx:>2}. {row['id']:<{id_width}}"
+            f"  {row['name']:<{name_width}}"
+            f"  v{row['version']:<{max(version_width - 1, 1)}}"
+            f"  {row['status']:<{status_width}}"
+        )
+    return True
 
 
 def list_supported_apis_flow(serial: str, device_entry: DeviceEntry) -> None:
@@ -115,11 +175,24 @@ def list_supported_apis_flow(serial: str, device_entry: DeviceEntry) -> None:
         print("No APIs discovered for this device.")  # noqa: T201
         return
 
-    print(f"\nSupported APIs for {serial}:")  # noqa: T201
+    device_label = _format_device_operations_label(serial, device_entry)
+    print(f"\nSupported APIs for {device_label}:")  # noqa: T201
+    id_width = max(len("id"), *(len(str(api["id"])) for api in apis))
+    name_width = max(len("name"), *(len(str(api["name"])) for api in apis))
+    version_width = max(len("version"), *(len(str(api["version"])) for api in apis))
+    status_width = max(len("status"), *(len(str(api["status"])) for api in apis))
+
+    print(  # noqa: T201
+        f"  {'#':>2}  {'id':<{id_width}}  {'name':<{name_width}}"
+        f"  {'version':<{version_width}}  {'status':<{status_width}}"
+    )
+    print(f"  {'-' * (18 + id_width + name_width + version_width + status_width)}")  # noqa: T201
     for idx, api in enumerate(apis, 1):
         print(  # noqa: T201
-            f"  {idx}. {api['id']} | {api['name']} | "
-            f"v{api['version']} | {api['status']}"
+            f"  {idx:>2}. {api['id']:<{id_width}}"
+            f"  {api['name']:<{name_width}}"
+            f"  v{api['version']:<{max(version_width - 1, 1)}}"
+            f"  {api['status']:<{status_width}}"
         )
 
 
@@ -156,7 +229,8 @@ async def run_api_read_action(
             f"{interface_name} @ {traversal_path}" if traversal_path else interface_name
         )
         print(f"\nInterface data: {title}")  # noqa: T201
-        print(pformat(payload))  # noqa: T201
+        if not _render_api_discovery_table(payload):
+            print(pformat(payload))  # noqa: T201
 
     await run_on_selected_device(device_entry, _operation)
 
@@ -167,16 +241,37 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
         print("No interfaces discovered for this device.")  # noqa: T201
         return
 
+    name_width = max(
+        len("name"), *(len(str(interface["name"])) for interface in interfaces)
+    )
+    api_width = max(
+        len("api"),
+        *(len(str(interface["api_id"] or "internal")) for interface in interfaces),
+    )
+
     while True:
         print("\nInterface drill-down:")  # noqa: T201
+        print(  # noqa: T201
+            f"  {'#':>2}  {'name':<{name_width}}  {'api':<{api_width}}"
+            f"  {'adv':>5}  {'probe':>5}  {'usable':>6}  {'init':>5}  {'items':>5}"
+        )
+        print(f"  {'-' * (55 + name_width + api_width)}")  # noqa: T201
         for idx, interface in enumerate(interfaces, 1):
-            api_id = str(interface["api_id"])
-            api_marker = f"[{api_id}]" if api_id else "[internal]"
+            api_label = str(interface["api_id"] or "internal")
+            listed = "yes" if bool(interface.get("listed", False)) else "no"
+            probe_succeeded = (
+                "yes" if bool(interface.get("probe_succeeded", False)) else "no"
+            )
+            supported = "yes" if bool(interface["supported"]) else "no"
+            initialized = "yes" if bool(interface["initialized"]) else "no"
             print(  # noqa: T201
-                f"  {idx}. {interface['name']} {api_marker} | "
-                f"supported={interface['supported']} | "
-                f"initialized={interface['initialized']} | "
-                f"items={interface['items']}"
+                f"  {idx:>2}. {interface['name']!s:<{name_width}}"
+                f"  {api_label:<{api_width}}"
+                f"  {listed:>5}"
+                f"  {probe_succeeded:>5}"
+                f"  {supported:>6}"
+                f"  {initialized:>5}"
+                f"  {int(interface['items']):>5}"
             )
         print("  b. Back")  # noqa: T201
         print("  e. Exit")  # noqa: T201
@@ -203,6 +298,13 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
         print(f"  Name: {selected_interface['name']}")  # noqa: T201
         print(f"  API ID: {selected_interface['api_id'] or 'internal'}")  # noqa: T201
         print(f"  API Version: {selected_interface['api_version']}")  # noqa: T201
+        print(f"  Listed: {selected_interface.get('listed', False)}")  # noqa: T201
+        print(  # noqa: T201
+            f"  Probe Attempted: {selected_interface.get('probe_attempted', False)}"
+        )
+        print(  # noqa: T201
+            f"  Probe Succeeded: {selected_interface.get('probe_succeeded', False)}"
+        )
         print(f"  Supported: {selected_interface['supported']}")  # noqa: T201
         print(f"  Initialized: {selected_interface['initialized']}")  # noqa: T201
         print(f"  Items: {selected_interface['items']}")  # noqa: T201

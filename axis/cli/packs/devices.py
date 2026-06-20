@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import getpass
 import os
 from pathlib import Path
 from pprint import pformat
 import re
+import time
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession
@@ -26,6 +28,18 @@ if TYPE_CHECKING:
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
 DiscoveredDevice = dict[str, str]
+
+
+@dataclass
+class HealthCheckResult:
+    """Result of device health check operation."""
+
+    success: bool
+    response_time_ms: float | None = None
+    model: str | None = None
+    firmware: str | None = None
+    error: str | None = None
+
 
 AXIS_SERVICE_TYPE = "_axis-video._tcp.local."
 AXIS_OUI = {"00:40:8c", "ac:cc:8e", "b8:a4:4f", "e8:27:25"}
@@ -643,3 +657,162 @@ def register_or_update_device(devices: DeviceStore) -> None:
         "extra": extra,
     }
     print(f"Device '{serial}' registered/updated.")  # noqa: T201
+
+
+def delete_device(serial: str, devices: DeviceStore) -> bool:
+    """Remove device from registry after confirmation.
+
+    Args:
+        serial: Device serial number
+        devices: Device store dict
+
+    Returns:
+        True if deleted, False if user canceled or device not found
+
+    """
+    if serial not in devices:
+        print(f"Device {serial} not found.")  # noqa: T201
+        return False
+
+    device_label = _format_device_operations_label(serial, devices[serial])
+    confirm = input(
+        f"⚠️  This will DELETE:\n  {device_label}\n\n"
+        "Type 'delete' to confirm, or press Enter to cancel: "
+    ).strip()
+
+    if confirm == "delete":
+        del devices[serial]
+        print("✓ Device deleted.")  # noqa: T201
+        return True
+
+    print("Cancelled.")  # noqa: T201
+    return False
+
+
+async def edit_device_credentials(
+    serial: str, device_entry: DeviceEntry
+) -> DeviceEntry | None:
+    """Update device credentials and validate connectivity.
+
+    Prompts user for each field (or skip with Enter to keep current value).
+    Validates new credentials by attempting connection.
+
+    Args:
+        serial: Device serial number
+        device_entry: Current device entry
+
+    Returns:
+        Updated device_entry if validation succeeds, None if validation fails or user cancels
+
+    """
+    config_dict = device_entry.get("config", {})
+    if not isinstance(config_dict, dict):
+        print("Device config is invalid.")  # noqa: T201
+        return None
+
+    print(f"\nEdit credentials for device {serial}")  # noqa: T201
+    print("(Press Enter to keep current value)\n")  # noqa: T201
+
+    # Prompt for fields
+    host = input(  # noqa: ASYNC250
+        f"  Host [{config_dict.get('host', '')}]: "
+    ).strip() or config_dict.get("host")
+    username = input(  # noqa: ASYNC250
+        f"  Username [{config_dict.get('username', '')}]: "
+    ).strip() or config_dict.get("username")
+    port_str = input(f"  Port [{config_dict.get('port', 80)}]: ").strip()  # noqa: ASYNC250
+    port = int(port_str) if port_str else config_dict.get("port", 80)
+    password_input = getpass.getpass("  Password (press Enter to keep current): ")
+    password = password_input if password_input else config_dict.get("password")
+
+    # Build new device info and validate
+    new_device_info: dict[str, str] = {
+        "host": str(host),
+        "username": str(username),
+        "password": str(password),
+    }
+
+    print("\nValidating new credentials...")  # noqa: T201
+    config, _serial_verify, model, extra = await validate_and_fetch_device(
+        new_device_info
+    )
+
+    if config is None:
+        print("✗ Validation failed. Credentials not updated.")  # noqa: T201
+        return None
+
+    # Update port after validation
+    config.port = port
+
+    # Update and return
+    updated_entry = {
+        "config": config_to_toml_dict(config),
+        "model": model or device_entry.get("model"),
+        "extra": extra or device_entry.get("extra", {}),
+    }
+    print("✓ Credentials updated and validated.")  # noqa: T201
+    return updated_entry
+
+
+async def health_check_device(
+    serial: str, device_entry: DeviceEntry
+) -> HealthCheckResult:
+    """Check device connectivity and retrieve basic info.
+
+    Args:
+        serial: Device serial number
+        device_entry: Device entry with config
+
+    Returns:
+        HealthCheckResult with success flag, response time, model, firmware, and error
+
+    """
+    config_dict = device_entry.get("config", {})
+    if not isinstance(config_dict, dict):
+        return HealthCheckResult(
+            success=False,
+            error="Device config is invalid.",
+        )
+
+    device_info = {
+        "host": str(config_dict.get("host", "")),
+        "username": str(config_dict.get("username", "")),
+        "password": str(config_dict.get("password", "")),
+    }
+
+    if not device_info["host"] or not device_info["username"]:
+        return HealthCheckResult(
+            success=False,
+            error="Device config is incomplete.",
+        )
+
+    print(f"Checking device health for {serial}...")  # noqa: T201
+
+    start = time.perf_counter()
+
+    try:
+        config, _serial_verify, model, extra = await validate_and_fetch_device(
+            device_info
+        )
+        if config is None:
+            return HealthCheckResult(
+                success=False,
+                error="Failed to connect to device.",
+            )
+        elapsed = (time.perf_counter() - start) * 1000  # ms
+
+        firmware = ""
+        if isinstance(extra, dict):
+            firmware = str(extra.get("firmware", "")).strip()
+
+        return HealthCheckResult(
+            success=True,
+            response_time_ms=elapsed,
+            model=model,
+            firmware=firmware if firmware else None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return HealthCheckResult(
+            success=False,
+            error=str(exc),
+        )

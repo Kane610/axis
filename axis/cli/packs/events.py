@@ -10,6 +10,7 @@ from aiohttp import ClientSession
 
 from axis.cli.packs.devices import (
     DeviceEntry,
+    _format_device_operations_label,
     get_device_credentials,
     run_on_selected_device,
 )
@@ -59,17 +60,44 @@ def list_event_instances_flow(
         print(f"No event instances found for {serial}.")  # noqa: T201
         return []
 
-    print(f"\nEvent instances for {serial}:")  # noqa: T201
-    for idx, ev in enumerate(events, 1):
-        flags = []
-        if ev["stateful"] == "True":
-            flags.append("stateful")
-        if ev["stateless"] == "True":
-            flags.append("stateless")
-        if ev["available"] == "True":
-            flags.append("available")
-        flag_str = ", ".join(flags) if flags else "none"
-        print(f"  {idx}. {ev['name']} [{ev['topic']}] ({flag_str})")  # noqa: T201
+    device_label = _format_device_operations_label(serial, device_entry)
+    print(f"\nEvent instances for {device_label}:")  # noqa: T201
+
+    rows: list[tuple[str, str, str, str]] = []
+    for _idx, ev in enumerate(events, 1):
+        is_stateful = ev["stateful"] == "True"
+        is_stateless = ev["stateless"] == "True"
+        if is_stateful and is_stateless:
+            state = "stateful/stateless"
+        elif is_stateful:
+            state = "stateful"
+        elif is_stateless:
+            state = "stateless"
+        else:
+            state = "none"
+
+        available = "yes" if ev["available"] == "True" else "no"
+        name = ev["name"].strip() if ev["name"].strip() else "<unnamed>"
+        rows.append((name, ev["topic"], state, available))
+
+    name_width = max(len("name"), *(len(row[0]) for row in rows))
+    topic_width = max(len("topic"), *(len(row[1]) for row in rows))
+    state_width = max(len("state"), *(len(row[2]) for row in rows))
+    available_width = max(len("available"), *(len(row[3]) for row in rows))
+
+    print(  # noqa: T201
+        f"  {'#':>2}  {'name':<{name_width}}  {'topic':<{topic_width}}"
+        f"  {'state':<{state_width}}  {'available':<{available_width}}"
+    )
+    print(  # noqa: T201
+        f"  {'-' * (16 + name_width + topic_width + state_width + available_width)}"
+    )
+
+    for idx, (name, topic, state, available) in enumerate(rows, 1):
+        print(  # noqa: T201
+            f"  {idx:>2}. {name:<{name_width}}  {topic:<{topic_width}}"
+            f"  {state:<{state_width}}  {available:<{available_width}}"
+        )
     return events
 
 
@@ -119,8 +147,9 @@ def _live_listen_flow(device_entry: DeviceEntry, topic_filter: str | None) -> No
 
 
 def events_flow(serial: str, device_entry: DeviceEntry) -> None:
+    device_label = _format_device_operations_label(serial, device_entry)
     while True:
-        print(f"\nEvent options for {serial}:")  # noqa: T201
+        print(f"\nEvent options for {device_label}:")  # noqa: T201
         print("  1. List event instances")  # noqa: T201
         print("  2. Listen to events (all topics)")  # noqa: T201
         print("  3. Listen to events (select topic)")  # noqa: T201

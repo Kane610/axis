@@ -13,10 +13,13 @@ from axis.cli.packs.devices import (
     DeviceStore,
     _format_device_operations_label,
     config_to_toml_dict,
+    delete_device,
     discover_axis_devices,
+    edit_device_credentials,
     filter_discovered_devices,
     find_serial_by_host,
     get_config_path,
+    health_check_device,
     load_devices,
     migrate_unknown_entry,
     print_registered_devices,
@@ -35,15 +38,24 @@ def register(registry: object, router: object) -> None:
 
 def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
     device_label = _format_device_operations_label(serial, device_entry)
+    actions = [
+        ("1", "List supported APIs"),
+        ("2", "API drill-down"),
+        ("3", "Event instances & live listen"),
+        ("4", "Account management"),
+        ("5", "Device health check"),
+        ("6", "Edit device credentials"),
+        ("7", "Delete device"),
+    ]
     while True:
         print(f"\nDevice operations for {device_label}:")  # noqa: T201
-        print("  1. List supported APIs")  # noqa: T201
-        print("  2. API drill-down")  # noqa: T201
-        print("  3. Event instances & live listen")  # noqa: T201
-        print("  4. Account management")  # noqa: T201
+        print("   #  action")  # noqa: T201
+        print("  --  ----------------------------------")  # noqa: T201
+        for key, label in actions:
+            print(f"  {key:>2}  {label}")  # noqa: T201
         print("  b. Back")  # noqa: T201
         print("  e. Exit")  # noqa: T201
-        choice = input("Select option [1-4/b/e]: ").strip().lower()
+        choice = input("Select option [1-7/b/e]: ").strip().lower()
 
         if choice == "1":
             list_supported_apis_flow(serial, device_entry)
@@ -61,6 +73,40 @@ def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
             account_management_flow(serial, device_entry)
             continue
 
+        if choice == "5":  # Health check
+            result = asyncio.run(health_check_device(serial, device_entry))
+            if result.success:
+                print("\n✓ Device is healthy")  # noqa: T201
+                print(f"  Response time: {result.response_time_ms:.1f}ms")  # noqa: T201
+                print(f"  Model: {result.model}")  # noqa: T201
+                if result.firmware:
+                    print(f"  Firmware: {result.firmware}")  # noqa: T201
+            else:
+                print("\n✗ Device health check failed")  # noqa: T201
+                print(f"  Error: {result.error}")  # noqa: T201
+            input("\nPress Enter to continue...")
+            continue
+
+        if choice == "6":  # Edit credentials
+            updated = asyncio.run(edit_device_credentials(serial, device_entry))
+            if updated:
+                config_path = get_config_path()
+                devices = load_devices(config_path)
+                devices[serial] = updated
+                save_devices(config_path, devices)
+                device_entry = updated
+                print(f"✓ Device {serial} updated.\n")  # noqa: T201
+            continue
+
+        if choice == "7":  # Delete device
+            config_path = get_config_path()
+            devices = load_devices(config_path)
+            if delete_device(serial, devices):
+                save_devices(config_path, devices)
+                print("\nReturning to main menu.")  # noqa: T201
+                return
+            continue
+
         if choice == "b":
             return
 
@@ -68,7 +114,7 @@ def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
             print("Exiting.")  # noqa: T201
             raise SystemExit(0)
 
-        print("Invalid option. Please enter 1, 2, 3, 4, b, or e.")  # noqa: T201
+        print("Invalid option. Please enter 1-7, b, or e.")  # noqa: T201
 
 
 def run_main_loop(config_path: Path | None = None) -> None:

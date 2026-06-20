@@ -19,13 +19,16 @@ from axis.cli.main import (
     DeviceEntry,
     DeviceStore,
     config_to_toml_dict,
+    delete_device,
     discover_axis_devices,
+    edit_device_credentials,
     extract_serial_number,
     fetch_device_serial_and_extra,
     filter_discovered_devices,
     find_serial_by_host,
     get_config_path,
     get_device_credentials,
+    health_check_device,
     is_axis_macaddress,
     load_devices,
     migrate_unknown_entry,
@@ -780,3 +783,281 @@ def test_fetch_device_serial_and_extra_falls_back_to_param_cgi() -> None:
     assert info["serial_number"] == "SER123"
     assert info["product_number"] == "MODEL9"
     assert info["source"] == "param.cgi"
+
+
+# ---------------------------------------------------------------------------
+# delete_device
+# ---------------------------------------------------------------------------
+
+
+def test_delete_device_success() -> None:
+    """Device is removed after 'delete' confirmation."""
+    devices: DeviceStore = {
+        "SN1": {"config": {"host": "10.0.0.1", "username": "admin"}, "model": "M1"}
+    }
+    with patch("builtins.input", return_value="delete"):
+        result = delete_device("SN1", devices)
+    assert result is True
+    assert "SN1" not in devices
+
+
+def test_delete_device_user_cancel() -> None:
+    """No change if user types wrong confirmation text."""
+    devices: DeviceStore = {
+        "SN1": {"config": {"host": "10.0.0.1", "username": "admin"}, "model": "M1"}
+    }
+    with patch("builtins.input", return_value="cancel"):
+        result = delete_device("SN1", devices)
+    assert result is False
+    assert "SN1" in devices
+
+
+def test_delete_device_not_found() -> None:
+    """Handles missing device gracefully."""
+    devices: DeviceStore = {}
+    with patch("builtins.input"):
+        result = delete_device("MISSING", devices)
+    assert result is False
+
+
+# ---------------------------------------------------------------------------
+# edit_device_credentials
+# ---------------------------------------------------------------------------
+
+
+async def test_edit_device_credentials_update_host() -> None:
+    """Updates host field when user provides new value."""
+    device_entry: DeviceEntry = {
+        "config": {
+            "host": "10.0.0.1",
+            "username": "admin",
+            "password": "pass",
+            "port": 80,
+            "web_proto": "http",
+            "verify_ssl": False,
+            "is_companion": False,
+            "auth_scheme": "digest",
+            "websocket_enabled": True,
+            "websocket_force": False,
+        },
+        "model": "M1",
+    }
+    fake_config = MagicMock()
+    fake_config.host = "10.0.0.2"
+    fake_config.username = "admin"
+    fake_config.password = "pass"
+    fake_config.port = 80
+    fake_config.web_proto = "http"
+    fake_config.verify_ssl = False
+    fake_config.is_companion = False
+    fake_config.auth_scheme = "digest"
+    fake_config.websocket_enabled = True
+    fake_config.websocket_force = False
+
+    with (
+        patch("builtins.input", side_effect=["10.0.0.2", "", "", ""]),
+        patch("axis.cli.packs.devices.getpass.getpass", return_value=""),
+        patch(
+            "axis.cli.packs.devices.validate_and_fetch_device",
+            return_value=(fake_config, "SN1", "M1", {}),
+        ),
+    ):
+        result = await edit_device_credentials("SN1", device_entry)
+
+    assert result is not None
+    assert result["config"]["host"] == "10.0.0.2"
+
+
+async def test_edit_device_credentials_skip_password() -> None:
+    """Enter key keeps current password."""
+    device_entry: DeviceEntry = {
+        "config": {
+            "host": "10.0.0.1",
+            "username": "admin",
+            "password": "oldpass",
+            "port": 80,
+            "web_proto": "http",
+            "verify_ssl": False,
+            "is_companion": False,
+            "auth_scheme": "digest",
+            "websocket_enabled": True,
+            "websocket_force": False,
+        },
+        "model": "M1",
+    }
+    fake_config = MagicMock()
+    fake_config.host = "10.0.0.1"
+    fake_config.username = "admin"
+    fake_config.password = "oldpass"
+    fake_config.port = 80
+    fake_config.web_proto = "http"
+    fake_config.verify_ssl = False
+    fake_config.is_companion = False
+    fake_config.auth_scheme = "digest"
+    fake_config.websocket_enabled = True
+    fake_config.websocket_force = False
+
+    with (
+        patch("builtins.input", side_effect=["", "", "", ""]),
+        patch("axis.cli.packs.devices.getpass.getpass", return_value=""),
+        patch(
+            "axis.cli.packs.devices.validate_and_fetch_device",
+            return_value=(fake_config, "SN1", "M1", {}),
+        ),
+    ):
+        result = await edit_device_credentials("SN1", device_entry)
+
+    assert result is not None
+    # Password should be kept from original entry
+
+
+async def test_edit_device_credentials_validation_fail(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Connection check fails, entry unchanged."""
+    device_entry: DeviceEntry = {
+        "config": {
+            "host": "10.0.0.1",
+            "username": "admin",
+            "password": "pass",
+            "port": 80,
+            "web_proto": "http",
+            "verify_ssl": False,
+            "is_companion": False,
+            "auth_scheme": "digest",
+            "websocket_enabled": True,
+            "websocket_force": False,
+        },
+        "model": "M1",
+    }
+
+    with (
+        patch("builtins.input", side_effect=["10.0.0.99", "", "", ""]),
+        patch("axis.cli.packs.devices.getpass.getpass", return_value=""),
+        patch(
+            "axis.cli.packs.devices.validate_and_fetch_device",
+            return_value=(None, None, None, None),
+        ),
+    ):
+        result = await edit_device_credentials("SN1", device_entry)
+
+    assert result is None
+    out = capsys.readouterr().out
+    assert "Validation failed" in out
+
+
+async def test_edit_device_credentials_update_all_fields() -> None:
+    """All fields can be changed."""
+    device_entry: DeviceEntry = {
+        "config": {
+            "host": "10.0.0.1",
+            "username": "user1",
+            "password": "pass1",
+            "port": 80,
+            "web_proto": "http",
+            "verify_ssl": False,
+            "is_companion": False,
+            "auth_scheme": "digest",
+            "websocket_enabled": True,
+            "websocket_force": False,
+        },
+        "model": "M1",
+    }
+    fake_config = MagicMock()
+    fake_config.host = "10.0.0.3"
+    fake_config.username = "user2"
+    fake_config.password = "pass2"
+    fake_config.port = 8080
+    fake_config.web_proto = "https"
+    fake_config.verify_ssl = True
+    fake_config.is_companion = False
+    fake_config.auth_scheme = "digest"
+    fake_config.websocket_enabled = True
+    fake_config.websocket_force = False
+
+    with (
+        patch("builtins.input", side_effect=["10.0.0.3", "user2", "8080", ""]),
+        patch("axis.cli.packs.devices.getpass.getpass", return_value="pass2"),
+        patch(
+            "axis.cli.packs.devices.validate_and_fetch_device",
+            return_value=(fake_config, "SN1", "M1", {}),
+        ),
+    ):
+        result = await edit_device_credentials("SN1", device_entry)
+
+    assert result is not None
+    assert result["config"]["host"] == "10.0.0.3"
+    assert result["config"]["username"] == "user2"
+    assert result["config"]["port"] == 8080
+
+
+# ---------------------------------------------------------------------------
+# health_check_device
+# ---------------------------------------------------------------------------
+
+
+async def test_health_check_device_success() -> None:
+    """Returns response time, model, and firmware."""
+    device_entry: DeviceEntry = {
+        "config": {
+            "host": "10.0.0.1",
+            "username": "admin",
+            "password": "pass",
+        }
+    }
+    fake_config = MagicMock()
+    extra = {"firmware": "9.0.1"}
+
+    with patch(
+        "axis.cli.packs.devices.validate_and_fetch_device",
+        return_value=(fake_config, "SN1", "Model1", extra),
+    ):
+        result = await health_check_device("SN1", device_entry)
+
+    assert result.success is True
+    assert result.model == "Model1"
+    assert result.firmware == "9.0.1"
+    assert result.response_time_ms is not None
+    assert result.response_time_ms > 0
+    assert result.error is None
+
+
+async def test_health_check_device_connectivity_fail() -> None:
+    """Returns error message when connectivity fails."""
+    device_entry: DeviceEntry = {
+        "config": {
+            "host": "10.0.0.99",
+            "username": "admin",
+            "password": "pass",
+        }
+    }
+
+    with patch(
+        "axis.cli.packs.devices.validate_and_fetch_device",
+        return_value=(None, None, None, None),
+    ):
+        result = await health_check_device("SN1", device_entry)
+
+    assert result.success is False
+    assert result.error is not None
+    assert "Failed to connect" in result.error
+
+
+async def test_health_check_device_exception_handled() -> None:
+    """Catches and reports exceptions."""
+    device_entry: DeviceEntry = {
+        "config": {
+            "host": "10.0.0.1",
+            "username": "admin",
+            "password": "pass",
+        }
+    }
+
+    with patch(
+        "axis.cli.packs.devices.validate_and_fetch_device",
+        side_effect=Exception("Test error"),
+    ):
+        result = await health_check_device("SN1", device_entry)
+
+    assert result.success is False
+    assert "Test error" in result.error

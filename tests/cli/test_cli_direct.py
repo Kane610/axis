@@ -163,8 +163,37 @@ def test_list_event_instances_with_results(
         result = list_event_instances_flow("SN1", _make_device_entry())
     assert len(result) == 1
     out = capsys.readouterr().out
+    assert "Event instances for" in out
+    assert "192.168.1.1" in out
+    assert "mac=SN1" in out
+    assert "#" in out
+    assert "name" in out
+    assert "topic" in out
+    assert "state" in out
+    assert "available" in out
     assert "Fan failure" in out
     assert "tnsaxis:HardwareFailure/Fan" in out
+
+
+def test_list_event_instances_with_empty_name(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Uses a fallback label when event name is empty."""
+    fake_events = [
+        {
+            "topic": "tns1:Device/Trigger/DigitalInput",
+            "name": "",
+            "stateful": "True",
+            "stateless": "False",
+            "available": "True",
+        }
+    ]
+    with patch("axis.cli.packs.events.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_events
+        result = list_event_instances_flow("SN1", _make_device_entry())
+    assert len(result) == 1
+    out = capsys.readouterr().out
+    assert "<unnamed>" in out
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +242,10 @@ def test_account_management_flow_back(capsys: pytest.CaptureFixture[str]) -> Non
     """Selecting 'b' exits without calling any account operation."""
     with patch("builtins.input", side_effect=["b"]):
         account_management_flow("SN1", _make_device_entry())
+    out = capsys.readouterr().out
+    assert "Account management for" in out
+    assert "192.168.1.1" in out
+    assert "mac=SN1" in out
 
 
 def test_account_management_flow_invalid_then_back(
@@ -462,6 +495,14 @@ def test_list_supported_apis_flow_with_apis(
         mock_asyncio.run.return_value = fake_apis
         list_supported_apis_flow("SN1", _make_device_entry())
     out = capsys.readouterr().out
+    assert "Supported APIs for" in out
+    assert "192.168.1.1" in out
+    assert "mac=SN1" in out
+    assert "#" in out
+    assert "id" in out
+    assert "name" in out
+    assert "version" in out
+    assert "status" in out
     assert "basic-device-info" in out
 
 
@@ -495,6 +536,79 @@ def test_api_drill_down_flow_back(capsys: pytest.CaptureFixture[str]) -> None:
         mock_asyncio.run.return_value = fake_interfaces
         with patch("builtins.input", return_value="b"):
             api_drill_down_flow(_make_device_entry())
+
+
+def test_api_drill_down_flow_prints_normalized_columns(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Drill-down list prints fixed-width columns for easier comparison."""
+    fake_interfaces = [
+        {
+            "name": "api_discovery",
+            "api_id": "api-discovery",
+            "api_version": "1.0",
+            "listed": True,
+            "probe_attempted": True,
+            "probe_succeeded": True,
+            "supported": True,
+            "initialized": False,
+            "items": 0,
+        },
+        {
+            "name": "event_instances",
+            "api_id": "",
+            "api_version": "",
+            "listed": False,
+            "probe_attempted": True,
+            "probe_succeeded": True,
+            "supported": False,
+            "initialized": False,
+            "items": 3,
+        },
+    ]
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_interfaces
+        with patch("builtins.input", return_value="b"):
+            api_drill_down_flow(_make_device_entry())
+
+    out = capsys.readouterr().out
+    assert "#" in out
+    assert "name" in out
+    assert "api" in out
+    assert "adv" in out
+    assert "probe" in out
+    assert "usable" in out
+    assert "init" in out
+    assert "items" in out
+
+
+def test_api_drill_down_flow_selected_details_truth_fields(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Selected interface details include listed/probe/supported truth fields."""
+    fake_interfaces = [
+        {
+            "name": "object_analytics",
+            "api_id": "",
+            "api_version": "",
+            "listed": False,
+            "probe_attempted": True,
+            "probe_succeeded": True,
+            "supported": True,
+            "initialized": True,
+            "items": 1,
+        },
+    ]
+    with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
+        mock_asyncio.run.return_value = fake_interfaces
+        with patch("builtins.input", side_effect=["1", "b", "b"]):
+            api_drill_down_flow(_make_device_entry())
+
+    out = capsys.readouterr().out
+    assert "Listed:" in out
+    assert "Probe Attempted:" in out
+    assert "Probe Succeeded:" in out
+    assert "Supported:" in out
 
 
 def test_api_drill_down_flow_invalid_index(capsys: pytest.CaptureFixture[str]) -> None:

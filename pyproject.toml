@@ -24,6 +24,8 @@ dependencies    = [
     "faust-cchardet>=2.1.18",
     "orjson>3.9",
     "packaging>23",
+    "tomli>=2.0",
+    "tomli-w>=1.0",
     "xmltodict>=0.13.0",
     "zeroconf==0.149.16",
 ]
@@ -56,6 +58,7 @@ requirements-dev = [
 
 [project.scripts]
 axis = "axis.__main__:main"
+axis-cli = "axis.cli.main:main"
 
 [tool.coverage.report]
 fail_under = 95
