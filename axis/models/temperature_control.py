@@ -7,46 +7,9 @@ Implements parsing, normalization, and status representation for temperature-rel
 from dataclasses import dataclass
 import enum
 import re
-from typing import NotRequired, Self, TypedDict, cast
+from typing import Self
 
 from .api import ApiItem, ApiRequest, ApiResponse
-
-
-class TemperatureStatusAllDict(TypedDict):
-    """Top-level VAPIX temperature status response.
-
-    Contains all sensors, heaters, and fans keyed by their device id.
-    """
-
-    sensor: dict[str, TemperatureSensorStatusDict]
-    heater: dict[str, HeaterStatusDict]
-    fan: dict[str, FanStatusDict]
-
-
-class TemperatureSensorStatusDict(TypedDict):
-    """VAPIX temperature sensor status fields."""
-
-    id: str
-    Name: NotRequired[str]
-    Celsius: NotRequired[str]
-    Fahrenheit: NotRequired[str]
-
-
-class HeaterStatusDict(TypedDict):
-    """VAPIX heater status fields."""
-
-    id: str
-    Status: NotRequired[str]
-    TimeUntilStop: NotRequired[str]
-
-
-class FanStatusDict(TypedDict):
-    """VAPIX fan status fields."""
-
-    id: str
-    Status: NotRequired[str]
-    TimeUntilStop: NotRequired[str]
-
 
 API_VERSION = "1.0"
 
@@ -95,10 +58,7 @@ class TemperatureControlStatus(ApiItem):
     time_until_stop: int | None = None
 
     @classmethod
-    def decode(
-        cls,
-        data: TemperatureSensorStatusDict | HeaterStatusDict | FanStatusDict,
-    ) -> Self:
+    def decode(cls, data: dict[str, str]) -> Self:
         """Create status object from parsed statusall key-value fields."""
         item_id = data["id"]
         device_type = TemperatureDeviceType(_device_type_from_id(item_id))
@@ -127,11 +87,11 @@ class GetStatusAllResponse(ApiResponse[dict[str, TemperatureControlStatus]]):
     def decode(cls, bytes_data: bytes) -> GetStatusAllResponse:
         """Decode raw bytes into a typed response payload."""
         payload = bytes_data.decode("utf-8")
-        status_dicts: TemperatureStatusAllDict = _parse_statusall_entries(payload)
-        data = {
+        parsed = _parse_statusall_entries(payload)
+        data: dict[str, TemperatureControlStatus] = {
             item_id: TemperatureControlStatus.decode(fields)
-            for group in ("sensor", "heater", "fan")
-            for item_id, fields in status_dicts[group].items()
+            for group_entries in parsed.values()
+            for item_id, fields in group_entries.items()
         }
         return cls(data=data)
 
@@ -151,8 +111,10 @@ class GetStatusAllRequest(ApiRequest[GetStatusAllResponse]):
         return {"action": "statusall"}
 
 
-def _parse_statusall_entries(payload: str) -> TemperatureStatusAllDict:
-    """Parse statusall response into a dict with 'sensor', 'heater', 'fan' keys, each mapping to id→status dicts."""
+def _parse_statusall_entries(
+    payload: str,
+) -> dict[str, dict[str, dict[str, str]]]:
+    """Parse statusall response into a dict with 'sensor', 'heater', 'fan' keys, each mapping to id→field dicts."""
     sensors: dict[str, dict[str, str]] = {}
     heaters: dict[str, dict[str, str]] = {}
     fans: dict[str, dict[str, str]] = {}
@@ -188,9 +150,7 @@ def _parse_statusall_entries(payload: str) -> TemperatureStatusAllDict:
         else:
             continue
 
-    return cast(
-        "TemperatureStatusAllDict", {"sensor": sensors, "heater": heaters, "fan": fans}
-    )
+    return {"sensor": sensors, "heater": heaters, "fan": fans}
 
 
 def _device_type_from_id(item_id: str) -> str:
