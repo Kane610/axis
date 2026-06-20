@@ -11,6 +11,7 @@ import pytest
 from axis.cli.core.contracts import CommandCapabilities, CommandResult
 from axis.cli.core.gateway import DeviceGateway
 from axis.cli.core.io import TerminalIO
+from axis.cli.core.registry import CommandRegistry
 from axis.cli.core.router import CliRouter, MenuItem, MenuNode
 from axis.cli.packs import api as api_pack, events as events_pack
 from axis.errors import RequestError
@@ -402,3 +403,54 @@ def test_api_and_events_register_noop() -> None:
     """Register placeholders are intentionally no-op."""
     assert api_pack.register(object(), object()) is None
     assert events_pack.register(object(), object()) is None
+
+
+def test_command_registry_register_get_list() -> None:
+    """CommandRegistry stores and retrieves commands by id."""
+    cmd = MagicMock()
+    cmd.id = "test-cmd"
+    registry = CommandRegistry()
+    registry.register_command(cmd)
+    assert registry.get_command("test-cmd") is cmd
+    assert registry.list_commands() == [cmd]
+
+
+@pytest.mark.asyncio
+async def test_device_gateway_os_error(capsys: pytest.CaptureFixture[str]) -> None:
+    """Gateway returns None and prints message on OSError."""
+    gateway = DeviceGateway()
+    with (
+        patch("axis.cli.core.gateway.ClientSession") as mock_session,
+        patch("axis.cli.core.gateway.AxisDevice"),
+    ):
+        mock_session.return_value.__aenter__.return_value = MagicMock()
+        op = AsyncMock(side_effect=OSError("connection refused"))
+        result = await gateway.run(
+            {"config": {"host": "h", "username": "u", "password": "p"}},
+            op,
+        )
+    assert result is None
+    assert "failed to connect" in capsys.readouterr().out.lower()
+
+
+@pytest.mark.asyncio
+async def test_router_back_at_root_and_noop() -> None:
+    """Router stays at root on 'b' when no parent; noop action loops without error."""
+    io = MagicMock()
+    # Sequence: "b" at root (no parent → stay), "1" noop, "e" exit
+    io.prompt = MagicMock(side_effect=["b", "1", "e"])
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[MenuItem(key="1", label="Do nothing", action="noop")],
+        )
+    )
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=MagicMock(), io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "Exiting." in written
