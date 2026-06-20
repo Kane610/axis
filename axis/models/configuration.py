@@ -73,6 +73,10 @@ class Configuration:
             msg = "Host must be a non-empty hostname or IP address"
             raise ValueError(msg)
 
+        if " " in self.host:
+            msg = "Host must not contain spaces"
+            raise ValueError(msg)
+
         if "://" in self.host or any(char in self.host for char in ("/", "?", "#")):
             msg = (
                 "Host must not include scheme, path, query, or fragment; "

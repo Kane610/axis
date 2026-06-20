@@ -1,6 +1,7 @@
 """Python library to enable Axis devices to integrate with Home Assistant."""
 
 import asyncio
+from dataclasses import dataclass
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +34,8 @@ from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from ..device import AxisDevice
     from ..models.api import ApiRequest
     from ..models.stream_profile import StreamProfile
@@ -40,6 +43,25 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 TIME_OUT = 15
+
+
+@dataclass(frozen=True)
+class InterfaceState:
+    """Structured interface truth exposed by Vapix.
+
+    The CLI and other consumers should render this state directly instead of
+    deriving support heuristics independently.
+    """
+
+    name: str
+    api_id: str
+    api_version: str
+    listed: bool
+    probe_attempted: bool
+    probe_succeeded: bool
+    supported: bool
+    initialized: bool
+    items: int
 
 
 class Vapix:
@@ -177,6 +199,62 @@ class Vapix:
         """Return handlers assigned to an initialization group."""
         return tuple(self._handler_registry[group])
 
+    def interfaces(self) -> dict[str, ApiHandler[Any]]:
+        """Return all Vapix interface handlers mapped by attribute name.
+
+        This is a read-only discovery helper and does not trigger initialization
+        or network requests.
+        """
+        return {
+            name: value
+            for name, value in vars(self).items()
+            if isinstance(value, ApiHandler)
+        }
+
+    async def inspect_interfaces(
+        self,
+        *,
+        refresh_discovery: bool = True,
+        probe: bool = False,
+    ) -> dict[str, InterfaceState]:
+        """Return structured interface state for consumers like CLI.
+
+        Args:
+            refresh_discovery: Refresh API discovery before evaluation.
+            probe: Best-effort update of non-initialized handlers to determine
+                practical support and current item counts.
+
+        """
+        if refresh_discovery:
+            await self.api_discovery.update()
+
+        states: dict[str, InterfaceState] = {}
+        for name, handler in sorted(self.interfaces().items()):
+            listed = handler.supported
+            probe_attempted = False
+            probe_succeeded = False
+
+            if probe and not handler.initialized:
+                probe_attempted = True
+                probe_succeeded = await handler.update()
+
+            items = len(handler)
+            initialized = handler.initialized
+            supported = bool(listed or probe_succeeded or initialized or items > 0)
+            states[name] = InterfaceState(
+                name=name,
+                api_id=str(getattr(handler.api_id, "value", "") or ""),
+                api_version=handler.api_version,
+                listed=listed,
+                probe_attempted=probe_attempted,
+                probe_succeeded=probe_succeeded,
+                supported=supported,
+                initialized=initialized,
+                items=items,
+            )
+
+        return states
+
     async def _initialize_handlers(self, group: HandlerGroup) -> None:
         """Initialize handlers in a group."""
         handlers = self._handlers_by_group(group)
@@ -190,7 +268,7 @@ class Vapix:
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
         """Load data from param.cgi."""
-        tasks = []
+        tasks: list[Awaitable[bool]] = []
 
         if preload_data:
             tasks.append(self.params.update())
@@ -252,7 +330,7 @@ class Vapix:
 
         if not user_groups and await self.user_groups.update():
             return
-        self.user_groups._items.update(user_groups)
+        self.user_groups.update_items(user_groups)
 
     async def api_request[ApiResponseT](
         self,

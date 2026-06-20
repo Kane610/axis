@@ -191,6 +191,10 @@ class ApiHandler[ApiItemT: ApiItem](SubscriptionHandler):
         """Return items."""
         return self._items.items()
 
+    def update_items(self, items: dict[str, ApiItemT]) -> None:
+        """Merge new items into the handler storage."""
+        self._items.update(items)
+
     def keys(self) -> KeysView[str]:
         """Return item keys."""
         return self._items.keys()

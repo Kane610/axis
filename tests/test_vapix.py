@@ -4,6 +4,7 @@ pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
 from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -202,6 +203,55 @@ def test_unassigned_handlers_excluded_from_grouping(vapix: Vapix) -> None:
     assert vapix.api_discovery not in param_fallback_handlers
     assert vapix.params not in param_fallback_handlers
     assert vapix.event_instances not in param_fallback_handlers
+
+
+def test_interfaces_returns_dynamic_handler_mapping(vapix: Vapix) -> None:
+    """Verify interface mapping exposes all ApiHandler attributes."""
+    interfaces = vapix.interfaces()
+
+    assert interfaces["api_discovery"] is vapix.api_discovery
+    assert interfaces["params"] is vapix.params
+    assert interfaces["basic_device_info"] is vapix.basic_device_info
+    assert interfaces["event_instances"] is vapix.event_instances
+    assert interfaces["users"] is vapix.users
+    assert interfaces["user_groups"] is vapix.user_groups
+
+    assert "device" not in interfaces
+    assert "auth" not in interfaces
+
+
+@pytest.mark.asyncio
+async def test_inspect_interfaces_returns_structured_truth(vapix: Vapix) -> None:
+    """Vapix interface inspection provides a single structured source of truth."""
+    handler = MagicMock()
+    handler.supported = False
+    handler.initialized = False
+    handler.api_id = None
+    handler.api_version = ""
+    handler.__len__.return_value = 0
+
+    async def _update() -> bool:
+        handler.initialized = True
+        handler.__len__.return_value = 2
+        return True
+
+    handler.update = AsyncMock(side_effect=_update)
+
+    vapix.api_discovery.update = AsyncMock(return_value=True)
+    vapix.interfaces = MagicMock(return_value={"event_instances": handler})
+
+    states = await vapix.inspect_interfaces(refresh_discovery=True, probe=True)
+
+    vapix.api_discovery.update.assert_awaited_once()
+    handler.update.assert_awaited_once()
+
+    state = states["event_instances"]
+    assert state.name == "event_instances"
+    assert state.supported is True
+    assert state.initialized is True
+    assert state.items == 2
+    assert state.probe_attempted is True
+    assert state.probe_succeeded is True
 
 
 async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
