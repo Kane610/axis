@@ -4,6 +4,7 @@ Defines models for the Axis VAPIX temperature control API, enabling integration 
 Implements parsing, normalization, and status representation for temperature-related device features.
 """
 
+from abc import abstractmethod
 from dataclasses import dataclass
 import enum
 import re
@@ -35,9 +36,9 @@ class TemperatureDevice(ApiItem):
     """Abstract base for any temperature-managed device."""
 
     @classmethod
+    @abstractmethod
     def decode(cls, data: dict[str, str]) -> Self:
         """Decode data to class object."""
-        raise NotImplementedError
 
 
 @dataclass(frozen=True)
@@ -112,7 +113,7 @@ class GetStatusAllResponse(ApiResponse[dict[str, TemperatureDevice]]):
         parsed = _parse_statusall_entries(payload)
         data: dict[str, TemperatureDevice] = {}
         for group_key, factory in _DEVICE_FACTORY.items():
-            for item_id, fields in parsed[group_key].items():
+            for item_id, fields in parsed.get(group_key, {}).items():
                 data[item_id] = factory.decode(fields)
         return cls(data=data)
 
