@@ -16,20 +16,6 @@ API_VERSION = "1.0"
 _RUNNING_INTENSITY_RE = re.compile(r"Running\[(\d+)%?\]")
 
 
-class TemperatureDeviceType(enum.StrEnum):
-    """Temperature device category."""
-
-    FAN = "fan"
-    HEATER = "heater"
-    SENSOR = "sensor"
-    UNKNOWN = "unknown"
-
-    @classmethod
-    def _missing_(cls, value: object) -> TemperatureDeviceType:
-        """Map unsupported values to UNKNOWN."""
-        return cls.UNKNOWN
-
-
 class TemperatureDeviceStatus(enum.StrEnum):
     """Normalized state for fan/heater status strings."""
 
@@ -45,54 +31,89 @@ class TemperatureDeviceStatus(enum.StrEnum):
 
 
 @dataclass(frozen=True)
-class TemperatureControlStatus(ApiItem):
-    """Temperature status item from statusall response."""
+class TemperatureDevice(ApiItem):
+    """Abstract base for any temperature-managed device."""
 
-    device_type: TemperatureDeviceType
+    @classmethod
+    def decode(cls, data: dict[str, str]) -> Self:
+        """Decode data to class object."""
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class TemperatureSensor(TemperatureDevice):
+    """A temperature-reporting sensor (Sensor.Sx entries)."""
+
     celsius: float | None = None
     fahrenheit: float | None = None
-    intensity: int | None = None
     name: str | None = None
+
+    @classmethod
+    def decode(cls, data: dict[str, str]) -> Self:
+        """Create sensor object from parsed statusall key-value fields."""
+        return cls(
+            id=data["id"],
+            celsius=_to_float(data.get("Celsius")),
+            fahrenheit=_to_float(data.get("Fahrenheit")),
+            name=data.get("Name"),
+        )
+
+
+@dataclass(frozen=True)
+class TemperatureActuator(TemperatureDevice):
+    """Shared fields for heater and fan devices."""
+
+    intensity: int | None = None
     status: TemperatureDeviceStatus = TemperatureDeviceStatus.UNKNOWN
     status_raw: str | None = None
     time_until_stop: int | None = None
 
     @classmethod
     def decode(cls, data: dict[str, str]) -> Self:
-        """Create status object from parsed statusall key-value fields."""
-        item_id = data["id"]
-        device_type = TemperatureDeviceType(_device_type_from_id(item_id))
+        """Create actuator object from parsed statusall key-value fields."""
         status_raw = data.get("Status")
         status, intensity = _parse_status(status_raw)
         return cls(
-            id=item_id,
-            celsius=_to_float(data.get("Celsius")),
-            device_type=device_type,
-            fahrenheit=_to_float(data.get("Fahrenheit")),
+            id=data["id"],
             intensity=intensity,
-            name=data.get("Name"),
             status=status,
             status_raw=status_raw,
             time_until_stop=_to_int(data.get("TimeUntilStop")),
         )
 
 
+@dataclass(frozen=True)
+class TemperatureHeater(TemperatureActuator):
+    """A controllable heater (Heater.Hx entries)."""
+
+
+@dataclass(frozen=True)
+class TemperatureFan(TemperatureActuator):
+    """A controllable fan (Fan.Fx entries)."""
+
+
+_DEVICE_FACTORY: dict[str, type[TemperatureDevice]] = {
+    "sensor": TemperatureSensor,
+    "heater": TemperatureHeater,
+    "fan": TemperatureFan,
+}
+
+
 @dataclass
-class GetStatusAllResponse(ApiResponse[dict[str, TemperatureControlStatus]]):
+class GetStatusAllResponse(ApiResponse[dict[str, TemperatureDevice]]):
     """Response object for temperature statusall."""
 
-    data: dict[str, TemperatureControlStatus]
+    data: dict[str, TemperatureDevice]
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> GetStatusAllResponse:
         """Decode raw bytes into a typed response payload."""
         payload = bytes_data.decode("utf-8")
         parsed = _parse_statusall_entries(payload)
-        data: dict[str, TemperatureControlStatus] = {
-            item_id: TemperatureControlStatus.decode(fields)
-            for group_entries in parsed.values()
-            for item_id, fields in group_entries.items()
-        }
+        data: dict[str, TemperatureDevice] = {}
+        for group_key, factory in _DEVICE_FACTORY.items():
+            for item_id, fields in parsed[group_key].items():
+                data[item_id] = factory.decode(fields)
         return cls(data=data)
 
 
@@ -151,17 +172,6 @@ def _parse_statusall_entries(
             continue
 
     return {"sensor": sensors, "heater": heaters, "fan": fans}
-
-
-def _device_type_from_id(item_id: str) -> str:
-    """Infer device type from statusall id key."""
-    if item_id.startswith("Sensor."):
-        return TemperatureDeviceType.SENSOR
-    if item_id.startswith("Heater."):
-        return TemperatureDeviceType.HEATER
-    if item_id.startswith("Fan."):
-        return TemperatureDeviceType.FAN
-    return TemperatureDeviceType.UNKNOWN
 
 
 def _parse_status(

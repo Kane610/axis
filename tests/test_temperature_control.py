@@ -7,9 +7,11 @@ import pytest
 from axis.models.api_discovery import Api
 from axis.models.temperature_control import (
     GetStatusAllRequest,
-    TemperatureControlStatus,
+    TemperatureActuator,
     TemperatureDeviceStatus,
-    TemperatureDeviceType,
+    TemperatureFan,
+    TemperatureHeater,
+    TemperatureSensor,
 )
 
 from tests.conftest import (
@@ -81,23 +83,20 @@ async def test_update(
     assert temperature_control.initialized
 
     sensor = temperature_control["Sensor.S0"]
-    assert isinstance(sensor, TemperatureControlStatus)
-    assert sensor.device_type == TemperatureDeviceType.SENSOR
+    assert isinstance(sensor, TemperatureSensor)
     assert sensor.name == "Main"
     assert sensor.celsius == 43.5
     assert sensor.fahrenheit == 110.3
 
     heater = temperature_control["Heater.H0"]
-    assert isinstance(heater, TemperatureControlStatus)
-    assert heater.device_type == TemperatureDeviceType.HEATER
+    assert isinstance(heater, TemperatureHeater)
     assert heater.status == TemperatureDeviceStatus.RUNNING
     assert heater.status_raw == "Running[85%]"
     assert heater.intensity == 85
     assert heater.time_until_stop == 95
 
     fan = temperature_control["Fan.F0"]
-    assert isinstance(fan, TemperatureControlStatus)
-    assert fan.device_type == TemperatureDeviceType.FAN
+    assert isinstance(fan, TemperatureFan)
     assert fan.status == TemperatureDeviceStatus.STOPPED
     assert fan.intensity is None
     assert fan.time_until_stop == 0
@@ -122,16 +121,18 @@ Fan.F9.Status=Fan Failure
     assert route.called
 
     heater = data["Heater.H1"]
-    assert isinstance(heater, TemperatureControlStatus)
+    assert isinstance(heater, TemperatureHeater)
     assert heater.status == TemperatureDeviceStatus.RUNNING
     assert heater.intensity is None
     assert heater.time_until_stop is None
 
     sensor = data["Sensor.S1"]
+    assert isinstance(sensor, TemperatureSensor)
     assert sensor.celsius is None
     assert sensor.fahrenheit == 100.5
 
     fan = data["Fan.F9"]
+    assert isinstance(fan, TemperatureFan)
     assert fan.status == TemperatureDeviceStatus.FAILURE
 
 
@@ -152,9 +153,9 @@ async def test_grouped_accessors(
     assert list(heaters) == ["Heater.H0"]
     assert list(fans) == ["Fan.F0"]
 
-    assert isinstance(sensors["Sensor.S0"], TemperatureControlStatus)
-    assert isinstance(heaters["Heater.H0"], TemperatureControlStatus)
-    assert isinstance(fans["Fan.F0"], TemperatureControlStatus)
+    assert isinstance(sensors["Sensor.S0"], TemperatureSensor)
+    assert isinstance(heaters["Heater.H0"], TemperatureHeater)
+    assert isinstance(fans["Fan.F0"], TemperatureFan)
 
 
 async def test_item_accessors(
@@ -170,9 +171,9 @@ async def test_item_accessors(
     heater = temperature_control.get_heater("Heater.H0")
     fan = temperature_control.get_fan("Fan.F0")
 
-    assert isinstance(sensor, TemperatureControlStatus)
-    assert isinstance(heater, TemperatureControlStatus)
-    assert isinstance(fan, TemperatureControlStatus)
+    assert isinstance(sensor, TemperatureSensor)
+    assert isinstance(heater, TemperatureHeater)
+    assert isinstance(fan, TemperatureFan)
 
     assert temperature_control.get_sensor("Sensor.Missing") is None
     assert temperature_control.get_heater("Fan.F0") is None
@@ -183,7 +184,7 @@ async def test_running_actuator_accessors(
     mock_temperature_request,
     temperature_control: TemperatureControlHandler,
 ) -> None:
-    """Test convenience accessors for currently running heaters and fans."""
+    """Test convenience accessors for currently running heaters, fans and actuators."""
     mock_temperature_request(
         """Sensor.S0.Name=Main
 Heater.H0.Status=Running[85%]
@@ -197,9 +198,14 @@ Fan.F1.Status=Stopped
 
     running_heaters = temperature_control.running_heaters
     running_fans = temperature_control.running_fans
+    running_actuators = temperature_control.running_actuators
 
     assert list(running_heaters) == ["Heater.H0"]
     assert list(running_fans) == ["Fan.F0"]
 
-    assert isinstance(running_heaters["Heater.H0"], TemperatureControlStatus)
-    assert isinstance(running_fans["Fan.F0"], TemperatureControlStatus)
+    assert isinstance(running_heaters["Heater.H0"], TemperatureHeater)
+    assert isinstance(running_fans["Fan.F0"], TemperatureFan)
+
+    assert set(running_actuators) == {"Heater.H0", "Fan.F0"}
+    assert isinstance(running_actuators["Heater.H0"], TemperatureActuator)
+    assert isinstance(running_actuators["Fan.F0"], TemperatureActuator)
