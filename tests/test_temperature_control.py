@@ -12,6 +12,7 @@ from axis.models.temperature_control import (
     TemperatureFan,
     TemperatureHeater,
     TemperatureSensor,
+    _parse_status,
 )
 
 from tests.conftest import (
@@ -209,3 +210,19 @@ Fan.F1.Status=Stopped
     assert set(running_actuators) == {"Heater.H0", "Fan.F0"}
     assert isinstance(running_actuators["Heater.H0"], TemperatureActuator)
     assert isinstance(running_actuators["Fan.F0"], TemperatureActuator)
+
+
+def test_parse_status_none_and_unknown_fallback() -> None:
+    """Test _parse_status edge cases: None input and unrecognised status string."""
+    status, intensity = _parse_status(None)
+    assert status == TemperatureDeviceStatus.UNKNOWN
+    assert intensity is None
+
+    status, intensity = _parse_status("SomeUnknownState")
+    assert status == TemperatureDeviceStatus.UNKNOWN
+    assert intensity is None
+
+
+def test_temperature_device_status_missing() -> None:
+    """Test TemperatureDeviceStatus._missing_ returns UNKNOWN for unknown values."""
+    assert TemperatureDeviceStatus("completely_unknown") == TemperatureDeviceStatus.UNKNOWN
