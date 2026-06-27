@@ -13,6 +13,7 @@ from axis.models.temperature_control import (
     TemperatureHeater,
     TemperatureSensor,
     _parse_status,
+    _parse_statusall_entries,
 )
 
 from tests.conftest import (
@@ -228,3 +229,21 @@ def test_temperature_device_status_missing() -> None:
     assert (
         TemperatureDeviceStatus("completely_unknown") == TemperatureDeviceStatus.UNKNOWN
     )
+
+
+def test_parse_statusall_entries_skips_malformed_lines() -> None:
+    """Test _parse_statusall_entries ignores lines that don't match the expected format."""
+    payload = (
+        "\n"  # empty line → continue (line 149)
+        "no_equals_sign\n"  # no '=' → continue (line 149)
+        "TwoPartsOnly=value\n"  # only 2 key parts → continue (line 153)
+        "Sensor.S0.UnknownField=x\n"  # unknown sensor field → continue (line 159)
+        "Heater.H0.UnknownField=x\n"  # unknown heater field → continue (line 164)
+        "Fan.F0.UnknownField=x\n"  # unknown fan field → continue (line 169)
+        "Unknown.X0.Status=Running\n"  # unknown prefix → continue (line 173)
+        "Sensor.S0.Celsius=22.5\n"  # valid line to confirm parsing still works
+    )
+    result = _parse_statusall_entries(payload)
+    assert result["sensor"] == {"Sensor.S0": {"id": "Sensor.S0", "Celsius": "22.5"}}
+    assert result["heater"] == {}
+    assert result["fan"] == {}
