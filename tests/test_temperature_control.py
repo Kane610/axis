@@ -225,4 +225,6 @@ def test_parse_status_none_and_unknown_fallback() -> None:
 
 def test_temperature_device_status_missing() -> None:
     """Test TemperatureDeviceStatus._missing_ returns UNKNOWN for unknown values."""
-    assert TemperatureDeviceStatus("completely_unknown") == TemperatureDeviceStatus.UNKNOWN
+    assert (
+        TemperatureDeviceStatus("completely_unknown") == TemperatureDeviceStatus.UNKNOWN
+    )
