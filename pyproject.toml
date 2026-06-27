@@ -27,7 +27,7 @@ dependencies    = [
     "tomli>=2.0",
     "tomli-w>=1.0",
     "xmltodict>=0.13.0",
-    "zeroconf==0.149.17",
+    "zeroconf==0.150.0",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +36,7 @@ requirements = [
     "orjson==3.11.9",
     "packaging==26.2",
     "xmltodict==1.0.4",
-    "zeroconf==0.149.17",
+    "zeroconf==0.150.0",
 ]
 requirements-test = [
     "mypy==2.1.0",
