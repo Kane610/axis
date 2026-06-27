@@ -27,6 +27,11 @@ For request models:
 - Use `ApiRequest[ConcreteResponse]` plus `response_type = ConcreteResponse` for decoded responses.
 - Use `ApiRequest[ApiResponse[bytes]]` plus `response_type = BytesResponse` for write/raw-byte responses.
 
+For model style in `axis/models/`:
+- Keep enum members alphabetized when practical.
+- Keep dataclass fields alphabetized when practical.
+- Preserve Python's required-before-default dataclass field rule even when that prevents perfect alphabetical ordering.
+
 **Copilot request:**
 ```
 I need to add a new handler for [feature].

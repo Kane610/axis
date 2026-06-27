@@ -30,6 +30,7 @@ from .port_management import IoPortManagement
 from .ptz import PtzControl
 from .pwdgrp_cgi import Users
 from .stream_profiles import StreamProfilesHandler
+from .temperature_control import TemperatureControlHandler
 from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
 
@@ -98,6 +99,7 @@ class Vapix:
         self.light_control = LightHandler(self)
         self.mqtt = MqttClientHandler(self)
         self.pir_sensor_configuration = PirSensorConfigurationHandler(self)
+        self.temperature_control = TemperatureControlHandler(self)
         self.stream_profiles = StreamProfilesHandler(self)
         self.view_areas = ViewAreaHandler(self)
 
