@@ -689,11 +689,10 @@ def test_api_drill_down_flow_show_all_data_stays_on_selected_interface(
 
     async def _read_interface_data(
         _: DeviceEntry,
-        name: str,
-        traversal_path: str | None = None,
+        _name: str,
+        _traversal_path: str | None = None,
     ) -> None:
-        del name
-        del traversal_path
+        return None
 
     with (
         patch("axis.cli.packs.api.fetch_vapix_interfaces", _fetch_interfaces),
@@ -704,6 +703,7 @@ def test_api_drill_down_flow_show_all_data_stays_on_selected_interface(
 
     out = capsys.readouterr().out
     assert out.count("Selected interface:") == 2
+    assert out.count("Interface actions:") == 2
 
 
 def test_api_drill_down_flow_action_invalid(capsys: pytest.CaptureFixture[str]) -> None:
