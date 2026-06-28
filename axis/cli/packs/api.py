@@ -228,7 +228,7 @@ async def run_api_read_action(
         title = (
             f"{interface_name} @ {traversal_path}" if traversal_path else interface_name
         )
-        print(f"\nInterface data: {title}")  # noqa: T201
+        print(f"Interface data: {title}")  # noqa: T201
         if not _render_api_discovery_table(payload):
             print(pformat(payload))  # noqa: T201
 
@@ -294,23 +294,23 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
             continue
 
         selected_interface = interfaces[index - 1]
+        print("\nSelected interface:")  # noqa: T201
+        print(f"  Name: {selected_interface['name']}")  # noqa: T201
+        print(f"  API ID: {selected_interface['api_id'] or 'internal'}")  # noqa: T201
+        print(f"  API Version: {selected_interface['api_version']}")  # noqa: T201
+        print(f"  Listed: {selected_interface.get('listed', False)}")  # noqa: T201
+        print(  # noqa: T201
+            f"  Probe Attempted: {selected_interface.get('probe_attempted', False)}"
+        )
+        print(  # noqa: T201
+            f"  Probe Succeeded: {selected_interface.get('probe_succeeded', False)}"
+        )
+        print(f"  Supported: {selected_interface['supported']}")  # noqa: T201
+        print(f"  Initialized: {selected_interface['initialized']}")  # noqa: T201
+        print(f"  Items: {selected_interface['items']}")  # noqa: T201
         while True:
-            print("\nSelected interface:")  # noqa: T201
-            print(f"  Name: {selected_interface['name']}")  # noqa: T201
-            print(f"  API ID: {selected_interface['api_id'] or 'internal'}")  # noqa: T201
-            print(f"  API Version: {selected_interface['api_version']}")  # noqa: T201
-            print(f"  Listed: {selected_interface.get('listed', False)}")  # noqa: T201
-            print(  # noqa: T201
-                f"  Probe Attempted: {selected_interface.get('probe_attempted', False)}"
-            )
-            print(  # noqa: T201
-                f"  Probe Succeeded: {selected_interface.get('probe_succeeded', False)}"
-            )
-            print(f"  Supported: {selected_interface['supported']}")  # noqa: T201
-            print(f"  Initialized: {selected_interface['initialized']}")  # noqa: T201
-            print(f"  Items: {selected_interface['items']}")  # noqa: T201
-
-            print("\nInterface actions:")  # noqa: T201
+            print()  # noqa: T201
+            print("Interface actions:")  # noqa: T201
             print("  1. Show all data")  # noqa: T201
             print("  2. Traverse by path")  # noqa: T201
             print("  b. Back")  # noqa: T201

@@ -702,7 +702,7 @@ def test_api_drill_down_flow_show_all_data_stays_on_selected_interface(
         api_drill_down_flow(_make_device_entry())
 
     out = capsys.readouterr().out
-    assert out.count("Selected interface:") == 2
+    assert out.count("Selected interface:") == 1
     assert out.count("Interface actions:") == 2
 
 
