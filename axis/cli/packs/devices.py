@@ -766,7 +766,10 @@ async def run_on_selected_device[ReturnT](
 
 
 async def register_or_update_device_async(
-    devices: DeviceStore, io: CliIO
+    devices: DeviceStore,
+    io: CliIO,
+    *,
+    device_info: dict[str, str] | None = None,
 ) -> CommandResult:
     """Register or update a device in-place.
 
@@ -774,11 +777,12 @@ async def register_or_update_device_async(
         CommandResult describing update status and user-facing message.
 
     """
-    device_info = {
-        "host": io.prompt("Enter device host/IP: ").strip(),
-        "username": io.prompt("Enter username: ").strip(),
-        "password": io.prompt_password("Enter password: "),
-    }
+    if device_info is None:
+        device_info = {
+            "host": io.prompt("Enter device host/IP: ").strip(),
+            "username": io.prompt("Enter username: ").strip(),
+            "password": io.prompt_password("Enter password: "),
+        }
     existing_serial_for_host = find_serial_by_host(devices, device_info["host"])
     if existing_serial_for_host is not None:
         update_existing = (
@@ -830,7 +834,13 @@ async def register_or_update_device_async(
 def register_or_update_device(devices: DeviceStore) -> None:
     """Legacy sync wrapper for register/update flow."""
     io = _TerminalIOAdapter()
-    result = asyncio.run(register_or_update_device_async(devices, io))
+    result = asyncio.run(
+        register_or_update_device_async(
+            devices,
+            io,
+            device_info=prompt_for_device(),
+        )
+    )
     if result.message:
         io.write(result.message)
     if result.status != "ok":
