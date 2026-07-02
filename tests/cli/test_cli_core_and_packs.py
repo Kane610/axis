@@ -240,6 +240,63 @@ async def test_devices_operations_command_sets_selected_device_context() -> None
     assert ctx.selected_device == selected_entry
 
 
+@pytest.mark.asyncio
+async def test_devices_discover_command_cancelled_without_selection() -> None:
+    """devices.discover command returns cancelled when no discovered device is chosen."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    with (
+        patch("axis.cli.packs.devices.load_devices", return_value={}),
+        patch(
+            "axis.cli.packs.devices.discover_axis_devices",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch("axis.cli.packs.devices.filter_discovered_devices", return_value=[]),
+        patch("axis.cli.packs.devices.select_discovered_device", return_value=None),
+    ):
+        ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+        io = MagicMock()
+        command = registry.get_command("devices.discover")
+        result = await command.run(ctx, io)
+
+    assert result.status == "cancelled"
+    assert result.message == "Device discovery aborted."
+
+
+@pytest.mark.asyncio
+async def test_devices_add_command_persists_when_registry_changes() -> None:
+    """devices.add command persists updated devices when registration mutates store."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    devices: dict[str, object] = {}
+
+    def _mutate_registry(store: dict[str, object]) -> None:
+        store["SN1"] = {
+            "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+        }
+
+    with (
+        patch("axis.cli.packs.devices.load_devices", return_value=devices),
+        patch(
+            "axis.cli.packs.devices.register_or_update_device",
+            side_effect=_mutate_registry,
+        ),
+        patch("axis.cli.packs.devices.save_devices") as mock_save,
+    ):
+        ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+        io = MagicMock()
+        command = registry.get_command("devices.add")
+        result = await command.run(ctx, io)
+
+    assert result.status == "ok"
+    assert result.message == "Device registry updated."
+    mock_save.assert_called_once()
+
+
 def test_contracts_and_terminal_io_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
     """Core contract dataclasses and terminal IO methods are usable."""
     caps = CommandCapabilities(
