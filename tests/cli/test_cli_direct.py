@@ -669,6 +669,43 @@ def test_api_drill_down_flow_action_back(capsys: pytest.CaptureFixture[str]) -> 
             api_drill_down_flow(_make_device_entry())
 
 
+def test_api_drill_down_flow_show_all_data_stays_on_selected_interface(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Show-all-data returns to the selected interface actions."""
+    fake_interfaces = [
+        {
+            "name": "temperature_control",
+            "api_id": "temperaturecontrol",
+            "api_version": "1",
+            "supported": True,
+            "initialized": True,
+            "items": 3,
+        },
+    ]
+
+    async def _fetch_interfaces(_: DeviceEntry) -> list[dict[str, str | bool | int]]:
+        return fake_interfaces
+
+    async def _read_interface_data(
+        _: DeviceEntry,
+        _name: str,
+        _traversal_path: str | None = None,
+    ) -> None:
+        return None
+
+    with (
+        patch("axis.cli.packs.api.fetch_vapix_interfaces", _fetch_interfaces),
+        patch("axis.cli.packs.api.run_api_read_action", _read_interface_data),
+        patch("builtins.input", side_effect=["1", "1", "b", "b"]),
+    ):
+        api_drill_down_flow(_make_device_entry())
+
+    out = capsys.readouterr().out
+    assert out.count("Selected interface:") == 1
+    assert out.count("Interface actions:") == 2
+
+
 def test_api_drill_down_flow_action_invalid(capsys: pytest.CaptureFixture[str]) -> None:
     """Invalid action choice shows message then 'b' exits."""
     fake_interfaces = [
@@ -683,7 +720,7 @@ def test_api_drill_down_flow_action_invalid(capsys: pytest.CaptureFixture[str]) 
     ]
     with patch("axis.cli.packs.api.asyncio") as mock_asyncio:
         mock_asyncio.run.return_value = fake_interfaces
-        with patch("builtins.input", side_effect=["1", "9", "b"]):
+        with patch("builtins.input", side_effect=["1", "9", "b", "b"]):
             api_drill_down_flow(_make_device_entry())
     out = capsys.readouterr().out
     assert "Invalid" in out

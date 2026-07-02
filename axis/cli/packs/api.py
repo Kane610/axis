@@ -228,7 +228,7 @@ async def run_api_read_action(
         title = (
             f"{interface_name} @ {traversal_path}" if traversal_path else interface_name
         )
-        print(f"\nInterface data: {title}")  # noqa: T201
+        print(f"Interface data: {title}")  # noqa: T201
         if not _render_api_discovery_table(payload):
             print(pformat(payload))  # noqa: T201
 
@@ -308,39 +308,40 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
         print(f"  Supported: {selected_interface['supported']}")  # noqa: T201
         print(f"  Initialized: {selected_interface['initialized']}")  # noqa: T201
         print(f"  Items: {selected_interface['items']}")  # noqa: T201
+        while True:
+            print()  # noqa: T201
+            print("Interface actions:")  # noqa: T201
+            print("  1. Show all data")  # noqa: T201
+            print("  2. Traverse by path")  # noqa: T201
+            print("  b. Back")  # noqa: T201
+            print("  e. Exit")  # noqa: T201
+            action_choice = input("Select action [1/2/b/e]: ").strip().lower()
+            if action_choice == "e":
+                print("Exiting.")  # noqa: T201
+                raise SystemExit(0)
+            if action_choice == "b":
+                break
 
-        print("\nInterface actions:")  # noqa: T201
-        print("  1. Show all data")  # noqa: T201
-        print("  2. Traverse by path")  # noqa: T201
-        print("  b. Back")  # noqa: T201
-        print("  e. Exit")  # noqa: T201
-        action_choice = input("Select action [1/2/b/e]: ").strip().lower()
-        if action_choice == "e":
-            print("Exiting.")  # noqa: T201
-            raise SystemExit(0)
-        if action_choice == "b":
-            continue
-
-        if action_choice == "1":
-            asyncio.run(
-                run_api_read_action(device_entry, str(selected_interface["name"]))
-            )
-            continue
-
-        if action_choice == "2":
-            traversal_path = input(
-                "Traversal path (dot notation, e.g. 0.source.items.0.name): "
-            ).strip()
-            if not traversal_path:
-                print("Traversal path cannot be empty.")  # noqa: T201
-                continue
-            asyncio.run(
-                run_api_read_action(
-                    device_entry,
-                    str(selected_interface["name"]),
-                    traversal_path,
+            if action_choice == "1":
+                asyncio.run(
+                    run_api_read_action(device_entry, str(selected_interface["name"]))
                 )
-            )
-            continue
+                continue
 
-        print("Invalid option. Please enter 1, 2, b, or e.")  # noqa: T201
+            if action_choice == "2":
+                traversal_path = input(
+                    "Traversal path (dot notation, e.g. 0.source.items.0.name): "
+                ).strip()
+                if not traversal_path:
+                    print("Traversal path cannot be empty.")  # noqa: T201
+                    continue
+                asyncio.run(
+                    run_api_read_action(
+                        device_entry,
+                        str(selected_interface["name"]),
+                        traversal_path,
+                    )
+                )
+                continue
+
+            print("Invalid option. Please enter 1, 2, b, or e.")  # noqa: T201
