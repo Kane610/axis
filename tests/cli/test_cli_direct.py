@@ -1259,3 +1259,21 @@ def test_main_debug_env_enables_verbose_mode(
 
     out = capsys.readouterr().out
     assert "Debug mode enabled" in out
+
+
+def test_main_router_mode_uses_router_runtime() -> None:
+    """AXIS_CLI_USE_ROUTER switches main loop to router runtime path."""
+    runtime = MagicMock()
+    runtime.router = MagicMock()
+    runtime.router.run = AsyncMock(side_effect=SystemExit(0))
+
+    with (
+        patch.dict(os.environ, {"AXIS_CLI_USE_ROUTER": "1"}, clear=True),
+        patch("axis.cli.main.build_cli_runtime", return_value=runtime),
+        patch("axis.cli.main.navigation_pack.run_main_loop") as mock_legacy_loop,
+        pytest.raises(SystemExit),
+    ):
+        main()
+
+    runtime.router.run.assert_awaited_once()
+    mock_legacy_loop.assert_not_called()
