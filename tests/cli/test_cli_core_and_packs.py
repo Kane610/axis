@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from axis.cli.core.context import CliContext
 from axis.cli.core.contracts import CommandCapabilities, CommandResult
 from axis.cli.core.gateway import DeviceGateway
 from axis.cli.core.io import TerminalIO
@@ -137,6 +139,27 @@ def test_compose_builtin_packs_registers_commands_and_nodes() -> None:
         "events",
         "accounts",
     }.issubset(node_ids)
+
+
+@pytest.mark.asyncio
+async def test_registered_navigation_commands_require_selected_device() -> None:
+    """Navigation commands return cancelled status when no device is selected."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+    io = MagicMock()
+
+    for command_id in (
+        "navigation.health_check",
+        "navigation.edit_credentials",
+        "navigation.delete_device",
+    ):
+        command = registry.get_command(command_id)
+        result = await command.run(ctx, io)
+        assert result.status == "cancelled"
+        assert result.message == "No selected device in context."
 
 
 def test_contracts_and_terminal_io_smoke(monkeypatch: pytest.MonkeyPatch) -> None:

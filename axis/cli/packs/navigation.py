@@ -41,42 +41,99 @@ if TYPE_CHECKING:
     from axis.cli.core.router import CliRouter
 
 
-class _StaticMessageCommand:
-    def __init__(self, command_id: str, title: str, message: str) -> None:
-        self.id = command_id
-        self.title = title
-        self.capabilities = CommandCapabilities()
-        self._message = message
+def _selected_device_from_context(
+    ctx: CliContext,
+) -> tuple[str, DeviceEntry] | None:
+    if ctx.selected_serial is None or ctx.selected_device is None:
+        return None
+    return (ctx.selected_serial, ctx.selected_device)
+
+
+class _HealthCheckCommand:
+    id = "navigation.health_check"
+    title = "Health check"
+    capabilities = CommandCapabilities(requires_device=True)
 
     async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
-        _ = ctx
         _ = io
-        return CommandResult(message=self._message)
+        selected = _selected_device_from_context(ctx)
+        if selected is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+
+        serial, device_entry = selected
+        result = await health_check_device(serial, device_entry)
+        if result.success:
+            message = f"Health check passed ({result.response_time_ms:.1f}ms)."
+            return CommandResult(message=message)
+
+        return CommandResult(
+            status="error", message=f"Health check failed: {result.error}"
+        )
+
+
+class _EditCredentialsCommand:
+    id = "navigation.edit_credentials"
+    title = "Edit credentials"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        selected = _selected_device_from_context(ctx)
+        if selected is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+
+        serial, device_entry = selected
+        updated = await edit_device_credentials(serial, device_entry)
+        if not updated:
+            return CommandResult(
+                status="cancelled", message="Credential update cancelled."
+            )
+
+        devices = load_devices(ctx.config_path)
+        devices[serial] = updated
+        save_devices(ctx.config_path, devices)
+        ctx.selected_device = updated
+        return CommandResult(message=f"Device {serial} updated.")
+
+
+class _DeleteDeviceCommand:
+    id = "navigation.delete_device"
+    title = "Delete device"
+    capabilities = CommandCapabilities(requires_device=True, destructive=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        selected = _selected_device_from_context(ctx)
+        if selected is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+
+        serial, _device_entry = selected
+        devices = load_devices(ctx.config_path)
+        if not delete_device(serial, devices):
+            return CommandResult(
+                status="cancelled", message="Device deletion cancelled."
+            )
+
+        save_devices(ctx.config_path, devices)
+        ctx.selected_serial = None
+        ctx.selected_device = None
+        return CommandResult(message=f"Device {serial} deleted.")
 
 
 def register(registry: CommandRegistry, router: CliRouter) -> None:
     """Register navigation-pack commands and menu nodes."""
-    registry.register_command(
-        _StaticMessageCommand(
-            "navigation.health_check",
-            "Health check",
-            "Health check command is registered but not router-wired yet.",
-        )
-    )
-    registry.register_command(
-        _StaticMessageCommand(
-            "navigation.edit_credentials",
-            "Edit credentials",
-            "Edit credentials command is registered but not router-wired yet.",
-        )
-    )
-    registry.register_command(
-        _StaticMessageCommand(
-            "navigation.delete_device",
-            "Delete device",
-            "Delete device command is registered but not router-wired yet.",
-        )
-    )
+    registry.register_command(_HealthCheckCommand())
+    registry.register_command(_EditCredentialsCommand())
+    registry.register_command(_DeleteDeviceCommand())
 
     router.register_node(
         MenuNode(
