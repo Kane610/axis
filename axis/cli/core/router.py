@@ -100,6 +100,10 @@ class CliRouter:
                         io.write(f"Unknown node: {requested_node}")
                 if result.message:
                     io.write(result.message)
+                elif result.status == "error":
+                    io.write("Command failed.")
+                elif result.status == "cancelled":
+                    io.write("Command cancelled.")
                 continue
 
             io.write("Unsupported action.")

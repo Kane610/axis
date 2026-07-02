@@ -193,6 +193,84 @@ async def test_router_writes_message_before_payload_navigation() -> None:
     assert "\nSub:" in written
 
 
+@pytest.mark.asyncio
+async def test_router_writes_default_error_message_when_missing() -> None:
+    """Router writes fallback message for error results without explicit text."""
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["1", "e"])
+
+    command = MagicMock()
+    command.id = "fail"
+    command.run = AsyncMock(return_value=CommandResult(status="error"))
+
+    registry = CommandRegistry()
+    registry.register_command(command)
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Fail",
+                    action="command",
+                    command_id="fail",
+                )
+            ],
+        )
+    )
+
+    ctx = MagicMock()
+    ctx.command_registry = registry
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "Command failed." in written
+
+
+@pytest.mark.asyncio
+async def test_router_writes_default_cancelled_message_when_missing() -> None:
+    """Router writes fallback message for cancelled results without explicit text."""
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["1", "e"])
+
+    command = MagicMock()
+    command.id = "cancel"
+    command.run = AsyncMock(return_value=CommandResult(status="cancelled"))
+
+    registry = CommandRegistry()
+    registry.register_command(command)
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Cancel",
+                    action="command",
+                    command_id="cancel",
+                )
+            ],
+        )
+    )
+
+    ctx = MagicMock()
+    ctx.command_registry = registry
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "Command cancelled." in written
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()
