@@ -40,14 +40,12 @@ class _AddDeviceCommand:
 
     async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
         devices = load_devices(ctx.config_path)
-        updated = await register_or_update_device_async(devices, io)
-        if not updated:
-            return CommandResult(
-                status="cancelled", message="Device registration aborted."
-            )
+        result = await register_or_update_device_async(devices, io)
+        if result.status != "ok":
+            return result
 
         save_devices(ctx.config_path, devices)
-        return CommandResult(message="Device registry updated.")
+        return result
 
 
 class _DiscoverDevicesCommand:
@@ -767,11 +765,13 @@ async def run_on_selected_device[ReturnT](
     return None
 
 
-async def register_or_update_device_async(devices: DeviceStore, io: CliIO) -> bool:
+async def register_or_update_device_async(
+    devices: DeviceStore, io: CliIO
+) -> CommandResult:
     """Register or update a device in-place.
 
     Returns:
-        True when device store is updated, False when user aborts or validation fails.
+        CommandResult describing update status and user-facing message.
 
     """
     device_info = {
@@ -790,12 +790,17 @@ async def register_or_update_device_async(devices: DeviceStore, io: CliIO) -> bo
             .lower()
         )
         if update_existing != "y":
-            io.write("Device registration aborted.")
-            return False
+            return CommandResult(
+                status="cancelled",
+                message="Device registration aborted.",
+            )
 
     config, serial, model, extra = await validate_and_fetch_device(device_info)
     if config is None or serial is None or model is None or extra is None:
-        return False
+        return CommandResult(
+            status="error",
+            message="Unable to validate device.",
+        )
 
     migrate_unknown_entry(devices, serial, device_info["host"])
 
@@ -809,24 +814,26 @@ async def register_or_update_device_async(devices: DeviceStore, io: CliIO) -> bo
             .lower()
         )
         if update != "y":
-            io.write("Device registration aborted.")
-            return False
+            return CommandResult(
+                status="cancelled",
+                message="Device registration aborted.",
+            )
 
     devices[serial] = {
         "config": config_to_toml_dict(config),
         "model": model,
         "extra": extra,
     }
-    io.write(f"Device '{serial}' registered/updated.")
-    return True
+    return CommandResult(message=f"Device '{serial}' registered/updated.")
 
 
 def register_or_update_device(devices: DeviceStore) -> None:
     """Legacy sync wrapper for register/update flow."""
-    updated = asyncio.run(
-        register_or_update_device_async(devices, _TerminalIOAdapter())
-    )
-    if not updated:
+    io = _TerminalIOAdapter()
+    result = asyncio.run(register_or_update_device_async(devices, io))
+    if result.message:
+        io.write(result.message)
+    if result.status != "ok":
         return
 
 

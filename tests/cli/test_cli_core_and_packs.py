@@ -489,12 +489,12 @@ async def test_devices_add_command_persists_when_registry_changes() -> None:
 
     devices: dict[str, object] = {}
 
-    async def _mutate_registry(store: dict[str, object], io: object) -> bool:
+    async def _mutate_registry(store: dict[str, object], io: object) -> CommandResult:
         _ = io
         store["SN1"] = {
             "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
         }
-        return True
+        return CommandResult(message="Device 'SN1' registered/updated.")
 
     with (
         patch("axis.cli.packs.devices.load_devices", return_value=devices),
@@ -510,7 +510,7 @@ async def test_devices_add_command_persists_when_registry_changes() -> None:
         result = await command.run(ctx, io)
 
     assert result.status == "ok"
-    assert result.message == "Device registry updated."
+    assert result.message == "Device 'SN1' registered/updated."
     mock_save.assert_called_once()
 
 
