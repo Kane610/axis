@@ -372,6 +372,23 @@ async def test_devices_operations_command_sets_selected_device_context() -> None
 
 
 @pytest.mark.asyncio
+async def test_devices_operations_command_handles_empty_registry() -> None:
+    """devices.operations returns explicit cancelled result when no devices exist."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    with patch("axis.cli.packs.devices.load_devices", return_value={}):
+        ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+        io = MagicMock()
+        command = registry.get_command("devices.operations")
+        result = await command.run(ctx, io)
+
+    assert result.status == "cancelled"
+    assert result.message == "No devices available."
+
+
+@pytest.mark.asyncio
 async def test_router_device_selection_command_navigates_to_operations() -> None:
     """Selecting devices.operations through router updates context and transitions node."""
     registry = CommandRegistry()

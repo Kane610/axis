@@ -130,6 +130,12 @@ class _SelectDeviceForOperationsCommand:
     async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
         _ = io
         devices = load_devices(ctx.config_path)
+        if not devices:
+            return CommandResult(
+                status="cancelled",
+                message="No devices available.",
+            )
+
         selected = select_device(devices)
         if selected is None:
             return CommandResult(status="cancelled", message="No device selected.")
