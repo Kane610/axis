@@ -394,6 +394,68 @@ async def test_registered_navigation_commands_require_selected_device() -> None:
 
 
 @pytest.mark.asyncio
+async def test_registered_pack_menu_commands_require_selected_device() -> None:
+    """API/events/accounts menu commands return cancelled when context has no device."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+    io = MagicMock()
+
+    for command_id in (
+        "api.list_supported",
+        "api.drill_down",
+        "events.menu",
+        "accounts.menu",
+    ):
+        command = registry.get_command(command_id)
+        result = await command.run(ctx, io)
+        assert result.status == "cancelled"
+        assert result.message == "No selected device in context."
+
+
+@pytest.mark.asyncio
+async def test_registered_pack_menu_commands_call_flows_with_selected_device() -> None:
+    """API/events/accounts menu commands call underlying flows when context has device."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device=selected_entry,
+    )
+    io = MagicMock()
+
+    with (
+        patch("axis.cli.packs.api.list_supported_apis_flow") as mock_list_supported,
+        patch("axis.cli.packs.api.api_drill_down_flow") as mock_api_drill_down,
+        patch("axis.cli.packs.events.events_flow") as mock_events_flow,
+        patch("axis.cli.packs.accounts.account_management_flow") as mock_accounts_flow,
+    ):
+        result_api_list = await registry.get_command("api.list_supported").run(ctx, io)
+        result_api_drill = await registry.get_command("api.drill_down").run(ctx, io)
+        result_events = await registry.get_command("events.menu").run(ctx, io)
+        result_accounts = await registry.get_command("accounts.menu").run(ctx, io)
+
+    assert result_api_list.status == "ok"
+    assert result_api_drill.status == "ok"
+    assert result_events.status == "ok"
+    assert result_accounts.status == "ok"
+
+    mock_list_supported.assert_called_once_with("SN1", selected_entry)
+    mock_api_drill_down.assert_called_once_with(selected_entry)
+    mock_events_flow.assert_called_once_with("SN1", selected_entry)
+    mock_accounts_flow.assert_called_once_with("SN1", selected_entry)
+
+
+@pytest.mark.asyncio
 async def test_devices_operations_command_sets_selected_device_context() -> None:
     """devices.operations command stores selected device and requests navigation."""
     registry = CommandRegistry()
