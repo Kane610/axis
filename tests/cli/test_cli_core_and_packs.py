@@ -571,7 +571,7 @@ async def test_devices_discover_command_cancelled_without_selection() -> None:
 
 @pytest.mark.asyncio
 async def test_devices_discover_command_writes_abort_via_io() -> None:
-    """devices.discover uses CliIO for abort messaging when update is declined."""
+    """devices.discover returns explicit abort result when update is declined."""
     registry = CommandRegistry()
     router = CliRouter()
     compose_builtin_packs(registry, router)
@@ -609,7 +609,6 @@ async def test_devices_discover_command_writes_abort_via_io() -> None:
 
     assert result.status == "cancelled"
     assert result.message == "Device registration aborted."
-    io.write.assert_called_with("Device registration aborted.")
 
 
 @pytest.mark.asyncio

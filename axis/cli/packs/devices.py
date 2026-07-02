@@ -72,54 +72,14 @@ class _DiscoverDevicesCommand:
             "password": password,
         }
 
-        existing_serial_for_host = find_serial_by_host(devices, device_info["host"])
-        if existing_serial_for_host is not None:
-            update_existing = (
-                io.prompt(
-                    f"A device with host {device_info['host']} already exists "
-                    f"(serial {existing_serial_for_host}). Update it? (y/n): "
-                )
-                .strip()
-                .lower()
-            )
-            if update_existing != "y":
-                io.write("Device registration aborted.")
-                return CommandResult(
-                    status="cancelled",
-                    message="Device registration aborted.",
-                )
-
-        config, serial, model, extra = await validate_and_fetch_device(device_info)
-        if config is None or serial is None or model is None or extra is None:
-            return CommandResult(
-                status="error", message="Unable to validate discovered device."
-            )
-
-        migrate_unknown_entry(devices, serial, device_info["host"])
-
-        if serial in devices:
-            update = (
-                io.prompt(
-                    f"A device with serial {serial} already exists. "
-                    "Update its configuration? (y/n): "
-                )
-                .strip()
-                .lower()
-            )
-            if update != "y":
-                io.write("Device registration aborted.")
-                return CommandResult(
-                    status="cancelled",
-                    message="Device registration aborted.",
-                )
-
-        devices[serial] = {
-            "config": config_to_toml_dict(config),
-            "model": model,
-            "extra": extra,
-        }
-        save_devices(ctx.config_path, devices)
-        return CommandResult(message=f"Device '{serial}' registered/updated.")
+        result = await register_or_update_device_async(
+            devices,
+            io,
+            device_info=device_info,
+        )
+        if result.status == "ok":
+            save_devices(ctx.config_path, devices)
+        return result
 
 
 class _SelectDeviceForOperationsCommand:
