@@ -14,6 +14,9 @@ class CommandRegistry:
     _commands: dict[str, Command] = field(default_factory=dict)
 
     def register_command(self, command: Command) -> None:
+        if command.id in self._commands:
+            msg = f"Command '{command.id}' is already registered."
+            raise ValueError(msg)
         self._commands[command.id] = command
 
     def get_command(self, command_id: str) -> Command:

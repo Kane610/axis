@@ -115,7 +115,12 @@ def build_cli_runtime(config_path: Path) -> CliContext:
     registry = CommandRegistry()
     router = CliRouter()
     compose_builtin_packs(registry, router)
-    return CliContext(config_path=config_path, device_gateway=DeviceGateway())
+    return CliContext(
+        config_path=config_path,
+        device_gateway=DeviceGateway(),
+        command_registry=registry,
+        router=router,
+    )
 
 
 def main(*, debug: bool | None = None) -> None:

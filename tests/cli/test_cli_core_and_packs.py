@@ -50,6 +50,61 @@ async def test_router_navigation_invalid_back_and_exit() -> None:
     assert "Exiting." in written
 
 
+@pytest.mark.asyncio
+async def test_router_executes_registered_command_and_writes_message() -> None:
+    """Router dispatches command actions through context command registry."""
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["1", "e"])
+
+    command = MagicMock()
+    command.id = "say-hello"
+    command.run = AsyncMock(return_value=CommandResult(message="hello"))
+
+    registry = CommandRegistry()
+    registry.register_command(command)
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Say hello",
+                    action="command",
+                    command_id="say-hello",
+                )
+            ],
+        )
+    )
+
+    ctx = MagicMock()
+    ctx.command_registry = registry
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io)
+
+    command.run.assert_awaited_once_with(ctx, io)
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "hello" in written
+
+
+def test_command_registry_rejects_duplicate_command_ids() -> None:
+    """Registering the same command id twice raises ValueError."""
+    registry = CommandRegistry()
+
+    command_a = MagicMock()
+    command_a.id = "dup"
+    command_b = MagicMock()
+    command_b.id = "dup"
+
+    registry.register_command(command_a)
+
+    with pytest.raises(ValueError, match="already registered"):
+        registry.register_command(command_b)
+
+
 def test_contracts_and_terminal_io_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
     """Core contract dataclasses and terminal IO methods are usable."""
     caps = CommandCapabilities(

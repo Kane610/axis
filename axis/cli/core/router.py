@@ -68,6 +68,25 @@ class CliRouter:
             if matched.action == "noop":
                 continue
 
-            # Commands are intentionally not executed here yet to keep routing
-            # simple and preserve current flow compatibility in main.py.
-            io.write("Command execution is handled by composed workflows.")
+            if matched.action == "command":
+                if matched.command_id is None:
+                    io.write("Command is not configured.")
+                    continue
+
+                registry = ctx.command_registry
+                if registry is None:
+                    io.write("Command registry is unavailable.")
+                    continue
+
+                try:
+                    command = registry.get_command(matched.command_id)
+                except KeyError:
+                    io.write(f"Unknown command: {matched.command_id}")
+                    continue
+
+                result = await command.run(ctx, io)
+                if result.message:
+                    io.write(result.message)
+                continue
+
+            io.write("Unsupported action.")
