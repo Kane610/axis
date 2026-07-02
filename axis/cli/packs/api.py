@@ -9,6 +9,8 @@ import os
 from pprint import pformat
 from typing import TYPE_CHECKING, cast
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.cli.packs.devices import (
     DeviceEntry,
     _format_device_operations_label,
@@ -18,6 +20,43 @@ from axis.device import AxisDevice
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
+
+
+class _ListSupportedApisCommand:
+    id = "api.list_supported"
+    title = "List supported APIs"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        if ctx.selected_serial is None or ctx.selected_device is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+        list_supported_apis_flow(ctx.selected_serial, ctx.selected_device)
+        return CommandResult()
+
+
+class _ApiDrillDownCommand:
+    id = "api.drill_down"
+    title = "API drill-down"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        if ctx.selected_device is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+        api_drill_down_flow(ctx.selected_device)
+        return CommandResult()
 
 
 def _debug_enabled() -> bool:
@@ -30,8 +69,32 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
-def register(registry: object, router: object) -> None:
-    """Register API-pack commands and menu nodes (explicit composition placeholder)."""
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register API-pack commands and menu nodes."""
+    registry.register_command(_ListSupportedApisCommand())
+    registry.register_command(_ApiDrillDownCommand())
+
+    router.register_node(
+        MenuNode(
+            id="api",
+            title="API",
+            parent_id="device_operations",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="List supported APIs",
+                    action="command",
+                    command_id="api.list_supported",
+                ),
+                MenuItem(
+                    key="2",
+                    label="API drill-down",
+                    action="command",
+                    command_id="api.drill_down",
+                ),
+            ],
+        )
+    )
 
 
 async def fetch_supported_apis(device_entry: DeviceEntry) -> list[dict[str, str]]:

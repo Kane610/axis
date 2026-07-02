@@ -5,9 +5,12 @@ from __future__ import annotations
 import asyncio
 import os
 from pprint import pformat
+from typing import TYPE_CHECKING
 
 from aiohttp import ClientSession
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.cli.packs.devices import (
     DeviceEntry,
     _format_device_operations_label,
@@ -17,6 +20,28 @@ from axis.cli.packs.devices import (
 from axis.device import AxisDevice
 from axis.errors import RequestError
 from axis.models.configuration import Configuration
+
+if TYPE_CHECKING:
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
+
+
+class _EventsMenuCommand:
+    id = "events.menu"
+    title = "Event instances & live listen"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        if ctx.selected_serial is None or ctx.selected_device is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+        events_flow(ctx.selected_serial, ctx.selected_device)
+        return CommandResult()
 
 
 def _debug_enabled() -> bool:
@@ -29,8 +54,25 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
-def register(registry: object, router: object) -> None:
-    """Register event-pack commands and menu nodes (explicit composition placeholder)."""
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register event-pack commands and menu nodes."""
+    registry.register_command(_EventsMenuCommand())
+
+    router.register_node(
+        MenuNode(
+            id="events",
+            title="Events",
+            parent_id="device_operations",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Event instances & live listen",
+                    action="command",
+                    command_id="events.menu",
+                )
+            ],
+        )
+    )
 
 
 async def fetch_event_instances(device_entry: DeviceEntry) -> list[dict[str, str]]:

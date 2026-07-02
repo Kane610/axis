@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 import getpass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.cli.packs.accounts import account_management_flow
 from axis.cli.packs.api import api_drill_down_flow, list_supported_apis_flow
 from axis.cli.packs.devices import (
@@ -31,9 +34,116 @@ from axis.cli.packs.devices import (
 )
 from axis.cli.packs.events import events_flow
 
+if TYPE_CHECKING:
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
 
-def register(registry: object, router: object) -> None:
-    """Register navigation-pack commands and menu nodes (explicit composition placeholder)."""
+
+class _StaticMessageCommand:
+    def __init__(self, command_id: str, title: str, message: str) -> None:
+        self.id = command_id
+        self.title = title
+        self.capabilities = CommandCapabilities()
+        self._message = message
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = ctx
+        _ = io
+        return CommandResult(message=self._message)
+
+
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register navigation-pack commands and menu nodes."""
+    registry.register_command(
+        _StaticMessageCommand(
+            "navigation.health_check",
+            "Health check",
+            "Health check command is registered but not router-wired yet.",
+        )
+    )
+    registry.register_command(
+        _StaticMessageCommand(
+            "navigation.edit_credentials",
+            "Edit credentials",
+            "Edit credentials command is registered but not router-wired yet.",
+        )
+    )
+    registry.register_command(
+        _StaticMessageCommand(
+            "navigation.delete_device",
+            "Delete device",
+            "Delete device command is registered but not router-wired yet.",
+        )
+    )
+
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Axis CLI",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Devices",
+                    action="navigate",
+                    next_node_id="devices",
+                )
+            ],
+        )
+    )
+
+    router.register_node(
+        MenuNode(
+            id="device_operations",
+            title="Device operations",
+            parent_id="devices",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="List supported APIs",
+                    action="command",
+                    command_id="api.list_supported",
+                ),
+                MenuItem(
+                    key="2",
+                    label="API drill-down",
+                    action="command",
+                    command_id="api.drill_down",
+                ),
+                MenuItem(
+                    key="3",
+                    label="Event instances & live listen",
+                    action="command",
+                    command_id="events.menu",
+                ),
+                MenuItem(
+                    key="4",
+                    label="Account management",
+                    action="command",
+                    command_id="accounts.menu",
+                ),
+                MenuItem(
+                    key="5",
+                    label="Device health check",
+                    action="command",
+                    command_id="navigation.health_check",
+                ),
+                MenuItem(
+                    key="6",
+                    label="Edit device credentials",
+                    action="command",
+                    command_id="navigation.edit_credentials",
+                ),
+                MenuItem(
+                    key="7",
+                    label="Delete device",
+                    action="command",
+                    command_id="navigation.delete_device",
+                ),
+            ],
+        )
+    )
 
 
 def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:

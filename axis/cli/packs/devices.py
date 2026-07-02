@@ -18,12 +18,33 @@ import tomli_w
 from zeroconf import IPVersion, ServiceStateChange
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.device import AxisDevice
 from axis.errors import Forbidden, PathNotFound, RequestError, Unauthorized
 from axis.models.configuration import Configuration
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
+
+
+class _StaticMessageCommand:
+    def __init__(self, command_id: str, title: str, message: str) -> None:
+        self.id = command_id
+        self.title = title
+        self.capabilities = CommandCapabilities()
+        self._message = message
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = ctx
+        _ = io
+        return CommandResult(message=self._message)
+
 
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
@@ -58,8 +79,57 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
-def register(registry: object, router: object) -> None:
-    """Register device-pack commands and menu nodes (explicit composition placeholder)."""
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register device-pack commands and menu nodes."""
+    registry.register_command(
+        _StaticMessageCommand(
+            "devices.add",
+            "Add additional device",
+            "Add-device command is registered but not router-wired yet.",
+        )
+    )
+    registry.register_command(
+        _StaticMessageCommand(
+            "devices.discover",
+            "Discover devices",
+            "Device-discovery command is registered but not router-wired yet.",
+        )
+    )
+    registry.register_command(
+        _StaticMessageCommand(
+            "devices.operations",
+            "Device operations",
+            "Device-operations command is registered but not router-wired yet.",
+        )
+    )
+
+    router.register_node(
+        MenuNode(
+            id="devices",
+            title="Devices",
+            parent_id="main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Add additional device",
+                    action="command",
+                    command_id="devices.add",
+                ),
+                MenuItem(
+                    key="2",
+                    label="Discover devices",
+                    action="command",
+                    command_id="devices.discover",
+                ),
+                MenuItem(
+                    key="3",
+                    label="Device operations",
+                    action="navigate",
+                    next_node_id="device_operations",
+                ),
+            ],
+        )
+    )
 
 
 def get_config_path() -> Path:

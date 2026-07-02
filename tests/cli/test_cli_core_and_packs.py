@@ -13,6 +13,7 @@ from axis.cli.core.gateway import DeviceGateway
 from axis.cli.core.io import TerminalIO
 from axis.cli.core.registry import CommandRegistry
 from axis.cli.core.router import CliRouter, MenuItem, MenuNode
+from axis.cli.main import compose_builtin_packs
 from axis.cli.packs import api as api_pack, events as events_pack
 from axis.errors import RequestError
 
@@ -103,6 +104,39 @@ def test_command_registry_rejects_duplicate_command_ids() -> None:
 
     with pytest.raises(ValueError, match="already registered"):
         registry.register_command(command_b)
+
+
+def test_compose_builtin_packs_registers_commands_and_nodes() -> None:
+    """Built-in pack composition registers command and menu metadata."""
+    registry = CommandRegistry()
+    router = CliRouter()
+
+    compose_builtin_packs(registry, router)
+
+    command_ids = {command.id for command in registry.list_commands()}
+    node_ids = set(router.nodes)
+
+    assert {
+        "devices.add",
+        "devices.discover",
+        "devices.operations",
+        "api.list_supported",
+        "api.drill_down",
+        "events.menu",
+        "accounts.menu",
+        "navigation.health_check",
+        "navigation.edit_credentials",
+        "navigation.delete_device",
+    }.issubset(command_ids)
+
+    assert {
+        "main",
+        "devices",
+        "device_operations",
+        "api",
+        "events",
+        "accounts",
+    }.issubset(node_ids)
 
 
 def test_contracts_and_terminal_io_smoke(monkeypatch: pytest.MonkeyPatch) -> None:

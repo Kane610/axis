@@ -9,6 +9,8 @@ from pprint import pformat
 import re
 from typing import TYPE_CHECKING
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.cli.packs.devices import (
     DeviceEntry,
     _format_device_operations_label,
@@ -20,6 +22,28 @@ from axis.models.pwdgrp_cgi import SecondaryGroup
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
+
+
+class _AccountsMenuCommand:
+    id = "accounts.menu"
+    title = "Account management"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        if ctx.selected_serial is None or ctx.selected_device is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+        account_management_flow(ctx.selected_serial, ctx.selected_device)
+        return CommandResult()
+
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9]{1,14}$")
 
@@ -34,8 +58,25 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
-def register(registry: object, router: object) -> None:
-    """Register account-pack commands and menu nodes (explicit composition placeholder)."""
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register account-pack commands and menu nodes."""
+    registry.register_command(_AccountsMenuCommand())
+
+    router.register_node(
+        MenuNode(
+            id="accounts",
+            title="Accounts",
+            parent_id="device_operations",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Account management",
+                    action="command",
+                    command_id="accounts.menu",
+                )
+            ],
+        )
+    )
 
 
 def _validate_username(username: str) -> str | None:
