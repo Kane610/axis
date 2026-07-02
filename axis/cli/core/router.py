@@ -93,6 +93,8 @@ class CliRouter:
                     requested_node = payload.get("next_node_id")
                     if isinstance(requested_node, str):
                         if requested_node in self.nodes:
+                            if result.message:
+                                io.write(result.message)
                             current = requested_node
                             continue
                         io.write(f"Unknown node: {requested_node}")

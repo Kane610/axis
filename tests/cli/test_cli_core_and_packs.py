@@ -140,6 +140,59 @@ async def test_router_navigates_using_command_result_payload() -> None:
     assert "\nSub:" in written
 
 
+@pytest.mark.asyncio
+async def test_router_writes_message_before_payload_navigation() -> None:
+    """Router writes command message even when payload requests node transition."""
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["1", "e"])
+
+    command = MagicMock()
+    command.id = "jump-with-message"
+    command.run = AsyncMock(
+        return_value=CommandResult(
+            message="navigating",
+            payload={"next_node_id": "sub"},
+        )
+    )
+
+    registry = CommandRegistry()
+    registry.register_command(command)
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Jump",
+                    action="command",
+                    command_id="jump-with-message",
+                )
+            ],
+        )
+    )
+    router.register_node(
+        MenuNode(
+            id="sub",
+            title="Sub",
+            parent_id="main",
+            items=[],
+        )
+    )
+
+    ctx = MagicMock()
+    ctx.command_registry = registry
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "navigating" in written
+    assert "\nSub:" in written
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()
@@ -236,6 +289,47 @@ async def test_devices_operations_command_sets_selected_device_context() -> None
 
     assert result.status == "ok"
     assert result.payload == {"next_node_id": "device_operations"}
+    assert ctx.selected_serial == "SN1"
+    assert ctx.selected_device == selected_entry
+
+
+@pytest.mark.asyncio
+async def test_router_device_selection_command_navigates_to_operations() -> None:
+    """Selecting devices.operations through router updates context and transitions node."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        command_registry=registry,
+        router=router,
+    )
+
+    io = MagicMock()
+    # main -> devices -> select operations command -> exit
+    io.prompt = MagicMock(side_effect=["1", "3", "e"])
+
+    with (
+        patch(
+            "axis.cli.packs.devices.load_devices", return_value={"SN1": selected_entry}
+        ),
+        patch(
+            "axis.cli.packs.devices.select_device",
+            return_value=("SN1", selected_entry),
+        ),
+        pytest.raises(SystemExit),
+    ):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "Selected device: SN1" in written
+    assert "\nDevice operations:" in written
     assert ctx.selected_serial == "SN1"
     assert ctx.selected_device == selected_entry
 
