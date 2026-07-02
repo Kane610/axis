@@ -271,6 +271,59 @@ async def test_router_writes_default_cancelled_message_when_missing() -> None:
     assert "Command cancelled." in written
 
 
+@pytest.mark.asyncio
+async def test_router_does_not_navigate_on_cancelled_payload() -> None:
+    """Router ignores next_node_id payload when command status is cancelled."""
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["1", "e"])
+
+    command = MagicMock()
+    command.id = "cancel-with-payload"
+    command.run = AsyncMock(
+        return_value=CommandResult(
+            status="cancelled",
+            payload={"next_node_id": "sub"},
+        )
+    )
+
+    registry = CommandRegistry()
+    registry.register_command(command)
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Cancel",
+                    action="command",
+                    command_id="cancel-with-payload",
+                )
+            ],
+        )
+    )
+    router.register_node(
+        MenuNode(
+            id="sub",
+            title="Sub",
+            parent_id="main",
+            items=[],
+        )
+    )
+
+    ctx = MagicMock()
+    ctx.command_registry = registry
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "Command cancelled." in written
+    assert "\nSub:" not in written
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()

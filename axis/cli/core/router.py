@@ -89,7 +89,7 @@ class CliRouter:
 
                 result = await command.run(ctx, io)
                 payload = result.payload
-                if isinstance(payload, dict):
+                if result.status == "ok" and isinstance(payload, dict):
                     requested_node = payload.get("next_node_id")
                     if isinstance(requested_node, str):
                         if requested_node in self.nodes:
