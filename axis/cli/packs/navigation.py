@@ -1,4 +1,4 @@
-# ruff: noqa: D100,D103,TC003
+# ruff: noqa: D100,D103,PLC0415,TC003
 
 from __future__ import annotations
 
@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING
 
 from axis.cli.core.contracts import CommandCapabilities, CommandResult
 from axis.cli.core.router import MenuItem, MenuNode
-from axis.cli.packs.accounts import account_management_flow
-from axis.cli.packs.api import api_drill_down_flow, list_supported_apis_flow
 from axis.cli.packs.devices import (
     DeviceEntry,
     DeviceStore,
@@ -32,13 +30,40 @@ from axis.cli.packs.devices import (
     select_discovered_device,
     validate_and_fetch_device,
 )
-from axis.cli.packs.events import events_flow
 
 if TYPE_CHECKING:
     from axis.cli.core.context import CliContext
     from axis.cli.core.io import CliIO
     from axis.cli.core.registry import CommandRegistry
     from axis.cli.core.router import CliRouter
+
+
+def list_supported_apis_flow(serial: str, device_entry: DeviceEntry) -> None:
+    """Compatibility wrapper to avoid import-time pack coupling."""
+    from axis.cli.packs.api import list_supported_apis_flow as _impl
+
+    _impl(serial, device_entry)
+
+
+def api_drill_down_flow(device_entry: DeviceEntry) -> None:
+    """Compatibility wrapper to avoid import-time pack coupling."""
+    from axis.cli.packs.api import api_drill_down_flow as _impl
+
+    _impl(device_entry)
+
+
+def events_flow(serial: str, device_entry: DeviceEntry) -> None:
+    """Compatibility wrapper to avoid import-time pack coupling."""
+    from axis.cli.packs.events import events_flow as _impl
+
+    _impl(serial, device_entry)
+
+
+def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
+    """Compatibility wrapper to avoid import-time pack coupling."""
+    from axis.cli.packs.accounts import account_management_flow as _impl
+
+    _impl(serial, device_entry)
 
 
 def _selected_device_from_context(
