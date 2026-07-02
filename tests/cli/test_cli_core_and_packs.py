@@ -274,15 +274,17 @@ async def test_devices_add_command_persists_when_registry_changes() -> None:
 
     devices: dict[str, object] = {}
 
-    def _mutate_registry(store: dict[str, object]) -> None:
+    async def _mutate_registry(store: dict[str, object], io: object) -> bool:
+        _ = io
         store["SN1"] = {
             "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
         }
+        return True
 
     with (
         patch("axis.cli.packs.devices.load_devices", return_value=devices),
         patch(
-            "axis.cli.packs.devices.register_or_update_device",
+            "axis.cli.packs.devices.register_or_update_device_async",
             side_effect=_mutate_registry,
         ),
         patch("axis.cli.packs.devices.save_devices") as mock_save,
