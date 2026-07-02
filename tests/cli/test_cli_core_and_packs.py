@@ -703,3 +703,13 @@ async def test_router_back_at_root_and_noop() -> None:
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Exiting." in written
+
+
+def test_router_rejects_duplicate_node_ids() -> None:
+    """Registering duplicate menu node ids raises ValueError."""
+    router = CliRouter()
+    node = MenuNode(id="main", title="Main", items=[])
+    router.register_node(node)
+
+    with pytest.raises(ValueError, match="already registered"):
+        router.register_node(node)

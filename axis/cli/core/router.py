@@ -32,6 +32,9 @@ class CliRouter:
     nodes: dict[str, MenuNode] = field(default_factory=dict)
 
     def register_node(self, node: MenuNode) -> None:
+        if node.id in self.nodes:
+            msg = f"Node '{node.id}' is already registered."
+            raise ValueError(msg)
         self.nodes[node.id] = node
 
     async def run(
