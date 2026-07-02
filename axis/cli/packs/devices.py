@@ -33,17 +33,119 @@ if TYPE_CHECKING:
     from axis.cli.core.router import CliRouter
 
 
-class _StaticMessageCommand:
-    def __init__(self, command_id: str, title: str, message: str) -> None:
-        self.id = command_id
-        self.title = title
-        self.capabilities = CommandCapabilities()
-        self._message = message
+class _AddDeviceCommand:
+    id = "devices.add"
+    title = "Add additional device"
+    capabilities = CommandCapabilities()
 
     async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
-        _ = ctx
         _ = io
-        return CommandResult(message=self._message)
+        devices = load_devices(ctx.config_path)
+        before = repr(devices)
+        register_or_update_device(devices)
+        after = repr(devices)
+        if before == after:
+            return CommandResult(
+                status="cancelled", message="Device registration aborted."
+            )
+
+        save_devices(ctx.config_path, devices)
+        return CommandResult(message="Device registry updated.")
+
+
+class _DiscoverDevicesCommand:
+    id = "devices.discover"
+    title = "Discover devices"
+    capabilities = CommandCapabilities()
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        devices = load_devices(ctx.config_path)
+
+        discovered_devices = await discover_axis_devices(scan_seconds=5.0)
+        filtered_discovered = filter_discovered_devices(discovered_devices, devices)
+        selected_discovered = select_discovered_device(filtered_discovered)
+        if selected_discovered is None:
+            return CommandResult(
+                status="cancelled", message="Device discovery aborted."
+            )
+
+        username = io.prompt("Enter username: ").strip()
+        password = io.prompt_password("Enter password: ")
+        device_info = {
+            "host": selected_discovered.get("host", "").strip(),
+            "username": username,
+            "password": password,
+        }
+
+        existing_serial_for_host = find_serial_by_host(devices, device_info["host"])
+        if existing_serial_for_host is not None:
+            update_existing = (
+                io.prompt(
+                    f"A device with host {device_info['host']} already exists "
+                    f"(serial {existing_serial_for_host}). Update it? (y/n): "
+                )
+                .strip()
+                .lower()
+            )
+            if update_existing != "y":
+                print("Device registration aborted.")  # noqa: T201
+                return CommandResult(
+                    status="cancelled",
+                    message="Device registration aborted.",
+                )
+
+        config, serial, model, extra = await validate_and_fetch_device(device_info)
+        if config is None or serial is None or model is None or extra is None:
+            return CommandResult(
+                status="error", message="Unable to validate discovered device."
+            )
+
+        migrate_unknown_entry(devices, serial, device_info["host"])
+
+        if serial in devices:
+            update = (
+                io.prompt(
+                    f"A device with serial {serial} already exists. "
+                    "Update its configuration? (y/n): "
+                )
+                .strip()
+                .lower()
+            )
+            if update != "y":
+                print("Device registration aborted.")  # noqa: T201
+                return CommandResult(
+                    status="cancelled",
+                    message="Device registration aborted.",
+                )
+
+        devices[serial] = {
+            "config": config_to_toml_dict(config),
+            "model": model,
+            "extra": extra,
+        }
+        save_devices(ctx.config_path, devices)
+        return CommandResult(message=f"Device '{serial}' registered/updated.")
+
+
+class _SelectDeviceForOperationsCommand:
+    id = "devices.operations"
+    title = "Device operations"
+    capabilities = CommandCapabilities()
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        devices = load_devices(ctx.config_path)
+        selected = select_device(devices)
+        if selected is None:
+            return CommandResult(status="cancelled", message="No device selected.")
+
+        serial, device_entry = selected
+        ctx.selected_serial = serial
+        ctx.selected_device = device_entry
+        return CommandResult(
+            message=f"Selected device: {serial}",
+            payload={"next_node_id": "device_operations"},
+        )
 
 
 DeviceEntry = dict[str, Any]
@@ -81,27 +183,9 @@ def _debug_dump(label: str, payload: object) -> None:
 
 def register(registry: CommandRegistry, router: CliRouter) -> None:
     """Register device-pack commands and menu nodes."""
-    registry.register_command(
-        _StaticMessageCommand(
-            "devices.add",
-            "Add additional device",
-            "Add-device command is registered but not router-wired yet.",
-        )
-    )
-    registry.register_command(
-        _StaticMessageCommand(
-            "devices.discover",
-            "Discover devices",
-            "Device-discovery command is registered but not router-wired yet.",
-        )
-    )
-    registry.register_command(
-        _StaticMessageCommand(
-            "devices.operations",
-            "Device operations",
-            "Device-operations command is registered but not router-wired yet.",
-        )
-    )
+    registry.register_command(_AddDeviceCommand())
+    registry.register_command(_DiscoverDevicesCommand())
+    registry.register_command(_SelectDeviceForOperationsCommand())
 
     router.register_node(
         MenuNode(
@@ -124,8 +208,8 @@ def register(registry: CommandRegistry, router: CliRouter) -> None:
                 MenuItem(
                     key="3",
                     label="Device operations",
-                    action="navigate",
-                    next_node_id="device_operations",
+                    action="command",
+                    command_id="devices.operations",
                 ),
             ],
         )

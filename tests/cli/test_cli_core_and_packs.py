@@ -93,6 +93,53 @@ async def test_router_executes_registered_command_and_writes_message() -> None:
     assert "hello" in written
 
 
+@pytest.mark.asyncio
+async def test_router_navigates_using_command_result_payload() -> None:
+    """Router switches node when command result requests next_node_id."""
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["1", "e"])
+
+    command = MagicMock()
+    command.id = "jump"
+    command.run = AsyncMock(return_value=CommandResult(payload={"next_node_id": "sub"}))
+
+    registry = CommandRegistry()
+    registry.register_command(command)
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Jump",
+                    action="command",
+                    command_id="jump",
+                )
+            ],
+        )
+    )
+    router.register_node(
+        MenuNode(
+            id="sub",
+            title="Sub",
+            parent_id="main",
+            items=[],
+        )
+    )
+
+    ctx = MagicMock()
+    ctx.command_registry = registry
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "\nSub:" in written
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()
@@ -160,6 +207,37 @@ async def test_registered_navigation_commands_require_selected_device() -> None:
         result = await command.run(ctx, io)
         assert result.status == "cancelled"
         assert result.message == "No selected device in context."
+
+
+@pytest.mark.asyncio
+async def test_devices_operations_command_sets_selected_device_context() -> None:
+    """devices.operations command stores selected device and requests navigation."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+
+    with (
+        patch(
+            "axis.cli.packs.devices.load_devices", return_value={"SN1": selected_entry}
+        ),
+        patch(
+            "axis.cli.packs.devices.select_device",
+            return_value=("SN1", selected_entry),
+        ),
+    ):
+        ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+        io = MagicMock()
+        command = registry.get_command("devices.operations")
+        result = await command.run(ctx, io)
+
+    assert result.status == "ok"
+    assert result.payload == {"next_node_id": "device_operations"}
+    assert ctx.selected_serial == "SN1"
+    assert ctx.selected_device == selected_entry
 
 
 def test_contracts_and_terminal_io_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
