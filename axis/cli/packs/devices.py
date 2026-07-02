@@ -85,7 +85,7 @@ class _DiscoverDevicesCommand:
                 .lower()
             )
             if update_existing != "y":
-                print("Device registration aborted.")  # noqa: T201
+                io.write("Device registration aborted.")
                 return CommandResult(
                     status="cancelled",
                     message="Device registration aborted.",
@@ -109,7 +109,7 @@ class _DiscoverDevicesCommand:
                 .lower()
             )
             if update != "y":
-                print("Device registration aborted.")  # noqa: T201
+                io.write("Device registration aborted.")
                 return CommandResult(
                     status="cancelled",
                     message="Device registration aborted.",
@@ -790,7 +790,7 @@ async def register_or_update_device_async(devices: DeviceStore, io: CliIO) -> bo
             .lower()
         )
         if update_existing != "y":
-            print("Device registration aborted.")  # noqa: T201
+            io.write("Device registration aborted.")
             return False
 
     config, serial, model, extra = await validate_and_fetch_device(device_info)
@@ -809,7 +809,7 @@ async def register_or_update_device_async(devices: DeviceStore, io: CliIO) -> bo
             .lower()
         )
         if update != "y":
-            print("Device registration aborted.")  # noqa: T201
+            io.write("Device registration aborted.")
             return False
 
     devices[serial] = {
@@ -817,7 +817,7 @@ async def register_or_update_device_async(devices: DeviceStore, io: CliIO) -> bo
         "model": model,
         "extra": extra,
     }
-    print(f"Device '{serial}' registered/updated.")  # noqa: T201
+    io.write(f"Device '{serial}' registered/updated.")
     return True
 
 

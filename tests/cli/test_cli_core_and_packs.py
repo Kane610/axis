@@ -360,6 +360,49 @@ async def test_devices_discover_command_cancelled_without_selection() -> None:
 
 
 @pytest.mark.asyncio
+async def test_devices_discover_command_writes_abort_via_io() -> None:
+    """devices.discover uses CliIO for abort messaging when update is declined."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    existing_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+    discovered = {"host": "10.0.0.1"}
+
+    with (
+        patch(
+            "axis.cli.packs.devices.load_devices", return_value={"SN1": existing_entry}
+        ),
+        patch(
+            "axis.cli.packs.devices.discover_axis_devices",
+            new=AsyncMock(return_value=[discovered]),
+        ),
+        patch(
+            "axis.cli.packs.devices.filter_discovered_devices",
+            return_value=[discovered],
+        ),
+        patch(
+            "axis.cli.packs.devices.select_discovered_device", return_value=discovered
+        ),
+        patch("axis.cli.packs.devices.find_serial_by_host", return_value="SN1"),
+        patch("axis.cli.packs.devices.validate_and_fetch_device", new=AsyncMock()),
+    ):
+        ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+        io = MagicMock()
+        io.prompt.side_effect = ["admin", "n"]
+        io.prompt_password.return_value = "pwd"
+
+        command = registry.get_command("devices.discover")
+        result = await command.run(ctx, io)
+
+    assert result.status == "cancelled"
+    assert result.message == "Device registration aborted."
+    io.write.assert_called_with("Device registration aborted.")
+
+
+@pytest.mark.asyncio
 async def test_devices_add_command_persists_when_registry_changes() -> None:
     """devices.add command persists updated devices when registration mutates store."""
     registry = CommandRegistry()
