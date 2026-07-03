@@ -562,6 +562,8 @@ async def test_router_device_selection_command_navigates_to_operations() -> None
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Selected device: SN1" in written
+    assert "Device operations for" in written
+    assert "SN1" in written
     assert "\nDevice operations:" in written
     assert ctx.selected_serial == "SN1"
     assert ctx.selected_device == selected_entry

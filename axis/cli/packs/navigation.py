@@ -74,6 +74,16 @@ def _selected_device_from_context(
     return (ctx.selected_serial, ctx.selected_device)
 
 
+def _render_device_operations_node(ctx: CliContext, io: CliIO) -> None:
+    selected = _selected_device_from_context(ctx)
+    if selected is None:
+        return
+
+    serial, device_entry = selected
+    device_label = _format_device_operations_label(serial, device_entry)
+    io.write(f"\nDevice operations for {device_label}:")
+
+
 class _HealthCheckCommand:
     id = "navigation.health_check"
     title = "Health check"
@@ -180,6 +190,7 @@ def register(registry: CommandRegistry, router: CliRouter) -> None:
             id="device_operations",
             title="Device operations",
             parent_id="devices",
+            render=_render_device_operations_node,
             items=[
                 MenuItem(
                     key="1",
