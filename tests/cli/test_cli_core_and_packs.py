@@ -415,6 +415,38 @@ async def test_router_device_operations_navigates_to_selected_device_nodes(
     assert expected_title in written
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("selection", ["1", "2", "3"])
+async def test_router_feature_nodes_back_to_device_operations(
+    selection: str,
+) -> None:
+    """Back from API/events/accounts returns to device_operations."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device={
+            "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+        },
+        command_registry=registry,
+        router=router,
+    )
+    io = MagicMock()
+    # device_operations -> feature submenu -> back -> exit
+    io.prompt = MagicMock(side_effect=[selection, "b", "e"])
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io, start_node_id="device_operations")
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert written.count("\nDevice operations:") == 2
+    assert "Device operations for SN1 (10.0.0.1, mac=SN1):" in written
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()
