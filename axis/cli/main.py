@@ -98,11 +98,6 @@ def _debug_enabled_from_env() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
-def _router_enabled_from_env() -> bool:
-    value = os.getenv("AXIS_CLI_USE_ROUTER", "").strip().lower()
-    return value in {"1", "true", "yes", "on"}
-
-
 def _configure_logging(debug_enabled: bool) -> None:
     loglevel = logging.DEBUG if debug_enabled else logging.INFO
     logging.basicConfig(format="%(message)s", level=loglevel, force=True)
@@ -142,24 +137,14 @@ def main(*, debug: bool | None = None) -> None:
     config_path = get_config_path()
     runtime = build_cli_runtime(config_path)
 
-    if _router_enabled_from_env():
-        if runtime.router is None:
-            msg = "Router runtime is unavailable."
-            raise RuntimeError(msg)
+    if runtime.router is None:
+        msg = "Router runtime is unavailable."
+        raise RuntimeError(msg)
 
-        terminal_io = TerminalIO()
-        while True:
-            try:
-                asyncio.run(
-                    runtime.router.run(runtime, terminal_io, start_node_id="main")
-                )
-            except KeyboardInterrupt:
-                print("\nInterrupted. Use 'e' to exit.")  # noqa: T201
-                continue
-
+    terminal_io = TerminalIO()
     while True:
         try:
-            navigation_pack.run_main_loop(config_path)
+            asyncio.run(runtime.router.run(runtime, terminal_io, start_node_id="main"))
         except KeyboardInterrupt:
             print("\nInterrupted. Use 'e' to exit.")  # noqa: T201
             continue

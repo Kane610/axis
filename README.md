@@ -41,6 +41,7 @@ uvx ty check
 ## CLI navigation contract
 
 The interactive CLI in `axis/cli/` follows a menu-first model.
+Router runtime is the only interactive execution path.
 
 - Canonical route graph: `main -> devices -> device_operations -> {api|events|accounts}`.
 - `device_operations` routes to feature submenus using router navigation, not direct feature command execution.
