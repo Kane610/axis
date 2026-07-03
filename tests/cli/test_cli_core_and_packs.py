@@ -324,6 +324,29 @@ async def test_router_does_not_navigate_on_cancelled_payload() -> None:
     assert "\nSub:" not in written
 
 
+@pytest.mark.asyncio
+async def test_router_calls_node_render_before_menu() -> None:
+    """Router invokes node render hook before printing menu options."""
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["e"])
+    render = MagicMock()
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[],
+            render=render,
+        )
+    )
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=MagicMock(), io=io)
+
+    render.assert_called_once()
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()
@@ -542,6 +565,41 @@ async def test_router_device_selection_command_navigates_to_operations() -> None
     assert "\nDevice operations:" in written
     assert ctx.selected_serial == "SN1"
     assert ctx.selected_device == selected_entry
+
+
+@pytest.mark.asyncio
+async def test_router_devices_node_renders_registered_devices() -> None:
+    """Devices node render hook prints registered devices in router mode."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        command_registry=registry,
+        router=router,
+    )
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["1", "e"])
+
+    devices = {
+        "SN1": {
+            "config": {"host": "10.0.0.1"},
+            "model": "P3245",
+        }
+    }
+
+    with (
+        patch("axis.cli.packs.devices.load_devices", return_value=devices),
+        pytest.raises(SystemExit),
+    ):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "Registered devices:" in written
+    assert "SN1" in written
+    assert "10.0.0.1" in written
 
 
 @pytest.mark.asyncio

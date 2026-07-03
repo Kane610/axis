@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from axis.cli.core.context import CliContext
     from axis.cli.core.io import CliIO
 
@@ -25,6 +27,7 @@ class MenuNode:
     title: str
     items: list[MenuItem]
     parent_id: str | None = None
+    render: Callable[[CliContext, CliIO], None] | None = None
 
 
 @dataclass
@@ -43,6 +46,8 @@ class CliRouter:
         current = start_node_id
         while True:
             node = self.nodes[current]
+            if node.render is not None:
+                node.render(ctx, io)
             io.write(f"\n{node.title}:")
             for item in node.items:
                 io.write(f"  {item.key}. {item.label}")

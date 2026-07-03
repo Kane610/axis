@@ -109,6 +109,19 @@ class _SelectDeviceForOperationsCommand:
         )
 
 
+def _render_devices_node(ctx: CliContext, io: CliIO) -> None:
+    devices = load_devices(ctx.config_path)
+    if not devices:
+        io.write("\nNo devices registered yet.")
+        return
+
+    io.write("\nRegistered devices:")
+    for idx, (serial, device_data) in enumerate(devices.items(), 1):
+        host = str(device_data.get("config", {}).get("host", "<unknown>"))
+        model = str(device_data.get("model", ""))
+        io.write(f"  {idx}. {_format_device_label(model, serial, host)}")
+
+
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
 DiscoveredDevice = dict[str, str]
@@ -153,6 +166,7 @@ def register(registry: CommandRegistry, router: CliRouter) -> None:
             id="devices",
             title="Devices",
             parent_id="main",
+            render=_render_devices_node,
             items=[
                 MenuItem(
                     key="1",
