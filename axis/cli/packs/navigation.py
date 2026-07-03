@@ -77,6 +77,7 @@ def _selected_device_from_context(
 def _render_device_operations_node(ctx: CliContext, io: CliIO) -> None:
     selected = _selected_device_from_context(ctx)
     if selected is None:
+        io.write("\nNo selected device.")
         return
 
     serial, device_entry = selected

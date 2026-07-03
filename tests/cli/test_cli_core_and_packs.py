@@ -347,6 +347,29 @@ async def test_router_calls_node_render_before_menu() -> None:
     render.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_router_device_operations_node_shows_missing_context_message() -> None:
+    """device_operations render hook shows message when no device is selected."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        command_registry=registry,
+        router=router,
+    )
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=["e"])
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io, start_node_id="device_operations")
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "No selected device." in written
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()
