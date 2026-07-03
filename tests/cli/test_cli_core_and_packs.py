@@ -16,7 +16,11 @@ from axis.cli.core.io import TerminalIO
 from axis.cli.core.registry import CommandRegistry
 from axis.cli.core.router import CliRouter, MenuItem, MenuNode
 from axis.cli.main import compose_builtin_packs
-from axis.cli.packs import api as api_pack, events as events_pack
+from axis.cli.packs import (
+    api as api_pack,
+    events as events_pack,
+    navigation as navigation_pack,
+)
 from axis.errors import RequestError
 
 
@@ -495,6 +499,29 @@ def test_compose_builtin_packs_registers_commands_and_nodes() -> None:
     }.issubset(node_ids)
 
 
+def test_navigation_pack_compatibility_wrappers_delegate() -> None:
+    """Navigation wrapper flows delegate to feature pack implementations."""
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+
+    with (
+        patch("axis.cli.packs.api.list_supported_apis_flow") as mock_api_list,
+        patch("axis.cli.packs.api.api_drill_down_flow") as mock_api_drill,
+        patch("axis.cli.packs.events.events_flow") as mock_events_flow,
+        patch("axis.cli.packs.accounts.account_management_flow") as mock_accounts,
+    ):
+        navigation_pack.list_supported_apis_flow("SN1", selected_entry)
+        navigation_pack.api_drill_down_flow(selected_entry)
+        navigation_pack.events_flow("SN1", selected_entry)
+        navigation_pack.account_management_flow("SN1", selected_entry)
+
+    mock_api_list.assert_called_once_with("SN1", selected_entry)
+    mock_api_drill.assert_called_once_with(selected_entry)
+    mock_events_flow.assert_called_once_with("SN1", selected_entry)
+    mock_accounts.assert_called_once_with("SN1", selected_entry)
+
+
 @pytest.mark.asyncio
 async def test_registered_navigation_commands_require_selected_device() -> None:
     """Navigation commands return cancelled status when no device is selected."""
@@ -514,6 +541,137 @@ async def test_registered_navigation_commands_require_selected_device() -> None:
         result = await command.run(ctx, io)
         assert result.status == "cancelled"
         assert result.message == "No selected device in context."
+
+
+@pytest.mark.asyncio
+async def test_registered_navigation_health_check_command_results() -> None:
+    """Health check command returns ok and error statuses based on probe result."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device=selected_entry,
+    )
+    io = MagicMock()
+
+    command = registry.get_command("navigation.health_check")
+
+    with patch(
+        "axis.cli.packs.navigation.health_check_device",
+        new=AsyncMock(
+            return_value=SimpleNamespace(
+                success=True,
+                response_time_ms=12.34,
+                error=None,
+            )
+        ),
+    ):
+        result_ok = await command.run(ctx, io)
+
+    assert result_ok.status == "ok"
+    assert result_ok.message == "Health check passed (12.3ms)."
+
+    with patch(
+        "axis.cli.packs.navigation.health_check_device",
+        new=AsyncMock(
+            return_value=SimpleNamespace(
+                success=False,
+                response_time_ms=0.0,
+                error="boom",
+            )
+        ),
+    ):
+        result_error = await command.run(ctx, io)
+
+    assert result_error.status == "error"
+    assert result_error.message == "Health check failed: boom"
+
+
+@pytest.mark.asyncio
+async def test_registered_navigation_edit_credentials_success_path() -> None:
+    """Edit credentials command persists updated device entry and updates context."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+    updated_entry = {
+        "config": {
+            "host": "10.0.0.2",
+            "username": "admin2",
+            "password": "pwd2",
+        }
+    }
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device=selected_entry,
+    )
+    io = MagicMock()
+    command = registry.get_command("navigation.edit_credentials")
+
+    with (
+        patch(
+            "axis.cli.packs.navigation.edit_device_credentials",
+            new=AsyncMock(return_value=updated_entry),
+        ),
+        patch(
+            "axis.cli.packs.navigation.load_devices",
+            return_value={"SN1": selected_entry},
+        ) as mock_load,
+        patch("axis.cli.packs.navigation.save_devices") as mock_save,
+    ):
+        result = await command.run(ctx, io)
+
+    assert result.status == "ok"
+    assert result.message == "Device SN1 updated."
+    assert ctx.selected_device == updated_entry
+    mock_load.assert_called_once_with(Path("."))
+    saved_devices = mock_save.call_args.args[1]
+    assert saved_devices["SN1"] == updated_entry
+
+
+@pytest.mark.asyncio
+async def test_registered_navigation_delete_device_success_path() -> None:
+    """Delete device command clears selected context after successful deletion."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device=selected_entry,
+    )
+    io = MagicMock()
+    command = registry.get_command("navigation.delete_device")
+
+    with (
+        patch("axis.cli.packs.navigation.load_devices", return_value={"SN1": {}}),
+        patch("axis.cli.packs.navigation.delete_device", return_value=True),
+        patch("axis.cli.packs.navigation.save_devices") as mock_save,
+    ):
+        result = await command.run(ctx, io)
+
+    assert result.status == "ok"
+    assert result.message == "Device SN1 deleted."
+    assert ctx.selected_serial is None
+    assert ctx.selected_device is None
+    assert mock_save.call_count == 1
 
 
 @pytest.mark.asyncio
