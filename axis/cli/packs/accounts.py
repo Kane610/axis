@@ -41,11 +41,7 @@ class _AccountsMenuCommand:
                 status="cancelled",
                 message="No selected device in context.",
             )
-        await asyncio.to_thread(
-            account_management_flow,
-            ctx.selected_serial,
-            ctx.selected_device,
-        )
+        await account_management_async(ctx.selected_serial, ctx.selected_device)
         return CommandResult()
 
 
@@ -278,6 +274,114 @@ def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
 
         if choice == "3":
             _delete_user_flow(device_entry)
+            continue
+
+        print("Invalid option. Please enter 1, 2, 3, b, or e.")  # noqa: T201
+
+
+async def _list_users_async(device_entry: DeviceEntry) -> None:
+    async def _op(device: AxisDevice) -> dict[str, object]:
+        return dict(await device.vapix.users.list())
+
+    users = await run_on_selected_device(device_entry, _op)
+    _debug_dump("users list raw", users)
+    if not users:
+        print("No users found (or insufficient privileges).")  # noqa: T201
+        return
+    print("\nUsers:")  # noqa: T201
+    for name, user in users.items():
+        privs = str(getattr(user, "privileges", "unknown"))
+        print(f"  - {name} ({privs})")  # noqa: T201
+
+
+async def _create_or_update_user_async(device_entry: DeviceEntry) -> None:
+    target_user = (await asyncio.to_thread(input, "Username: ")).strip()
+    err = _validate_username(target_user)
+    if err:
+        print(f"Invalid username: {err}")  # noqa: T201
+        return
+
+    target_pwd = await asyncio.to_thread(getpass.getpass, "Password: ")
+    if not (1 <= len(target_pwd) <= 64):
+        print("Password must be 1-64 characters.")  # noqa: T201
+        return
+
+    sgrp = _select_privilege()
+    if sgrp is None:
+        return
+
+    async def _op(device: AxisDevice) -> None:
+        existing = await device.vapix.users.list()
+        await _account_init_operation(device, target_user, target_pwd, sgrp, existing)
+
+    try:
+        await run_on_selected_device(device_entry, _op)
+    except (Forbidden, PathNotFound) as exc:
+        print(f"Access denied or unsupported on this device: {exc}")  # noqa: T201
+
+
+async def _delete_user_async(device_entry: DeviceEntry) -> None:
+    await _list_users_async(device_entry)
+    target_user = (await asyncio.to_thread(input, "\nUsername to delete: ")).strip()
+    if not target_user:
+        print("No username provided.")  # noqa: T201
+        return
+
+    confirm = (
+        (
+            await asyncio.to_thread(
+                input,
+                f"Permanently delete user '{target_user}'? (y/n): ",
+            )
+        )
+        .strip()
+        .lower()
+    )
+    if confirm != "y":
+        print("Deletion aborted.")  # noqa: T201
+        return
+
+    async def _op(device: AxisDevice) -> None:
+        await device.vapix.users.delete(target_user)
+        print(f"User '{target_user}' deleted.")  # noqa: T201
+
+    try:
+        await run_on_selected_device(device_entry, _op)
+    except (Forbidden, PathNotFound) as exc:
+        print(f"Access denied or unsupported on this device: {exc}")  # noqa: T201
+
+
+async def account_management_async(serial: str, device_entry: DeviceEntry) -> None:
+    device_label = _format_device_operations_label(serial, device_entry)
+    while True:
+        print(f"\nAccount management for {device_label}:")  # noqa: T201
+        print("  1. List users")  # noqa: T201
+        print("  2. Create or update user")  # noqa: T201
+        print("  3. Delete user")  # noqa: T201
+        print("  b. Back")  # noqa: T201
+        print("  e. Exit")  # noqa: T201
+        choice = (
+            (await asyncio.to_thread(input, "Select option [1/2/3/b/e]: "))
+            .strip()
+            .lower()
+        )
+
+        if choice == "e":
+            print("Exiting.")  # noqa: T201
+            raise SystemExit(0)
+        if choice == "b":
+            return
+
+        if choice == "1":
+            await _list_users_async(device_entry)
+            continue
+
+        if choice == "2":
+            await _create_or_update_user_async(device_entry)
+            continue
+
+        if choice == "3":
+            await _delete_user_async(device_entry)
             continue
 
         print("Invalid option. Please enter 1, 2, 3, b, or e.")  # noqa: T201

@@ -698,7 +698,7 @@ async def test_registered_pack_menu_commands_require_selected_device() -> None:
 
 @pytest.mark.asyncio
 async def test_registered_pack_menu_commands_call_flows_with_selected_device() -> None:
-    """API/events/accounts menu commands call underlying flows when context has device."""
+    """API/events/accounts menu commands call async handlers when context has device."""
     registry = CommandRegistry()
     router = CliRouter()
     compose_builtin_packs(registry, router)
@@ -715,10 +715,18 @@ async def test_registered_pack_menu_commands_call_flows_with_selected_device() -
     io = MagicMock()
 
     with (
-        patch("axis.cli.packs.api.list_supported_apis_flow") as mock_list_supported,
-        patch("axis.cli.packs.api.api_drill_down_flow") as mock_api_drill_down,
-        patch("axis.cli.packs.events.events_flow") as mock_events_flow,
-        patch("axis.cli.packs.accounts.account_management_flow") as mock_accounts_flow,
+        patch(
+            "axis.cli.packs.api.list_supported_apis_async", new=AsyncMock()
+        ) as mock_list_supported,
+        patch(
+            "axis.cli.packs.api.api_drill_down_async", new=AsyncMock()
+        ) as mock_api_drill_down,
+        patch(
+            "axis.cli.packs.events.events_menu_async", new=AsyncMock()
+        ) as mock_events_flow,
+        patch(
+            "axis.cli.packs.accounts.account_management_async", new=AsyncMock()
+        ) as mock_accounts_flow,
     ):
         result_api_list = await registry.get_command("api.list_supported").run(ctx, io)
         result_api_drill = await registry.get_command("api.drill_down").run(ctx, io)
@@ -730,15 +738,15 @@ async def test_registered_pack_menu_commands_call_flows_with_selected_device() -
     assert result_events.status == "ok"
     assert result_accounts.status == "ok"
 
-    mock_list_supported.assert_called_once_with("SN1", selected_entry)
-    mock_api_drill_down.assert_called_once_with(selected_entry)
-    mock_events_flow.assert_called_once_with("SN1", selected_entry)
-    mock_accounts_flow.assert_called_once_with("SN1", selected_entry)
+    mock_list_supported.assert_awaited_once_with("SN1", selected_entry)
+    mock_api_drill_down.assert_awaited_once_with(selected_entry)
+    mock_events_flow.assert_awaited_once_with("SN1", selected_entry)
+    mock_accounts_flow.assert_awaited_once_with("SN1", selected_entry)
 
 
 @pytest.mark.asyncio
 async def test_registered_pack_menu_commands_use_to_thread() -> None:
-    """API/events/accounts commands execute sync flows via asyncio.to_thread."""
+    """API/events/accounts commands are async-native and do not use to_thread."""
     registry = CommandRegistry()
     router = CliRouter()
     compose_builtin_packs(registry, router)
@@ -754,21 +762,19 @@ async def test_registered_pack_menu_commands_use_to_thread() -> None:
     )
     io = MagicMock()
 
-    with patch("asyncio.to_thread", new=AsyncMock()) as to_thread:
+    with (
+        patch("asyncio.to_thread", new=AsyncMock()) as to_thread,
+        patch("axis.cli.packs.api.list_supported_apis_async", new=AsyncMock()),
+        patch("axis.cli.packs.api.api_drill_down_async", new=AsyncMock()),
+        patch("axis.cli.packs.events.events_menu_async", new=AsyncMock()),
+        patch("axis.cli.packs.accounts.account_management_async", new=AsyncMock()),
+    ):
         await registry.get_command("api.list_supported").run(ctx, io)
         await registry.get_command("api.drill_down").run(ctx, io)
         await registry.get_command("events.menu").run(ctx, io)
         await registry.get_command("accounts.menu").run(ctx, io)
 
-    assert to_thread.await_count == 4
-
-    called_flows = {call.args[0].__name__ for call in to_thread.await_args_list}
-    assert called_flows == {
-        "list_supported_apis_flow",
-        "api_drill_down_flow",
-        "events_flow",
-        "account_management_flow",
-    }
+    assert to_thread.await_count == 0
 
 
 @pytest.mark.asyncio

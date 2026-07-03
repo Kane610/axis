@@ -40,7 +40,7 @@ class _EventsMenuCommand:
                 status="cancelled",
                 message="No selected device in context.",
             )
-        await asyncio.to_thread(events_flow, ctx.selected_serial, ctx.selected_device)
+        await events_menu_async(ctx.selected_serial, ctx.selected_device)
         return CommandResult()
 
 
@@ -241,6 +241,154 @@ def events_flow(serial: str, device_entry: DeviceEntry) -> None:
                 continue
             selected_topic = events[topic_idx - 1]["topic"]
             _live_listen_flow(device_entry, topic_filter=selected_topic)
+            continue
+
+        print("Invalid option. Please enter 1, 2, 3, b, or e.")  # noqa: T201
+
+
+async def list_event_instances_async(
+    serial: str, device_entry: DeviceEntry
+) -> list[dict[str, str]]:
+    events = await fetch_event_instances(device_entry)
+    _debug_dump("event instances", events)
+    if not events:
+        print(f"No event instances found for {serial}.")  # noqa: T201
+        return []
+
+    device_label = _format_device_operations_label(serial, device_entry)
+    print(f"\nEvent instances for {device_label}:")  # noqa: T201
+
+    rows: list[tuple[str, str, str, str]] = []
+    for _idx, ev in enumerate(events, 1):
+        is_stateful = ev["stateful"] == "True"
+        is_stateless = ev["stateless"] == "True"
+        if is_stateful and is_stateless:
+            state = "stateful/stateless"
+        elif is_stateful:
+            state = "stateful"
+        elif is_stateless:
+            state = "stateless"
+        else:
+            state = "none"
+
+        available = "yes" if ev["available"] == "True" else "no"
+        name = ev["name"].strip() if ev["name"].strip() else "<unnamed>"
+        rows.append((name, ev["topic"], state, available))
+
+    name_width = max(len("name"), *(len(row[0]) for row in rows))
+    topic_width = max(len("topic"), *(len(row[1]) for row in rows))
+    state_width = max(len("state"), *(len(row[2]) for row in rows))
+    available_width = max(len("available"), *(len(row[3]) for row in rows))
+
+    print(  # noqa: T201
+        f"  {'#':>2}  {'name':<{name_width}}  {'topic':<{topic_width}}"
+        f"  {'state':<{state_width}}  {'available':<{available_width}}"
+    )
+    print(  # noqa: T201
+        f"  {'-' * (16 + name_width + topic_width + state_width + available_width)}"
+    )
+
+    for idx, (name, topic, state, available) in enumerate(rows, 1):
+        print(  # noqa: T201
+            f"  {idx:>2}. {name:<{name_width}}  {topic:<{topic_width}}"
+            f"  {state:<{state_width}}  {available:<{available_width}}"
+        )
+    return events
+
+
+async def _live_listen_async(
+    device_entry: DeviceEntry, topic_filter: str | None
+) -> None:
+    credentials = get_device_credentials(device_entry)
+    if credentials is None:
+        print("Stored device config is incomplete. Please re-add the device.")  # noqa: T201
+        return
+
+    if topic_filter:
+        print(f"\nListening for events on topic '{topic_filter}' (Ctrl+C to stop)...")  # noqa: T201
+    else:
+        print("\nListening for all events (Ctrl+C to stop)...")  # noqa: T201
+
+    async def _run_listener() -> None:
+        async with ClientSession() as session:
+            config = Configuration(
+                session=session,
+                host=credentials["host"],
+                username=credentials["username"],
+                password=credentials["password"],
+            )
+            device = AxisDevice(config)
+
+            def _on_event(event: object) -> None:
+                print(f"  [event] {event}")  # noqa: T201
+
+            unsubscribe = device.event.subscribe(
+                callback=_on_event,
+                id_filter=topic_filter,
+            )
+            stop_event = asyncio.Event()
+            try:
+                device.enable_events()
+                await stop_event.wait()
+            except asyncio.CancelledError:
+                pass
+            finally:
+                unsubscribe()
+
+    try:
+        await _run_listener()
+    except KeyboardInterrupt:
+        print("\nStopped listening.")  # noqa: T201
+    except RequestError as exc:
+        print(f"Device request failed: {exc}")  # noqa: T201
+
+
+async def events_menu_async(serial: str, device_entry: DeviceEntry) -> None:
+    device_label = _format_device_operations_label(serial, device_entry)
+    while True:
+        print(f"\nEvent options for {device_label}:")  # noqa: T201
+        print("  1. List event instances")  # noqa: T201
+        print("  2. Listen to events (all topics)")  # noqa: T201
+        print("  3. Listen to events (select topic)")  # noqa: T201
+        print("  b. Back")  # noqa: T201
+        print("  e. Exit")  # noqa: T201
+        choice = (
+            (await asyncio.to_thread(input, "Select option [1/2/3/b/e]: "))
+            .strip()
+            .lower()
+        )
+
+        if choice == "e":
+            print("Exiting.")  # noqa: T201
+            raise SystemExit(0)
+        if choice == "b":
+            return
+
+        if choice == "1":
+            await list_event_instances_async(serial, device_entry)
+            continue
+
+        if choice == "2":
+            await _live_listen_async(device_entry, topic_filter=None)
+            continue
+
+        if choice == "3":
+            events = await list_event_instances_async(serial, device_entry)
+            if not events:
+                continue
+            topic_choice = (
+                await asyncio.to_thread(input, "Enter event number to filter by: ")
+            ).strip()
+            try:
+                topic_idx = int(topic_choice)
+            except ValueError:
+                print("Invalid selection.")  # noqa: T201
+                continue
+            if topic_idx < 1 or topic_idx > len(events):
+                print("Invalid selection.")  # noqa: T201
+                continue
+            selected_topic = events[topic_idx - 1]["topic"]
+            await _live_listen_async(device_entry, topic_filter=selected_topic)
             continue
 
         print("Invalid option. Please enter 1, 2, 3, b, or e.")  # noqa: T201
