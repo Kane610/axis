@@ -25,34 +25,6 @@ if TYPE_CHECKING:
     from axis.cli.core.router import CliRouter
 
 
-def list_supported_apis_flow(serial: str, device_entry: DeviceEntry) -> None:
-    """Compatibility wrapper to avoid import-time pack coupling."""
-    from axis.cli.packs.api import list_supported_apis_flow as _impl
-
-    _impl(serial, device_entry)
-
-
-def api_drill_down_flow(device_entry: DeviceEntry) -> None:
-    """Compatibility wrapper to avoid import-time pack coupling."""
-    from axis.cli.packs.api import api_drill_down_flow as _impl
-
-    _impl(device_entry)
-
-
-def events_flow(serial: str, device_entry: DeviceEntry) -> None:
-    """Compatibility wrapper to avoid import-time pack coupling."""
-    from axis.cli.packs.events import events_flow as _impl
-
-    _impl(serial, device_entry)
-
-
-def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
-    """Compatibility wrapper to avoid import-time pack coupling."""
-    from axis.cli.packs.accounts import account_management_flow as _impl
-
-    _impl(serial, device_entry)
-
-
 def _selected_device_from_context(
     ctx: CliContext,
 ) -> tuple[str, DeviceEntry] | None:
@@ -251,19 +223,27 @@ def selected_device_operations(serial: str, device_entry: DeviceEntry) -> None:
         choice = input("Select option [1-7/b/e]: ").strip().lower()
 
         if choice == "1":
-            list_supported_apis_flow(serial, device_entry)
+            from axis.cli.packs.api import list_supported_apis_async
+
+            asyncio.run(list_supported_apis_async(serial, device_entry))
             continue
 
         if choice == "2":
-            api_drill_down_flow(device_entry)
+            from axis.cli.packs.api import api_drill_down_async
+
+            asyncio.run(api_drill_down_async(device_entry))
             continue
 
         if choice == "3":
-            events_flow(serial, device_entry)
+            from axis.cli.packs.events import events_menu_async
+
+            asyncio.run(events_menu_async(serial, device_entry))
             continue
 
         if choice == "4":
-            account_management_flow(serial, device_entry)
+            from axis.cli.packs.accounts import account_management_async
+
+            asyncio.run(account_management_async(serial, device_entry))
             continue
 
         if choice == "5":  # Health check

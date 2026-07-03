@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -19,7 +18,6 @@ from axis.cli.main import compose_builtin_packs
 from axis.cli.packs import (
     api as api_pack,
     events as events_pack,
-    navigation as navigation_pack,
 )
 from axis.errors import RequestError
 
@@ -497,29 +495,6 @@ def test_compose_builtin_packs_registers_commands_and_nodes() -> None:
         "events",
         "accounts",
     }.issubset(node_ids)
-
-
-def test_navigation_pack_compatibility_wrappers_delegate() -> None:
-    """Navigation wrapper flows delegate to feature pack implementations."""
-    selected_entry = {
-        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
-    }
-
-    with (
-        patch("axis.cli.packs.api.list_supported_apis_flow") as mock_api_list,
-        patch("axis.cli.packs.api.api_drill_down_flow") as mock_api_drill,
-        patch("axis.cli.packs.events.events_flow") as mock_events_flow,
-        patch("axis.cli.packs.accounts.account_management_flow") as mock_accounts,
-    ):
-        navigation_pack.list_supported_apis_flow("SN1", selected_entry)
-        navigation_pack.api_drill_down_flow(selected_entry)
-        navigation_pack.events_flow("SN1", selected_entry)
-        navigation_pack.account_management_flow("SN1", selected_entry)
-
-    mock_api_list.assert_called_once_with("SN1", selected_entry)
-    mock_api_drill.assert_called_once_with(selected_entry)
-    mock_events_flow.assert_called_once_with("SN1", selected_entry)
-    mock_accounts.assert_called_once_with("SN1", selected_entry)
 
 
 @pytest.mark.asyncio
@@ -1371,22 +1346,29 @@ async def test_events_pack_fetch_and_live_listen_guards(
     ):
         assert await events_pack.fetch_event_instances({"config": {}}) == []
 
-    events_pack._live_listen_flow({"config": "bad"}, topic_filter=None)
+    await events_pack._live_listen_async({"config": "bad"}, topic_filter=None)
 
-    def raise_request_error(coro: object) -> None:
-        if asyncio.iscoroutine(coro):
-            coro.close()
-        msg = "denied"
-        raise RequestError(msg)
+    class _FailingSession:
+        async def __aenter__(self) -> object:
+            msg = "denied"
+            raise RequestError(msg)
+
+        async def __aexit__(
+            self,
+            exc_type: object,
+            exc: object,
+            tb: object,
+        ) -> bool:
+            return False
 
     with (
         patch(
             "axis.cli.packs.events.get_device_credentials",
             return_value={"host": "h", "username": "u", "password": "p"},
         ),
-        patch("axis.cli.packs.events.asyncio.run", side_effect=raise_request_error),
+        patch("axis.cli.packs.events.ClientSession", return_value=_FailingSession()),
     ):
-        events_pack._live_listen_flow({"config": {}}, topic_filter="topic")
+        await events_pack._live_listen_async({"config": {}}, topic_filter="topic")
 
     out = capsys.readouterr().out
     assert "incomplete" in out.lower()
