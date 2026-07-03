@@ -737,6 +737,41 @@ async def test_registered_pack_menu_commands_call_flows_with_selected_device() -
 
 
 @pytest.mark.asyncio
+async def test_registered_pack_menu_commands_use_to_thread() -> None:
+    """API/events/accounts commands execute sync flows via asyncio.to_thread."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device=selected_entry,
+    )
+    io = MagicMock()
+
+    with patch("asyncio.to_thread", new=AsyncMock()) as to_thread:
+        await registry.get_command("api.list_supported").run(ctx, io)
+        await registry.get_command("api.drill_down").run(ctx, io)
+        await registry.get_command("events.menu").run(ctx, io)
+        await registry.get_command("accounts.menu").run(ctx, io)
+
+    assert to_thread.await_count == 4
+
+    called_flows = {call.args[0].__name__ for call in to_thread.await_args_list}
+    assert called_flows == {
+        "list_supported_apis_flow",
+        "api_drill_down_flow",
+        "events_flow",
+        "account_management_flow",
+    }
+
+
+@pytest.mark.asyncio
 async def test_devices_operations_command_sets_selected_device_context() -> None:
     """devices.operations command stores selected device and requests navigation."""
     registry = CommandRegistry()

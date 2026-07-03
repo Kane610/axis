@@ -40,7 +40,7 @@ class _EventsMenuCommand:
                 status="cancelled",
                 message="No selected device in context.",
             )
-        events_flow(ctx.selected_serial, ctx.selected_device)
+        await asyncio.to_thread(events_flow, ctx.selected_serial, ctx.selected_device)
         return CommandResult()
 
 

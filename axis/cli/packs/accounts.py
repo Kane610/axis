@@ -41,7 +41,11 @@ class _AccountsMenuCommand:
                 status="cancelled",
                 message="No selected device in context.",
             )
-        account_management_flow(ctx.selected_serial, ctx.selected_device)
+        await asyncio.to_thread(
+            account_management_flow,
+            ctx.selected_serial,
+            ctx.selected_device,
+        )
         return CommandResult()
 
 

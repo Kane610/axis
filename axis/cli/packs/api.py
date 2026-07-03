@@ -39,7 +39,11 @@ class _ListSupportedApisCommand:
                 status="cancelled",
                 message="No selected device in context.",
             )
-        list_supported_apis_flow(ctx.selected_serial, ctx.selected_device)
+        await asyncio.to_thread(
+            list_supported_apis_flow,
+            ctx.selected_serial,
+            ctx.selected_device,
+        )
         return CommandResult()
 
 
@@ -55,7 +59,7 @@ class _ApiDrillDownCommand:
                 status="cancelled",
                 message="No selected device in context.",
             )
-        api_drill_down_flow(ctx.selected_device)
+        await asyncio.to_thread(api_drill_down_flow, ctx.selected_device)
         return CommandResult()
 
 
