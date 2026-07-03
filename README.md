@@ -38,6 +38,21 @@ Initial `ty` support is configured as an opt-in check and does not replace `mypy
 uvx ty check
 ```
 
+## CLI navigation contract
+
+The interactive CLI in `axis/cli/` follows a menu-first model.
+
+- Canonical route graph: `main -> devices -> device_operations -> {api|events|accounts}`.
+- `device_operations` routes to feature submenus using router navigation, not direct feature command execution.
+- Feature nodes (`api`, `events`, `accounts`) own their local menu layout and selected-device context rendering.
+- `b` always navigates to `parent_id`; `e` always exits.
+
+To keep the CLI reusable boundary clear:
+
+- CLI concerns (menu keys, prompts, render text, router state) stay in `axis/cli/`.
+- `axis/interfaces/` and `axis/models/` must remain presentation-agnostic and reusable by non-CLI consumers.
+- Domain layers return typed data/errors; CLI adapters map them to user-facing text and flow.
+
 ## Initialization architecture
 
 Vapix initialization is phase-based and driven by handler metadata:
