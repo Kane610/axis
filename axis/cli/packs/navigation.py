@@ -75,6 +75,14 @@ def _selected_device_from_context(
 
 
 def _render_device_operations_node(ctx: CliContext, io: CliIO) -> None:
+    _render_selected_device_node(ctx, io, "Device operations")
+
+
+def _render_selected_device_node(
+    ctx: CliContext,
+    io: CliIO,
+    title: str,
+) -> None:
     selected = _selected_device_from_context(ctx)
     if selected is None:
         io.write("\nNo selected device.")
@@ -82,7 +90,7 @@ def _render_device_operations_node(ctx: CliContext, io: CliIO) -> None:
 
     serial, device_entry = selected
     device_label = _format_device_operations_label(serial, device_entry)
-    io.write(f"\nDevice operations for {device_label}:")
+    io.write(f"\n{title} for {device_label}:")
 
 
 class _HealthCheckCommand:
@@ -195,42 +203,36 @@ def register(registry: CommandRegistry, router: CliRouter) -> None:
             items=[
                 MenuItem(
                     key="1",
-                    label="List supported APIs",
-                    action="command",
-                    command_id="api.list_supported",
+                    label="API",
+                    action="navigate",
+                    next_node_id="api",
                 ),
                 MenuItem(
                     key="2",
-                    label="API drill-down",
-                    action="command",
-                    command_id="api.drill_down",
+                    label="Events",
+                    action="navigate",
+                    next_node_id="events",
                 ),
                 MenuItem(
                     key="3",
-                    label="Event instances & live listen",
-                    action="command",
-                    command_id="events.menu",
+                    label="Accounts",
+                    action="navigate",
+                    next_node_id="accounts",
                 ),
                 MenuItem(
                     key="4",
-                    label="Account management",
-                    action="command",
-                    command_id="accounts.menu",
-                ),
-                MenuItem(
-                    key="5",
                     label="Device health check",
                     action="command",
                     command_id="navigation.health_check",
                 ),
                 MenuItem(
-                    key="6",
+                    key="5",
                     label="Edit device credentials",
                     action="command",
                     command_id="navigation.edit_credentials",
                 ),
                 MenuItem(
-                    key="7",
+                    key="6",
                     label="Delete device",
                     action="command",
                     command_id="navigation.delete_device",

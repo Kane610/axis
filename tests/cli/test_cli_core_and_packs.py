@@ -370,6 +370,51 @@ async def test_router_device_operations_node_shows_missing_context_message() -> 
     assert "No selected device." in written
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("selection", "expected_title", "expected_context"),
+    [
+        ("1", "\nAPI:", "API for SN1 (10.0.0.1, mac=SN1):"),
+        ("2", "\nEvents:", "Events for SN1 (10.0.0.1, mac=SN1):"),
+        (
+            "3",
+            "\nAccounts:",
+            "Account management for SN1 (10.0.0.1, mac=SN1):",
+        ),
+    ],
+)
+async def test_router_device_operations_navigates_to_selected_device_nodes(
+    selection: str,
+    expected_title: str,
+    expected_context: str,
+) -> None:
+    """device_operations routes to API/events/accounts and keeps selected context."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device={
+            "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+        },
+        command_registry=registry,
+        router=router,
+    )
+    io = MagicMock()
+    io.prompt = MagicMock(side_effect=[selection, "e"])
+
+    with pytest.raises(SystemExit):
+        await router.run(ctx=ctx, io=io, start_node_id="device_operations")
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "Device operations for SN1 (10.0.0.1, mac=SN1):" in written
+    assert expected_context in written
+    assert expected_title in written
+
+
 def test_command_registry_rejects_duplicate_command_ids() -> None:
     """Registering the same command id twice raises ValueError."""
     registry = CommandRegistry()
@@ -1077,10 +1122,16 @@ async def test_events_pack_fetch_and_live_listen_guards(
     assert "request failed" in out.lower()
 
 
-def test_api_and_events_register_noop() -> None:
-    """Register placeholders are intentionally no-op."""
-    assert api_pack.register(object(), object()) is None
-    assert events_pack.register(object(), object()) is None
+def test_api_and_events_register_commands_and_nodes() -> None:
+    """Pack registration wires commands and menu nodes into the router."""
+    registry = MagicMock()
+    router = MagicMock()
+
+    api_pack.register(registry, router)
+    events_pack.register(registry, router)
+
+    assert registry.register_command.call_count == 3
+    assert router.register_node.call_count == 2
 
 
 def test_command_registry_register_get_list() -> None:

@@ -58,6 +58,18 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
+def _render_accounts_node(ctx: CliContext, io: CliIO) -> None:
+    if ctx.selected_serial is None or ctx.selected_device is None:
+        io.write("\nNo selected device.")
+        return
+
+    device_label = _format_device_operations_label(
+        ctx.selected_serial,
+        ctx.selected_device,
+    )
+    io.write(f"\nAccount management for {device_label}:")
+
+
 def register(registry: CommandRegistry, router: CliRouter) -> None:
     """Register account-pack commands and menu nodes."""
     registry.register_command(_AccountsMenuCommand())
@@ -67,6 +79,7 @@ def register(registry: CommandRegistry, router: CliRouter) -> None:
             id="accounts",
             title="Accounts",
             parent_id="device_operations",
+            render=_render_accounts_node,
             items=[
                 MenuItem(
                     key="1",
