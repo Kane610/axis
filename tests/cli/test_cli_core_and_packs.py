@@ -670,6 +670,46 @@ async def test_router_device_selection_command_navigates_to_operations() -> None
 
 
 @pytest.mark.asyncio
+async def test_router_main_to_api_submenu_and_back() -> None:
+    """Main route reaches API submenu through device_operations and supports back."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    selected_entry = {
+        "config": {"host": "10.0.0.1", "username": "admin", "password": "pwd"}
+    }
+
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        command_registry=registry,
+        router=router,
+    )
+
+    io = MagicMock()
+    # main -> devices -> select operations -> API submenu -> back -> exit
+    io.prompt = MagicMock(side_effect=["1", "3", "1", "b", "e"])
+
+    with (
+        patch(
+            "axis.cli.packs.devices.load_devices", return_value={"SN1": selected_entry}
+        ),
+        patch(
+            "axis.cli.packs.devices.select_device",
+            return_value=("SN1", selected_entry),
+        ),
+        pytest.raises(SystemExit),
+    ):
+        await router.run(ctx=ctx, io=io)
+
+    written = "\n".join(call.args[0] for call in io.write.call_args_list)
+    assert "\nAPI:" in written
+    assert "API for SN1 (10.0.0.1, mac=SN1):" in written
+    assert written.count("\nDevice operations:") == 2
+
+
+@pytest.mark.asyncio
 async def test_router_devices_node_renders_registered_devices() -> None:
     """Devices node render hook prints registered devices in router mode."""
     registry = CommandRegistry()
