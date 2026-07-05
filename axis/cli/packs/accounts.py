@@ -9,6 +9,8 @@ from pprint import pformat
 import re
 from typing import TYPE_CHECKING
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.cli.packs.devices import (
     DeviceEntry,
     _format_device_operations_label,
@@ -20,6 +22,28 @@ from axis.models.pwdgrp_cgi import SecondaryGroup
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
+
+
+class _AccountsMenuCommand:
+    id = "accounts.menu"
+    title = "Account management"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        if ctx.selected_serial is None or ctx.selected_device is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+        await account_management_async(ctx.selected_serial, ctx.selected_device)
+        return CommandResult()
+
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9]{1,14}$")
 
@@ -34,8 +58,38 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
-def register(registry: object, router: object) -> None:
-    """Register account-pack commands and menu nodes (explicit composition placeholder)."""
+def _render_accounts_node(ctx: CliContext, io: CliIO) -> None:
+    if ctx.selected_serial is None or ctx.selected_device is None:
+        io.write("\nNo selected device.")
+        return
+
+    device_label = _format_device_operations_label(
+        ctx.selected_serial,
+        ctx.selected_device,
+    )
+    io.write(f"\nAccount management for {device_label}:")
+
+
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register account-pack commands and menu nodes."""
+    registry.register_command(_AccountsMenuCommand())
+
+    router.register_node(
+        MenuNode(
+            id="accounts",
+            title="Accounts",
+            parent_id="device_operations",
+            render=_render_accounts_node,
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Account management",
+                    action="command",
+                    command_id="accounts.menu",
+                )
+            ],
+        )
+    )
 
 
 def _validate_username(username: str) -> str | None:
@@ -130,11 +184,11 @@ async def _account_init_operation(
         print(f"User '{target_user}' created.")  # noqa: T201
 
 
-def _list_users_flow(device_entry: DeviceEntry) -> None:
+async def _list_users_async(device_entry: DeviceEntry) -> None:
     async def _op(device: AxisDevice) -> dict[str, object]:
         return dict(await device.vapix.users.list())
 
-    users = asyncio.run(run_on_selected_device(device_entry, _op))
+    users = await run_on_selected_device(device_entry, _op)
     _debug_dump("users list raw", users)
     if not users:
         print("No users found (or insufficient privileges).")  # noqa: T201
@@ -145,14 +199,14 @@ def _list_users_flow(device_entry: DeviceEntry) -> None:
         print(f"  - {name} ({privs})")  # noqa: T201
 
 
-def _create_or_update_user_flow(device_entry: DeviceEntry) -> None:
-    target_user = input("Username: ").strip()
+async def _create_or_update_user_async(device_entry: DeviceEntry) -> None:
+    target_user = (await asyncio.to_thread(input, "Username: ")).strip()
     err = _validate_username(target_user)
     if err:
         print(f"Invalid username: {err}")  # noqa: T201
         return
 
-    target_pwd = getpass.getpass("Password: ")
+    target_pwd = await asyncio.to_thread(getpass.getpass, "Password: ")
     if not (1 <= len(target_pwd) <= 64):
         print("Password must be 1-64 characters.")  # noqa: T201
         return
@@ -166,19 +220,28 @@ def _create_or_update_user_flow(device_entry: DeviceEntry) -> None:
         await _account_init_operation(device, target_user, target_pwd, sgrp, existing)
 
     try:
-        asyncio.run(run_on_selected_device(device_entry, _op))
+        await run_on_selected_device(device_entry, _op)
     except (Forbidden, PathNotFound) as exc:
         print(f"Access denied or unsupported on this device: {exc}")  # noqa: T201
 
 
-def _delete_user_flow(device_entry: DeviceEntry) -> None:
-    _list_users_flow(device_entry)
-    target_user = input("\nUsername to delete: ").strip()
+async def _delete_user_async(device_entry: DeviceEntry) -> None:
+    await _list_users_async(device_entry)
+    target_user = (await asyncio.to_thread(input, "\nUsername to delete: ")).strip()
     if not target_user:
         print("No username provided.")  # noqa: T201
         return
 
-    confirm = input(f"Permanently delete user '{target_user}'? (y/n): ").strip().lower()
+    confirm = (
+        (
+            await asyncio.to_thread(
+                input,
+                f"Permanently delete user '{target_user}'? (y/n): ",
+            )
+        )
+        .strip()
+        .lower()
+    )
     if confirm != "y":
         print("Deletion aborted.")  # noqa: T201
         return
@@ -188,12 +251,12 @@ def _delete_user_flow(device_entry: DeviceEntry) -> None:
         print(f"User '{target_user}' deleted.")  # noqa: T201
 
     try:
-        asyncio.run(run_on_selected_device(device_entry, _op))
+        await run_on_selected_device(device_entry, _op)
     except (Forbidden, PathNotFound) as exc:
         print(f"Access denied or unsupported on this device: {exc}")  # noqa: T201
 
 
-def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
+async def account_management_async(serial: str, device_entry: DeviceEntry) -> None:
     device_label = _format_device_operations_label(serial, device_entry)
     while True:
         print(f"\nAccount management for {device_label}:")  # noqa: T201
@@ -202,7 +265,11 @@ def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
         print("  3. Delete user")  # noqa: T201
         print("  b. Back")  # noqa: T201
         print("  e. Exit")  # noqa: T201
-        choice = input("Select option [1/2/3/b/e]: ").strip().lower()
+        choice = (
+            (await asyncio.to_thread(input, "Select option [1/2/3/b/e]: "))
+            .strip()
+            .lower()
+        )
 
         if choice == "e":
             print("Exiting.")  # noqa: T201
@@ -211,15 +278,15 @@ def account_management_flow(serial: str, device_entry: DeviceEntry) -> None:
             return
 
         if choice == "1":
-            _list_users_flow(device_entry)
+            await _list_users_async(device_entry)
             continue
 
         if choice == "2":
-            _create_or_update_user_flow(device_entry)
+            await _create_or_update_user_async(device_entry)
             continue
 
         if choice == "3":
-            _delete_user_flow(device_entry)
+            await _delete_user_async(device_entry)
             continue
 
         print("Invalid option. Please enter 1, 2, 3, b, or e.")  # noqa: T201

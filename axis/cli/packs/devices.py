@@ -18,12 +18,109 @@ import tomli_w
 from zeroconf import IPVersion, ServiceStateChange
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.device import AxisDevice
 from axis.errors import Forbidden, PathNotFound, RequestError, Unauthorized
 from axis.models.configuration import Configuration
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
+
+
+class _AddDeviceCommand:
+    id = "devices.add"
+    title = "Add additional device"
+    capabilities = CommandCapabilities()
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        devices = load_devices(ctx.config_path)
+        result = await register_or_update_device_async(devices, io)
+        if result.status != "ok":
+            return result
+
+        save_devices(ctx.config_path, devices)
+        return result
+
+
+class _DiscoverDevicesCommand:
+    id = "devices.discover"
+    title = "Discover devices"
+    capabilities = CommandCapabilities()
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        devices = load_devices(ctx.config_path)
+
+        discovered_devices = await discover_axis_devices(scan_seconds=5.0)
+        filtered_discovered = filter_discovered_devices(discovered_devices, devices)
+        selected_discovered = select_discovered_device(filtered_discovered)
+        if selected_discovered is None:
+            return CommandResult(
+                status="cancelled", message="Device discovery aborted."
+            )
+
+        username = io.prompt("Enter username: ").strip()
+        password = io.prompt_password("Enter password: ")
+        device_info = {
+            "host": selected_discovered.get("host", "").strip(),
+            "username": username,
+            "password": password,
+        }
+
+        result = await register_or_update_device_async(
+            devices,
+            io,
+            device_info=device_info,
+        )
+        if result.status == "ok":
+            save_devices(ctx.config_path, devices)
+        return result
+
+
+class _SelectDeviceForOperationsCommand:
+    id = "devices.operations"
+    title = "Device operations"
+    capabilities = CommandCapabilities()
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        devices = load_devices(ctx.config_path)
+        if not devices:
+            return CommandResult(
+                status="cancelled",
+                message="No devices available.",
+            )
+
+        selected = select_device(devices)
+        if selected is None:
+            return CommandResult(status="cancelled", message="No device selected.")
+
+        serial, device_entry = selected
+        ctx.selected_serial = serial
+        ctx.selected_device = device_entry
+        return CommandResult(
+            message=f"Selected device: {serial}",
+            payload={"next_node_id": "device_operations"},
+        )
+
+
+def _render_devices_node(ctx: CliContext, io: CliIO) -> None:
+    devices = load_devices(ctx.config_path)
+    if not devices:
+        io.write("\nNo devices registered yet.")
+        return
+
+    io.write("\nRegistered devices:")
+    for idx, (serial, device_data) in enumerate(devices.items(), 1):
+        host = str(device_data.get("config", {}).get("host", "<unknown>"))
+        model = str(device_data.get("model", ""))
+        io.write(f"  {idx}. {_format_device_label(model, serial, host)}")
+
 
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
@@ -58,8 +155,40 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
-def register(registry: object, router: object) -> None:
-    """Register device-pack commands and menu nodes (explicit composition placeholder)."""
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register device-pack commands and menu nodes."""
+    registry.register_command(_AddDeviceCommand())
+    registry.register_command(_DiscoverDevicesCommand())
+    registry.register_command(_SelectDeviceForOperationsCommand())
+
+    router.register_node(
+        MenuNode(
+            id="devices",
+            title="Devices",
+            parent_id="main",
+            render=_render_devices_node,
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Add additional device",
+                    action="command",
+                    command_id="devices.add",
+                ),
+                MenuItem(
+                    key="2",
+                    label="Discover devices",
+                    action="command",
+                    command_id="devices.discover",
+                ),
+                MenuItem(
+                    key="3",
+                    label="Device operations",
+                    action="command",
+                    command_id="devices.operations",
+                ),
+            ],
+        )
+    )
 
 
 def get_config_path() -> Path:
@@ -616,12 +745,28 @@ async def run_on_selected_device[ReturnT](
     return None
 
 
-def register_or_update_device(devices: DeviceStore) -> None:
-    device_info = prompt_for_device()
+async def register_or_update_device_async(
+    devices: DeviceStore,
+    io: CliIO,
+    *,
+    device_info: dict[str, str] | None = None,
+) -> CommandResult:
+    """Register or update a device in-place.
+
+    Returns:
+        CommandResult describing update status and user-facing message.
+
+    """
+    if device_info is None:
+        device_info = {
+            "host": io.prompt("Enter device host/IP: ").strip(),
+            "username": io.prompt("Enter username: ").strip(),
+            "password": io.prompt_password("Enter password: "),
+        }
     existing_serial_for_host = find_serial_by_host(devices, device_info["host"])
     if existing_serial_for_host is not None:
         update_existing = (
-            input(
+            io.prompt(
                 f"A device with host {device_info['host']} already exists "
                 f"(serial {existing_serial_for_host}). Update it? (y/n): "
             )
@@ -629,18 +774,23 @@ def register_or_update_device(devices: DeviceStore) -> None:
             .lower()
         )
         if update_existing != "y":
-            print("Device registration aborted.")  # noqa: T201
-            return
+            return CommandResult(
+                status="cancelled",
+                message="Device registration aborted.",
+            )
 
-    config, serial, model, extra = asyncio.run(validate_and_fetch_device(device_info))
+    config, serial, model, extra = await validate_and_fetch_device(device_info)
     if config is None or serial is None or model is None or extra is None:
-        return
+        return CommandResult(
+            status="error",
+            message="Unable to validate device.",
+        )
 
     migrate_unknown_entry(devices, serial, device_info["host"])
 
     if serial in devices:
         update = (
-            input(
+            io.prompt(
                 f"A device with serial {serial} already exists. "
                 "Update its configuration? (y/n): "
             )
@@ -648,15 +798,46 @@ def register_or_update_device(devices: DeviceStore) -> None:
             .lower()
         )
         if update != "y":
-            print("Device registration aborted.")  # noqa: T201
-            return
+            return CommandResult(
+                status="cancelled",
+                message="Device registration aborted.",
+            )
 
     devices[serial] = {
         "config": config_to_toml_dict(config),
         "model": model,
         "extra": extra,
     }
-    print(f"Device '{serial}' registered/updated.")  # noqa: T201
+    return CommandResult(message=f"Device '{serial}' registered/updated.")
+
+
+def register_or_update_device(devices: DeviceStore) -> None:
+    """Legacy sync wrapper for register/update flow."""
+    io = _TerminalIOAdapter()
+    result = asyncio.run(
+        register_or_update_device_async(
+            devices,
+            io,
+            device_info=prompt_for_device(),
+        )
+    )
+    if result.message:
+        io.write(result.message)
+    if result.status != "ok":
+        return
+
+
+class _TerminalIOAdapter:
+    """Minimal local adapter for legacy sync flow."""
+
+    def prompt(self, text: str) -> str:
+        return input(text)
+
+    def prompt_password(self, text: str) -> str:
+        return getpass.getpass(text)
+
+    def write(self, text: str) -> None:
+        print(text)  # noqa: T201
 
 
 def delete_device(serial: str, devices: DeviceStore) -> bool:

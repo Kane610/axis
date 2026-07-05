@@ -9,6 +9,8 @@ import os
 from pprint import pformat
 from typing import TYPE_CHECKING, cast
 
+from axis.cli.core.contracts import CommandCapabilities, CommandResult
+from axis.cli.core.router import MenuItem, MenuNode
 from axis.cli.packs.devices import (
     DeviceEntry,
     _format_device_operations_label,
@@ -18,6 +20,43 @@ from axis.device import AxisDevice
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from axis.cli.core.context import CliContext
+    from axis.cli.core.io import CliIO
+    from axis.cli.core.registry import CommandRegistry
+    from axis.cli.core.router import CliRouter
+
+
+class _ListSupportedApisCommand:
+    id = "api.list_supported"
+    title = "List supported APIs"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        if ctx.selected_serial is None or ctx.selected_device is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+        await list_supported_apis_async(ctx.selected_serial, ctx.selected_device)
+        return CommandResult()
+
+
+class _ApiDrillDownCommand:
+    id = "api.drill_down"
+    title = "API drill-down"
+    capabilities = CommandCapabilities(requires_device=True)
+
+    async def run(self, ctx: CliContext, io: CliIO) -> CommandResult:
+        _ = io
+        if ctx.selected_device is None:
+            return CommandResult(
+                status="cancelled",
+                message="No selected device in context.",
+            )
+        await api_drill_down_async(ctx.selected_device)
+        return CommandResult()
 
 
 def _debug_enabled() -> bool:
@@ -30,8 +69,46 @@ def _debug_dump(label: str, payload: object) -> None:
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
 
 
-def register(registry: object, router: object) -> None:
-    """Register API-pack commands and menu nodes (explicit composition placeholder)."""
+def _render_api_node(ctx: CliContext, io: CliIO) -> None:
+    _ = io
+    if ctx.selected_serial is None or ctx.selected_device is None:
+        io.write("\nNo selected device.")
+        return
+
+    device_label = _format_device_operations_label(
+        ctx.selected_serial,
+        ctx.selected_device,
+    )
+    io.write(f"\nAPI for {device_label}:")
+
+
+def register(registry: CommandRegistry, router: CliRouter) -> None:
+    """Register API-pack commands and menu nodes."""
+    registry.register_command(_ListSupportedApisCommand())
+    registry.register_command(_ApiDrillDownCommand())
+
+    router.register_node(
+        MenuNode(
+            id="api",
+            title="API",
+            parent_id="device_operations",
+            render=_render_api_node,
+            items=[
+                MenuItem(
+                    key="1",
+                    label="List supported APIs",
+                    action="command",
+                    command_id="api.list_supported",
+                ),
+                MenuItem(
+                    key="2",
+                    label="API drill-down",
+                    action="command",
+                    command_id="api.drill_down",
+                ),
+            ],
+        )
+    )
 
 
 async def fetch_supported_apis(device_entry: DeviceEntry) -> list[dict[str, str]]:
@@ -168,8 +245,8 @@ def _render_api_discovery_table(payload: object) -> bool:
     return True
 
 
-def list_supported_apis_flow(serial: str, device_entry: DeviceEntry) -> None:
-    apis = asyncio.run(fetch_supported_apis(device_entry))
+async def list_supported_apis_async(serial: str, device_entry: DeviceEntry) -> None:
+    apis = await fetch_supported_apis(device_entry)
     _debug_dump("supported APIs", apis)
     if not apis:
         print("No APIs discovered for this device.")  # noqa: T201
@@ -235,8 +312,8 @@ async def run_api_read_action(
     await run_on_selected_device(device_entry, _operation)
 
 
-def api_drill_down_flow(device_entry: DeviceEntry) -> None:
-    interfaces = asyncio.run(fetch_vapix_interfaces(device_entry))
+async def api_drill_down_async(device_entry: DeviceEntry) -> None:
+    interfaces = await fetch_vapix_interfaces(device_entry)
     if not interfaces:
         print("No interfaces discovered for this device.")  # noqa: T201
         return
@@ -276,7 +353,9 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
         print("  b. Back")  # noqa: T201
         print("  e. Exit")  # noqa: T201
 
-        selection = input("Select interface [b/e]: ").strip().lower()
+        selection = (
+            (await asyncio.to_thread(input, "Select interface [b/e]: ")).strip().lower()
+        )
         if selection == "e":
             print("Exiting.")  # noqa: T201
             raise SystemExit(0)
@@ -315,7 +394,11 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
             print("  2. Traverse by path")  # noqa: T201
             print("  b. Back")  # noqa: T201
             print("  e. Exit")  # noqa: T201
-            action_choice = input("Select action [1/2/b/e]: ").strip().lower()
+            action_choice = (
+                (await asyncio.to_thread(input, "Select action [1/2/b/e]: "))
+                .strip()
+                .lower()
+            )
             if action_choice == "e":
                 print("Exiting.")  # noqa: T201
                 raise SystemExit(0)
@@ -323,24 +406,23 @@ def api_drill_down_flow(device_entry: DeviceEntry) -> None:
                 break
 
             if action_choice == "1":
-                asyncio.run(
-                    run_api_read_action(device_entry, str(selected_interface["name"]))
-                )
+                await run_api_read_action(device_entry, str(selected_interface["name"]))
                 continue
 
             if action_choice == "2":
-                traversal_path = input(
-                    "Traversal path (dot notation, e.g. 0.source.items.0.name): "
+                traversal_path = (
+                    await asyncio.to_thread(
+                        input,
+                        "Traversal path (dot notation, e.g. 0.source.items.0.name): ",
+                    )
                 ).strip()
                 if not traversal_path:
                     print("Traversal path cannot be empty.")  # noqa: T201
                     continue
-                asyncio.run(
-                    run_api_read_action(
-                        device_entry,
-                        str(selected_interface["name"]),
-                        traversal_path,
-                    )
+                await run_api_read_action(
+                    device_entry,
+                    str(selected_interface["name"]),
+                    traversal_path,
                 )
                 continue
 

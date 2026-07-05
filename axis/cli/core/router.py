@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from axis.cli.core.context import CliContext
     from axis.cli.core.io import CliIO
 
@@ -25,6 +27,7 @@ class MenuNode:
     title: str
     items: list[MenuItem]
     parent_id: str | None = None
+    render: Callable[[CliContext, CliIO], None] | None = None
 
 
 @dataclass
@@ -32,6 +35,9 @@ class CliRouter:
     nodes: dict[str, MenuNode] = field(default_factory=dict)
 
     def register_node(self, node: MenuNode) -> None:
+        if node.id in self.nodes:
+            msg = f"Node '{node.id}' is already registered."
+            raise ValueError(msg)
         self.nodes[node.id] = node
 
     async def run(
@@ -40,6 +46,8 @@ class CliRouter:
         current = start_node_id
         while True:
             node = self.nodes[current]
+            if node.render is not None:
+                node.render(ctx, io)
             io.write(f"\n{node.title}:")
             for item in node.items:
                 io.write(f"  {item.key}. {item.label}")
@@ -68,6 +76,39 @@ class CliRouter:
             if matched.action == "noop":
                 continue
 
-            # Commands are intentionally not executed here yet to keep routing
-            # simple and preserve current flow compatibility in main.py.
-            io.write("Command execution is handled by composed workflows.")
+            if matched.action == "command":
+                if matched.command_id is None:
+                    io.write("Command is not configured.")
+                    continue
+
+                registry = ctx.command_registry
+                if registry is None:
+                    io.write("Command registry is unavailable.")
+                    continue
+
+                try:
+                    command = registry.get_command(matched.command_id)
+                except KeyError:
+                    io.write(f"Unknown command: {matched.command_id}")
+                    continue
+
+                result = await command.run(ctx, io)
+                payload = result.payload
+                if result.status == "ok" and isinstance(payload, dict):
+                    requested_node = payload.get("next_node_id")
+                    if isinstance(requested_node, str):
+                        if requested_node in self.nodes:
+                            if result.message:
+                                io.write(result.message)
+                            current = requested_node
+                            continue
+                        io.write(f"Unknown node: {requested_node}")
+                if result.message:
+                    io.write(result.message)
+                elif result.status == "error":
+                    io.write("Command failed.")
+                elif result.status == "cancelled":
+                    io.write("Command cancelled.")
+                continue
+
+            io.write("Unsupported action.")
