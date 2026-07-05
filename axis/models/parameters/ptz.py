@@ -71,9 +71,9 @@ class PtzSupportParamT(TypedDict):
     ContinuousZoom: bool
     DevicePreset: bool
     DigitalZoom: bool
-    GenericHTTP: bool
+    GenericHTTP: NotRequired[bool]  # Removed with AXIS OS 13
     IrCutFilter: bool
-    JoyStickEmulation: bool
+    JoyStickEmulation: NotRequired[bool]  # Removed with AXIS OS 13
     LensOffset: bool
     OSDMenu: bool
     ProportionalSpeed: bool
@@ -109,7 +109,7 @@ class PtzVariousParamT(TypedDict):
     CtlQueueing: bool
     CtlQueueLimit: int
     CtlQueuePollTime: int
-    HomePresetSet: bool
+    HomePresetSet: NotRequired[bool]  # Removed with AXIS OS 13
     Locked: NotRequired[bool]
     MaxProportionalSpeed: NotRequired[int]
     PanEnabled: NotRequired[bool]
@@ -242,9 +242,9 @@ class PtzSupport:
     continuous_zoom: bool
     device_preset: bool
     digital_zoom: bool
-    generic_http: bool
+    generic_http: bool | None  # Removed with AXIS OS 13
     ir_cut_filter: bool
-    joystick_emulation: bool
+    joystick_emulation: bool | None  # Removed with AXIS OS 13
     lens_offset: bool
     osd_menu: bool
     proportional_speed: bool
@@ -282,9 +282,9 @@ class PtzSupport:
             continuous_zoom=data["ContinuousZoom"],
             device_preset=data["DevicePreset"],
             digital_zoom=data["DigitalZoom"],
-            generic_http=data["GenericHTTP"],
+            generic_http=data.get("GenericHTTP"),
             ir_cut_filter=data["IrCutFilter"],
-            joystick_emulation=data["JoyStickEmulation"],
+            joystick_emulation=data.get("JoyStickEmulation"),
             lens_offset=data["LensOffset"],
             osd_menu=data["OSDMenu"],
             proportional_speed=data["ProportionalSpeed"],
@@ -335,7 +335,7 @@ class PtzVarious:
             control_queueing=data["CtlQueueing"],
             control_queue_limit=data["CtlQueueLimit"],
             control_queue_poll_time=data["CtlQueuePollTime"],
-            home_preset_set=data.get("HomePresetSet"),
+            home_preset_set=data.get("HomePresetSet"),  # Removed with AXIS OS 13
             locked=data.get("Locked", False),
             max_proportional_speed=data.get("MaxProportionalSpeed"),
             pan_enabled=data.get("PanEnabled"),
