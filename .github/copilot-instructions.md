@@ -175,12 +175,13 @@ Use this when asking Copilot to review code for correctness and regressions. Cho
 # WRONG: Will crash if value is unknown
 status = Status(user_input)
 
+
 # RIGHT: Use _missing_ fallback
 class Status(Enum):
     OK = "ok"
     ERROR = "error"
     UNKNOWN = "unknown"
-    
+
     @classmethod
     def _missing_(cls, value: object) -> Status:
         LOGGER.debug("Unknown status: %s", value)
@@ -195,12 +196,12 @@ class Status(Enum):
 
 ```python
 # WRONG: Assumes 'event' root always exists
-event_data = xmltodict.parse(payload)['event']
+event_data = xmltodict.parse(payload)["event"]
 
 # RIGHT: Check root shape and use traverse helper
 root = xmltodict.parse(payload, process_namespaces=True)
-if root and 'event' in root:
-    event_data = root['event']
+if root and "event" in root:
+    event_data = root["event"]
 else:
     LOGGER.warning("Unexpected XML structure")
     event_data = {}
@@ -233,6 +234,7 @@ class Config:
     def __init__(self, protocol: str):
         self.protocol = protocol
 
+
 # RIGHT: Coerce at boundary
 class Config:
     def __init__(self, protocol: str | HttpProtocol):
@@ -251,14 +253,17 @@ async def test_get_status():
     mock.respond(json={"status": "ok"})
     assert await handler.get_status() == "ok"
 
+
 # RIGHT: Test success, error, and edge cases
 async def test_get_status_success():
     mock.respond(json={"status": "ok"})
     assert await handler.get_status() == "ok"
 
+
 async def test_get_status_unknown_value():
     mock.respond(json={"status": "unknown"})
     assert await handler.get_status() == StatusEnum.UNKNOWN
+
 
 async def test_get_status_malformed():
     mock.respond(json={"data": []})  # Missing "status"
@@ -293,6 +298,7 @@ async def test_get_status_malformed():
 # WRONG
 async def get_status():
     return await self.device.api_call()
+
 
 # RIGHT
 async def get_status(self) -> str:

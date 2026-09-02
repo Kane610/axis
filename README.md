@@ -78,12 +78,12 @@ Examples:
 ```python
 @dataclass
 class ListApisRequest(ApiRequest[GetAllApisResponse]):
-	response_type = GetAllApisResponse
+    response_type = GetAllApisResponse
 
 
 @dataclass
 class SetPortsRequest(ApiRequest[ApiResponse[bytes]]):
-	response_type = BytesResponse
+    response_type = BytesResponse
 ```
 
 Handler methods may unwrap `.data` when they intentionally preserve a bytes-returning boundary.

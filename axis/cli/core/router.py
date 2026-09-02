@@ -42,7 +42,7 @@ class CliRouter:
 
     async def run(
         self, ctx: CliContext, io: CliIO, start_node_id: str = "main"
-    ) -> None:
+    ) -> bool:
         current = start_node_id
         while True:
             node = self.nodes[current]
@@ -57,7 +57,7 @@ class CliRouter:
 
             if selection == "e":
                 io.write("Exiting.")
-                raise SystemExit(0)
+                return True
             if selection == "b":
                 if node.parent_id is None:
                     continue
@@ -92,9 +92,16 @@ class CliRouter:
                     io.write(f"Unknown command: {matched.command_id}")
                     continue
 
-                result = await command.run(ctx, io)
+                try:
+                    result = await command.run(ctx, io)
+                except SystemExit as exc:
+                    if exc.code == 0:
+                        return True
+                    raise
                 payload = result.payload
                 if result.status == "ok" and isinstance(payload, dict):
+                    if payload.get("exit") is True:
+                        return True
                     requested_node = payload.get("next_node_id")
                     if isinstance(requested_node, str):
                         if requested_node in self.nodes:

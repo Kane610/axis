@@ -866,12 +866,11 @@ def test_selected_device_operations_accounts(
 
 
 def test_main_exit(capsys: pytest.CaptureFixture[str]) -> None:
-    """Selecting 'e' exits the main loop via SystemExit."""
+    """Selecting 'e' exits the main loop normally."""
     with (
         patch("axis.cli.packs.navigation.load_devices", return_value={}),
         patch("axis.cli.packs.navigation.get_config_path"),
         patch("builtins.input", return_value="e"),
-        pytest.raises(SystemExit),
     ):
         main()
 
@@ -882,7 +881,6 @@ def test_main_invalid_option(capsys: pytest.CaptureFixture[str]) -> None:
         patch("axis.cli.packs.navigation.load_devices", return_value={}),
         patch("axis.cli.packs.navigation.get_config_path"),
         patch("builtins.input", side_effect=["9", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
     out = capsys.readouterr().out
@@ -894,7 +892,6 @@ def test_main_device_operations_no_devices(capsys: pytest.CaptureFixture[str]) -
     with (
         patch("axis.cli.packs.devices.load_devices", return_value={}),
         patch("builtins.input", side_effect=["1", "3", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
 
@@ -908,7 +905,6 @@ def test_main_device_operations_runs_submenu(
         patch("axis.cli.packs.devices.load_devices", return_value={"SN1": fake_entry}),
         patch("axis.cli.packs.devices.select_device", return_value=("SN1", fake_entry)),
         patch("builtins.input", side_effect=["1", "3", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
     out = capsys.readouterr().out
@@ -925,7 +921,6 @@ def test_main_discovery_no_devices_found(capsys: pytest.CaptureFixture[str]) -> 
         ),
         patch("axis.cli.packs.devices.select_discovered_device", return_value=None),
         patch("builtins.input", side_effect=["1", "2", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
 
@@ -968,7 +963,6 @@ def test_main_discovery_filters_already_registered_before_selection(
             return_value=None,
         ) as mock_select_discovered,
         patch("builtins.input", side_effect=["1", "2", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
 
@@ -1011,7 +1005,6 @@ def test_main_discovery_registers_selected_device(
         patch("axis.cli.packs.devices.save_devices") as mock_save,
         patch("axis.cli.core.io.getpass", return_value="pass"),
         patch("builtins.input", side_effect=["1", "2", "admin", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
 
@@ -1034,7 +1027,6 @@ def test_main_add_device_aborted_by_host_check(
             ),
         ),
         patch("builtins.input", side_effect=["1", "1", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
     out = capsys.readouterr().out
@@ -1219,7 +1211,6 @@ def test_main_add_device_success(capsys: pytest.CaptureFixture[str]) -> None:
         ),
         patch("axis.cli.packs.devices.save_devices") as mock_save,
         patch("builtins.input", side_effect=["1", "1", "e"]),
-        pytest.raises(SystemExit),
     ):
         main()
     mock_save.assert_called_once()
@@ -1229,12 +1220,9 @@ def test_main_swallows_ctrl_c(capsys: pytest.CaptureFixture[str]) -> None:
     """Ctrl+C is swallowed and the loop continues until explicit exit."""
     runtime = MagicMock()
     runtime.router = MagicMock()
-    runtime.router.run = AsyncMock(side_effect=[KeyboardInterrupt, SystemExit(0)])
+    runtime.router.run = AsyncMock(side_effect=[KeyboardInterrupt, True])
 
-    with (
-        patch("axis.cli.main.build_cli_runtime", return_value=runtime),
-        pytest.raises(SystemExit),
-    ):
+    with patch("axis.cli.main.build_cli_runtime", return_value=runtime):
         main()
 
     assert runtime.router.run.await_count == 2
@@ -1248,10 +1236,10 @@ def test_main_debug_argument_enables_verbose_mode(
     """Explicit debug argument enables verbose mode and env toggle."""
     debug_env_value = ""
 
-    async def _capture_debug_and_exit(*_args: object, **_kwargs: object) -> None:
+    async def _capture_debug_and_exit(*_args: object, **_kwargs: object) -> bool:
         nonlocal debug_env_value
         debug_env_value = os.environ.get("AXIS_CLI_DEBUG", "")
-        raise SystemExit(0)
+        return True
 
     runtime = MagicMock()
     runtime.router = MagicMock()
@@ -1261,7 +1249,6 @@ def test_main_debug_argument_enables_verbose_mode(
         patch.dict(os.environ, {}, clear=True),
         patch("axis.cli.main.logging.basicConfig") as mock_basic_config,
         patch("axis.cli.main.build_cli_runtime", return_value=runtime),
-        pytest.raises(SystemExit),
     ):
         main(debug=True)
 
@@ -1282,13 +1269,12 @@ def test_main_debug_env_enables_verbose_mode(
     """AXIS_CLI_DEBUG environment variable enables verbose mode."""
     runtime = MagicMock()
     runtime.router = MagicMock()
-    runtime.router.run = AsyncMock(side_effect=SystemExit(0))
+    runtime.router.run = AsyncMock(return_value=True)
 
     with (
         patch.dict(os.environ, {"AXIS_CLI_DEBUG": "1"}, clear=True),
         patch("axis.cli.main.logging.basicConfig") as mock_basic_config,
         patch("axis.cli.main.build_cli_runtime", return_value=runtime),
-        pytest.raises(SystemExit),
     ):
         main()
 
@@ -1306,12 +1292,11 @@ def test_main_uses_router_runtime() -> None:
     """Main loop dispatches through router runtime."""
     runtime = MagicMock()
     runtime.router = MagicMock()
-    runtime.router.run = AsyncMock(side_effect=SystemExit(0))
+    runtime.router.run = AsyncMock(return_value=True)
 
     with (
         patch.dict(os.environ, {}, clear=True),
         patch("axis.cli.main.build_cli_runtime", return_value=runtime),
-        pytest.raises(SystemExit),
     ):
         main()
 
@@ -1322,12 +1307,11 @@ def test_main_router_runtime_swallows_ctrl_c() -> None:
     """Router runtime swallows Ctrl+C and continues until explicit exit."""
     runtime = MagicMock()
     runtime.router = MagicMock()
-    runtime.router.run = AsyncMock(side_effect=[KeyboardInterrupt, SystemExit(0)])
+    runtime.router.run = AsyncMock(side_effect=[KeyboardInterrupt, True])
 
     with (
         patch.dict(os.environ, {}, clear=True),
         patch("axis.cli.main.build_cli_runtime", return_value=runtime),
-        pytest.raises(SystemExit),
     ):
         main()
 
