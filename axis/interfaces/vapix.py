@@ -354,7 +354,7 @@ class Vapix:
         decoder = api_request.response_type
         return decoder.decode(bytes_data)
 
-    async def request(
+    async def request(  # noqa: PLR0917
         self,
         method: str,
         path: str,
@@ -374,7 +374,7 @@ class Vapix:
             allow_auto_basic_retry=True,
         )
 
-    async def _request(
+    async def _request(  # noqa: PLR0917
         self,
         method: str,
         path: str,
@@ -443,7 +443,7 @@ class Vapix:
 
         return response_content
 
-    async def _perform_request(
+    async def _perform_request(  # noqa: PLR0917
         self,
         method: str,
         url: str,

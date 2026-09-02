@@ -35,7 +35,7 @@ class PtzControl(ApiHandler[PtzParam]):
         """Process ports."""
         return dict(self.vapix.params.ptz_handler.items())
 
-    async def control(
+    async def control(  # noqa: PLR0917
         self,
         camera: int | None = None,
         center: tuple[int, int] | None = None,
