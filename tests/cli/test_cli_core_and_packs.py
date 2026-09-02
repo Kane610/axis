@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -1393,6 +1394,46 @@ async def test_events_pack_fetch_and_live_listen_guards(
     out = capsys.readouterr().out
     assert "incomplete" in out.lower()
     assert "request failed" in out.lower()
+
+
+@pytest.mark.asyncio
+async def test_live_listen_starts_and_stops_event_stream() -> None:
+    """Live listening manages the stream transport lifecycle."""
+    fake_device = MagicMock()
+    unsubscribe = MagicMock()
+    fake_device.event.subscribe.return_value = unsubscribe
+
+    class _Session:
+        async def __aenter__(self) -> object:
+            return MagicMock()
+
+        async def __aexit__(
+            self,
+            exc_type: object,
+            exc: object,
+            tb: object,
+        ) -> bool:
+            return False
+
+    class _StoppingEvent:
+        async def wait(self) -> None:
+            raise asyncio.CancelledError
+
+    with (
+        patch(
+            "axis.cli.packs.events.get_device_credentials",
+            return_value={"host": "h", "username": "u", "password": "p"},
+        ),
+        patch("axis.cli.packs.events.ClientSession", return_value=_Session()),
+        patch("axis.cli.packs.events.AxisDevice", return_value=fake_device),
+        patch("axis.cli.packs.events.asyncio.Event", return_value=_StoppingEvent()),
+    ):
+        await events_pack._live_listen_async({"config": {}}, topic_filter=None)
+
+    fake_device.enable_events.assert_called_once()
+    fake_device.stream.start.assert_called_once()
+    fake_device.stream.stop.assert_called_once()
+    unsubscribe.assert_called_once()
 
 
 def test_api_and_events_register_commands_and_nodes() -> None:

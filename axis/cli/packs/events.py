@@ -189,10 +189,12 @@ async def _live_listen_async(
             stop_event = asyncio.Event()
             try:
                 device.enable_events()
+                device.stream.start()
                 await stop_event.wait()
             except asyncio.CancelledError:
                 pass
             finally:
+                device.stream.stop()
                 unsubscribe()
 
     try:
