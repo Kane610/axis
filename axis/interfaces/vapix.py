@@ -10,7 +10,6 @@ import aiohttp
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
-from .aiohttp_digest import AiohttpDigestAuth
 from .api_discovery import ApiDiscoveryHandler
 from .api_handler import ApiHandler, HandlerGroup
 from .applications import ApplicationsHandler
@@ -74,7 +73,6 @@ class Vapix:
         """Store local reference to device config."""
         self.device = device
         self._aiohttp_digest_middleware: Any | None = None
-        self._aiohttp_digest_auth = AiohttpDigestAuth(device)
 
         if device.config.auth_scheme == AuthScheme.BASIC:
             self.auth = self._basic_auth()
@@ -354,7 +352,7 @@ class Vapix:
         decoder = api_request.response_type
         return decoder.decode(bytes_data)
 
-    async def request(  # noqa: PLR0917
+    async def request(
         self,
         method: str,
         path: str,
@@ -374,7 +372,7 @@ class Vapix:
             allow_auto_basic_retry=True,
         )
 
-    async def _request(  # noqa: PLR0917
+    async def _request(
         self,
         method: str,
         path: str,
@@ -443,7 +441,7 @@ class Vapix:
 
         return response_content
 
-    async def _perform_request(  # noqa: PLR0917
+    async def _perform_request(
         self,
         method: str,
         url: str,
@@ -457,11 +455,6 @@ class Vapix:
             content if content is not None else data
         )
         session = self.device.config.session
-
-        if not self.auth and self.device.config.auth_scheme != AuthScheme.BASIC:
-            return await self._aiohttp_digest_auth.perform_request(
-                session, method, url, request_data, headers, params
-            )
 
         request_kwargs: dict[str, Any] = {
             "data": request_data,

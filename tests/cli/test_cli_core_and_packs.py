@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -20,6 +21,9 @@ from axis.cli.packs import (
     events as events_pack,
 )
 from axis.errors import RequestError
+from axis.models.configuration import WebProtocol
+from axis.rtsp import RTSPClient, Signal
+from axis.websocket import WebSocketClient
 
 
 @pytest.mark.asyncio
@@ -1393,6 +1397,102 @@ async def test_events_pack_fetch_and_live_listen_guards(
     out = capsys.readouterr().out
     assert "incomplete" in out.lower()
     assert "request failed" in out.lower()
+
+
+@pytest.mark.asyncio
+async def test_live_listen_starts_and_stops_event_stream(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Live listening manages the stream transport lifecycle."""
+    fake_device = MagicMock()
+    fake_device.stream.use_websocket = False
+    fake_device.stream.connection_status_callback = []
+    fake_device.vapix.api_discovery.update = AsyncMock(return_value=False)
+    fake_rtsp_stream = object.__new__(RTSPClient)
+    fake_rtsp_stream.session = SimpleNamespace(digest=True, basic=False)
+    fake_device.stream.stream = fake_rtsp_stream
+    unsubscribe = MagicMock()
+    fake_device.event.subscribe.return_value = unsubscribe
+    fake_device.stream.start.side_effect = lambda: (
+        fake_device.stream.connection_status_callback[0](Signal.PLAYING)
+    )
+
+    class _Session:
+        async def __aenter__(self) -> object:
+            return MagicMock()
+
+        async def __aexit__(
+            self,
+            exc_type: object,
+            exc: object,
+            tb: object,
+        ) -> bool:
+            return False
+
+    class _StoppingEvent:
+        async def wait(self) -> None:
+            raise asyncio.CancelledError
+
+    with (
+        patch(
+            "axis.cli.packs.events.get_device_credentials",
+            return_value={"host": "h", "username": "u", "password": "p"},
+        ),
+        patch("axis.cli.packs.events.ClientSession", return_value=_Session()),
+        patch("axis.cli.packs.events.AxisDevice", return_value=fake_device),
+        patch("axis.cli.packs.events.asyncio.Event", return_value=_StoppingEvent()),
+    ):
+        await events_pack._live_listen_async({"config": {}}, topic_filter=None)
+
+    fake_device.enable_events.assert_called_once()
+    fake_device.vapix.api_discovery.update.assert_awaited_once()
+    fake_device.stream.start.assert_called_once()
+    fake_device.stream.stop.assert_called_once()
+    unsubscribe.assert_called_once()
+    assert "Authentication: Digest" in capsys.readouterr().out
+
+
+def test_event_stream_details_reports_transport_security() -> None:
+    """Event stream details describe the selected transport and security."""
+    device = MagicMock()
+
+    device.stream.use_websocket = False
+    assert events_pack._event_stream_details(device) == (
+        "RTSP",
+        "Unencrypted; authentication is negotiated when connected.",
+    )
+
+    device.stream.use_websocket = True
+    device.config.web_proto = WebProtocol.HTTP
+    assert events_pack._event_stream_details(device) == (
+        "WebSocket over WS",
+        "Unencrypted; session-token authentication.",
+    )
+
+    device.config.web_proto = WebProtocol.HTTPS
+    device.config.verify_ssl = True
+    assert events_pack._event_stream_details(device) == (
+        "WebSocket over WSS",
+        "TLS encrypted; certificate verification enabled; session-token authentication.",
+    )
+
+
+def test_event_authentication_details_reports_negotiated_scheme() -> None:
+    """Live event authentication details reflect the active transport."""
+    device = MagicMock()
+
+    rtsp_stream = object.__new__(RTSPClient)
+    rtsp_stream.session = SimpleNamespace(digest=True, basic=False)
+    device.stream.stream = rtsp_stream
+    assert events_pack._event_authentication_details(device) == "Digest"
+
+    rtsp_stream.session = SimpleNamespace(digest=False, basic=True)
+    assert events_pack._event_authentication_details(device) == "Basic"
+
+    websocket_stream = object.__new__(WebSocketClient)
+    websocket_stream.authentication = "Digest"
+    device.stream.stream = websocket_stream
+    assert events_pack._event_authentication_details(device) == "Digest"
 
 
 def test_api_and_events_register_commands_and_nodes() -> None:

@@ -198,6 +198,7 @@ class Status(Enum):
 # WRONG: Assumes 'event' root always exists
 event_data = xmltodict.parse(payload)["event"]
 
+
 # RIGHT: Check root shape and use traverse helper
 root = xmltodict.parse(payload, process_namespaces=True)
 if root and "event" in root:

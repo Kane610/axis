@@ -22,7 +22,7 @@ def event_handler(event: Event) -> None:
     LOGGER.info(event)
 
 
-async def axis_device(  # noqa: PLR0917
+async def axis_device(
     host: str,
     port: int,
     username: str,
@@ -70,7 +70,7 @@ async def axis_device(  # noqa: PLR0917
     return device
 
 
-async def main(  # noqa: PLR0917
+async def main(
     host: str,
     port: int,
     username: str,
