@@ -144,10 +144,14 @@ def main(*, debug: bool | None = None) -> None:
     terminal_io = TerminalIO()
     while True:
         try:
-            asyncio.run(runtime.router.run(runtime, terminal_io, start_node_id="main"))
+            should_exit = asyncio.run(
+                runtime.router.run(runtime, terminal_io, start_node_id="main")
+            )
         except KeyboardInterrupt:
             print("\nInterrupted. Use 'e' to exit.")  # noqa: T201
             continue
+        if should_exit:
+            return
 
 
 __all__ = [

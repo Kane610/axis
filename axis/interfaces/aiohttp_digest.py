@@ -194,7 +194,7 @@ class AiohttpDigestAuth:
             return f"{split_result.path}?{split_result.query}"
         return split_result.path
 
-    async def perform_request(
+    async def perform_request(  # noqa: PLR0917
         self,
         session: Any,
         method: str,

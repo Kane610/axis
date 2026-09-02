@@ -47,8 +47,7 @@ async def test_router_navigation_invalid_back_and_exit() -> None:
         )
     )
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=MagicMock(), io=io)
+    assert await router.run(ctx=MagicMock(), io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Invalid option." in written
@@ -87,12 +86,47 @@ async def test_router_executes_registered_command_and_writes_message() -> None:
     ctx = MagicMock()
     ctx.command_registry = registry
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io)
+    assert await router.run(ctx=ctx, io=io)
 
     command.run.assert_awaited_once_with(ctx, io)
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "hello" in written
+
+
+@pytest.mark.asyncio
+async def test_router_converts_legacy_command_exit_to_normal_completion() -> None:
+    """Legacy command exits do not escape from the router task."""
+    io = MagicMock()
+    io.prompt = MagicMock(return_value="1")
+
+    command = MagicMock()
+    command.id = "legacy-exit"
+    command.run = AsyncMock(side_effect=SystemExit(0))
+
+    registry = CommandRegistry()
+    registry.register_command(command)
+
+    router = CliRouter()
+    router.register_node(
+        MenuNode(
+            id="main",
+            title="Main",
+            items=[
+                MenuItem(
+                    key="1",
+                    label="Exit",
+                    action="command",
+                    command_id="legacy-exit",
+                )
+            ],
+        )
+    )
+
+    ctx = MagicMock()
+    ctx.command_registry = registry
+
+    assert await router.run(ctx=ctx, io=io)
+    command.run.assert_awaited_once_with(ctx, io)
 
 
 @pytest.mark.asyncio
@@ -135,8 +169,7 @@ async def test_router_navigates_using_command_result_payload() -> None:
     ctx = MagicMock()
     ctx.command_registry = registry
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io)
+    assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "\nSub:" in written
@@ -187,8 +220,7 @@ async def test_router_writes_message_before_payload_navigation() -> None:
     ctx = MagicMock()
     ctx.command_registry = registry
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io)
+    assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "navigating" in written
@@ -227,8 +259,7 @@ async def test_router_writes_default_error_message_when_missing() -> None:
     ctx = MagicMock()
     ctx.command_registry = registry
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io)
+    assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Command failed." in written
@@ -266,8 +297,7 @@ async def test_router_writes_default_cancelled_message_when_missing() -> None:
     ctx = MagicMock()
     ctx.command_registry = registry
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io)
+    assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Command cancelled." in written
@@ -318,8 +348,7 @@ async def test_router_does_not_navigate_on_cancelled_payload() -> None:
     ctx = MagicMock()
     ctx.command_registry = registry
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io)
+    assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Command cancelled." in written
@@ -343,8 +372,7 @@ async def test_router_calls_node_render_before_menu() -> None:
         )
     )
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=MagicMock(), io=io)
+    assert await router.run(ctx=MagicMock(), io=io)
 
     render.assert_called_once()
 
@@ -365,8 +393,7 @@ async def test_router_device_operations_node_shows_missing_context_message() -> 
     io = MagicMock()
     io.prompt = MagicMock(side_effect=["e"])
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io, start_node_id="device_operations")
+    assert await router.run(ctx=ctx, io=io, start_node_id="device_operations")
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "No selected device." in written
@@ -408,8 +435,7 @@ async def test_router_device_operations_navigates_to_selected_device_nodes(
     io = MagicMock()
     io.prompt = MagicMock(side_effect=[selection, "e"])
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io, start_node_id="device_operations")
+    assert await router.run(ctx=ctx, io=io, start_node_id="device_operations")
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Device operations for SN1 (10.0.0.1, mac=SN1):" in written
@@ -441,8 +467,7 @@ async def test_router_feature_nodes_back_to_device_operations(
     # device_operations -> feature submenu -> back -> exit
     io.prompt = MagicMock(side_effect=[selection, "b", "e"])
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=ctx, io=io, start_node_id="device_operations")
+    assert await router.run(ctx=ctx, io=io, start_node_id="device_operations")
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert written.count("\nDevice operations:") == 2
@@ -830,9 +855,8 @@ async def test_router_device_selection_command_navigates_to_operations() -> None
             "axis.cli.packs.devices.select_device",
             return_value=("SN1", selected_entry),
         ),
-        pytest.raises(SystemExit),
     ):
-        await router.run(ctx=ctx, io=io)
+        assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Selected device: SN1" in written
@@ -873,9 +897,8 @@ async def test_router_main_to_api_submenu_and_back() -> None:
             "axis.cli.packs.devices.select_device",
             return_value=("SN1", selected_entry),
         ),
-        pytest.raises(SystemExit),
     ):
-        await router.run(ctx=ctx, io=io)
+        assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "\nAPI:" in written
@@ -906,11 +929,8 @@ async def test_router_devices_node_renders_registered_devices() -> None:
         }
     }
 
-    with (
-        patch("axis.cli.packs.devices.load_devices", return_value=devices),
-        pytest.raises(SystemExit),
-    ):
-        await router.run(ctx=ctx, io=io)
+    with patch("axis.cli.packs.devices.load_devices", return_value=devices):
+        assert await router.run(ctx=ctx, io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Registered devices:" in written
@@ -1431,8 +1451,7 @@ async def test_router_back_at_root_and_noop() -> None:
         )
     )
 
-    with pytest.raises(SystemExit):
-        await router.run(ctx=MagicMock(), io=io)
+    assert await router.run(ctx=MagicMock(), io=io)
 
     written = "\n".join(call.args[0] for call in io.write.call_args_list)
     assert "Exiting." in written
