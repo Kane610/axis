@@ -185,6 +185,7 @@ class WebSocketClient:
         self._starting = False
         self._start_time: float | None = None
         self._last_failure_reason = WebSocketFailureReason.NONE
+        self.authentication: str | None = None
 
     @classmethod
     def supported_by_device(cls, device: AxisDevice) -> bool:
@@ -245,9 +246,15 @@ class WebSocketClient:
                 ws_connect_kwargs["ssl"] = False
 
             if token:
+                self.authentication = (
+                    "Basic"
+                    if isinstance(self.device.vapix.auth, aiohttp.BasicAuth)
+                    else "Digest"
+                )
                 connect_url = f"{self.url}&wssession={token}"
             else:
                 # Fall back to HTTP Basic auth in the upgrade handshake.
+                self.authentication = "Basic"
                 connect_url = self.url
                 ws_connect_kwargs["auth"] = aiohttp.BasicAuth(
                     self.device.config.username,

@@ -19,7 +19,9 @@ from axis.cli.packs.devices import (
 )
 from axis.device import AxisDevice
 from axis.errors import RequestError
-from axis.models.configuration import Configuration
+from axis.models.configuration import Configuration, WebProtocol
+from axis.rtsp import RTSPClient, Signal
+from axis.websocket import WebSocketClient
 
 if TYPE_CHECKING:
     from axis.cli.core.context import CliContext
@@ -52,6 +54,31 @@ def _debug_enabled() -> bool:
 def _debug_dump(label: str, payload: object) -> None:
     if _debug_enabled():
         print(f"[debug] {label}:\n{pformat(payload)}")  # noqa: T201
+
+
+def _event_stream_details(device: AxisDevice) -> tuple[str, str]:
+    if device.stream.use_websocket:
+        if device.config.web_proto == WebProtocol.HTTPS:
+            verification = "enabled" if device.config.verify_ssl else "disabled"
+            return (
+                "WebSocket over WSS",
+                f"TLS encrypted; certificate verification {verification}; session-token authentication.",
+            )
+        return "WebSocket over WS", "Unencrypted; session-token authentication."
+
+    return "RTSP", "Unencrypted; authentication is negotiated when connected."
+
+
+def _event_authentication_details(device: AxisDevice) -> str:
+    stream = device.stream.stream
+    if isinstance(stream, WebSocketClient):
+        return stream.authentication or "Negotiating"
+    if isinstance(stream, RTSPClient):
+        if stream.session.digest:
+            return "Digest"
+        if stream.session.basic:
+            return "Basic"
+    return "Negotiating"
 
 
 def _render_events_node(ctx: CliContext, io: CliIO) -> None:
@@ -176,6 +203,7 @@ async def _live_listen_async(
                 host=credentials["host"],
                 username=credentials["username"],
                 password=credentials["password"],
+                websocket_enabled=True,
             )
             device = AxisDevice(config)
 
@@ -186,14 +214,27 @@ async def _live_listen_async(
                 callback=_on_event,
                 id_filter=topic_filter,
             )
+
+            def _on_connection_status(signal: Signal) -> None:
+                if signal == Signal.PLAYING:
+                    print(  # noqa: T201
+                        f"Authentication: {_event_authentication_details(device)}"
+                    )
+
+            device.stream.connection_status_callback.append(_on_connection_status)
             stop_event = asyncio.Event()
             try:
+                await device.vapix.api_discovery.update()
                 device.enable_events()
+                protocol, security = _event_stream_details(device)
+                print(f"Event transport: {protocol}")  # noqa: T201
+                print(f"Security: {security}")  # noqa: T201
                 device.stream.start()
                 await stop_event.wait()
             except asyncio.CancelledError:
                 pass
             finally:
+                device.stream.connection_status_callback.remove(_on_connection_status)
                 device.stream.stop()
                 unsubscribe()
 
