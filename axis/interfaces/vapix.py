@@ -10,6 +10,7 @@ import aiohttp
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
+from ..models.restart_cgi import RestartRequest
 from .api_discovery import ApiDiscoveryHandler
 from .api_handler import ApiHandler, HandlerGroup
 from .applications import ApplicationsHandler
@@ -331,6 +332,10 @@ class Vapix:
         if not user_groups and await self.user_groups.update():
             return
         self.user_groups.update_items(user_groups)
+
+    async def reboot(self) -> None:
+        """Reboot the device, requires an administrator account."""
+        await self.api_request(RestartRequest())
 
     async def api_request[ApiResponseT](
         self,
