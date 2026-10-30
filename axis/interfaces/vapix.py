@@ -10,7 +10,6 @@ import aiohttp
 from ..errors import RequestError, raise_error
 from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
-from ..models.restart_cgi import RestartRequest
 from .api_discovery import ApiDiscoveryHandler
 from .api_handler import ApiHandler, HandlerGroup
 from .applications import ApplicationsHandler
@@ -29,6 +28,7 @@ from .port_cgi import Ports
 from .port_management import IoPortManagement
 from .ptz import PtzControl
 from .pwdgrp_cgi import Users
+from .restart_cgi import RestartHandler
 from .stream_profiles import StreamProfilesHandler
 from .temperature_control import TemperatureControlHandler
 from .user_groups import UserGroups
@@ -104,6 +104,7 @@ class Vapix:
 
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
+        self.restart_cgi = RestartHandler(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
         self.fence_guard = FenceGuardHandler(self)
@@ -332,10 +333,6 @@ class Vapix:
         if not user_groups and await self.user_groups.update():
             return
         self.user_groups.update_items(user_groups)
-
-    async def reboot(self) -> None:
-        """Reboot the device, requires an administrator account."""
-        await self.api_request(RestartRequest())
 
     async def api_request[ApiResponseT](
         self,

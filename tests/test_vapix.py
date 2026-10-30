@@ -31,7 +31,6 @@ from axis.models.port_management import (
     SetPortsRequest,
 )
 from axis.models.pwdgrp_cgi import SecondaryGroup
-from axis.models.restart_cgi import RestartRequest
 from axis.models.stream_profile import ListStreamProfilesRequest, StreamProfile
 from axis.models.temperature_control import GetStatusAllRequest
 from axis.models.user_group import GetUserGroupRequest, GetUserGroupResponse
@@ -847,36 +846,6 @@ async def test_load_user_groups_fails_when_not_supported(http_route_mock, vapix:
 async def test_not_loading_user_groups_makes_access_rights_unknown(vapix: Vapix):
     """Verify that not loading user groups still returns a proper string."""
     assert vapix.access_rights == SecondaryGroup.UNKNOWN
-
-
-async def test_reboot(mock_api_request, vapix: Vapix):
-    """Verify that reboot calls restart.cgi."""
-    route = mock_api_request(RestartRequest, response=MockApiResponseSpec())
-
-    await vapix.reboot()
-
-    assert route.called
-    assert route.calls.last.request.method == "GET"
-    assert route.calls.last.request.url.path == "/axis-cgi/restart.cgi"
-    assert "Axis-Orig-Sw" not in route.calls.last.request.url.params
-
-
-async def test_reboot_companion_device(mock_api_request, vapix_companion_device: Vapix):
-    """Verify that reboot of a companion device adds the Axis-Orig-Sw parameter."""
-    route = mock_api_request(RestartRequest, response=MockApiResponseSpec())
-
-    await vapix_companion_device.reboot()
-
-    assert route.called
-    assert route.calls.last.request.url.params["Axis-Orig-Sw"] == "true"
-
-
-async def test_reboot_unauthorized(mock_api_request, vapix: Vapix):
-    """Verify that reboot raises when the account is not allowed to reboot."""
-    mock_api_request(RestartRequest, response=MockApiResponseSpec(status_code=401))
-
-    with pytest.raises(Unauthorized):
-        await vapix.reboot()
 
 
 @pytest.mark.parametrize(
