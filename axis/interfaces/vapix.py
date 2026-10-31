@@ -32,6 +32,7 @@ from .stream_profiles import StreamProfilesHandler
 from .temperature_control import TemperatureControlHandler
 from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
+from .virtual_input import VirtualInputHandler
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
@@ -103,6 +104,7 @@ class Vapix:
 
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
+        self.virtual_input = VirtualInputHandler(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
         self.fence_guard = FenceGuardHandler(self)

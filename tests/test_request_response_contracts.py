@@ -128,6 +128,11 @@ from axis.models.view_area import (
     ResetGeometryRequest,
     SetGeometryRequest,
 )
+from axis.models.virtual_input import (
+    ActivateVirtualInputRequest,
+    DeactivateVirtualInputRequest,
+    VirtualInputResponse,
+)
 
 
 @pytest.mark.parametrize(
@@ -206,6 +211,8 @@ from axis.models.view_area import (
         (SetGeometryRequest, ListViewAreasResponse),
         (ResetGeometryRequest, ListViewAreasResponse),
         (ViewAreaGetSupportedVersionsRequest, ViewAreaGetSupportedVersionsResponse),
+        (ActivateVirtualInputRequest, VirtualInputResponse),
+        (DeactivateVirtualInputRequest, VirtualInputResponse),
     ],
 )
 def test_request_response_type_contracts(request_cls, response_cls) -> None:
