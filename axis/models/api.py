@@ -68,6 +68,8 @@ class ApiRequest[ResponseT = ApiResponse[bytes]]:
     path: str = field(init=False)
     content_type: str = field(init=False)
     response_type: ClassVar[type[ApiResponseDecoder[ResponseT]]]
+    # Some APIs reject the Axis-Orig-Sw parameter used by Companion devices
+    supports_companion_param: ClassVar[bool] = True
 
     @property
     def content(self) -> bytes | None:
