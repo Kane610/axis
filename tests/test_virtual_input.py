@@ -7,12 +7,15 @@ from typing import TYPE_CHECKING
 import pytest
 
 from axis.errors import ResponseError
+from axis.models.event_instance import ListEventInstancesRequest
 from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.virtual_input import (
     ActivateVirtualInputRequest,
     DeactivateVirtualInputRequest,
     VirtualInputResponse,
 )
+
+from .event_fixtures import EVENT_INSTANCE_PIR_SENSOR, EVENT_INSTANCES
 
 from tests.conftest import MockApiResponseSpec
 
@@ -85,6 +88,70 @@ async def test_supported(
     await virtual_input.vapix.params.property_handler.update()
 
     assert virtual_input.supported is supported
+
+
+def _mock_event_instances(mock_api_request, content: str):
+    return mock_api_request(
+        ListEventInstancesRequest,
+        response=MockApiResponseSpec(
+            content=content.encode(),
+            headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+        ),
+    )
+
+
+async def test_update_lists_ports(
+    mock_api_request, virtual_input: VirtualInputHandler
+) -> None:
+    """Verify ports are listed from the VirtualInput event instance."""
+    route = _mock_event_instances(mock_api_request, EVENT_INSTANCES)
+
+    await virtual_input.update()
+
+    assert list(virtual_input) == [str(port) for port in range(1, 33)]
+    assert virtual_input["1"].port == 1
+    assert virtual_input["32"].active is None
+
+    await virtual_input.update()
+    assert route.call_count == 1
+
+
+async def test_update_without_virtual_input_instance(
+    mock_api_request, virtual_input: VirtualInputHandler
+) -> None:
+    """Verify no ports are listed if the device declares no virtual inputs."""
+    _mock_event_instances(mock_api_request, EVENT_INSTANCE_PIR_SENSOR)
+
+    await virtual_input.update()
+
+    assert len(virtual_input) == 0
+
+
+async def test_activate_and_deactivate_update_state(
+    mock_api_request, virtual_input: VirtualInputHandler
+) -> None:
+    """Verify known port state is updated and subscribers are signalled."""
+    _mock_event_instances(mock_api_request, EVENT_INSTANCES)
+    await virtual_input.update()
+    signalled: list[str] = []
+    virtual_input.subscribe(signalled.append, "3")
+
+    for request_cls, action, method, active in (
+        (ActivateVirtualInputRequest, "Activate", "activate", True),
+        (DeactivateVirtualInputRequest, "Deactivate", "deactivate", False),
+    ):
+        mock_api_request(
+            request_cls,
+            response=MockApiResponseSpec(
+                content=_success(action, "true"),
+                headers={"Content-Type": "text/xml"},
+            ),
+        )
+        await getattr(virtual_input, method)(3)
+        assert virtual_input["3"].active is active
+        assert virtual_input["4"].active is None
+
+    assert signalled == ["3", "3"]
 
 
 @pytest.mark.parametrize(

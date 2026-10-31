@@ -14,13 +14,29 @@ from xml.parsers.expat import ExpatError
 import xmltodict
 
 from ..errors import ResponseError
-from .api import ApiRequest, ApiResponse
+from .api import ApiItem, ApiRequest, ApiResponse
 
 SCHEMA_VERSION = "1"
 
 INVALID_RESPONSE = "Invalid virtual input response"
 
 NAMESPACES = {"http://www.axis.com/vapix/http_cgi/virtualinput1": None}
+
+
+@dataclass(frozen=True)
+class VirtualInput(ApiItem):
+    """Virtual input port."""
+
+    active: bool | None
+    """Port state, None until known as VAPIX can not read it."""
+
+    port: int
+    """Port number, starting from 1."""
+
+    @classmethod
+    def decode(cls, data: Any) -> Self:
+        """Decode port number to class object."""
+        return cls(id=str(data), active=None, port=int(data))
 
 
 @dataclass
