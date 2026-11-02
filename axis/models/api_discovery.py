@@ -229,6 +229,7 @@ class ListApisRequest(ApiRequest[GetAllApisResponse]):
     path = "/axis-cgi/apidiscovery.cgi"
     content_type = "application/json"
     response_type = GetAllApisResponse
+    supports_companion_param = False
     error_codes = error_codes
 
     api_version: str = API_VERSION
@@ -276,6 +277,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
     path = "/axis-cgi/apidiscovery.cgi"
     content_type = "application/json"
     response_type = GetSupportedVersionsResponse
+    supports_companion_param = False
     error_codes = error_codes
 
     context: str = CONTEXT

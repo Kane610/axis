@@ -123,6 +123,15 @@ class Vapix:
         return ""
 
     @property
+    def product_full_name(self) -> str:
+        """Product full name of device."""
+        if self.basic_device_info.initialized:
+            return self.basic_device_info["0"].product_full_name
+        if self.params.brand_handler.initialized:
+            return self.params.brand_handler["0"].product_full_name
+        return ""
+
+    @property
     def product_number(self) -> str:
         """Product number of device."""
         if self.basic_device_info.initialized:
@@ -176,6 +185,8 @@ class Vapix:
         """Initialize Vapix functions."""
         await self.initialize_api_discovery()
         await self.initialize_param_cgi(preload_data=False)
+        if "Companion" in self.product_full_name:
+            self.device.config.is_companion = True
         await self.initialize_applications()
 
     async def initialize_api_discovery(self) -> None:
@@ -338,7 +349,7 @@ class Vapix:
     ) -> ApiResponseT:
         """Make a request and decode response based on the request contract."""
         params = api_request.params or {}
-        if self.device.config.is_companion:
+        if self.device.config.is_companion and api_request.supports_companion_param:
             params["Axis-Orig-Sw"] = "true"
         bytes_data = await self.request(
             method=api_request.method,
