@@ -20,6 +20,7 @@ from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
 from .event_instances import EventInstanceHandler
+from .firmware_management import FirmwareManagementHandler
 from .light_control import LightHandler
 from .mqtt import MqttClientHandler
 from .parameters.param_cgi import Params
@@ -94,6 +95,7 @@ class Vapix:
         self.params: Params = Params(self)
 
         self.basic_device_info = BasicDeviceInfoHandler(self)
+        self.firmware_management = FirmwareManagementHandler(self)
         self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
         self.mqtt = MqttClientHandler(self)

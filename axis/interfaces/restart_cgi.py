@@ -1,6 +1,7 @@
 """Axis Vapix restart API.
 
-Restart the device. Requires an administrator account.
+Restart the device. Requires an administrator account. Superseded by the
+firmware management API, use this on devices that don't list it.
 """
 
 from ..models.api import ApiItem

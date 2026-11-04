@@ -45,6 +45,7 @@ from axis.models.event_instance import (
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )
+from axis.models.firmware_management import RebootRequest, RebootResponse
 from axis.models.light_control import (
     GetCurrentAngleOfIlluminationRequest,
     GetCurrentAngleOfIlluminationResponse,
@@ -157,6 +158,7 @@ from axis.models.view_area import (
             ObjectAnalyticsGetConfigurationResponse,
         ),
         (Vmd4GetConfigurationRequest, Vmd4GetConfigurationResponse),
+        (RebootRequest, RebootResponse),
         (GetLightInformationRequest, GetLightInformationResponse),
         (GetServiceCapabilitiesRequest, GetServiceCapabilitiesResponse),
         (GetLightStatusRequest, GetLightStatusResponse),
