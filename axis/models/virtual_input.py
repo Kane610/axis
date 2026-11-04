@@ -8,7 +8,7 @@ https://developer.axis.com/vapix/network-video/input-and-outputs/#virtual-input-
 """
 
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any, Self, TypedDict
 from xml.parsers.expat import ExpatError
 
 import xmltodict
@@ -23,6 +23,12 @@ INVALID_RESPONSE = "Invalid virtual input response"
 NAMESPACES = {"http://www.axis.com/vapix/http_cgi/virtualinput1": None}
 
 
+class VirtualInputObjectT(TypedDict):
+    """Virtual input port, as listed in the VirtualInput event instance."""
+
+    port: str
+
+
 @dataclass(frozen=True)
 class VirtualInput(ApiItem):
     """Virtual input port."""
@@ -34,9 +40,10 @@ class VirtualInput(ApiItem):
     """Port number, starting from 1."""
 
     @classmethod
-    def decode(cls, data: Any) -> Self:
-        """Decode port number to class object."""
-        return cls(id=str(data), active=None, port=int(data))
+    def decode(cls, data: VirtualInputObjectT) -> Self:
+        """Decode port data to class object."""
+        port = int(data["port"])
+        return cls(id=str(port), active=None, port=port)
 
 
 @dataclass

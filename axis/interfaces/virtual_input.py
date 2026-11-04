@@ -15,6 +15,7 @@ from ..models.virtual_input import (
     ActivateVirtualInputRequest,
     DeactivateVirtualInputRequest,
     VirtualInput,
+    VirtualInputObjectT,
 )
 from .api_handler import ApiHandler
 
@@ -36,9 +37,11 @@ class VirtualInputHandler(ApiHandler[VirtualInput]):
             await event_instances.update()
         if (instance := event_instances.get(EventTopic.VIRTUAL_INPUT)) is None:
             return {}
-        ports = sorted(
-            int(value) for item in instance.source.items for value in item.values
+        values = sorted(
+            (value for item in instance.source.items for value in item.values),
+            key=int,
         )
+        ports: list[VirtualInputObjectT] = [{"port": value} for value in values]
         return VirtualInput.decode_to_dict(ports)
 
     async def activate(self, port: int) -> bool:
