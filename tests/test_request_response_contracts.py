@@ -45,6 +45,7 @@ from axis.models.event_instance import (
     ListEventInstancesRequest,
     ListEventInstancesResponse,
 )
+from axis.models.firmware_management import RebootRequest, RebootResponse
 from axis.models.light_control import (
     GetCurrentAngleOfIlluminationRequest,
     GetCurrentAngleOfIlluminationResponse,
@@ -112,6 +113,7 @@ from axis.models.pwdgrp_cgi import (
     GetUsersResponse,
     ModifyUserRequest,
 )
+from axis.models.restart_cgi import RestartRequest
 from axis.models.stream_profile import (
     GetSupportedVersionsRequest as StreamProfileGetSupportedVersionsRequest,
     GetSupportedVersionsResponse as StreamProfileGetSupportedVersionsResponse,
@@ -156,6 +158,7 @@ from axis.models.view_area import (
             ObjectAnalyticsGetConfigurationResponse,
         ),
         (Vmd4GetConfigurationRequest, Vmd4GetConfigurationResponse),
+        (RebootRequest, RebootResponse),
         (GetLightInformationRequest, GetLightInformationResponse),
         (GetServiceCapabilitiesRequest, GetServiceCapabilitiesResponse),
         (GetLightStatusRequest, GetLightStatusResponse),
@@ -233,6 +236,7 @@ def test_request_response_type_contracts(request_cls, response_cls) -> None:
         QueryRequest,
         DeviceDriverRequest,
         PtzCommandRequest,
+        RestartRequest,
     ],
 )
 def test_write_and_bytes_requests_have_no_response_contract(request_cls) -> None:
