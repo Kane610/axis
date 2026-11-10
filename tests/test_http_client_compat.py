@@ -90,7 +90,8 @@ async def test_aiohttp_client_session_auto_auth_fallback_to_basic(
 
     assert result == b"ok"
     assert calls == 2
-    assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
+    assert axis_device.vapix.auth is not None
+    assert axis_device.vapix.auth.lower().startswith("basic ")
     assert axis_device.vapix._aiohttp_digest_middleware is None
 
 

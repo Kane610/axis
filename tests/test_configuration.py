@@ -152,6 +152,7 @@ async def test_configuration_zero_port_uses_http_default(
         "camera.local/path",
         "camera.local?foo=bar",
         "camera.local#anchor",
+        "camera local",
         "",
         " camera.local ",
     ],

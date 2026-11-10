@@ -67,7 +67,7 @@ class InterfaceState:
 class Vapix:
     """Vapix parameter request."""
 
-    auth: aiohttp.BasicAuth | None
+    auth: str | None
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
@@ -75,7 +75,7 @@ class Vapix:
         self._aiohttp_digest_middleware: Any | None = None
 
         if device.config.auth_scheme == AuthScheme.BASIC:
-            self.auth = self._basic_auth()
+            self.auth = self._basic_auth_header()
         else:
             self.auth = None
             self._aiohttp_digest_middleware = self._aiohttp_digest_middleware_obj()
@@ -417,7 +417,7 @@ class Vapix:
 
         if status_code >= 400:
             if self._should_retry_with_basic(response_headers, allow_auto_basic_retry):
-                self.auth = self._basic_auth()
+                self.auth = self._basic_auth_header()
                 self._aiohttp_digest_middleware = None
                 return await self._request(
                     method=method,
@@ -456,11 +456,16 @@ class Vapix:
         )
         session = self.device.config.session
 
+        request_headers = dict(headers or {})
+        if self.auth is not None and not any(
+            header.lower() == "authorization" for header in request_headers
+        ):
+            request_headers["Authorization"] = self.auth
+
         request_kwargs: dict[str, Any] = {
             "data": request_data,
-            "headers": headers,
+            "headers": request_headers,
             "params": params,
-            "auth": self.auth,
             "timeout": TIME_OUT,
         }
         if self._aiohttp_digest_middleware is not None:
@@ -485,9 +490,9 @@ class Vapix:
             password=self.device.config.password,
         )
 
-    def _basic_auth(self) -> aiohttp.BasicAuth:
-        """Create aiohttp basic auth object."""
-        return aiohttp.BasicAuth(
+    def _basic_auth_header(self) -> str:
+        """Create an HTTP Basic Authorization header value."""
+        return aiohttp.encode_basic_auth(
             self.device.config.username, self.device.config.password
         )
 
