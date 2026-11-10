@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio as _asyncio
 import logging
 import os
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,6 +19,7 @@ from axis.cli.core.contracts import CommandResult
 from axis.cli.main import (
     DeviceEntry,
     _account_init_confirm,
+    _account_init_operation,
     _create_or_update_user_async,
     _delete_user_async,
     _list_users_async,
@@ -32,7 +35,8 @@ from axis.cli.main import (
     selected_device_operations,
     validate_and_fetch_device,
 )
-from axis.errors import RequestError
+from axis.cli.packs import accounts as accounts_pack
+from axis.errors import Forbidden, RequestError
 from axis.models.pwdgrp_cgi import SecondaryGroup
 
 # ---------------------------------------------------------------------------
@@ -208,6 +212,39 @@ def test_list_event_instances_async_with_empty_name(
     assert "<unnamed>" in out
 
 
+def test_list_event_instances_async_renders_all_state_combinations(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Render stateful, stateless, combined, and unclassified event states."""
+    fake_events = [
+        {
+            "topic": f"topic-{stateful}-{stateless}",
+            "name": "event",
+            "stateful": stateful,
+            "stateless": stateless,
+            "available": available,
+        }
+        for stateful, stateless, available in [
+            ("True", "True", "True"),
+            ("True", "False", "False"),
+            ("False", "True", "True"),
+            ("False", "False", "False"),
+        ]
+    ]
+    with patch(
+        "axis.cli.packs.events.fetch_event_instances",
+        new=AsyncMock(return_value=fake_events),
+    ):
+        _asyncio.run(list_event_instances_async("SN1", _make_device_entry()))
+
+    output = capsys.readouterr().out
+    assert "stateful/stateless" in output
+    assert "stateful" in output
+    assert "stateless" in output
+    assert "none" in output
+    assert "available" in output
+
+
 # ---------------------------------------------------------------------------
 # events_menu_async navigation
 # ---------------------------------------------------------------------------
@@ -236,6 +273,27 @@ def test_events_menu_async_invalid_then_back(
         _asyncio.run(events_menu_async("SN1", _make_device_entry()))
     out = capsys.readouterr().out
     assert "Invalid" in out
+
+
+def test_events_menu_async_actions_and_topic_selection() -> None:
+    """Dispatch list, listen, and topic-filter choices including invalid indexes."""
+    event = {"topic": "selected-topic"}
+    with (
+        patch(
+            "axis.cli.packs.events.list_event_instances_async",
+            new=AsyncMock(side_effect=[[], [], [event], [event], [event]]),
+        ) as list_events,
+        patch("axis.cli.packs.events._live_listen_async", new=AsyncMock()) as listen,
+        patch(
+            "builtins.input",
+            side_effect=["1", "2", "3", "3", "x", "3", "2", "3", "1", "b"],
+        ),
+    ):
+        _asyncio.run(events_menu_async("SN1", _make_device_entry()))
+
+    assert list_events.await_count == 5
+    assert listen.await_args_list[0].kwargs == {"topic_filter": None}
+    assert listen.await_args_list[1].kwargs == {"topic_filter": "selected-topic"}
 
 
 # ---------------------------------------------------------------------------
@@ -810,6 +868,63 @@ def test_selected_device_operations_invalid_then_back(
     assert "Invalid" in out
 
 
+def test_selected_device_operations_health_edit_and_delete(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Exercise health check, credential update, and delete decision paths."""
+    device_entry = _make_device_entry()
+    updated_entry = {"config": {"host": "192.168.1.2"}, "model": "M1125"}
+    run_results = iter(
+        [
+            SimpleNamespace(
+                success=True,
+                response_time_ms=12.5,
+                model="M1125",
+                firmware="10.12",
+                error=None,
+            ),
+            SimpleNamespace(
+                success=False,
+                response_time_ms=None,
+                model=None,
+                firmware=None,
+                error="unreachable",
+            ),
+            updated_entry,
+        ]
+    )
+
+    def _run_and_return(coroutine: object) -> object:
+        if _asyncio.iscoroutine(coroutine):
+            coroutine.close()
+        return next(run_results)
+
+    with (
+        patch("axis.cli.packs.navigation.asyncio.run", side_effect=_run_and_return),
+        patch(
+            "axis.cli.packs.navigation.get_config_path",
+            return_value=Path("config.toml"),
+        ),
+        patch(
+            "axis.cli.packs.navigation.load_devices",
+            return_value={"SN1": device_entry},
+        ),
+        patch("axis.cli.packs.navigation.save_devices") as save_devices,
+        patch("axis.cli.packs.navigation.delete_device", side_effect=[False, True]),
+        patch("builtins.input", side_effect=["5", "", "5", "", "6", "7", "7"]),
+    ):
+        selected_device_operations("SN1", device_entry)
+
+    output = capsys.readouterr().out
+    assert "Device is healthy" in output
+    assert "Firmware: 10.12" in output
+    assert "Device health check failed" in output
+    assert "Error: unreachable" in output
+    assert "Device SN1 updated" in output
+    assert "Returning to main menu" in output
+    assert save_devices.call_count == 2
+
+
 def test_selected_device_operations_list_apis(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -1194,6 +1309,131 @@ def test_select_privilege_non_numeric(capsys: pytest.CaptureFixture[str]) -> Non
     with patch("builtins.input", return_value="xyz"):
         result = _select_privilege()
     assert result is None
+
+
+def test_select_privilege_exit(capsys: pytest.CaptureFixture[str]) -> None:
+    """Exit selection ends the privilege prompt normally."""
+    with patch("builtins.input", return_value="e"), pytest.raises(SystemExit) as exc:
+        _select_privilege()
+    assert exc.value.code == 0
+
+
+def test_accounts_debug_dump_and_missing_context(capsys, monkeypatch) -> None:
+    """Render account debug information and the missing-context state."""
+    monkeypatch.setenv("AXIS_CLI_DEBUG", "true")
+    accounts_pack._debug_dump("users", {"root": "admin"})
+    io = MagicMock()
+    accounts_pack._render_accounts_node(MagicMock(selected_serial=None), io)
+
+    output = capsys.readouterr().out
+    assert "[debug] users" in output
+    io.write.assert_called_once_with("\nNo selected device.")
+
+
+def test_account_init_operation_creates_and_updates_user(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Create new accounts and update existing ones after confirmation."""
+    device = MagicMock()
+    device.vapix.users.create = AsyncMock()
+    device.vapix.users.modify = AsyncMock()
+
+    with patch("builtins.input", side_effect=["y", "y"]):
+        _asyncio.run(
+            _account_init_operation(
+                device,
+                "newuser",
+                "password1",
+                SecondaryGroup.VIEWER,
+                {},
+            )
+        )
+        _asyncio.run(
+            _account_init_operation(
+                device,
+                "existing",
+                "password2",
+                SecondaryGroup.ADMIN,
+                {"existing": object()},
+            )
+        )
+
+    device.vapix.users.create.assert_awaited_once_with(
+        "newuser",
+        pwd="password1",
+        sgrp=SecondaryGroup.VIEWER,
+        comment="Created via Axis CLI",
+    )
+    device.vapix.users.modify.assert_awaited_once_with(
+        "existing",
+        pwd="password2",
+        sgrp=SecondaryGroup.ADMIN,
+    )
+
+
+def test_list_users_async_invokes_device_operation() -> None:
+    """Load users through the selected-device operation callback."""
+    device = MagicMock()
+    device.vapix.users.list = AsyncMock(return_value={})
+
+    async def _run(_entry, operation):
+        return await operation(device)
+
+    with patch("axis.cli.packs.accounts.run_on_selected_device", side_effect=_run):
+        _asyncio.run(_list_users_async(_make_device_entry()))
+
+    device.vapix.users.list.assert_awaited_once()
+
+
+def test_create_user_reports_permission_error(capsys) -> None:
+    """Report denied or unsupported account creation requests."""
+    with (
+        patch("builtins.input", return_value="validuser"),
+        patch("axis.cli.packs.accounts.getpass.getpass", return_value="password1"),
+        patch(
+            "axis.cli.packs.accounts._select_privilege",
+            return_value=SecondaryGroup.ADMIN,
+        ),
+        patch(
+            "axis.cli.packs.accounts.run_on_selected_device",
+            new=AsyncMock(side_effect=Forbidden("denied")),
+        ),
+    ):
+        _asyncio.run(_create_or_update_user_async(_make_device_entry()))
+
+    assert "Access denied or unsupported" in capsys.readouterr().out
+
+
+def test_delete_user_runs_device_operation() -> None:
+    """Execute the selected-device delete callback after confirmation."""
+    device = MagicMock()
+    device.vapix.users.list = AsyncMock(return_value={})
+    device.vapix.users.delete = AsyncMock()
+
+    async def _run(_entry, operation):
+        return await operation(device)
+
+    with (
+        patch("builtins.input", side_effect=["viewer", "y"]),
+        patch("axis.cli.packs.accounts.run_on_selected_device", side_effect=_run),
+    ):
+        _asyncio.run(_delete_user_async(_make_device_entry()))
+
+    device.vapix.users.delete.assert_awaited_once_with("viewer")
+
+
+def test_delete_user_reports_permission_error(capsys) -> None:
+    """Report denied or unsupported account deletion requests."""
+    with (
+        patch(
+            "axis.cli.packs.accounts.run_on_selected_device",
+            new=AsyncMock(side_effect=[{}, Forbidden("denied")]),
+        ),
+        patch("builtins.input", side_effect=["viewer", "y"]),
+    ):
+        _asyncio.run(_delete_user_async(_make_device_entry()))
+
+    assert "Access denied or unsupported" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------
