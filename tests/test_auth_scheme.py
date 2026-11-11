@@ -1,6 +1,5 @@
 """Test HTTP auth scheme behavior."""
 
-import aiohttp
 from aiohttp import web
 import pytest
 
@@ -47,7 +46,8 @@ async def test_auth_scheme_auto_fallback_to_basic(aiohttp_mock_server, session):
     result = await axis_device.vapix.request("get", "/axis-cgi/basicdeviceinfo.cgi")
 
     assert result == b"ok"
-    assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
+    assert axis_device.vapix.auth is not None
+    assert axis_device.vapix.auth.lower().startswith("basic ")
     assert len(auth_headers) == 2
     assert auth_headers[-1].lower().startswith("basic ")
 
@@ -101,7 +101,8 @@ async def test_auth_scheme_basic_initializes_basic_auth(session) -> None:
             auth_scheme=AuthScheme.BASIC,
         )
     )
-    assert isinstance(axis_device.vapix.auth, aiohttp.BasicAuth)
+    assert axis_device.vapix.auth is not None
+    assert axis_device.vapix.auth.lower().startswith("basic ")
 
 
 async def test_auto_should_retry_guards(session) -> None:
@@ -121,5 +122,5 @@ async def test_auto_should_retry_guards(session) -> None:
     assert not axis_device.vapix._should_retry_with_basic(headers, False)
 
     # On the aiohttp client path, retry guard does not inspect auth type.
-    axis_device.vapix.auth = aiohttp.BasicAuth(USER, PASS)
+    axis_device.vapix.auth = "Basic encoded-credentials"
     assert axis_device.vapix._should_retry_with_basic(headers, True)

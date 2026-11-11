@@ -7,6 +7,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
+import aiohttp
 import pytest
 
 from axis.errors import (
@@ -24,6 +25,7 @@ from axis.models.applications.application import (
     ListApplicationsRequest,
 )
 from axis.models.basic_device_info import GetAllPropertiesRequest
+from axis.models.configuration import AuthScheme
 from axis.models.light_control import GetLightInformationRequest
 from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_management import (
@@ -945,3 +947,39 @@ async def test_request_side_effects(http_route_mock, vapix: Vapix, side_effect):
 
     with pytest.raises(RequestError):
         await vapix.request("get", "")
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (TimeoutError(), RequestError),
+        (aiohttp.ClientError("client error"), RequestError),
+        (ValueError("unexpected error"), ValueError),
+    ],
+)
+async def test_request_perform_errors_are_normalized(
+    monkeypatch, vapix: Vapix, error: Exception, expected: type[Exception]
+) -> None:
+    """Normalize known transport failures and preserve unexpected exceptions."""
+    monkeypatch.setattr(
+        vapix,
+        "_perform_request",
+        AsyncMock(side_effect=error),
+    )
+
+    with pytest.raises(expected):
+        await vapix.request("get", "")
+
+
+def test_digest_middleware_disabled_for_basic_auth(vapix: Vapix) -> None:
+    """Basic auth does not need the digest middleware."""
+    vapix.device.config.auth_scheme = AuthScheme.BASIC
+
+    assert vapix._aiohttp_digest_middleware_obj() is None
+
+
+def test_digest_middleware_unavailable(monkeypatch, vapix: Vapix) -> None:
+    """Digest is disabled when the installed aiohttp has no middleware."""
+    monkeypatch.setattr(aiohttp, "DigestAuthMiddleware", None, raising=False)
+
+    assert vapix._aiohttp_digest_middleware_obj() is None
