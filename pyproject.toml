@@ -61,10 +61,7 @@ axis = "axis.__main__:main"
 axis-cli = "axis.cli.main:main"
 
 [tool.coverage.report]
-fail_under = 95
-omit = [
-    "axis/stream_transport.py",
-]
+fail_under = 100
 exclude_also = [
     "if TYPE_CHECKING:"
 ]
@@ -98,6 +95,7 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 addopts = "--cov=axis --cov-report term-missing"
+filterwarnings = ["error"]
 asyncio_mode = "auto"
 log_cli = false
 log_cli_level = "DEBUG"
