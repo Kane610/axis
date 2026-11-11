@@ -27,8 +27,34 @@ async def rtsp_client(axis_device) -> RTSPClient:
     axis_device.enable_events()
     with patch("axis.rtsp.RTSP_PORT", RTSP_PORT):
         axis_device.stream.start()
-    yield axis_device.stream.stream
+    client = axis_device.stream.stream
+    rtp_protocol = client.rtp.client
+    start_tasks = tuple(axis_device.stream.background_tasks)
+    endpoint_started = asyncio.Event()
+    connection_lost = asyncio.Event()
+    original_connection_made = rtp_protocol.connection_made
+    original_connection_lost = rtp_protocol.connection_lost
+
+    def _on_connection_made(transport) -> None:
+        original_connection_made(transport)
+        endpoint_started.set()
+
+    def _on_connection_lost(error: Exception | None) -> None:
+        original_connection_lost(error)
+        connection_lost.set()
+
+    rtp_protocol.connection_made = _on_connection_made
+    rtp_protocol.connection_lost = _on_connection_lost
+    await endpoint_started.wait()
+    rtp_transport = rtp_protocol.transport
+    yield client
     axis_device.stream.stop()
+    if rtp_transport is not None:
+        rtp_transport.close()
+    if start_tasks:
+        await asyncio.gather(*start_tasks, return_exceptions=True)
+    if rtp_transport is not None:
+        await connection_lost.wait()
 
 
 async def test_successful_connect(rtsp_server, rtsp_client):
@@ -409,6 +435,8 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     )
 
     # Connect to RTP socket
+    connection_lost = asyncio.Event()
+
     class UDPClientProtocol:
         def __init__(self):
             self.transport = None
@@ -418,6 +446,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
 
         def connection_lost(self, exc):
             LOGGER.info("Connection lost.")
+            connection_lost.set()
 
         def send_message(self, message: str) -> None:
             LOGGER.info("Send: %s", message)
@@ -429,6 +458,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     )
     protocol.send_message("123456789ABCDEF")
     transport.close()
+    await connection_lost.wait()
 
     # KEEP-ALIVE send OPTIONS signal to keep session alive
     assert rtsp_client.keep_alive_handle

@@ -775,6 +775,45 @@ def test_api_drill_down_async_action_back(capsys: pytest.CaptureFixture[str]) ->
         _asyncio.run(api_drill_down_async(_make_device_entry()))
 
 
+def test_api_drill_down_traversal_and_action_exit() -> None:
+    """Pass a traversal path to the API reader and honor action-level exit."""
+    fake_interfaces = [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1",
+            "supported": True,
+            "initialized": True,
+            "items": 1,
+        }
+    ]
+    with (
+        patch(
+            "axis.cli.packs.api.fetch_vapix_interfaces",
+            new=AsyncMock(return_value=fake_interfaces),
+        ),
+        patch("axis.cli.packs.api.run_api_read_action", new=AsyncMock()) as read_action,
+        patch("builtins.input", side_effect=["1", "2", "0.name", "b", "b"]),
+    ):
+        _asyncio.run(api_drill_down_async(_make_device_entry()))
+
+    read_action.assert_awaited_once_with(
+        _make_device_entry(), "basic_device_info", "0.name"
+    )
+
+    with (
+        patch(
+            "axis.cli.packs.api.fetch_vapix_interfaces",
+            new=AsyncMock(return_value=fake_interfaces),
+        ),
+        patch("builtins.input", side_effect=["1", "e"]),
+        pytest.raises(SystemExit) as exc_info,
+    ):
+        _asyncio.run(api_drill_down_async(_make_device_entry()))
+
+    assert exc_info.value.code == 0
+
+
 def test_api_drill_down_async_show_all_data_stays_on_selected_interface(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -1368,6 +1407,56 @@ def test_account_init_operation_creates_and_updates_user(
         "existing",
         pwd="password2",
         sgrp=SecondaryGroup.ADMIN,
+    )
+
+
+def test_account_init_operation_declined() -> None:
+    """Leave the account unchanged when the user declines confirmation."""
+    device = MagicMock()
+    device.vapix.users.create = AsyncMock()
+    device.vapix.users.modify = AsyncMock()
+
+    with patch("builtins.input", return_value="n"):
+        _asyncio.run(
+            _account_init_operation(
+                device,
+                "newuser",
+                "password1",
+                SecondaryGroup.VIEWER,
+                {},
+            )
+        )
+
+    device.vapix.users.create.assert_not_awaited()
+    device.vapix.users.modify.assert_not_awaited()
+
+
+def test_create_user_runs_selected_device_operation() -> None:
+    """Load existing users and create the selected account in device context."""
+    device = MagicMock()
+    device.vapix.users.list = AsyncMock(return_value={})
+    device.vapix.users.create = AsyncMock()
+
+    async def _run(_entry: DeviceEntry, operation: object) -> object:
+        return await operation(device)
+
+    with (
+        patch("builtins.input", side_effect=["newuser", "y"]),
+        patch("axis.cli.packs.accounts.getpass.getpass", return_value="password1"),
+        patch(
+            "axis.cli.packs.accounts._select_privilege",
+            return_value=SecondaryGroup.ADMIN,
+        ),
+        patch("axis.cli.packs.accounts.run_on_selected_device", side_effect=_run),
+    ):
+        _asyncio.run(_create_or_update_user_async(_make_device_entry()))
+
+    device.vapix.users.list.assert_awaited_once()
+    device.vapix.users.create.assert_awaited_once_with(
+        "newuser",
+        pwd="password1",
+        sgrp=SecondaryGroup.ADMIN,
+        comment="Created via Axis CLI",
     )
 
 

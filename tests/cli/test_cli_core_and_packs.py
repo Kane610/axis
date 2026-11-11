@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 import runpy
 import sys
@@ -681,6 +683,43 @@ async def test_registered_navigation_delete_device_success_path() -> None:
 
 
 @pytest.mark.asyncio
+async def test_registered_navigation_commands_return_cancelled_on_decline() -> None:
+    """Credential edit and device deletion preserve context when cancelled."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+    entry = {"config": {"host": "10.0.0.1"}}
+    ctx = CliContext(
+        config_path=Path("."),
+        device_gateway=MagicMock(),
+        selected_serial="SN1",
+        selected_device=entry,
+    )
+    io = MagicMock()
+
+    with patch(
+        "axis.cli.packs.navigation.edit_device_credentials",
+        new=AsyncMock(return_value=None),
+    ):
+        edit_result = await registry.get_command("navigation.edit_credentials").run(
+            ctx, io
+        )
+
+    with (
+        patch("axis.cli.packs.navigation.load_devices", return_value={"SN1": entry}),
+        patch("axis.cli.packs.navigation.delete_device", return_value=False),
+    ):
+        delete_result = await registry.get_command("navigation.delete_device").run(
+            ctx, io
+        )
+
+    assert edit_result.status == "cancelled"
+    assert delete_result.status == "cancelled"
+    assert ctx.selected_serial == "SN1"
+    assert ctx.selected_device == entry
+
+
+@pytest.mark.asyncio
 async def test_registered_pack_menu_commands_require_selected_device() -> None:
     """API/events/accounts menu commands return cancelled when context has no device."""
     registry = CommandRegistry()
@@ -829,6 +868,27 @@ async def test_devices_operations_command_handles_empty_registry() -> None:
 
     assert result.status == "cancelled"
     assert result.message == "No devices available."
+
+
+@pytest.mark.asyncio
+async def test_devices_operations_command_handles_cancelled_selection() -> None:
+    """Return a cancelled result when the device-selection menu is backed out."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    compose_builtin_packs(registry, router)
+
+    with (
+        patch(
+            "axis.cli.packs.devices.load_devices",
+            return_value={"SN1": {"config": {"host": "10.0.0.1"}}},
+        ),
+        patch("axis.cli.packs.devices.select_device", return_value=None),
+    ):
+        ctx = CliContext(config_path=Path("."), device_gateway=MagicMock())
+        result = await registry.get_command("devices.operations").run(ctx, MagicMock())
+
+    assert result.status == "cancelled"
+    assert result.message == "No device selected."
 
 
 @pytest.mark.asyncio
@@ -1254,6 +1314,133 @@ async def test_api_pack_fetch_vapix_interfaces_event_instances_probe() -> None:
             "items": 3,
         }
     ]
+
+
+def test_api_payload_normalization_and_traversal_errors() -> None:
+    """Normalize nested payload types and reject invalid traversal paths."""
+
+    class _Status(Enum):
+        READY = "ready"
+
+    @dataclass
+    class _Payload:
+        status: _Status
+        values: tuple[int, ...]
+
+    assert api_pack._normalize_payload({1: _Payload(_Status.READY, (1, 2))}) == {
+        "1": {"status": "ready", "values": [1, 2]}
+    }
+
+    with pytest.raises(KeyError):
+        api_pack._traverse_payload({"root": []}, "missing")
+    with pytest.raises(TypeError):
+        api_pack._traverse_payload("leaf", "child")
+
+
+def test_api_pack_render_helpers_and_debug(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Handle malformed API rows and render API debug/context information."""
+    assert not api_pack._render_api_discovery_table({"row": "invalid"})
+
+    monkeypatch.setenv("AXIS_CLI_DEBUG", "on")
+    api_pack._debug_dump("payload", {"id": "api"})
+    io = MagicMock()
+    api_pack._render_api_node(MagicMock(selected_serial=None), io)
+
+    assert "[debug] payload" in capsys.readouterr().out
+    io.write.assert_called_once_with("\nNo selected device.")
+
+
+@pytest.mark.asyncio
+async def test_api_commands_cancel_without_selected_device() -> None:
+    """API list and drill-down commands cancel cleanly without context."""
+    registry = CommandRegistry()
+    router = CliRouter()
+    api_pack.register(registry, router)
+    ctx = MagicMock()
+    ctx.selected_serial = None
+    ctx.selected_device = None
+
+    list_result = await registry.get_command("api.list_supported").run(ctx, MagicMock())
+    drill_result = await registry.get_command("api.drill_down").run(ctx, MagicMock())
+
+    assert list_result.status == "cancelled"
+    assert drill_result.status == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_api_read_action_reports_empty_and_invalid_traversals(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Report empty interfaces and invalid traversal paths without raising."""
+    empty_handler = MagicMock()
+    empty_handler.initialized = True
+    empty_handler.__len__.return_value = 0
+    populated_handler = MagicMock()
+    populated_handler.initialized = True
+    populated_handler.__len__.return_value = 1
+    populated_handler.items.return_value = [("0", {"name": "device"})]
+    fake_device = MagicMock()
+    fake_device.vapix.interfaces.return_value = {
+        "empty": empty_handler,
+        "populated": populated_handler,
+    }
+
+    async def invoke_with_device(device_entry: object, operation: object) -> object:
+        return await operation(fake_device)
+
+    monkeypatch.setenv("AXIS_CLI_DEBUG", "true")
+    with patch(
+        "axis.cli.packs.api.run_on_selected_device", side_effect=invoke_with_device
+    ):
+        await api_pack.run_api_read_action({"config": {}}, "empty")
+        await api_pack.run_api_read_action({"config": {}}, "populated", "0.missing")
+        await api_pack.run_api_read_action({"config": {}}, "populated")
+
+    output = capsys.readouterr().out
+    assert "No data available for interface 'empty'." in output
+    assert "Traversal path '0.missing' not found." in output
+    assert "[debug] populated read action raw" in output
+
+
+def test_api_drill_down_exit_and_empty_traversal_path() -> None:
+    """Exit from either drill-down level and reject an empty traversal path."""
+    interfaces = [
+        {
+            "name": "basic_device_info",
+            "api_id": "basic-device-info",
+            "api_version": "1",
+            "listed": True,
+            "probe_attempted": True,
+            "probe_succeeded": True,
+            "supported": True,
+            "initialized": True,
+            "items": 1,
+        }
+    ]
+    with (
+        patch(
+            "axis.cli.packs.api.fetch_vapix_interfaces",
+            new=AsyncMock(return_value=interfaces),
+        ),
+        patch("builtins.input", side_effect=["e"]),
+        pytest.raises(SystemExit),
+    ):
+        asyncio.run(api_pack.api_drill_down_async({"config": {}}))
+
+    with (
+        patch(
+            "axis.cli.packs.api.fetch_vapix_interfaces",
+            new=AsyncMock(return_value=interfaces),
+        ),
+        patch("axis.cli.packs.api.run_api_read_action", new=AsyncMock()) as read_action,
+        patch("builtins.input", side_effect=["1", "2", "", "b", "e"]),
+        pytest.raises(SystemExit),
+    ):
+        asyncio.run(api_pack.api_drill_down_async({"config": {}}))
+
+    read_action.assert_not_awaited()
 
 
 @pytest.mark.asyncio
