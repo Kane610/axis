@@ -8,13 +8,13 @@ https://developer.axis.com/vapix/network-video/input-and-outputs/#virtual-input-
 """
 
 from dataclasses import dataclass
-from typing import Any, Self, TypedDict
+from typing import Literal, NotRequired, Self, TypedDict
 from xml.parsers.expat import ExpatError
 
 import xmltodict
 
 from ..errors import ResponseError
-from .api import ApiItem, ApiRequest, ApiResponse
+from .api import ApiRequest, ApiResponse
 
 SCHEMA_VERSION = "1"
 
@@ -23,27 +23,37 @@ INVALID_RESPONSE = "Invalid virtual input response"
 NAMESPACES = {"http://www.axis.com/vapix/http_cgi/virtualinput1": None}
 
 
-class VirtualInputObjectT(TypedDict):
-    """Virtual input port, as listed in the VirtualInput event instance."""
+class GeneralErrorT(TypedDict):
+    """Error reported by the device."""
 
-    port: str
+    ErrorCode: str
+    ErrorDescription: str
 
 
-@dataclass(frozen=True)
-class VirtualInput(ApiItem):
-    """Virtual input port."""
+class ErrorT(TypedDict):
+    """Error container."""
 
-    active: bool | None
-    """Port state, None until known as VAPIX can not read it."""
+    GeneralError: GeneralErrorT
 
-    port: int
-    """Port number, starting from 1."""
 
-    @classmethod
-    def decode(cls, data: VirtualInputObjectT) -> Self:
-        """Decode port data to class object."""
-        port = int(data["port"])
-        return cls(id=str(port), active=None, port=port)
+class StateChangedT(TypedDict):
+    """Result of activating or deactivating a port."""
+
+    StateChanged: Literal["true", "false"]
+
+
+class SuccessT(TypedDict):
+    """Success container, holding one of the results."""
+
+    ActivateSuccess: NotRequired[StateChangedT]
+    DeactivateSuccess: NotRequired[StateChangedT]
+
+
+class VirtualInputResponseT(TypedDict):
+    """Virtual input response, holding either success or error."""
+
+    Success: NotRequired[SuccessT]
+    Error: NotRequired[ErrorT]
 
 
 @dataclass
@@ -59,7 +69,7 @@ class VirtualInputResponse(ApiResponse[bool]):
     def decode(cls, bytes_data: bytes) -> Self:
         """Decode response, raise ResponseError if the device reports an error."""
         try:
-            data: dict[str, Any] = xmltodict.parse(
+            data: dict[str, VirtualInputResponseT] = xmltodict.parse(
                 bytes_data,
                 dict_constructor=dict,
                 namespaces=NAMESPACES,
@@ -73,7 +83,8 @@ class VirtualInputResponse(ApiResponse[bool]):
             raise ResponseError(INVALID_RESPONSE)
 
         if isinstance(error := response.get("Error"), dict):
-            general_error = error.get("GeneralError") or {}
+            if not isinstance(general_error := error.get("GeneralError"), dict):
+                raise ResponseError(INVALID_RESPONSE)
             msg = (
                 f"Virtual input error {general_error.get('ErrorCode')}: "
                 f"{general_error.get('ErrorDescription')}"
@@ -87,7 +98,10 @@ class VirtualInputResponse(ApiResponse[bool]):
         ):
             raise ResponseError(INVALID_RESPONSE)
 
-        return cls(data=result.get("StateChanged") == "true")
+        if (state_changed := result.get("StateChanged")) not in ("true", "false"):
+            raise ResponseError(INVALID_RESPONSE)
+
+        return cls(data=state_changed == "true")
 
 
 @dataclass
