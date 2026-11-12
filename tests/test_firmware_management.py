@@ -83,6 +83,14 @@ async def test_reboot(
             MockApiResponseSpec(content=b"not json"),
             "Invalid firmware management response",
         ),
+        (
+            MockApiResponseSpec(content=b"null"),
+            "Invalid firmware management response",
+        ),
+        (
+            MockApiResponseSpec(content=b"[]"),
+            "Invalid firmware management response",
+        ),
     ],
 )
 async def test_reboot_error(

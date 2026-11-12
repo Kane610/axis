@@ -25,11 +25,13 @@ class RebootResponse(ApiResponse[None]):
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
         """Decode response, raise ResponseError if the device reports an error."""
+        msg = "Invalid firmware management response"
         try:
-            data: dict[str, Any] = orjson.loads(bytes_data)
+            data: Any = orjson.loads(bytes_data)
         except orjson.JSONDecodeError as err:
-            msg = "Invalid firmware management response"
             raise ResponseError(msg) from err
+        if not isinstance(data, dict):
+            raise ResponseError(msg)
         if isinstance(error := data.get("error"), dict):
             msg = (
                 f"Firmware management error {error.get('code')}: {error.get('message')}"
