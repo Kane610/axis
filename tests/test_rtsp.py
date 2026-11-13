@@ -491,10 +491,20 @@ async def test_successful_connect(rtsp_server, rtsp_client):
             break
         mock_callback.assert_called_with(Signal.PLAYING)
 
+        rtsp_client.keep_alive()
+        await rtsp_server.next_request_received.wait()
+        assert rtsp_server.last_request == (
+            "OPTIONS "
+            "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+            "CSeq: 5\r\n"
+            "User-Agent: HASS Axis\r\n"
+            "Session: ghLlkf_I9pCBP24t\r\n\r\n"
+        )
+
         mock_callback.reset_mock()
         rtsp_server.send_response(
             "RTSP/1.0 454 Session Not Found\r\n"
-            "CSeq: 4\r\n"
+            "CSeq: 5\r\n"
             "Server: GStreamer RTSP server\r\n\r\n"
         )
         while True:
@@ -514,7 +524,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_server.last_request == (
         "TEARDOWN "
         "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        "CSeq: 5\r\n"
+        "CSeq: 6\r\n"
         'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="2417a81b93d5ae64926d226e18a5ab99"\r\n'
         "User-Agent: HASS Axis\r\n"
         "Session: ghLlkf_I9pCBP24t\r\n\r\n"

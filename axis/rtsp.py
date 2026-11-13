@@ -547,7 +547,13 @@ class RTSPMethods:
     @property
     def sequence(self) -> str:
         """Generate sequence string."""
-        return f"CSeq: {self.session.sequence}\r\n"
+        sequence = self.session.sequence
+        if (
+            self.session.method in {"KEEP-ALIVE", "TEARDOWN"}
+            and self.session.sequence_ack is not None
+        ):
+            sequence = self.session.sequence_ack + 1
+        return f"CSeq: {sequence}\r\n"
 
     @property
     def authentication(self) -> str:
