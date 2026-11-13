@@ -52,12 +52,14 @@ class RTSPClient(asyncio.Protocol):
         username: str,
         password: str,
         callback: Callable[[Signal], None],
+        *,
+        rtsp_port_range: tuple[int, int] | None = None,
     ) -> None:
         """RTSP."""
         self.loop = asyncio.get_running_loop()
         self.callback = callback
 
-        self.rtp = RTPClient(self.loop, callback)
+        self.rtp = RTPClient(self.loop, callback, rtsp_port_range=rtsp_port_range)
 
         self.session = RTSPSession(url, host, username, password)
         self.session.rtp_port = self.rtp.port
@@ -214,7 +216,11 @@ class RTPClient:
     """
 
     def __init__(
-        self, loop: Any, callback: Callable[[Signal], None] | None = None
+        self,
+        loop: Any,
+        callback: Callable[[Signal], None] | None = None,
+        *,
+        rtsp_port_range: tuple[int, int] | None = None,
     ) -> None:
         """Configure and bind socket.
 
@@ -224,10 +230,42 @@ class RTPClient:
         """
         self.loop = loop
         self.client = self.UDPClient(callback)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(("", 0))
-        self.port = self.sock.getsockname()[1]
+        self.rtcp_sock: socket.socket | None = None
+        if rtsp_port_range is None:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind(("", 0))
+            self.port = self.sock.getsockname()[1]
+        else:
+            self.sock, self.rtcp_sock, self.port = self._bind_port_pair(rtsp_port_range)
         self.rtcp_port = self.port + 1
+
+    @staticmethod
+    def _bind_port_pair(
+        rtsp_port_range: tuple[int, int],
+    ) -> tuple[socket.socket, socket.socket, int]:
+        """Bind an available RTP/RTCP port pair within the inclusive range."""
+        start, end = rtsp_port_range
+        last_error: OSError | None = None
+        for port in range(start, end):
+            rtp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                rtcp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            except OSError:
+                rtp_sock.close()
+                raise
+
+            try:
+                rtp_sock.bind(("", port))
+                rtcp_sock.bind(("", port + 1))
+            except OSError as err:
+                last_error = err
+                rtp_sock.close()
+                rtcp_sock.close()
+                continue
+            return rtp_sock, rtcp_sock, port
+
+        msg = f"No available RTSP UDP port pair in range {start}-{end}"
+        raise OSError(msg) from last_error
 
     async def start(self) -> None:
         """Start RTP client."""
@@ -237,6 +275,10 @@ class RTPClient:
         """Close transport from receiving any more packages."""
         if self.client.transport:
             self.client.transport.close()
+        else:
+            self.sock.close()
+        if self.rtcp_sock is not None:
+            self.rtcp_sock.close()
 
     @property
     def data(self) -> bytes:

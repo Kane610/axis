@@ -44,6 +44,7 @@ class Configuration:
     """Device configuration.
 
     A port value of 0 means use the default port for the configured protocol.
+    RTSP port ranges are inclusive and apply to the local RTP/RTCP UDP ports.
     """
 
     session: ClientSession

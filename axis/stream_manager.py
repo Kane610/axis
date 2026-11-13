@@ -136,6 +136,7 @@ class StreamManager:
             self.device.config.username,
             self.device.config.password,
             self.session_callback,
+            rtsp_port_range=self.device.config.rtsp_port_range,
         )
 
     def session_callback(self, signal: Signal) -> None:

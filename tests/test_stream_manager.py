@@ -134,6 +134,7 @@ async def test_start_uses_websocket_when_supported(
 async def test_initialize_stream(websocket_client, rtsp_client, stream_manager):
     """Test stream commands."""
     rtsp_client.return_value.start = AsyncMock()
+    stream_manager.device.config.rtsp_port_range = (50000, 50100)
     # Stream does not exist
     assert not stream_manager.stream  # Stream does not exist
     stream_manager.stop()  # Calling stop shouldn't do anything
@@ -143,7 +144,14 @@ async def test_initialize_stream(websocket_client, rtsp_client, stream_manager):
 
     # Stream is created
     stream_manager.start()  # Start creates stream object
-    rtsp_client.assert_called()  # Stream object is based on RTSPClient
+    rtsp_client.assert_called_once_with(
+        stream_manager.stream_url,
+        stream_manager.device.config.host,
+        stream_manager.device.config.username,
+        stream_manager.device.config.password,
+        stream_manager.session_callback,
+        rtsp_port_range=(50000, 50100),
+    )
     stream_manager.stream.start.assert_called()  # RTSPClient start is called as well
     stream_manager.stream.stop.assert_not_called()  # Stop has never been called
 

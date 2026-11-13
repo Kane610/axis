@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from axis.rtsp import RTP_HEADER_SIZE, RTSPClient, Signal, State
+from axis.rtsp import RTP_HEADER_SIZE, RTPClient, RTSPClient, Signal, State
 
 from .conftest import HOST, RTSP_PORT
 from .packet_fixtures import (
@@ -19,6 +19,89 @@ from .packet_fixtures import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+async def test_rtp_client_binds_configured_port_pair() -> None:
+    """Bind and release the configured RTP/RTCP port pair."""
+    rtp_sock = Mock()
+    rtcp_sock = Mock()
+    with patch("axis.rtsp.socket.socket", side_effect=[rtp_sock, rtcp_sock]):
+        rtp_client = RTPClient(
+            asyncio.get_running_loop(),
+            rtsp_port_range=(50000, 50001),
+        )
+
+    assert rtp_client.port == 50000
+    assert rtp_client.rtcp_port == 50001
+    rtp_sock.bind.assert_called_once_with(("", 50000))
+    rtcp_sock.bind.assert_called_once_with(("", 50001))
+
+    rtp_client.stop()
+    rtp_sock.close.assert_called_once()
+    rtcp_sock.close.assert_called_once()
+
+
+async def test_rtp_client_skips_unavailable_port_pair() -> None:
+    """Try the next pair when a configured port is occupied."""
+    first_rtp_sock = Mock()
+    first_rtcp_sock = Mock()
+    first_rtcp_sock.bind.side_effect = OSError("port in use")
+    second_rtp_sock = Mock()
+    second_rtcp_sock = Mock()
+
+    with patch(
+        "axis.rtsp.socket.socket",
+        side_effect=[
+            first_rtp_sock,
+            first_rtcp_sock,
+            second_rtp_sock,
+            second_rtcp_sock,
+        ],
+    ):
+        rtp_client = RTPClient(
+            asyncio.get_running_loop(),
+            rtsp_port_range=(50000, 50002),
+        )
+
+    assert rtp_client.port == 50001
+    assert rtp_client.rtcp_port == 50002
+    first_rtp_sock.close.assert_called_once()
+    first_rtcp_sock.close.assert_called_once()
+    rtp_client.stop()
+
+
+async def test_rtp_client_raises_when_no_configured_port_pair_is_available() -> None:
+    """Raise an explicit error when all configured pairs are occupied."""
+    rtp_sock = Mock()
+    rtcp_sock = Mock()
+    rtp_sock.bind.side_effect = OSError("port in use")
+
+    with (
+        patch("axis.rtsp.socket.socket", side_effect=[rtp_sock, rtcp_sock]),
+        pytest.raises(OSError, match="No available RTSP UDP port pair"),
+    ):
+        RTPClient(
+            asyncio.get_running_loop(),
+            rtsp_port_range=(50000, 50001),
+        )
+
+    rtp_sock.close.assert_called_once()
+    rtcp_sock.close.assert_called_once()
+
+
+async def test_rtp_client_closes_rtp_socket_if_rtcp_socket_creation_fails() -> None:
+    """Release the RTP socket if creating its RTCP pair fails."""
+    rtp_sock = Mock()
+    with (
+        patch("axis.rtsp.socket.socket", side_effect=[rtp_sock, OSError("failed")]),
+        pytest.raises(OSError, match="failed"),
+    ):
+        RTPClient(
+            asyncio.get_running_loop(),
+            rtsp_port_range=(50000, 50001),
+        )
+
+    rtp_sock.close.assert_called_once()
 
 
 @pytest.fixture
