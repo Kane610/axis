@@ -275,7 +275,37 @@ class RTPClient:
         def datagram_received(self, data: bytes, addr: Any) -> None:
             """Signals when new data is available."""
             if self.callback:
-                payload = data[RTP_HEADER_SIZE:]
+                if len(data) < RTP_HEADER_SIZE or data[0] >> 6 != 2:
+                    return
+
+                header_length = RTP_HEADER_SIZE + 4 * (data[0] & 0x0F)
+                if header_length > len(data):
+                    return
+
+                if data[0] & 0x10:
+                    if header_length + 4 > len(data):
+                        return
+                    extension_length = (
+                        int.from_bytes(
+                            data[header_length + 2 : header_length + 4], "big"
+                        )
+                        * 4
+                    )
+                    header_length += 4 + extension_length
+                    if header_length > len(data):
+                        return
+
+                payload_end = len(data)
+                if data[0] & 0x20:
+                    padding_length = data[-1]
+                    if (
+                        padding_length == 0
+                        or padding_length > payload_end - header_length
+                    ):
+                        return
+                    payload_end -= padding_length
+
+                payload = data[header_length:payload_end]
 
                 # if the previous packet was a fragment, then merge it
                 if self.fragment:
@@ -285,7 +315,7 @@ class RTPClient:
                     self.data.append(payload)
 
                 # check whether the RTP marker bit is set, if not it is a fragment
-                self.fragment = (data[1] & 0b1 << 7) == 0
+                self.fragment = (data[1] & 0x80) == 0
                 if not self.fragment:
                     self.callback(Signal.DATA)
 

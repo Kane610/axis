@@ -686,6 +686,49 @@ def test_rtp_fragment(rtsp_client, packets: list[bytes]):
         assert rtp_client.data == payload
 
 
+@pytest.mark.parametrize(
+    ("packet", "expected_payload"),
+    [
+        (
+            bytes.fromhex("81800000000000000000000011223344DEADBEEF"),
+            bytes.fromhex("DEADBEEF"),
+        ),
+        (
+            bytes.fromhex("908000000000000000000000BEDE000101020304DEADBEEF"),
+            bytes.fromhex("DEADBEEF"),
+        ),
+        (
+            bytes.fromhex("A08000000000000000000000DEADBEEF030303"),
+            bytes.fromhex("DEADBEEF"),
+        ),
+    ],
+)
+def test_rtp_optional_header_fields(rtsp_client, packet, expected_payload):
+    """Exclude CSRC, extension, and padding bytes from RTP payloads."""
+    with patch.object(rtsp_client.rtp.client, "callback") as mock_callback:
+        rtsp_client.rtp.client.datagram_received(packet, "addr")
+
+    mock_callback.assert_called_once_with(Signal.DATA)
+    assert rtsp_client.data == expected_payload
+
+
+@pytest.mark.parametrize(
+    "packet",
+    [
+        b"\x80\x80",
+        bytes.fromhex("008000000000000000000000DEADBEEF"),
+        bytes.fromhex("B08000000000000000000000DEADBEEF00"),
+    ],
+)
+def test_rtp_malformed_header_is_ignored(rtsp_client, packet):
+    """Ignore truncated, unsupported-version, and invalid-padding packets."""
+    with patch.object(rtsp_client.rtp.client, "callback") as mock_callback:
+        rtsp_client.rtp.client.datagram_received(packet, "addr")
+
+    mock_callback.assert_not_called()
+    assert rtsp_client.data == b""
+
+
 def test_methods(rtsp_client):
     """Verify method attributes."""
     method = rtsp_client.method
