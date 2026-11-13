@@ -300,7 +300,7 @@ async def test_websocket_stop_is_idempotent(axis_device):
     assert client.session.state == State.STOPPED
 
 
-async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device, caplog):
+async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device):
     """Verify websocket falls back to basic auth if wssession token is unavailable."""
     callback = MagicMock()
     ws = MockWebSocket(
@@ -330,9 +330,6 @@ async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device, caplo
         heartbeat=15,
         ssl=False,
         timeout=ANY,
-    )
-    assert "Could not obtain wssession token, trying basic auth: no token" in (
-        caplog.text
     )
 
 

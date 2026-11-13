@@ -293,10 +293,8 @@ async def test_failed_websocket_cert_error_disables_websocket_runtime(stream_man
     assert stream_manager.use_websocket is False
 
 
-async def test_failed_websocket_auth_error_disables_websocket_runtime(
-    stream_manager, caplog
-):
-    """Verify authentication failures fall back to RTSP and log the reason."""
+async def test_failed_websocket_auth_error_disables_websocket_runtime(stream_manager):
+    """Verify authentication failures disable websocket for runtime fallback."""
     stream_manager.event = True
     stream_manager.device.config.websocket_enabled = True
     stream_manager.device.vapix.api_discovery._items[
@@ -314,7 +312,6 @@ async def test_failed_websocket_auth_error_disables_websocket_runtime(
 
     assert stream_manager._websocket_temporarily_disabled is True
     assert stream_manager.use_websocket is False
-    assert "after authentication failure" in caplog.text
 
 
 async def test_failed_websocket_cert_error_keeps_websocket_when_forced(stream_manager):

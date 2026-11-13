@@ -205,11 +205,6 @@ class WebSocketClient:
             return {}
 
     @property
-    def last_failure_reason(self) -> WebSocketFailureReason:
-        """Return the classified reason of the latest startup failure."""
-        return self._last_failure_reason
-
-    @property
     def should_disable_runtime_websocket(self) -> bool:
         """Return true if websocket should be disabled for this runtime."""
         return self._last_failure_reason in (
@@ -228,9 +223,7 @@ class WebSocketClient:
             raw = await self.device.vapix.request("get", WSSESSION_PATH)
             return raw.decode("ascii").strip()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.warning(
-                "Could not obtain wssession token, trying basic auth: %s", err
-            )
+            _LOGGER.debug("Could not obtain wssession token: %s", err)
             return None
 
     async def start(self) -> None:
