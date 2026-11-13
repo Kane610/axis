@@ -37,6 +37,8 @@ Pull requests expose independent **Lint**, **Formatting**, **Typing**, and
 others from running. Ruff lint findings also appear as file-and-line annotations.
 The test job uploads JUnit XML and XML/HTML coverage reports as the
 `test-reports-python-3.14` artifact, including when tests fail.
+The workflow run summary shows the test outcome, counts, duration, line coverage,
+and configured coverage threshold. Missing reports are flagged explicitly.
 
 Initial `ty` support is configured as an opt-in check and does not replace `mypy`:
 

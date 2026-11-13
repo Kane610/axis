@@ -54,6 +54,7 @@ jobs:
         run: |
           uv sync --locked --extra requirements --extra requirements-test
       - name: Test with pytest
+        id: pytest
         run: |
           uv run --locked pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=axis --cov-report=xml --cov-report=html
       - name: Upload test and coverage reports
@@ -66,3 +67,57 @@ jobs:
             coverage.xml
             htmlcov/
           if-no-files-found: warn
+      - name: Summarize test results
+        if: ${{ !cancelled() && steps.pytest.outcome != 'skipped' }}
+        env:
+          PYTEST_OUTCOME: ${{ steps.pytest.outcome }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import tomllib
+          import xml.etree.ElementTree as ET
+
+          rows = [("Test step", os.environ["PYTEST_OUTCOME"])]
+          junit = Path("junit/test-results.xml")
+          if junit.exists():
+              suites = list(ET.parse(junit).getroot().iter("testsuite"))
+              totals = {
+                  key: sum(int(suite.attrib[key]) for suite in suites)
+                  for key in ("tests", "failures", "errors", "skipped")
+              }
+              passed = totals["tests"] - sum(
+                  totals[key] for key in ("failures", "errors", "skipped")
+              )
+              rows.extend([
+                  ("Total tests", totals["tests"]),
+                  ("Passed", passed),
+                  ("Failed", totals["failures"]),
+                  ("Errors", totals["errors"]),
+                  ("Skipped", totals["skipped"]),
+                  ("Duration", f'{sum(float(s.attrib["time"]) for s in suites):.2f}s'),
+              ])
+          else:
+              print("::warning::JUnit report was not generated; inspect the pytest log.")
+              rows.append(("Test results", "Unavailable; inspect the pytest log"))
+
+          config = tomllib.loads(Path("pyproject.toml").read_text())
+          threshold = config["tool"]["coverage"]["report"]["fail_under"]
+          rows.append(("Required coverage", f"{threshold}%"))
+          coverage = Path("coverage.xml")
+          if coverage.exists():
+              rate = float(ET.parse(coverage).getroot().attrib["line-rate"])
+              rows.append(("Line coverage", f"{rate * 100:.2f}%"))
+          else:
+              print("::warning::Coverage report was not generated; inspect the pytest log.")
+              rows.append(("Line coverage", "Unavailable; inspect the pytest log"))
+
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as summary:
+              summary.write("## Tests (Python 3.14)\n\n| Metric | Result |\n| --- | --- |\n")
+              for label, value in rows:
+                  summary.write(f"| {label} | {value} |\n")
+              summary.write(
+                  "\nDownload `test-reports-python-3.14` from this run's artifacts "
+                  "for the available JUnit and XML/HTML coverage reports.\n"
+              )
+          PY
