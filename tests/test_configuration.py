@@ -21,6 +21,7 @@ async def test_configuration(session: ClientSession) -> None:
         username="root",
         password="pass",
         port=443,
+        rtsp_port_range=(50000, 50100),
         web_proto="https",
         verify_ssl=True,
     )
@@ -29,6 +30,7 @@ async def test_configuration(session: ClientSession) -> None:
     assert config.username == "root"
     assert config.password == "pass"
     assert config.port == 443
+    assert config.rtsp_port_range == (50000, 50100)
     assert config.web_proto == WebProtocol.HTTPS
     assert config.verify_ssl is True
     assert config.url == "https://192.168.0.1:443"
@@ -51,6 +53,7 @@ async def test_minimal_configuration(session: ClientSession) -> None:
     assert config.username == "bill"
     assert config.password == "cipher"
     assert config.port == 80
+    assert config.rtsp_port_range is None
     assert config.web_proto == WebProtocol.HTTP
     assert config.verify_ssl is False
     assert config.url == "http://192.168.1.1:80"
@@ -143,6 +146,32 @@ async def test_configuration_zero_port_uses_http_default(
 
     assert config.port == 80
     assert config.url == "http://192.168.1.5:80"
+
+
+@pytest.mark.parametrize(
+    "port_range",
+    [
+        (0, 100),
+        (100, 100),
+        (65535, 65535),
+        (1, 65536),
+        (1,),
+        [5000, 5001],
+        (True, 5001),
+    ],
+)
+async def test_configuration_rejects_invalid_rtsp_port_range(
+    session: ClientSession, port_range: object
+) -> None:
+    """Test RTSP port range is a valid inclusive range of UDP ports."""
+    with pytest.raises(ValueError, match="RTSP port range"):
+        Configuration(
+            session,
+            "192.168.1.6",
+            username="root",
+            password="pass",
+            rtsp_port_range=cast("tuple[int, int] | None", port_range),
+        )
 
 
 @pytest.mark.parametrize(

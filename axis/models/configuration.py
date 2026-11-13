@@ -52,6 +52,7 @@ class Configuration:
     username: str
     password: str
     port: int = 0
+    rtsp_port_range: tuple[int, int] | None = None
     web_proto: WebProtocol = WebProtocol.HTTP
     verify_ssl: bool = False
     is_companion: bool = False
@@ -65,6 +66,7 @@ class Configuration:
         self._validate_host()
         if self.port == 0:
             self.port = 443 if self.web_proto == WebProtocol.HTTPS else 80
+        self._validate_rtsp_port_range()
         self.auth_scheme = AuthScheme(self.auth_scheme)
 
     def _validate_host(self) -> None:
@@ -82,6 +84,24 @@ class Configuration:
                 "Host must not include scheme, path, query, or fragment; "
                 "use host, web_proto, and port separately"
             )
+            raise ValueError(msg)
+
+    def _validate_rtsp_port_range(self) -> None:
+        """Validate the inclusive local UDP port range used for RTSP."""
+        if self.rtsp_port_range is None:
+            return
+
+        if (
+            not isinstance(self.rtsp_port_range, tuple)
+            or len(self.rtsp_port_range) != 2
+            or any(type(port) is not int for port in self.rtsp_port_range)
+        ):
+            msg = "RTSP port range must be a tuple of two integer ports"
+            raise ValueError(msg)
+
+        start, end = self.rtsp_port_range
+        if not 1 <= start < end <= 65535:
+            msg = "RTSP port range must contain at least two valid ports"
             raise ValueError(msg)
 
     @property
