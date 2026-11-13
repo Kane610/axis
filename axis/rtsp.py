@@ -72,12 +72,14 @@ class RTSPClient(asyncio.Protocol):
 
     async def start(self) -> None:
         """Start RTSP session."""
-        await self.rtp.start()
-
         try:
+            await self.rtp.start()
             await self.loop.create_connection(
                 lambda: self, self.session.host, self.session.port
             )
+        except asyncio.CancelledError:
+            self.stop()
+            raise
         except OSError as err:
             _LOGGER.debug("RTSP got exception %s", err)
             self.stop()

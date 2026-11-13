@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.rtsp tests/test_rtsp.py
 
 import asyncio
 import logging
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -541,6 +541,24 @@ def test_rtsp_client_time_out(rtsp_client, caplog):
         assert f"Response timed out {HOST}" in caplog.text
         mock_rtsp_client_stop.assert_called()
         mock_rtsp_client_callback.assert_called_with(Signal.FAILED)
+
+
+async def test_rtsp_client_start_cancellation_stops_rtp(rtsp_client):
+    """Close the RTP endpoint when connection setup is cancelled."""
+    with (
+        patch.object(rtsp_client.rtp, "start", new_callable=AsyncMock),
+        patch.object(
+            rtsp_client.loop,
+            "create_connection",
+            new_callable=AsyncMock,
+            side_effect=asyncio.CancelledError,
+        ),
+        patch.object(rtsp_client.rtp, "stop") as mock_rtp_stop,
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await rtsp_client.start()
+
+    mock_rtp_stop.assert_called_once()
 
 
 @pytest.mark.parametrize(

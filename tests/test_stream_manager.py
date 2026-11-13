@@ -3,6 +3,7 @@
 pytest --cov-report term-missing --cov=axis.stream_manager tests/test_stream_manager.py
 """
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -226,6 +227,31 @@ async def test_start_returns_when_already_starting(
 
     websocket_client.assert_not_called()
     rtsp_client.assert_not_called()
+
+
+async def test_stop_cancels_pending_stream_start(stream_manager):
+    """Stopping the manager cancels its pending transport startup task."""
+    start_pending = asyncio.Event()
+
+    async def pending_start() -> None:
+        start_pending.set()
+        await asyncio.Future()
+
+    stream = SimpleNamespace(
+        session=SimpleNamespace(state=State.STARTING),
+        start=pending_start,
+        stop=MagicMock(),
+    )
+    with patch.object(stream_manager, "_build_stream", return_value=stream):
+        stream_manager.start()
+        task = next(iter(stream_manager.background_tasks))
+        await start_pending.wait()
+
+        stream_manager.stop()
+        await asyncio.gather(task, return_exceptions=True)
+
+    assert task.cancelled()
+    stream.stop.assert_called_once()
 
 
 async def test_cancel_retry_cancels_timer(stream_manager):
