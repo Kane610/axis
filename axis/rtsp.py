@@ -126,6 +126,11 @@ class RTSPClient(asyncio.Protocol):
             self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
         elif self.session.state == State.PLAYING:
+            if self.session.status_code == 454:
+                self.stop()
+                self.callback(Signal.FAILED)
+                return
+
             self.callback(Signal.PLAYING)
 
             if self.session.session_timeout != 0:
