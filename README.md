@@ -32,6 +32,10 @@ uv run mypy axis
 uv run pytest
 ```
 
+Pull requests expose independent **Lint**, **Formatting**, **Typing**, and
+**Tests (Python 3.14)** checks in GitHub. A failed check does not prevent the
+others from running. Ruff lint findings also appear as file-and-line annotations.
+
 Initial `ty` support is configured as an opt-in check and does not replace `mypy`:
 
 ```bash
