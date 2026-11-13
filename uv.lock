@@ -202,7 +202,7 @@ wheels = [
 
 [[package]]
 name = "axis"
-version = "74"
+version = "75"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

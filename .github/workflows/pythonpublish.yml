@@ -24,5 +24,5 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
-          uv run --with build python -m build
-          uv run --with twine twine upload dist/*
+          uv run --locked --with build python -m build
+          uv run --locked --with twine twine upload dist/*

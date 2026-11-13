@@ -17,11 +17,11 @@ Or run the bootstrap script, which installs `uv` if needed and provisions Python
 ./setup.sh
 ```
 
-Dependencies are locked via `uv.lock`. Regenerate lock data when dependency inputs change:
-
-```bash
-uv lock
-```
+Dependencies are locked via `uv.lock`. The pre-commit hook installed by `./setup.sh`
+automatically refreshes it when `pyproject.toml` or `uv.lock` is included in a commit.
+If the hook modifies it, include the updated lockfile when retrying the commit.
+CI rejects stale or missing lockfiles, even when local hooks are bypassed, and
+runs checks with `--locked` to prevent implicit lockfile updates.
 
 Run checks with `uv`:
 
