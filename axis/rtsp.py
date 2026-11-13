@@ -437,10 +437,9 @@ class RTSPSession:
                 self.range = line.split(": ")[1]
             elif "RTP-Info" in line:
                 self.rtp_info = line.split(": ")[1]
-            elif not line:
-                if data:
-                    self.sdp = data
-                    break
+            elif not line and data:
+                self.sdp = data
+                break
         if self.sdp:
             stream_found = False
             for param in self.sdp:

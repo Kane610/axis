@@ -19,11 +19,15 @@ uv python install 3.14
 uv sync --python 3.14 --all-extras
 ```
 
-Dependencies are locked via `uv.lock`. Regenerate only when dependency inputs in `pyproject.toml` change:
+Dependencies are locked via `uv.lock`. The pre-commit hook automatically runs
+`uv lock` when `pyproject.toml` or `uv.lock` is included in a commit, preserving
+existing dependency versions where possible. No separate lockfile command is needed.
+If the hook updates the lockfile, stage it along with the dependency changes and
+retry the commit. The bootstrap script installs the hooks automatically.
 
-```bash
-uv lock
-```
+CI checks lockfile consistency before installing dependencies and uses `--locked`
+for dependency installation and checks. A stale or missing committed lockfile
+therefore fails CI even when local hooks are not installed or are bypassed.
 
 ## Running checks
 
@@ -45,6 +49,10 @@ uv run ruff check axis/<file>.py
 
 Run broader checks only when your change affects shared behavior (for example, base classes, event parsing, or configuration).
 
+Async fixtures use function-scoped event loops, configured explicitly in
+`pyproject.toml`. Keep warnings treated as errors rather than suppressing
+pytest-asyncio configuration warnings.
+
 ## Branch and scope policy
 
 - Never commit directly on `master`; always use a feature branch and open a pull request.
@@ -56,7 +64,9 @@ Coverage must stay at or above 95% overall. All new code you introduce must have
 
 ## Pre-commit hooks
 
-The repository ships local hooks that run `ruff check --fix`, `ruff format`, and `mypy` on every commit. Install them after setup:
+The repository ships local hooks that refresh dependency lock data when needed
+and run `ruff check --fix`, `ruff format`, and `mypy`. The bootstrap script installs
+them automatically; for manual environment setup, install them with:
 
 ```bash
 uv run pre-commit install
