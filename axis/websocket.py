@@ -248,7 +248,8 @@ class WebSocketClient:
             if token:
                 self.authentication = (
                     "Basic"
-                    if isinstance(self.device.vapix.auth, aiohttp.BasicAuth)
+                    if self.device.vapix.auth
+                    and self.device.vapix.auth.lower().startswith("basic ")
                     else "Digest"
                 )
                 connect_url = f"{self.url}&wssession={token}"
@@ -256,10 +257,12 @@ class WebSocketClient:
                 # Fall back to HTTP Basic auth in the upgrade handshake.
                 self.authentication = "Basic"
                 connect_url = self.url
-                ws_connect_kwargs["auth"] = aiohttp.BasicAuth(
-                    self.device.config.username,
-                    self.device.config.password,
-                )
+                ws_connect_kwargs["headers"] = {
+                    "Authorization": aiohttp.encode_basic_auth(
+                        self.device.config.username,
+                        self.device.config.password,
+                    )
+                }
 
             self._ws = await self._ws_session.ws_connect(
                 connect_url, **ws_connect_kwargs

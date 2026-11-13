@@ -252,6 +252,7 @@ async def test_property_handler(
     assert properties.ptz is True
     # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
     assert properties.system_serial_number == "ACCC12345678"
+    assert properties.virtual_input is True
 
 
 @pytest.mark.parametrize(

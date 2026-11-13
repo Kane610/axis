@@ -103,6 +103,12 @@ class PropertySystemParamT(TypedDict):
     Soc: str
 
 
+class PropertyVirtualInputParamT(TypedDict):
+    """Represent a virtual input object."""
+
+    VirtualInput: bool
+
+
 class PropertyParamT(TypedDict):
     """Represent a property object."""
 
@@ -113,6 +119,7 @@ class PropertyParamT(TypedDict):
     LightControl: NotRequired[PropertyLightControlParamT]
     PTZ: NotRequired[PropertyPtzParamT]
     System: PropertySystemParamT
+    VirtualInput: NotRequired[PropertyVirtualInputParamT]
 
 
 @dataclass(frozen=True)
@@ -174,6 +181,9 @@ class PropertyParam(ParamItem):
     system_serial_number: str
     """Device serial number."""
 
+    virtual_input: bool
+    """Support virtual input ports."""
+
     @classmethod
     def decode(cls, data: PropertyParamT) -> Self:
         """Decode dictionary to class object."""
@@ -200,4 +210,5 @@ class PropertyParam(ParamItem):
             ptz=data.get("PTZ", {}).get("PTZ", False),
             digital_ptz=data.get("PTZ", {}).get("DigitalPTZ", False),
             system_serial_number=data["System"]["SerialNumber"],
+            virtual_input=data.get("VirtualInput", {}).get("VirtualInput", False),
         )

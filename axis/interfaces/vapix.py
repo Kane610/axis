@@ -34,6 +34,7 @@ from .stream_profiles import StreamProfilesHandler
 from .temperature_control import TemperatureControlHandler
 from .user_groups import UserGroups
 from .view_areas import ViewAreaHandler
+from .virtual_input import VirtualInputHandler
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
@@ -69,7 +70,7 @@ class InterfaceState:
 class Vapix:
     """Vapix parameter request."""
 
-    auth: aiohttp.BasicAuth | None
+    auth: str | None
 
     def __init__(self, device: AxisDevice) -> None:
         """Store local reference to device config."""
@@ -77,7 +78,7 @@ class Vapix:
         self._aiohttp_digest_middleware: Any | None = None
 
         if device.config.auth_scheme == AuthScheme.BASIC:
-            self.auth = self._basic_auth()
+            self.auth = self._basic_auth_header()
         else:
             self.auth = None
             self._aiohttp_digest_middleware = self._aiohttp_digest_middleware_obj()
@@ -107,6 +108,7 @@ class Vapix:
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
         self.restart_cgi = RestartHandler(self)
+        self.virtual_input = VirtualInputHandler(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
         self.fence_guard = FenceGuardHandler(self)
@@ -124,6 +126,15 @@ class Vapix:
             return self.basic_device_info["0"].firmware_version
         if self.params.property_handler.initialized:
             return self.params.property_handler["0"].firmware_version
+        return ""
+
+    @property
+    def product_full_name(self) -> str:
+        """Product full name of device."""
+        if self.basic_device_info.initialized:
+            return self.basic_device_info["0"].product_full_name
+        if self.params.brand_handler.initialized:
+            return self.params.brand_handler["0"].product_full_name
         return ""
 
     @property
@@ -180,6 +191,8 @@ class Vapix:
         """Initialize Vapix functions."""
         await self.initialize_api_discovery()
         await self.initialize_param_cgi(preload_data=False)
+        if "Companion" in self.product_full_name:
+            self.device.config.is_companion = True
         await self.initialize_applications()
 
     async def initialize_api_discovery(self) -> None:
@@ -342,7 +355,7 @@ class Vapix:
     ) -> ApiResponseT:
         """Make a request and decode response based on the request contract."""
         params = api_request.params or {}
-        if self.device.config.is_companion:
+        if self.device.config.is_companion and api_request.supports_companion_param:
             params["Axis-Orig-Sw"] = "true"
         bytes_data = await self.request(
             method=api_request.method,
@@ -421,7 +434,7 @@ class Vapix:
 
         if status_code >= 400:
             if self._should_retry_with_basic(response_headers, allow_auto_basic_retry):
-                self.auth = self._basic_auth()
+                self.auth = self._basic_auth_header()
                 self._aiohttp_digest_middleware = None
                 return await self._request(
                     method=method,
@@ -460,11 +473,16 @@ class Vapix:
         )
         session = self.device.config.session
 
+        request_headers = dict(headers or {})
+        if self.auth is not None and not any(
+            header.lower() == "authorization" for header in request_headers
+        ):
+            request_headers["Authorization"] = self.auth
+
         request_kwargs: dict[str, Any] = {
             "data": request_data,
-            "headers": headers,
+            "headers": request_headers,
             "params": params,
-            "auth": self.auth,
             "timeout": TIME_OUT,
         }
         if self._aiohttp_digest_middleware is not None:
@@ -489,9 +507,9 @@ class Vapix:
             password=self.device.config.password,
         )
 
-    def _basic_auth(self) -> aiohttp.BasicAuth:
-        """Create aiohttp basic auth object."""
-        return aiohttp.BasicAuth(
+    def _basic_auth_header(self) -> str:
+        """Create an HTTP Basic Authorization header value."""
+        return aiohttp.encode_basic_auth(
             self.device.config.username, self.device.config.password
         )
 

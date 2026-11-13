@@ -321,10 +321,12 @@ async def test_websocket_fallback_to_basic_auth_when_no_token(axis_device):
 
     ws_connect.assert_called_once_with(
         "ws://127.0.0.1:80/vapix/ws-data-stream?sources=events",
-        auth=aiohttp.BasicAuth(
-            axis_device.config.username,
-            axis_device.config.password,
-        ),
+        headers={
+            "Authorization": aiohttp.encode_basic_auth(
+                axis_device.config.username,
+                axis_device.config.password,
+            )
+        },
         heartbeat=15,
         ssl=False,
         timeout=ANY,

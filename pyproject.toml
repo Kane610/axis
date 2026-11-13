@@ -39,12 +39,12 @@ requirements = [
     "zeroconf>=0.150.0",
 ]
 requirements-test = [
-    "mypy==2.4.0",
-    "pytest==9.1.1",
+    "mypy==2.4.1",
+    "pytest==9.2.0",
     "pytest-aiohttp==1.1.1",
-    "pytest-asyncio==1.4.0",
+    "pytest-asyncio==1.4.1.post1",
     "pytest-cov==7.1.0",
-    "ruff==0.17.2",
+    "ruff==0.17.4",
     "types-xmltodict==v1.0.1.20260518",
 ]
 requirements-dev = [
@@ -61,10 +61,7 @@ axis = "axis.__main__:main"
 axis-cli = "axis.cli.main:main"
 
 [tool.coverage.report]
-fail_under = 95
-omit = [
-    "axis/stream_transport.py",
-]
+fail_under = 100
 exclude_also = [
     "if TYPE_CHECKING:"
 ]
@@ -98,6 +95,7 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 addopts = "--cov=axis --cov-report term-missing"
+filterwarnings = ["error"]
 asyncio_mode = "auto"
 log_cli = false
 log_cli_level = "DEBUG"

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
+from axis.interfaces.event_manager import EventManager
 from axis.models.event import (
     Event,
     EventOperation,
@@ -486,3 +487,15 @@ def test_extract_name_value_with_prefer():
     name, value = extract_name_value(data, prefer="nonexistent")
     assert name == "State"
     assert value == "0"
+
+
+def test_event_manager_debug_logging(caplog) -> None:
+    """Log decoded events when debug logging is enabled."""
+    manager = EventManager()
+
+    with caplog.at_level("DEBUG", logger="axis.interfaces.event_manager"):
+        manager.handler(PIR_INIT)
+
+    assert any(
+        record.name == "axis.interfaces.event_manager" for record in caplog.records
+    )

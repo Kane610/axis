@@ -11,10 +11,17 @@ import pytest
 from axis.models.api_discovery import ApiId
 from axis.rtsp import Signal, State
 from axis.stream_manager import RETRY_TIMER, StreamManager
+from axis.stream_transport import StreamSession, StreamTransport
 from axis.websocket import WebSocketClient, WebSocketFailureReason
 
 from .conftest import HOST
 from .event_fixtures import AUDIO_INIT
+
+
+def test_stream_transport_protocol_contract() -> None:
+    """Expose the session and transport members used by StreamManager."""
+    assert "state" in StreamSession.__dict__
+    assert {"session", "start", "stop", "data"} <= StreamTransport.__dict__.keys()
 
 
 @pytest.fixture

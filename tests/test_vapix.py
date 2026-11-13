@@ -3,9 +3,11 @@
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
+import aiohttp
 import pytest
 
 from axis.errors import (
@@ -23,6 +25,7 @@ from axis.models.applications.application import (
     ListApplicationsRequest,
 )
 from axis.models.basic_device_info import GetAllPropertiesRequest
+from axis.models.configuration import AuthScheme
 from axis.models.light_control import GetLightInformationRequest
 from axis.models.parameters.param_cgi import ParamRequest
 from axis.models.port_management import (
@@ -131,6 +134,7 @@ def test_vapix_not_initialized(vapix: Vapix) -> None:
         assert vapix.basic_device_info["0"]
     assert iter(vapix.basic_device_info)
     assert vapix.firmware_version == ""
+    assert vapix.product_full_name == ""
     assert vapix.product_number == ""
     assert vapix.product_type == ""
     assert vapix.serial_number == ""
@@ -351,6 +355,7 @@ async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
     assert vapix.product_number == "M1065-LW"
     assert vapix.product_type == "Network Camera"
     assert vapix.serial_number == "ACCC12345678"
+    assert not vapix.device.config.is_companion
 
     assert vapix.fence_guard.initialized
     assert vapix.loitering_guard.initialized
@@ -647,6 +652,74 @@ async def test_initialize_param_cgi_for_companion_device(
     assert vapix_companion_device.users.supported
 
 
+async def test_companion_param_skipped_for_discovery_apis(
+    mock_vapix_request, vapix_companion_device: Vapix
+):
+    """Verify Companion parameter is not sent to APIs that reject it."""
+    api_discovery_route = mock_vapix_request(
+        ListApisRequest, json=API_DISCOVERY_RESPONSE
+    )
+    basic_device_info_route = mock_vapix_request(
+        GetAllPropertiesRequest, json=BASIC_DEVICE_INFO_RESPONSE
+    )
+
+    await vapix_companion_device.api_request(ListApisRequest())
+    await vapix_companion_device.api_request(GetAllPropertiesRequest())
+
+    for route in (api_discovery_route, basic_device_info_route):
+        assert route.called
+        assert "Axis-Orig-Sw" not in route.calls.last.request.url.params
+
+
+COMPANION_FULL_NAME = "AXIS Companion Cube L Network Camera"
+
+
+@pytest.mark.parametrize("source", ["basic_device_info", "param_cgi"])
+async def test_initialize_detects_companion_device(
+    http_route_mock, mock_vapix_request, vapix: Vapix, source: str
+):
+    """Verify Companion devices are detected and the parameter is used afterwards."""
+    param_response = PARAM_CGI_RESPONSE
+    if source == "basic_device_info":
+        mock_vapix_request(ListApisRequest, json=API_DISCOVERY_RESPONSE)
+        basic_device_info = deepcopy(BASIC_DEVICE_INFO_RESPONSE)
+        basic_device_info["data"]["propertyList"]["ProdFullName"] = COMPANION_FULL_NAME
+        mock_vapix_request(GetAllPropertiesRequest, json=basic_device_info)
+        mock_vapix_request(GetPortsRequest, json=IO_PORT_MANAGEMENT_RESPONSE)
+        mock_vapix_request(ListStreamProfilesRequest, json=STREAM_PROFILE_RESPONSE)
+        mock_vapix_request(
+            ListViewAreasRequest,
+            json={
+                "apiVersion": "1.0",
+                "context": "",
+                "method": "list",
+                "data": {"viewAreas": []},
+            },
+        )
+    else:
+        http_route_mock.post("/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
+        param_response = PARAM_CGI_RESPONSE.replace(
+            "AXIS M1065-LW Network Camera", COMPANION_FULL_NAME
+        )
+    mock_vapix_request(GetLightInformationRequest, json=LIGHT_CONTROL_RESPONSE)
+    mock_vapix_request(
+        ParamRequest,
+        content=param_response.encode("iso-8859-1"),
+        headers={"Content-Type": "text/plain; charset=iso-8859-1"},
+    )
+    applications_route = mock_vapix_request(
+        ListApplicationsRequest,
+        text='<reply result="ok"></reply>',
+        headers={"Content-Type": "text/xml"},
+    )
+
+    await vapix.initialize()
+
+    assert vapix.product_full_name == COMPANION_FULL_NAME
+    assert vapix.device.config.is_companion
+    assert applications_route.calls.last.request.url.params["Axis-Orig-Sw"] == "true"
+
+
 async def test_initialize_params_no_data(http_route_mock, vapix: Vapix):
     """Verify that you can list parameters."""
     param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
@@ -874,3 +947,39 @@ async def test_request_side_effects(http_route_mock, vapix: Vapix, side_effect):
 
     with pytest.raises(RequestError):
         await vapix.request("get", "")
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (TimeoutError(), RequestError),
+        (aiohttp.ClientError("client error"), RequestError),
+        (ValueError("unexpected error"), ValueError),
+    ],
+)
+async def test_request_perform_errors_are_normalized(
+    monkeypatch, vapix: Vapix, error: Exception, expected: type[Exception]
+) -> None:
+    """Normalize known transport failures and preserve unexpected exceptions."""
+    monkeypatch.setattr(
+        vapix,
+        "_perform_request",
+        AsyncMock(side_effect=error),
+    )
+
+    with pytest.raises(expected):
+        await vapix.request("get", "")
+
+
+def test_digest_middleware_disabled_for_basic_auth(vapix: Vapix) -> None:
+    """Basic auth does not need the digest middleware."""
+    vapix.device.config.auth_scheme = AuthScheme.BASIC
+
+    assert vapix._aiohttp_digest_middleware_obj() is None
+
+
+def test_digest_middleware_unavailable(monkeypatch, vapix: Vapix) -> None:
+    """Digest is disabled when the installed aiohttp has no middleware."""
+    monkeypatch.setattr(aiohttp, "DigestAuthMiddleware", None, raising=False)
+
+    assert vapix._aiohttp_digest_middleware_obj() is None

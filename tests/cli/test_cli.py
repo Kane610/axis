@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 import tomli_w
 
 from axis.cli.main import (
@@ -22,6 +23,7 @@ from axis.cli.main import (
     delete_device,
     discover_axis_devices,
     edit_device_credentials,
+    extract_model_number,
     extract_serial_number,
     fetch_device_serial_and_extra,
     filter_discovered_devices,
@@ -42,13 +44,12 @@ from axis.cli.main import (
     to_toml_compatible,
     validate_and_fetch_device,
 )
-from axis.errors import PathNotFound
+from axis.cli.packs import devices as devices_pack
+from axis.errors import PathNotFound, RequestError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
-
-    import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -371,6 +372,14 @@ def test_select_discovered_device_back_input() -> None:
         assert select_discovered_device(discovered) is None
 
 
+def test_select_discovered_device_empty_list(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Handle an empty discovery list without prompting."""
+    assert select_discovered_device([]) is None
+    assert "No discoverable Axis devices" in capsys.readouterr().out
+
+
 def test_select_discovered_device_valid_selection() -> None:
     """Valid discovered-device index returns the selected entry."""
     discovered = [
@@ -521,6 +530,114 @@ def test_discover_axis_devices_includes_metadata_fields() -> None:
     ]
 
 
+def test_discover_axis_devices_skips_bad_and_duplicate_services() -> None:
+    """Skip failed, malformed, non-Axis, addressless, and duplicate results."""
+    fake_azc = MagicMock()
+    fake_azc.zeroconf = object()
+    fake_azc.async_close = AsyncMock()
+    fake_browser = MagicMock()
+    fake_browser.async_cancel = AsyncMock()
+    service_names = [
+        f"{name}._axis-video._tcp.local."
+        for name in ("AQueryFailure", "BNoMac", "CNoAddress", "DFirst", "EDuplicate")
+    ]
+
+    def browser_factory(
+        _zeroconf: object,
+        _service_types: list[str],
+        handlers: list[object],
+    ) -> object:
+        callback = cast("Callable[..., None]", handlers[0])
+        for state_change in ("added", "updated", "removed"):
+            callback(
+                zeroconf=None,
+                service_type="_axis-video._tcp.local.",
+                name=service_names[0],
+                state_change=state_change,
+            )
+        for service_name in service_names[1:]:
+            callback(
+                zeroconf=None,
+                service_type="_axis-video._tcp.local.",
+                name=service_name,
+                state_change="added",
+            )
+        return fake_browser
+
+    def info_factory(_service_type: str, service_name: str) -> object:
+        info = MagicMock()
+        info.async_request = AsyncMock(return_value=not service_name.startswith("A"))
+        if service_name.startswith("B"):
+            info.properties = {b"vendor": b"Axis"}
+        else:
+            info.properties = {b"macaddress": b"00:40:8c:11:22:33"}
+        if service_name.startswith("C"):
+            info.parsed_addresses.return_value = []
+        else:
+            info.parsed_addresses.return_value = ["10.0.0.30"]
+        return info
+
+    with (
+        patch(
+            "axis.cli.packs.devices.ServiceStateChange",
+            SimpleNamespace(Added="added", Updated="updated"),
+        ),
+        patch("axis.cli.packs.devices.AsyncZeroconf", return_value=fake_azc),
+        patch(
+            "axis.cli.packs.devices.AsyncServiceBrowser", side_effect=browser_factory
+        ),
+        patch("axis.cli.packs.devices.AsyncServiceInfo", side_effect=info_factory),
+        patch("axis.cli.packs.devices.asyncio.sleep", new=AsyncMock()),
+    ):
+        discovered = _asyncio.run(discover_axis_devices(scan_seconds=0))
+
+    assert discovered == [
+        {
+            "host": "10.0.0.30",
+            "name": "DFirst",
+            "macaddress": "00:40:8c:11:22:33",
+        }
+    ]
+    fake_browser.async_cancel.assert_awaited_once()
+    fake_azc.async_close.assert_awaited_once()
+
+
+@pytest.mark.parametrize("selection", ["invalid", "99"])
+def test_select_discovered_device_rejects_invalid_selection(selection: str) -> None:
+    """Reject non-numeric and out-of-range discovered-device selections."""
+    discovered = [{"host": "10.0.0.10", "name": "Axis", "macaddress": "mac"}]
+    with patch("builtins.input", return_value=selection):
+        assert select_discovered_device(discovered) is None
+
+
+def test_select_discovered_device_exit() -> None:
+    """Exit selection ends the discovered-device prompt."""
+    discovered = [{"host": "10.0.0.10", "name": "Axis", "macaddress": "mac"}]
+    with patch("builtins.input", return_value="e"), pytest.raises(SystemExit) as exc:
+        select_discovered_device(discovered)
+    assert exc.value.code == 0
+
+
+def test_terminal_io_adapter_forwards_prompt_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Legacy adapter delegates prompts and writes to terminal functions."""
+    adapter = devices_pack._TerminalIOAdapter()
+    monkeypatch.setattr("builtins.input", lambda _prompt: "answer")
+    monkeypatch.setattr("getpass.getpass", lambda _prompt: "secret")
+    printed: list[str] = []
+
+    def _capture_print(value: str) -> None:
+        printed.append(value)
+
+    monkeypatch.setattr("builtins.print", _capture_print)
+
+    assert adapter.prompt("Question") == "answer"
+    assert adapter.prompt_password("Password") == "secret"
+    adapter.write("message")
+    assert printed == ["message"]
+
+
 def test_select_discovered_device_shows_metadata(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -662,6 +779,123 @@ def test_register_or_update_device_success() -> None:
     mock_migrate.assert_called_once_with(devices, "SN2", "10.0.0.2")
 
 
+@pytest.mark.asyncio
+async def test_register_or_update_device_async_prompt_and_success() -> None:
+    """Collect credentials through the CLI IO and persist a validated device."""
+    devices: DeviceStore = {}
+    io = MagicMock()
+    io.prompt.side_effect = ["10.0.0.3", "admin"]
+    io.prompt_password.return_value = "secret"
+    fake_config = MagicMock()
+
+    with (
+        patch(
+            "axis.cli.packs.devices.validate_and_fetch_device",
+            new=AsyncMock(
+                return_value=(fake_config, "SN3", "M1125", {"firmware": "12"})
+            ),
+        ),
+        patch(
+            "axis.cli.packs.devices.config_to_toml_dict",
+            return_value={"host": "10.0.0.3"},
+        ),
+        patch("axis.cli.packs.devices.migrate_unknown_entry") as migrate,
+    ):
+        result = await devices_pack.register_or_update_device_async(devices, io)
+
+    assert result.status == "ok"
+    assert devices["SN3"]["model"] == "M1125"
+    assert devices["SN3"]["extra"] == {"firmware": "12"}
+    migrate.assert_called_once_with(devices, "SN3", "10.0.0.3")
+
+
+@pytest.mark.parametrize("confirm", ["n", "y"])
+@pytest.mark.asyncio
+async def test_register_or_update_device_async_existing_serial(
+    confirm: str,
+) -> None:
+    """Respect the user decision when a validated serial is already registered."""
+    original = {"config": {"host": "10.0.0.4"}, "model": "old"}
+    devices: DeviceStore = {"SN4": original.copy()}
+    io = MagicMock()
+    io.prompt.return_value = confirm
+    fake_config = MagicMock()
+
+    with (
+        patch(
+            "axis.cli.packs.devices.validate_and_fetch_device",
+            new=AsyncMock(
+                return_value=(fake_config, "SN4", "new-model", {"new": True})
+            ),
+        ),
+        patch(
+            "axis.cli.packs.devices.config_to_toml_dict",
+            return_value={"host": "10.0.0.5"},
+        ),
+        patch("axis.cli.packs.devices.migrate_unknown_entry"),
+    ):
+        result = await devices_pack.register_or_update_device_async(
+            devices,
+            io,
+            device_info={"host": "10.0.0.5", "username": "root", "password": "pw"},
+        )
+
+    if confirm == "y":
+        assert result.status == "ok"
+        assert devices["SN4"]["model"] == "new-model"
+    else:
+        assert result.status == "cancelled"
+        assert devices["SN4"] == original
+
+
+@pytest.mark.asyncio
+async def test_register_or_update_device_async_validation_failure() -> None:
+    """Return an error result when device validation does not yield config."""
+    io = MagicMock()
+    with patch(
+        "axis.cli.packs.devices.validate_and_fetch_device",
+        new=AsyncMock(return_value=(None, None, None, None)),
+    ):
+        result = await devices_pack.register_or_update_device_async(
+            {},
+            io,
+            device_info={"host": "10.0.0.6", "username": "root", "password": "pw"},
+        )
+
+    assert result.status == "error"
+    assert result.message == "Unable to validate device."
+
+
+def test_fetch_device_serial_and_extra_success() -> None:
+    """Return serial, model, and raw properties from basic-device-info."""
+    fake_device = MagicMock()
+    properties = {"serial_number": "SN5", "product_number": "M1135"}
+    fake_device.vapix.basic_device_info.get_all_properties = AsyncMock(
+        return_value=properties
+    )
+
+    with patch("axis.cli.packs.devices.AxisDevice", return_value=fake_device):
+        result = _asyncio.run(fetch_device_serial_and_extra(MagicMock()))
+
+    assert result == ("SN5", "M1135", properties)
+
+
+def test_fetch_device_serial_and_extra_fails_without_fallback() -> None:
+    """Raise a request error when basic info and param.cgi both fail."""
+    fake_device = MagicMock()
+    fake_device.vapix.basic_device_info.get_all_properties = AsyncMock(
+        side_effect=PathNotFound(404)
+    )
+    fake_device.vapix.params.property_handler.update = AsyncMock(return_value=False)
+    fake_device.vapix.params.brand_handler.update = AsyncMock(return_value=False)
+
+    with (
+        patch("axis.cli.packs.devices.AxisDevice", return_value=fake_device),
+        pytest.raises(RequestError, match="Unable to fetch device info"),
+    ):
+        _asyncio.run(fetch_device_serial_and_extra(MagicMock()))
+
+
 # ---------------------------------------------------------------------------
 # get_config_path
 # ---------------------------------------------------------------------------
@@ -693,6 +927,35 @@ def test_extract_serial_obj_at_zero_with_none_serial() -> None:
     obj = MagicMock()
     obj.serial_number = None
     assert extract_serial_number({"0": obj}) == "unknown"
+
+
+def test_extract_model_number_nested_sources() -> None:
+    """Extract model numbers from nested objects and dictionaries."""
+    assert extract_model_number({"0": None}) == ""
+    assert extract_model_number({"0": {"ProdNbr": "M1125"}}) == "M1125"
+
+    item = SimpleNamespace(product_number="M1135")
+    assert extract_model_number({"0": item}) == "M1135"
+    assert extract_model_number({"0": object()}) == ""
+
+
+def test_discovery_property_decoders_skip_empty_and_missing_values() -> None:
+    """Ignore missing or empty TXT properties while normalizing valid keys."""
+    properties: dict[bytes, bytes | None] = {
+        b" MACADDRESS ": b" 00:40:8c:11:22:33 ",
+        b"empty": b"   ",
+        b"missing": None,
+        b"": b"ignored",
+    }
+
+    assert devices_pack._extract_macaddress_property(properties) == "00:40:8c:11:22:33"
+    assert devices_pack._extract_macaddress_property({b"macaddress": None}) is None
+    assert devices_pack._extract_macaddress_property({b"other": b"value"}) is None
+    assert devices_pack._decode_discovery_properties(properties) == {
+        "macaddress": "00:40:8c:11:22:33"
+    }
+    assert devices_pack._extract_discovery_metadata(properties) == {}
+    assert devices_pack._zeroconf_instance_name("camera") == "camera"
 
 
 # ---------------------------------------------------------------------------
@@ -991,6 +1254,16 @@ async def test_edit_device_credentials_update_all_fields() -> None:
     assert result["config"]["port"] == 8080
 
 
+async def test_edit_device_credentials_rejects_non_dict_config(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Reject malformed stored config before prompting for edits."""
+    result = await edit_device_credentials("SN1", {"config": "invalid"})
+
+    assert result is None
+    assert "Device config is invalid." in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # health_check_device
 # ---------------------------------------------------------------------------
@@ -1061,3 +1334,20 @@ async def test_health_check_device_exception_handled() -> None:
 
     assert result.success is False
     assert "Test error" in result.error
+
+
+@pytest.mark.parametrize(
+    ("config", "expected"),
+    [
+        ("invalid", "Device config is invalid."),
+        ({"host": "", "username": "admin"}, "Device config is incomplete."),
+    ],
+)
+async def test_health_check_device_invalid_config(
+    config: object, expected: str
+) -> None:
+    """Return a failure result for malformed or incomplete stored config."""
+    result = await health_check_device("SN1", {"config": config})
+
+    assert result.success is False
+    assert result.error == expected
