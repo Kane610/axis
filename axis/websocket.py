@@ -205,6 +205,11 @@ class WebSocketClient:
             return {}
 
     @property
+    def last_failure_reason(self) -> WebSocketFailureReason:
+        """Return the classified reason of the latest startup failure."""
+        return self._last_failure_reason
+
+    @property
     def should_disable_runtime_websocket(self) -> bool:
         """Return true if websocket should be disabled for this runtime."""
         return self._last_failure_reason in (
