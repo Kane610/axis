@@ -56,3 +56,13 @@ jobs:
       - name: Test with pytest
         run: |
           uv run --locked pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=axis --cov-report=xml --cov-report=html
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-python-3.14
+          path: |
+            junit/test-results.xml
+            coverage.xml
+            htmlcov/
+          if-no-files-found: warn
