@@ -307,7 +307,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
         "SETUP "
         "rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on RTSP/1.0\r\n"
         "CSeq: 2\r\n"
-        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="3c4d88afefd4ab931f6db658326d60c2"\r\n'
+        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on", response="845ea71a18840400eb40eb7bd1490747"\r\n'
         "User-Agent: HASS Axis\r\n"
         f"Transport: RTP/AVP;unicast;client_port={rtp_port}-{rtcp_port}\r\n\r\n"
     )

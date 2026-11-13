@@ -384,11 +384,12 @@ class RTSPSession:
                 "%s RTSP %s %s", self.host, self.status_code, self.status_text
             )
 
-    def generate_digest(self) -> str:
+    def generate_digest(self, uri: str | None = None) -> str:
         """RFC 2617."""
+        request_uri = uri or self.url
         _ha1 = f"{self.username}:{self.realm}:{self.password}"
         ha1 = md5(_ha1.encode("UTF-8")).hexdigest()
-        _ha2 = f"{self.method}:{self.url}"
+        _ha2 = f"{self.method}:{request_uri}"
         ha2 = md5(_ha2.encode("UTF-8")).hexdigest()
         encrypt_response = f"{ha1}:{self.nonce}:{ha2}"
         response = md5(encrypt_response.encode("UTF-8")).hexdigest()
@@ -398,7 +399,7 @@ class RTSPSession:
         digest_auth += f'realm="{self.realm}", '
         digest_auth += 'algorithm="MD5", '
         digest_auth += f'nonce="{self.nonce}", '
-        digest_auth += f'uri="{self.url}", '
+        digest_auth += f'uri="{request_uri}", '
         digest_auth += f'response="{response}"'
         return digest_auth
 
@@ -500,7 +501,12 @@ class RTSPMethods:
     def authentication(self) -> str:
         """Generate authentication string."""
         if self.session.digest:
-            authentication = self.session.generate_digest()
+            uri = (
+                self.session.control_url
+                if self.session.method == "SETUP"
+                else self.session.url
+            )
+            authentication = self.session.generate_digest(uri)
         elif self.session.basic:
             authentication = self.session.generate_basic()
         else:
