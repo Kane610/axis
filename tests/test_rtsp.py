@@ -691,6 +691,18 @@ def test_methods(rtsp_client):
     )
 
 
+def test_rtsp_debug_log_does_not_expose_authorization(rtsp_client, caplog):
+    """Keep authorization data out of RTSP debug logs."""
+    rtsp_client.session.basic = True
+
+    with caplog.at_level(logging.DEBUG, logger="axis.rtsp"):
+        message = rtsp_client.method.message
+
+    assert "Authorization: Basic cm9vdDpwYXNz" in message
+    assert "cm9vdDpwYXNz" not in caplog.text
+    assert "Sending RTSP OPTIONS request" in caplog.text
+
+
 def test_session_state_method(rtsp_client):
     """Verify state method."""
     session = rtsp_client.session

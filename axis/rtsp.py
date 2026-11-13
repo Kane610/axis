@@ -485,7 +485,9 @@ class RTSPMethods:
     def message(self) -> str:
         """Return RTSP method based on sequence number from session."""
         message = self.message_methods[self.session.method]()
-        _LOGGER.debug(message)
+        _LOGGER.debug(
+            "Sending RTSP %s request to %s", self.session.method, self.session.host
+        )
         return message
 
     def keep_alive(self) -> str:
