@@ -98,7 +98,7 @@ class StreamManager:
         )
 
     def _handle_websocket_failure(self) -> None:
-        """Disable websocket for runtime when TLS certificate validation fails."""
+        """Disable websocket for runtime after a certificate or authentication failure."""
         if self.device.config.websocket_force:
             return
 
@@ -110,7 +110,7 @@ class StreamManager:
 
         if not self._websocket_temporarily_disabled:
             _LOGGER.warning(
-                "Disabling websocket events for %s until restart after certificate verification failure",
+                "Disabling websocket events for %s until restart after certificate or authentication failure, falling back to RTSP",
                 self.device.config.host,
             )
 

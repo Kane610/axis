@@ -293,6 +293,27 @@ async def test_failed_websocket_cert_error_disables_websocket_runtime(stream_man
     assert stream_manager.use_websocket is False
 
 
+async def test_failed_websocket_auth_error_disables_websocket_runtime(stream_manager):
+    """Verify authentication failures disable websocket for runtime fallback."""
+    stream_manager.event = True
+    stream_manager.device.config.websocket_enabled = True
+    stream_manager.device.vapix.api_discovery._items[
+        ApiId.EVENT_STREAMING_OVER_WEBSOCKET
+    ] = MagicMock()
+
+    ws_client = object.__new__(WebSocketClient)
+    ws_client._last_failure_reason = WebSocketFailureReason.AUTHENTICATION
+    ws_client.session = SimpleNamespace(state=State.STOPPED)
+    stream_manager.stream = ws_client
+
+    mock_loop = MagicMock()
+    with patch("axis.stream_manager.asyncio.get_running_loop", return_value=mock_loop):
+        stream_manager.session_callback(Signal.FAILED)
+
+    assert stream_manager._websocket_temporarily_disabled is True
+    assert stream_manager.use_websocket is False
+
+
 async def test_failed_websocket_cert_error_keeps_websocket_when_forced(stream_manager):
     """Verify forced websocket mode ignores runtime disable on cert failure."""
     stream_manager.event = True
