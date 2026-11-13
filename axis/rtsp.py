@@ -68,6 +68,7 @@ class RTSPClient(asyncio.Protocol):
         self.transport: asyncio.BaseTransport | None = None
         self.keep_alive_handle: asyncio.TimerHandle | None = None
         self.time_out_handle: asyncio.TimerHandle | None = None
+        self._response_buffer = bytearray()
 
     async def start(self) -> None:
         """Start RTSP session."""
@@ -114,13 +115,51 @@ class RTSPClient(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         """Got response on RTSP session.
 
-        Manage time out handle since response came in a reasonable time.
-        Update session parameters with latest response.
-        If state is playing schedule keep-alive.
+        Buffer TCP chunks until a complete RTSP message is available.
         """
+        self._response_buffer.extend(data)
+
+        while True:
+            header_end = self._response_buffer.find(b"\r\n\r\n")
+            if header_end < 0:
+                return
+
+            headers = bytes(self._response_buffer[:header_end]).split(b"\r\n")
+            content_length = 0
+            for header in headers[1:]:
+                name, separator, value = header.partition(b":")
+                if separator and name.strip().lower() == b"content-length":
+                    try:
+                        content_length = int(value.strip())
+                    except ValueError:
+                        _LOGGER.warning(
+                            "Invalid RTSP Content-Length from %s", self.session.host
+                        )
+                        self.stop()
+                        self.callback(Signal.FAILED)
+                        return
+                    if content_length < 0:
+                        _LOGGER.warning(
+                            "Invalid RTSP Content-Length from %s", self.session.host
+                        )
+                        self.stop()
+                        self.callback(Signal.FAILED)
+                        return
+                    break
+
+            message_end = header_end + 4 + content_length
+            if len(self._response_buffer) < message_end:
+                return
+
+            response = bytes(self._response_buffer[:message_end]).decode()
+            del self._response_buffer[:message_end]
+            self._process_response(response)
+
+    def _process_response(self, response: str) -> None:
+        """Update session state from one complete RTSP response."""
         self.time_out_handle.cancel()  # type: ignore [union-attr]
         authenticated = self.session.basic or self.session.digest
-        self.session.update(data.decode())
+        self.session.update(response)
 
         if self.session.state == State.STARTING:
             if self.session.status_code == 401:

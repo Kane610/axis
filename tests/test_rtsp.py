@@ -85,7 +85,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
                 "Content-Base: rtsp://127.0.0.1/axis-media/media.amp/\r\n"
                 "Server: GStreamer RTSP server\r\n"
                 "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n"
-                "Content-Length: 440\r\n\r\n"
+                "Content-Length: 435\r\n\r\n"
                 "v=0\r\n"
                 "o=- 18302136002250915122 1 IN IP4 host\r\n"
                 "s=Session streamed with GStreamer\r\n"
@@ -274,7 +274,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_client.session.stale is False
     assert rtsp_client.session.content_type == "application/sdp"
     assert rtsp_client.session.content_base == "rtsp://127.0.0.1/axis-media/media.amp/"
-    assert rtsp_client.session.content_length == 440
+    assert rtsp_client.session.content_length == 435
     assert rtsp_client.session.session_id is None
     assert rtsp_client.session.session_timeout == 0
     assert rtsp_client.session.transport_ack is None
@@ -335,7 +335,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_client.session.stale is False
     assert rtsp_client.session.content_type == "application/sdp"
     assert rtsp_client.session.content_base == "rtsp://127.0.0.1/axis-media/media.amp/"
-    assert rtsp_client.session.content_length == 440
+    assert rtsp_client.session.content_length == 435
     assert rtsp_client.session.session_id == "ghLlkf_I9pCBP24t"
     assert rtsp_client.session.session_timeout == 60
     assert (
@@ -400,7 +400,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_client.session.stale is False
     assert rtsp_client.session.content_type == "application/sdp"
     assert rtsp_client.session.content_base == "rtsp://127.0.0.1/axis-media/media.amp/"
-    assert rtsp_client.session.content_length == 440
+    assert rtsp_client.session.content_length == 435
     assert rtsp_client.session.session_id == "ghLlkf_I9pCBP24t"
     assert rtsp_client.session.session_timeout == 60
     assert (
@@ -559,6 +559,37 @@ def test_rtsp_client_rejected_startup_response_fails(rtsp_client, response):
     mock_stop.assert_called_once()
     mock_callback.assert_called_once_with(Signal.FAILED)
     rtsp_client.transport.write.assert_not_called()
+
+
+def test_rtsp_client_buffers_partial_sdp_response(rtsp_client):
+    """Wait for the declared SDP body before advancing the RTSP sequence."""
+    control_url = "rtsp://127.0.0.1/stream=0"
+    body = f"v=0\r\nm=application 0 RTP/AVP 98\r\na=control:{control_url}\r\n"
+    response = (
+        "RTSP/1.0 200 OK\r\n"
+        "CSeq: 1\r\n"
+        "Content-Type: application/sdp\r\n"
+        f"Content-Length: {len(body)}\r\n\r\n"
+        f"{body}"
+    ).encode()
+    split_at = response.index(b"\r\n\r\n") + 8
+    rtsp_client.session.sequence = 1
+    rtsp_client.transport = Mock()
+    rtsp_client.time_out_handle = Mock()
+
+    rtsp_client.data_received(response[:split_at])
+
+    rtsp_client.transport.write.assert_not_called()
+    rtsp_client.time_out_handle.cancel.assert_not_called()
+
+    rtsp_client.data_received(response[split_at:])
+
+    assert rtsp_client.session.control_url == control_url
+    assert rtsp_client.session.sequence == 2
+    assert rtsp_client.transport.write.call_count == 1
+    assert rtsp_client.transport.write.call_args.args[0].startswith(
+        f"SETUP {control_url} RTSP/1.0".encode()
+    )
 
 
 def test_rtsp_client_connection_lost(rtsp_client, caplog):
