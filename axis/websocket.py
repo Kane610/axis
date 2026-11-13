@@ -228,7 +228,9 @@ class WebSocketClient:
             raw = await self.device.vapix.request("get", WSSESSION_PATH)
             return raw.decode("ascii").strip()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Could not obtain wssession token: %s", err)
+            _LOGGER.warning(
+                "Could not obtain wssession token, trying basic auth: %s", err
+            )
             return None
 
     async def start(self) -> None:
