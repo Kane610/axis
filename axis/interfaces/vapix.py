@@ -20,6 +20,7 @@ from .applications.object_analytics import ObjectAnalyticsHandler
 from .applications.vmd4 import Vmd4Handler
 from .basic_device_info import BasicDeviceInfoHandler
 from .event_instances import EventInstanceHandler
+from .firmware_management import FirmwareManagementHandler
 from .light_control import LightHandler
 from .mqtt import MqttClientHandler
 from .parameters.param_cgi import Params
@@ -28,6 +29,7 @@ from .port_cgi import Ports
 from .port_management import IoPortManagement
 from .ptz import PtzControl
 from .pwdgrp_cgi import Users
+from .restart_cgi import RestartHandler
 from .stream_profiles import StreamProfilesHandler
 from .temperature_control import TemperatureControlHandler
 from .user_groups import UserGroups
@@ -94,6 +96,7 @@ class Vapix:
         self.params: Params = Params(self)
 
         self.basic_device_info = BasicDeviceInfoHandler(self)
+        self.firmware_management = FirmwareManagementHandler(self)
         self.io_port_management = IoPortManagement(self)
         self.light_control = LightHandler(self)
         self.mqtt = MqttClientHandler(self)
@@ -104,6 +107,7 @@ class Vapix:
 
         self.port_cgi = Ports(self)
         self.ptz = PtzControl(self)
+        self.restart_cgi = RestartHandler(self)
         self.virtual_input = VirtualInputHandler(self)
 
         self.applications: ApplicationsHandler = ApplicationsHandler(self)
