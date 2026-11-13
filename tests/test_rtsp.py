@@ -490,6 +490,20 @@ async def test_successful_connect(rtsp_server, rtsp_client):
                 continue
             break
         mock_callback.assert_called_with(Signal.PLAYING)
+
+        mock_callback.reset_mock()
+        rtsp_server.send_response(
+            "RTSP/1.0 454 Session Not Found\r\n"
+            "CSeq: 4\r\n"
+            "Server: GStreamer RTSP server\r\n\r\n"
+        )
+        while True:
+            if len(mock_callback.call_args_list) == 0:
+                await asyncio.sleep(0)
+                continue
+            break
+        mock_callback.assert_called_once_with(Signal.FAILED)
+
     assert rtsp_client.session.session_id == "ghLlkf_I9pCBP24t"
     assert rtsp_client.session.session_timeout == 30
 
