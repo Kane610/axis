@@ -49,6 +49,10 @@ uv run ruff check axis/<file>.py
 
 Run broader checks only when your change affects shared behavior (for example, base classes, event parsing, or configuration).
 
+Async fixtures use function-scoped event loops, configured explicitly in
+`pyproject.toml`. Keep warnings treated as errors rather than suppressing
+pytest-asyncio configuration warnings.
+
 ## Branch and scope policy
 
 - Never commit directly on `master`; always use a feature branch and open a pull request.
