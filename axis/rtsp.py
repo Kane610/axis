@@ -89,7 +89,8 @@ class RTSPClient(asyncio.Protocol):
         """Stop session."""
         self.session.stop()
         if self.transport:
-            self.transport.write(self.method.message.encode())  # type: ignore [attr-defined]
+            if self.session.session_id:
+                self.transport.write(self.method.message.encode())  # type: ignore [attr-defined]
             self.transport.close()
         self.rtp.stop()
 
@@ -134,12 +135,7 @@ class RTSPClient(asyncio.Protocol):
                     try:
                         content_length = int(value.strip())
                     except ValueError:
-                        _LOGGER.warning(
-                            "Invalid RTSP Content-Length from %s", self.session.host
-                        )
-                        self.stop()
-                        self.callback(Signal.FAILED)
-                        return
+                        content_length = -1
                     if content_length < 0:
                         _LOGGER.warning(
                             "Invalid RTSP Content-Length from %s", self.session.host

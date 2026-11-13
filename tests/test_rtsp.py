@@ -543,6 +543,16 @@ def test_rtsp_client_time_out(rtsp_client, caplog):
         mock_rtsp_client_callback.assert_called_with(Signal.FAILED)
 
 
+def test_rtsp_client_stop_without_session_skips_teardown(rtsp_client):
+    """Close the connection without sending TEARDOWN before SETUP succeeds."""
+    rtsp_client.transport = Mock()
+
+    rtsp_client.stop()
+
+    rtsp_client.transport.write.assert_not_called()
+    rtsp_client.transport.close.assert_called_once()
+
+
 async def test_rtsp_client_start_cancellation_stops_rtp(rtsp_client):
     """Close the RTP endpoint when connection setup is cancelled."""
     with (
@@ -647,8 +657,16 @@ async def test_rtsp_client_server_sends_stop(rtsp_server, rtsp_client):
     """Verify behavior when session sequence is 5 and server sends unsupported response."""
     await rtsp_server.next_request_received.wait()
     rtsp_client.session.sequence = 5
+    stop_called = asyncio.Event()
+    original_stop = rtsp_client.stop
+
+    def _stop_and_signal() -> None:
+        original_stop()
+        stop_called.set()
+
+    rtsp_client.stop = _stop_and_signal
     rtsp_server.send_response("RTSP/1.0 200 OK\r\nCSeq: 0\r\n\r\n")
-    await rtsp_server.next_request_received.wait()
+    await stop_called.wait()
     assert rtsp_client.keep_alive_handle is None
     assert rtsp_client.time_out_handle.cancelled()
 
