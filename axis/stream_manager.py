@@ -190,9 +190,8 @@ class StreamManager:
     def stop(self) -> None:
         """Stop stream."""
         self._starting = False
-        for task in tuple(self.background_tasks):
-            if not task.done():
-                task.cancel()
+        for task in self.background_tasks:
+            task.cancel()
         if self.stream and not self._is_stream_stopped:
             self.stream.stop()
         self.cancel_retry()
