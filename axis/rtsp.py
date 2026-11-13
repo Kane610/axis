@@ -119,9 +119,20 @@ class RTSPClient(asyncio.Protocol):
         If state is playing schedule keep-alive.
         """
         self.time_out_handle.cancel()  # type: ignore [union-attr]
+        authenticated = self.session.basic or self.session.digest
         self.session.update(data.decode())
 
         if self.session.state == State.STARTING:
+            if self.session.status_code == 401:
+                if authenticated or not (self.session.basic or self.session.digest):
+                    self.stop()
+                    self.callback(Signal.FAILED)
+                    return
+            elif self.session.status_code != 200:
+                self.stop()
+                self.callback(Signal.FAILED)
+                return
+
             self.transport.write(self.method.message.encode())  # type: ignore [union-attr]
             self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 

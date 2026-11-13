@@ -533,6 +533,34 @@ def test_rtsp_client_time_out(rtsp_client, caplog):
         mock_rtsp_client_callback.assert_called_with(Signal.FAILED)
 
 
+@pytest.mark.parametrize(
+    "response",
+    [
+        "RTSP/1.0 403 Forbidden\r\nCSeq: 2\r\n\r\n",
+        (
+            "RTSP/1.0 401 Unauthorized\r\nCSeq: 2\r\n"
+            'WWW-Authenticate: Digest realm="axis", nonce="nonce", stale=FALSE\r\n\r\n'
+        ),
+    ],
+)
+def test_rtsp_client_rejected_startup_response_fails(rtsp_client, response):
+    """Stop startup after a rejected request instead of retrying it forever."""
+    rtsp_client.session.sequence = 2
+    rtsp_client.session.digest = True
+    rtsp_client.time_out_handle = Mock()
+    rtsp_client.transport = Mock()
+
+    with (
+        patch.object(rtsp_client, "stop") as mock_stop,
+        patch.object(rtsp_client, "callback") as mock_callback,
+    ):
+        rtsp_client.data_received(response.encode())
+
+    mock_stop.assert_called_once()
+    mock_callback.assert_called_once_with(Signal.FAILED)
+    rtsp_client.transport.write.assert_not_called()
+
+
 def test_rtsp_client_connection_lost(rtsp_client, caplog):
     """Verify RTSP client connection lost method."""
     with caplog.at_level(logging.DEBUG):
