@@ -51,6 +51,7 @@ BUFFER_SIZE = 200
 class WebSocketFailureReason(enum.StrEnum):
     """Classified websocket startup failure reason."""
 
+    AUTHENTICATION = "authentication"
     NONE = "none"
     SSL_CERTIFICATE = "ssl_certificate"
     OTHER = "other"
@@ -84,6 +85,9 @@ def _classify_connect_error(err: BaseException) -> WebSocketFailureReason:
 
         if "CERTIFICATE_VERIFY_FAILED" in str(exc):
             return WebSocketFailureReason.SSL_CERTIFICATE
+
+        if isinstance(exc, aiohttp.ClientResponseError) and exc.status in (401, 403):
+            return WebSocketFailureReason.AUTHENTICATION
 
     return WebSocketFailureReason.OTHER
 
@@ -203,7 +207,10 @@ class WebSocketClient:
     @property
     def should_disable_runtime_websocket(self) -> bool:
         """Return true if websocket should be disabled for this runtime."""
-        return self._last_failure_reason == WebSocketFailureReason.SSL_CERTIFICATE
+        return self._last_failure_reason in (
+            WebSocketFailureReason.AUTHENTICATION,
+            WebSocketFailureReason.SSL_CERTIFICATE,
+        )
 
     async def _get_session_token(self) -> str | None:
         """Obtain a short-lived session token for websocket authentication.

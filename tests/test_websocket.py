@@ -14,7 +14,7 @@ import pytest
 
 from axis.models.api_discovery import ApiId
 from axis.rtsp import Signal, State
-from axis.websocket import WebSocketClient
+from axis.websocket import WebSocketClient, WebSocketFailureReason
 
 
 class MockWebSocket:
@@ -462,6 +462,56 @@ async def test_websocket_connect_failure_sets_ssl_reason_from_error_string(axis_
 
     callback.assert_called_once_with(Signal.FAILED)
     assert client.should_disable_runtime_websocket
+
+
+@pytest.mark.parametrize("status", [401, 403])
+async def test_websocket_handshake_auth_failure_disables_websocket(axis_device, status):
+    """Verify handshake auth rejections are marked for websocket fallback."""
+    callback = MagicMock()
+    handshake_err = aiohttp.WSServerHandshakeError(
+        request_info=MagicMock(),
+        history=(),
+        status=status,
+        message="Invalid response status",
+    )
+    ws_connect = AsyncMock(side_effect=handshake_err)
+    axis_device.vapix.request = AsyncMock(return_value=b"token123")
+
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
+        client = WebSocketClient(
+            axis_device,
+            "wss://127.0.0.1:443/vapix/ws-data-stream?sources=events",
+            callback,
+        )
+        await client.start()
+
+    callback.assert_called_once_with(Signal.FAILED)
+    assert client._last_failure_reason == WebSocketFailureReason.AUTHENTICATION
+    assert client.should_disable_runtime_websocket
+
+
+async def test_websocket_handshake_other_status_keeps_websocket(axis_device):
+    """Verify non-auth handshake failures do not disable websocket."""
+    callback = MagicMock()
+    handshake_err = aiohttp.WSServerHandshakeError(
+        request_info=MagicMock(),
+        history=(),
+        status=500,
+        message="Invalid response status",
+    )
+    ws_connect = AsyncMock(side_effect=handshake_err)
+    axis_device.vapix.request = AsyncMock(return_value=b"token123")
+
+    with patch.object(axis_device.config.session, "ws_connect", ws_connect):
+        client = WebSocketClient(
+            axis_device,
+            "wss://127.0.0.1:443/vapix/ws-data-stream?sources=events",
+            callback,
+        )
+        await client.start()
+
+    assert client._last_failure_reason == WebSocketFailureReason.OTHER
+    assert not client.should_disable_runtime_websocket
 
 
 async def test_websocket_configure_with_no_ws(axis_device):
