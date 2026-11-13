@@ -589,6 +589,22 @@ def test_rtsp_client_rejected_startup_response_fails(rtsp_client, response):
     rtsp_client.transport.write.assert_not_called()
 
 
+@pytest.mark.parametrize("content_length", ["invalid", "-1"])
+def test_rtsp_client_invalid_content_length_fails(rtsp_client, content_length):
+    """Reject invalid RTSP body lengths instead of buffering indefinitely."""
+    rtsp_client.time_out_handle = Mock()
+    response = (f"RTSP/1.0 200 OK\r\nContent-Length: {content_length}\r\n\r\n").encode()
+
+    with (
+        patch.object(rtsp_client, "stop") as mock_stop,
+        patch.object(rtsp_client, "callback") as mock_callback,
+    ):
+        rtsp_client.data_received(response)
+
+    mock_stop.assert_called_once()
+    mock_callback.assert_called_once_with(Signal.FAILED)
+
+
 def test_rtsp_client_buffers_partial_sdp_response(rtsp_client):
     """Wait for the declared SDP body before advancing the RTSP sequence."""
     control_url = "rtsp://127.0.0.1/stream=0"
@@ -631,7 +647,7 @@ async def test_rtsp_client_server_sends_stop(rtsp_server, rtsp_client):
     """Verify behavior when session sequence is 5 and server sends unsupported response."""
     await rtsp_server.next_request_received.wait()
     rtsp_client.session.sequence = 5
-    rtsp_server.send_response("Unsupported response")
+    rtsp_server.send_response("RTSP/1.0 200 OK\r\nCSeq: 0\r\n\r\n")
     await rtsp_server.next_request_received.wait()
     assert rtsp_client.keep_alive_handle is None
     assert rtsp_client.time_out_handle.cancelled()
@@ -651,7 +667,7 @@ def test_rtp_client(rtsp_client, caplog):
 
     with patch.object(rtp_client.client, "callback") as mock_callback:
         rtp_client.client.datagram_received(
-            bytes.fromhex("008000000000000000000000AABBCCDD"), "addr"
+            bytes.fromhex("808000000000000000000000AABBCCDD"), "addr"
         )
         mock_callback.assert_called_with(Signal.DATA)
         assert rtp_client.data == bytes.fromhex("AABBCCDD")
@@ -717,7 +733,11 @@ def test_rtp_optional_header_fields(rtsp_client, packet, expected_payload):
     [
         b"\x80\x80",
         bytes.fromhex("008000000000000000000000DEADBEEF"),
+        bytes.fromhex("83800000000000000000000011223344"),
+        bytes.fromhex("908000000000000000000000"),
+        bytes.fromhex("908000000000000000000000BEDE0002AABBCCDD"),
         bytes.fromhex("B08000000000000000000000DEADBEEF00"),
+        bytes.fromhex("A08000000000000000000000DEADBEEF0A"),
     ],
 )
 def test_rtp_malformed_header_is_ignored(rtsp_client, packet):
