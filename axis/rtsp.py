@@ -68,15 +68,18 @@ class RTSPClient(asyncio.Protocol):
         self.transport: asyncio.BaseTransport | None = None
         self.keep_alive_handle: asyncio.TimerHandle | None = None
         self.time_out_handle: asyncio.TimerHandle | None = None
+        self._response_buffer = bytearray()
 
     async def start(self) -> None:
         """Start RTSP session."""
-        await self.rtp.start()
-
         try:
+            await self.rtp.start()
             await self.loop.create_connection(
                 lambda: self, self.session.host, self.session.port
             )
+        except asyncio.CancelledError:
+            self.stop()
+            raise
         except OSError as err:
             _LOGGER.debug("RTSP got exception %s", err)
             self.stop()
@@ -86,7 +89,8 @@ class RTSPClient(asyncio.Protocol):
         """Stop session."""
         self.session.stop()
         if self.transport:
-            self.transport.write(self.method.message.encode())  # type: ignore [attr-defined]
+            if self.session.session_id:
+                self.transport.write(self.method.message.encode())  # type: ignore [attr-defined]
             self.transport.close()
         self.rtp.stop()
 
@@ -114,14 +118,58 @@ class RTSPClient(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         """Got response on RTSP session.
 
-        Manage time out handle since response came in a reasonable time.
-        Update session parameters with latest response.
-        If state is playing schedule keep-alive.
+        Buffer TCP chunks until a complete RTSP message is available.
         """
+        self._response_buffer.extend(data)
+
+        while True:
+            header_end = self._response_buffer.find(b"\r\n\r\n")
+            if header_end < 0:
+                return
+
+            headers = bytes(self._response_buffer[:header_end]).split(b"\r\n")
+            content_length = 0
+            for header in headers[1:]:
+                name, separator, value = header.partition(b":")
+                if separator and name.strip().lower() == b"content-length":
+                    try:
+                        content_length = int(value.strip())
+                    except ValueError:
+                        content_length = -1
+                    if content_length < 0:
+                        _LOGGER.warning(
+                            "Invalid RTSP Content-Length from %s", self.session.host
+                        )
+                        self.stop()
+                        self.callback(Signal.FAILED)
+                        return
+                    break
+
+            message_end = header_end + 4 + content_length
+            if len(self._response_buffer) < message_end:
+                return
+
+            response = bytes(self._response_buffer[:message_end]).decode()
+            del self._response_buffer[:message_end]
+            self._process_response(response)
+
+    def _process_response(self, response: str) -> None:
+        """Update session state from one complete RTSP response."""
         self.time_out_handle.cancel()  # type: ignore [union-attr]
-        self.session.update(data.decode())
+        authenticated = self.session.basic or self.session.digest
+        self.session.update(response)
 
         if self.session.state == State.STARTING:
+            if self.session.status_code == 401:
+                if authenticated or not (self.session.basic or self.session.digest):
+                    self.stop()
+                    self.callback(Signal.FAILED)
+                    return
+            elif self.session.status_code != 200:
+                self.stop()
+                self.callback(Signal.FAILED)
+                return
+
             self.transport.write(self.method.message.encode())  # type: ignore [union-attr]
             self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
@@ -223,7 +271,37 @@ class RTPClient:
         def datagram_received(self, data: bytes, addr: Any) -> None:
             """Signals when new data is available."""
             if self.callback:
-                payload = data[RTP_HEADER_SIZE:]
+                if len(data) < RTP_HEADER_SIZE or data[0] >> 6 != 2:
+                    return
+
+                header_length = RTP_HEADER_SIZE + 4 * (data[0] & 0x0F)
+                if header_length > len(data):
+                    return
+
+                if data[0] & 0x10:
+                    if header_length + 4 > len(data):
+                        return
+                    extension_length = (
+                        int.from_bytes(
+                            data[header_length + 2 : header_length + 4], "big"
+                        )
+                        * 4
+                    )
+                    header_length += 4 + extension_length
+                    if header_length > len(data):
+                        return
+
+                payload_end = len(data)
+                if data[0] & 0x20:
+                    padding_length = data[-1]
+                    if (
+                        padding_length == 0
+                        or padding_length > payload_end - header_length
+                    ):
+                        return
+                    payload_end -= padding_length
+
+                payload = data[header_length:payload_end]
 
                 # if the previous packet was a fragment, then merge it
                 if self.fragment:
@@ -233,7 +311,7 @@ class RTPClient:
                     self.data.append(payload)
 
                 # check whether the RTP marker bit is set, if not it is a fragment
-                self.fragment = (data[1] & 0b1 << 7) == 0
+                self.fragment = (data[1] & 0x80) == 0
                 if not self.fragment:
                     self.callback(Signal.DATA)
 
@@ -384,11 +462,12 @@ class RTSPSession:
                 "%s RTSP %s %s", self.host, self.status_code, self.status_text
             )
 
-    def generate_digest(self) -> str:
+    def generate_digest(self, uri: str | None = None) -> str:
         """RFC 2617."""
+        request_uri = uri or self.url
         _ha1 = f"{self.username}:{self.realm}:{self.password}"
         ha1 = md5(_ha1.encode("UTF-8")).hexdigest()
-        _ha2 = f"{self.method}:{self.url}"
+        _ha2 = f"{self.method}:{request_uri}"
         ha2 = md5(_ha2.encode("UTF-8")).hexdigest()
         encrypt_response = f"{ha1}:{self.nonce}:{ha2}"
         response = md5(encrypt_response.encode("UTF-8")).hexdigest()
@@ -398,7 +477,7 @@ class RTSPSession:
         digest_auth += f'realm="{self.realm}", '
         digest_auth += 'algorithm="MD5", '
         digest_auth += f'nonce="{self.nonce}", '
-        digest_auth += f'uri="{self.url}", '
+        digest_auth += f'uri="{request_uri}", '
         digest_auth += f'response="{response}"'
         return digest_auth
 
@@ -434,7 +513,9 @@ class RTSPMethods:
     def message(self) -> str:
         """Return RTSP method based on sequence number from session."""
         message = self.message_methods[self.session.method]()
-        _LOGGER.debug(message)
+        _LOGGER.debug(
+            "Sending RTSP %s request to %s", self.session.method, self.session.host
+        )
         return message
 
     def keep_alive(self) -> str:
@@ -494,13 +575,24 @@ class RTSPMethods:
     @property
     def sequence(self) -> str:
         """Generate sequence string."""
-        return f"CSeq: {self.session.sequence}\r\n"
+        sequence = self.session.sequence
+        if (
+            self.session.method in {"KEEP-ALIVE", "TEARDOWN"}
+            and self.session.sequence_ack is not None
+        ):
+            sequence = self.session.sequence_ack + 1
+        return f"CSeq: {sequence}\r\n"
 
     @property
     def authentication(self) -> str:
         """Generate authentication string."""
         if self.session.digest:
-            authentication = self.session.generate_digest()
+            uri = (
+                self.session.control_url
+                if self.session.method == "SETUP"
+                else self.session.url
+            )
+            authentication = self.session.generate_digest(uri)
         elif self.session.basic:
             authentication = self.session.generate_basic()
         else:

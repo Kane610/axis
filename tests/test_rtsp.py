@@ -5,7 +5,7 @@ pytest --cov-report term-missing --cov=axis.rtsp tests/test_rtsp.py
 
 import asyncio
 import logging
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -85,7 +85,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
                 "Content-Base: rtsp://127.0.0.1/axis-media/media.amp/\r\n"
                 "Server: GStreamer RTSP server\r\n"
                 "Date: Sat, 12 Dec 2020 10:44:25 GMT\r\n"
-                "Content-Length: 440\r\n\r\n"
+                "Content-Length: 435\r\n\r\n"
                 "v=0\r\n"
                 "o=- 18302136002250915122 1 IN IP4 host\r\n"
                 "s=Session streamed with GStreamer\r\n"
@@ -274,7 +274,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_client.session.stale is False
     assert rtsp_client.session.content_type == "application/sdp"
     assert rtsp_client.session.content_base == "rtsp://127.0.0.1/axis-media/media.amp/"
-    assert rtsp_client.session.content_length == 440
+    assert rtsp_client.session.content_length == 435
     assert rtsp_client.session.session_id is None
     assert rtsp_client.session.session_timeout == 0
     assert rtsp_client.session.transport_ack is None
@@ -307,7 +307,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
         "SETUP "
         "rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on RTSP/1.0\r\n"
         "CSeq: 2\r\n"
-        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="3c4d88afefd4ab931f6db658326d60c2"\r\n'
+        'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp/stream=0?video=0&audio=0&event=on", response="845ea71a18840400eb40eb7bd1490747"\r\n'
         "User-Agent: HASS Axis\r\n"
         f"Transport: RTP/AVP;unicast;client_port={rtp_port}-{rtcp_port}\r\n\r\n"
     )
@@ -335,7 +335,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_client.session.stale is False
     assert rtsp_client.session.content_type == "application/sdp"
     assert rtsp_client.session.content_base == "rtsp://127.0.0.1/axis-media/media.amp/"
-    assert rtsp_client.session.content_length == 440
+    assert rtsp_client.session.content_length == 435
     assert rtsp_client.session.session_id == "ghLlkf_I9pCBP24t"
     assert rtsp_client.session.session_timeout == 60
     assert (
@@ -400,7 +400,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_client.session.stale is False
     assert rtsp_client.session.content_type == "application/sdp"
     assert rtsp_client.session.content_base == "rtsp://127.0.0.1/axis-media/media.amp/"
-    assert rtsp_client.session.content_length == 440
+    assert rtsp_client.session.content_length == 435
     assert rtsp_client.session.session_id == "ghLlkf_I9pCBP24t"
     assert rtsp_client.session.session_timeout == 60
     assert (
@@ -491,10 +491,20 @@ async def test_successful_connect(rtsp_server, rtsp_client):
             break
         mock_callback.assert_called_with(Signal.PLAYING)
 
+        rtsp_client.keep_alive()
+        await rtsp_server.next_request_received.wait()
+        assert rtsp_server.last_request == (
+            "OPTIONS "
+            "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
+            "CSeq: 5\r\n"
+            "User-Agent: HASS Axis\r\n"
+            "Session: ghLlkf_I9pCBP24t\r\n\r\n"
+        )
+
         mock_callback.reset_mock()
         rtsp_server.send_response(
             "RTSP/1.0 454 Session Not Found\r\n"
-            "CSeq: 4\r\n"
+            "CSeq: 5\r\n"
             "Server: GStreamer RTSP server\r\n\r\n"
         )
         while True:
@@ -514,7 +524,7 @@ async def test_successful_connect(rtsp_server, rtsp_client):
     assert rtsp_server.last_request == (
         "TEARDOWN "
         "rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on RTSP/1.0\r\n"
-        "CSeq: 5\r\n"
+        "CSeq: 6\r\n"
         'Authorization: Digest username="root", realm="AXIS_ACCC8E012345", algorithm="MD5", nonce="0000eb57Y1462133062b37999f0cd530f02755fa37b8df1", uri="rtsp://127.0.0.1/axis-media/media.amp?video=0&audio=0&event=on", response="2417a81b93d5ae64926d226e18a5ab99"\r\n'
         "User-Agent: HASS Axis\r\n"
         "Session: ghLlkf_I9pCBP24t\r\n\r\n"
@@ -533,6 +543,109 @@ def test_rtsp_client_time_out(rtsp_client, caplog):
         mock_rtsp_client_callback.assert_called_with(Signal.FAILED)
 
 
+def test_rtsp_client_stop_without_session_skips_teardown(rtsp_client):
+    """Close the connection without sending TEARDOWN before SETUP succeeds."""
+    rtsp_client.transport = Mock()
+
+    rtsp_client.stop()
+
+    rtsp_client.transport.write.assert_not_called()
+    rtsp_client.transport.close.assert_called_once()
+
+
+async def test_rtsp_client_start_cancellation_stops_rtp(rtsp_client):
+    """Close the RTP endpoint when connection setup is cancelled."""
+    with (
+        patch.object(rtsp_client.rtp, "start", new_callable=AsyncMock),
+        patch.object(
+            rtsp_client.loop,
+            "create_connection",
+            new_callable=AsyncMock,
+            side_effect=asyncio.CancelledError,
+        ),
+        patch.object(rtsp_client.rtp, "stop") as mock_rtp_stop,
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await rtsp_client.start()
+
+    mock_rtp_stop.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        "RTSP/1.0 403 Forbidden\r\nCSeq: 2\r\n\r\n",
+        (
+            "RTSP/1.0 401 Unauthorized\r\nCSeq: 2\r\n"
+            'WWW-Authenticate: Digest realm="axis", nonce="nonce", stale=FALSE\r\n\r\n'
+        ),
+    ],
+)
+def test_rtsp_client_rejected_startup_response_fails(rtsp_client, response):
+    """Stop startup after a rejected request instead of retrying it forever."""
+    rtsp_client.session.sequence = 2
+    rtsp_client.session.digest = True
+    rtsp_client.time_out_handle = Mock()
+    rtsp_client.transport = Mock()
+
+    with (
+        patch.object(rtsp_client, "stop") as mock_stop,
+        patch.object(rtsp_client, "callback") as mock_callback,
+    ):
+        rtsp_client.data_received(response.encode())
+
+    mock_stop.assert_called_once()
+    mock_callback.assert_called_once_with(Signal.FAILED)
+    rtsp_client.transport.write.assert_not_called()
+
+
+@pytest.mark.parametrize("content_length", ["invalid", "-1"])
+def test_rtsp_client_invalid_content_length_fails(rtsp_client, content_length):
+    """Reject invalid RTSP body lengths instead of buffering indefinitely."""
+    rtsp_client.time_out_handle = Mock()
+    response = (f"RTSP/1.0 200 OK\r\nContent-Length: {content_length}\r\n\r\n").encode()
+
+    with (
+        patch.object(rtsp_client, "stop") as mock_stop,
+        patch.object(rtsp_client, "callback") as mock_callback,
+    ):
+        rtsp_client.data_received(response)
+
+    mock_stop.assert_called_once()
+    mock_callback.assert_called_once_with(Signal.FAILED)
+
+
+def test_rtsp_client_buffers_partial_sdp_response(rtsp_client):
+    """Wait for the declared SDP body before advancing the RTSP sequence."""
+    control_url = "rtsp://127.0.0.1/stream=0"
+    body = f"v=0\r\nm=application 0 RTP/AVP 98\r\na=control:{control_url}\r\n"
+    response = (
+        "RTSP/1.0 200 OK\r\n"
+        "CSeq: 1\r\n"
+        "Content-Type: application/sdp\r\n"
+        f"Content-Length: {len(body)}\r\n\r\n"
+        f"{body}"
+    ).encode()
+    split_at = response.index(b"\r\n\r\n") + 8
+    rtsp_client.session.sequence = 1
+    rtsp_client.transport = Mock()
+    rtsp_client.time_out_handle = Mock()
+
+    rtsp_client.data_received(response[:split_at])
+
+    rtsp_client.transport.write.assert_not_called()
+    rtsp_client.time_out_handle.cancel.assert_not_called()
+
+    rtsp_client.data_received(response[split_at:])
+
+    assert rtsp_client.session.control_url == control_url
+    assert rtsp_client.session.sequence == 2
+    assert rtsp_client.transport.write.call_count == 1
+    assert rtsp_client.transport.write.call_args.args[0].startswith(
+        f"SETUP {control_url} RTSP/1.0".encode()
+    )
+
+
 def test_rtsp_client_connection_lost(rtsp_client, caplog):
     """Verify RTSP client connection lost method."""
     with caplog.at_level(logging.DEBUG):
@@ -544,8 +657,16 @@ async def test_rtsp_client_server_sends_stop(rtsp_server, rtsp_client):
     """Verify behavior when session sequence is 5 and server sends unsupported response."""
     await rtsp_server.next_request_received.wait()
     rtsp_client.session.sequence = 5
-    rtsp_server.send_response("Unsupported response")
-    await rtsp_server.next_request_received.wait()
+    stop_called = asyncio.Event()
+    original_stop = rtsp_client.stop
+
+    def _stop_and_signal() -> None:
+        original_stop()
+        stop_called.set()
+
+    rtsp_client.stop = _stop_and_signal
+    rtsp_server.send_response("RTSP/1.0 200 OK\r\nCSeq: 0\r\n\r\n")
+    await stop_called.wait()
     assert rtsp_client.keep_alive_handle is None
     assert rtsp_client.time_out_handle.cancelled()
 
@@ -564,7 +685,7 @@ def test_rtp_client(rtsp_client, caplog):
 
     with patch.object(rtp_client.client, "callback") as mock_callback:
         rtp_client.client.datagram_received(
-            bytes.fromhex("008000000000000000000000AABBCCDD"), "addr"
+            bytes.fromhex("808000000000000000000000AABBCCDD"), "addr"
         )
         mock_callback.assert_called_with(Signal.DATA)
         assert rtp_client.data == bytes.fromhex("AABBCCDD")
@@ -599,6 +720,53 @@ def test_rtp_fragment(rtsp_client, packets: list[bytes]):
         assert rtp_client.data == payload
 
 
+@pytest.mark.parametrize(
+    ("packet", "expected_payload"),
+    [
+        (
+            bytes.fromhex("81800000000000000000000011223344DEADBEEF"),
+            bytes.fromhex("DEADBEEF"),
+        ),
+        (
+            bytes.fromhex("908000000000000000000000BEDE000101020304DEADBEEF"),
+            bytes.fromhex("DEADBEEF"),
+        ),
+        (
+            bytes.fromhex("A08000000000000000000000DEADBEEF030303"),
+            bytes.fromhex("DEADBEEF"),
+        ),
+    ],
+)
+def test_rtp_optional_header_fields(rtsp_client, packet, expected_payload):
+    """Exclude CSRC, extension, and padding bytes from RTP payloads."""
+    with patch.object(rtsp_client.rtp.client, "callback") as mock_callback:
+        rtsp_client.rtp.client.datagram_received(packet, "addr")
+
+    mock_callback.assert_called_once_with(Signal.DATA)
+    assert rtsp_client.data == expected_payload
+
+
+@pytest.mark.parametrize(
+    "packet",
+    [
+        b"\x80\x80",
+        bytes.fromhex("008000000000000000000000DEADBEEF"),
+        bytes.fromhex("83800000000000000000000011223344"),
+        bytes.fromhex("908000000000000000000000"),
+        bytes.fromhex("908000000000000000000000BEDE0002AABBCCDD"),
+        bytes.fromhex("B08000000000000000000000DEADBEEF00"),
+        bytes.fromhex("A08000000000000000000000DEADBEEF0A"),
+    ],
+)
+def test_rtp_malformed_header_is_ignored(rtsp_client, packet):
+    """Ignore truncated, unsupported-version, and invalid-padding packets."""
+    with patch.object(rtsp_client.rtp.client, "callback") as mock_callback:
+        rtsp_client.rtp.client.datagram_received(packet, "addr")
+
+    mock_callback.assert_not_called()
+    assert rtsp_client.data == b""
+
+
 def test_methods(rtsp_client):
     """Verify method attributes."""
     method = rtsp_client.method
@@ -630,6 +798,18 @@ def test_methods(rtsp_client):
         method.transport
         == f"Transport: RTP/AVP;unicast;client_port={rtp_port}-{rtcp_port}\r\n"
     )
+
+
+def test_rtsp_debug_log_does_not_expose_authorization(rtsp_client, caplog):
+    """Keep authorization data out of RTSP debug logs."""
+    rtsp_client.session.basic = True
+
+    with caplog.at_level(logging.DEBUG, logger="axis.rtsp"):
+        message = rtsp_client.method.message
+
+    assert "Authorization: Basic cm9vdDpwYXNz" in message
+    assert "cm9vdDpwYXNz" not in caplog.text
+    assert "Sending RTSP OPTIONS request" in caplog.text
 
 
 def test_session_state_method(rtsp_client):
