@@ -441,15 +441,16 @@ def test_discover_axis_devices_filters_axis_and_deduplicates_hosts() -> None:
 
     with (
         patch(
-            "axis.cli.packs.devices.ServiceStateChange",
+            "axis.application.discovery.ServiceStateChange",
             SimpleNamespace(Added="added", Updated="updated"),
         ),
-        patch("axis.cli.packs.devices.AsyncZeroconf", return_value=fake_azc),
+        patch("axis.application.discovery.AsyncZeroconf", return_value=fake_azc),
         patch(
-            "axis.cli.packs.devices.AsyncServiceBrowser", side_effect=browser_factory
+            "axis.application.discovery.AsyncServiceBrowser",
+            side_effect=browser_factory,
         ),
-        patch("axis.cli.packs.devices.AsyncServiceInfo", side_effect=info_factory),
-        patch("axis.cli.packs.devices.asyncio.sleep", new=AsyncMock()),
+        patch("axis.application.discovery.AsyncServiceInfo", side_effect=info_factory),
+        patch("axis.application.discovery.asyncio.sleep", new=AsyncMock()),
     ):
         discovered = _asyncio.run(discover_axis_devices(scan_seconds=0))
 
@@ -505,15 +506,16 @@ def test_discover_axis_devices_includes_metadata_fields() -> None:
 
     with (
         patch(
-            "axis.cli.packs.devices.ServiceStateChange",
+            "axis.application.discovery.ServiceStateChange",
             SimpleNamespace(Added="added", Updated="updated"),
         ),
-        patch("axis.cli.packs.devices.AsyncZeroconf", return_value=fake_azc),
+        patch("axis.application.discovery.AsyncZeroconf", return_value=fake_azc),
         patch(
-            "axis.cli.packs.devices.AsyncServiceBrowser", side_effect=browser_factory
+            "axis.application.discovery.AsyncServiceBrowser",
+            side_effect=browser_factory,
         ),
-        patch("axis.cli.packs.devices.AsyncServiceInfo", side_effect=info_factory),
-        patch("axis.cli.packs.devices.asyncio.sleep", new=AsyncMock()),
+        patch("axis.application.discovery.AsyncServiceInfo", side_effect=info_factory),
+        patch("axis.application.discovery.asyncio.sleep", new=AsyncMock()),
     ):
         discovered = _asyncio.run(discover_axis_devices(scan_seconds=0))
 
@@ -579,15 +581,16 @@ def test_discover_axis_devices_skips_bad_and_duplicate_services() -> None:
 
     with (
         patch(
-            "axis.cli.packs.devices.ServiceStateChange",
+            "axis.application.discovery.ServiceStateChange",
             SimpleNamespace(Added="added", Updated="updated"),
         ),
-        patch("axis.cli.packs.devices.AsyncZeroconf", return_value=fake_azc),
+        patch("axis.application.discovery.AsyncZeroconf", return_value=fake_azc),
         patch(
-            "axis.cli.packs.devices.AsyncServiceBrowser", side_effect=browser_factory
+            "axis.application.discovery.AsyncServiceBrowser",
+            side_effect=browser_factory,
         ),
-        patch("axis.cli.packs.devices.AsyncServiceInfo", side_effect=info_factory),
-        patch("axis.cli.packs.devices.asyncio.sleep", new=AsyncMock()),
+        patch("axis.application.discovery.AsyncServiceInfo", side_effect=info_factory),
+        patch("axis.application.discovery.asyncio.sleep", new=AsyncMock()),
     ):
         discovered = _asyncio.run(discover_axis_devices(scan_seconds=0))
 

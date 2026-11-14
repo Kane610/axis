@@ -9,8 +9,8 @@ from urllib.parse import quote, quote_plus
 
 import pytest
 
-from axis.cli import operations
-from axis.cli.storage import ConnectionSettings, DeviceRecord
+from axis.application import operations
+from axis.application.records import ConnectionSettings, DeviceRecord
 from axis.errors import PathNotFound, RequestError
 from axis.interfaces.vapix import InterfaceState
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol

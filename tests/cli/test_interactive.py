@@ -11,7 +11,8 @@ from prompt_toolkit.completion import CompleteEvent
 from prompt_toolkit.document import Document
 import pytest
 
-from axis.cli import interactive, operations
+from axis.application import operations
+from axis.cli import interactive
 from axis.cli.commands import Runtime, cli
 from axis.cli.storage import ConnectionSettings, DeviceRecord, StorageError
 

@@ -16,15 +16,16 @@ from typing import TYPE_CHECKING, Any
 import click
 from click.shell_completion import CompletionItem, ZshComplete, add_completion_class
 
-from axis.cli import interactive, operations
-from axis.cli.packs.devices import discover_axis_devices
-from axis.cli.storage import (
+from axis.application import operations
+from axis.application.discovery import discover_axis_devices
+from axis.application.storage import (
     ConnectionSettings,
     DeviceRecord,
     DeviceRegistry,
     StorageError,
     default_config_path,
 )
+from axis.cli import interactive
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine

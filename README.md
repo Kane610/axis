@@ -2,6 +2,30 @@
 
 Python project to set up a connection towards Axis Communications devices and to subscribe to specific events on the metadatastream.
 
+## Library and application boundaries
+
+Axis remains one repository and distribution with independent Python subpackages.
+Home Assistant and other integrations can continue using `AxisDevice`,
+configuration, handlers, models, events, and transport directly. Their public
+imports and handler initialization phases are unchanged.
+
+`axis.application` contains optional-to-use, presentation-neutral workflows over
+that library: stored connection records, local registry persistence, explicit
+discovery, async reads, and account operations. These services do not need Click,
+prompt_toolkit, a terminal, or a selected device. Library-only installations can
+import them without installing the `cli` extra.
+
+The CLI is an adapter over these services. A future graphical adapter can await
+the same workflows while owning its own navigation and event loop; it should not
+execute CLI commands or inherit terminal prompts. Core device code never imports
+applications or presentation. Shared services never import presentation.
+
+The authoritative [contributor and agent architecture contract](CONTRIBUTING.md#shared-applications-and-separation-of-concerns)
+describes placement, public APIs, state ownership, dependencies, compatibility,
+and safety. Device protocol models remain separate from application records and
+future screen state. This separation does not regroup models/interfaces/VAPIX
+or introduce a new device-capability layer.
+
 ## Development setup
 
 `uv` is required for development setup:

@@ -12,8 +12,8 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.history import DummyHistory
 
-from axis.cli import operations
-from axis.cli.storage import StorageError
+from axis.application import operations
+from axis.application.errors import StorageError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
     from prompt_toolkit.completion import CompleteEvent
     from prompt_toolkit.document import Document
 
+    from axis.application.records import DeviceRecord
     from axis.cli.commands import Runtime
-    from axis.cli.storage import DeviceRecord
 
 
 def token_start(text: str) -> int:

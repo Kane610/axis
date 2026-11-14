@@ -14,8 +14,8 @@ from unittest.mock import patch
 import pytest
 import tomli_w
 
-from axis.cli import storage
-from axis.cli.storage import (
+from axis.application import storage
+from axis.application.storage import (
     ConnectionSettings,
     DeviceRecord,
     DeviceRegistry,

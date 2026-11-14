@@ -12,7 +12,8 @@ import click
 from click.testing import CliRunner, Result
 import pytest
 
-from axis.cli import commands, entrypoint, operations
+from axis.application import operations
+from axis.cli import commands, entrypoint
 from axis.cli.commands import Runtime, cli
 from axis.cli.storage import (
     ConnectionSettings,

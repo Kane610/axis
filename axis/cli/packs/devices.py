@@ -1,4 +1,4 @@
-# ruff: noqa: D100,D103
+# ruff: noqa: D100,D103,PLC0414
 
 from __future__ import annotations
 
@@ -15,9 +15,18 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import ClientSession
 import tomli
 import tomli_w
-from zeroconf import IPVersion, ServiceStateChange
-from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
+from axis.application.discovery import (
+    AXIS_OUI as AXIS_OUI,
+    AXIS_SERVICE_TYPE as AXIS_SERVICE_TYPE,
+    DiscoveredDevice as DiscoveredDevice,
+    _decode_discovery_properties as _decode_discovery_properties,
+    _extract_discovery_metadata as _extract_discovery_metadata,
+    _extract_macaddress_property as _extract_macaddress_property,
+    _zeroconf_instance_name as _zeroconf_instance_name,
+    discover_axis_devices as discover_axis_devices,
+    is_axis_macaddress as is_axis_macaddress,
+)
 from axis.cli.core.contracts import CommandCapabilities, CommandResult
 from axis.cli.core.router import MenuItem, MenuNode
 from axis.device import AxisDevice
@@ -124,7 +133,6 @@ def _render_devices_node(ctx: CliContext, io: CliIO) -> None:
 
 DeviceEntry = dict[str, Any]
 DeviceStore = dict[str, DeviceEntry]
-DiscoveredDevice = dict[str, str]
 
 
 @dataclass
@@ -138,11 +146,7 @@ class HealthCheckResult:
     error: str | None = None
 
 
-AXIS_SERVICE_TYPE = "_axis-video._tcp.local."
-AXIS_OUI = {"00:40:8c", "ac:cc:8e", "b8:a4:4f", "e8:27:25"}
-
 _HEX_ONLY_RE = re.compile(r"[^0-9a-f]")
-_AXIS_OUI_NORMALIZED = {prefix.replace(":", "") for prefix in AXIS_OUI}
 
 
 def _debug_enabled() -> bool:
@@ -339,77 +343,6 @@ def config_to_toml_dict(config: Configuration) -> dict[str, Any]:
     }
 
 
-def _normalize_macaddress(value: str) -> str:
-    lowered = value.strip().lower().rstrip("*")
-    return _HEX_ONLY_RE.sub("", lowered)
-
-
-def is_axis_macaddress(macaddress: str) -> bool:
-    normalized = _normalize_macaddress(macaddress)
-    if len(normalized) < 6:
-        return False
-    return normalized[:6] in _AXIS_OUI_NORMALIZED
-
-
-def _extract_macaddress_property(properties: dict[bytes, bytes | None]) -> str | None:
-    for raw_key, raw_value in properties.items():
-        key = raw_key.decode("utf-8", errors="ignore").strip().lower()
-        if key != "macaddress":
-            continue
-        if raw_value is None:
-            continue
-        value = raw_value.decode("utf-8", errors="ignore").strip()
-        if value:
-            return value
-    return None
-
-
-def _decode_discovery_properties(
-    properties: dict[bytes, bytes | None],
-) -> dict[str, str]:
-    """Decode Zeroconf TXT properties to normalized string key/value pairs."""
-    decoded: dict[str, str] = {}
-    for raw_key, raw_value in properties.items():
-        key = raw_key.decode("utf-8", errors="ignore").strip().lower()
-        if not key or raw_value is None:
-            continue
-        value = raw_value.decode("utf-8", errors="ignore").strip()
-        if value:
-            decoded[key] = value
-    return decoded
-
-
-def _extract_discovery_metadata(
-    properties: dict[bytes, bytes | None],
-) -> dict[str, str]:
-    """Extract user-facing metadata fields from Zeroconf TXT properties."""
-    decoded = _decode_discovery_properties(properties)
-    fields: dict[str, tuple[str, ...]] = {
-        "module": ("module", "hw", "hardware", "hardwareid"),
-        "model": ("model", "modelname", "prodshortname", "prodfullname"),
-        "serial": ("serial", "serialnumber"),
-        "firmware": ("firmware", "version", "firmwareversion"),
-        "vendor": ("vendor", "manufacturer", "brand"),
-    }
-
-    metadata: dict[str, str] = {}
-    for label, aliases in fields.items():
-        for alias in aliases:
-            value = decoded.get(alias)
-            if value:
-                metadata[label] = value
-                break
-
-    return metadata
-
-
-def _zeroconf_instance_name(service_name: str) -> str:
-    suffix = f".{AXIS_SERVICE_TYPE}"
-    if service_name.endswith(suffix):
-        return service_name[: -len(suffix)]
-    return service_name
-
-
 def _normalize_device_identifier(value: str) -> str:
     return _HEX_ONLY_RE.sub("", value.strip().lower())
 
@@ -444,64 +377,6 @@ def filter_discovered_devices(
         filtered.append(discovered)
 
     return filtered
-
-
-async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDevice]:
-    """Discover Axis devices advertised via Zeroconf axis-video service."""
-    discovered_names: set[str] = set()
-
-    def _on_service_state_change(
-        zeroconf: object,
-        service_type: str,
-        name: str,
-        state_change: object,
-    ) -> None:
-        _ = (zeroconf, service_type)
-        if state_change in {ServiceStateChange.Added, ServiceStateChange.Updated}:
-            discovered_names.add(name)
-
-    azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
-    browser = AsyncServiceBrowser(
-        azc.zeroconf,
-        [AXIS_SERVICE_TYPE],
-        handlers=[_on_service_state_change],
-    )
-    try:
-        await asyncio.sleep(scan_seconds)
-
-        entries: list[DiscoveredDevice] = []
-        seen_hosts: set[str] = set()
-        for service_name in sorted(discovered_names):
-            info = AsyncServiceInfo(AXIS_SERVICE_TYPE, service_name)
-            if not await info.async_request(azc.zeroconf, timeout=1500):
-                continue
-
-            macaddress = _extract_macaddress_property(info.properties)
-            if not macaddress or not is_axis_macaddress(macaddress):
-                continue
-
-            addresses = info.parsed_addresses(IPVersion.V4Only)
-            if not addresses:
-                continue
-
-            host = addresses[0]
-            if host in seen_hosts:
-                continue
-            seen_hosts.add(host)
-
-            entries.append(
-                {
-                    "host": host,
-                    "name": _zeroconf_instance_name(service_name),
-                    "macaddress": macaddress,
-                    **_extract_discovery_metadata(info.properties),
-                }
-            )
-
-        return entries
-    finally:
-        await browser.async_cancel()
-        await azc.async_close()
 
 
 def select_discovered_device(
