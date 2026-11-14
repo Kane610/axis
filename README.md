@@ -50,19 +50,35 @@ comments so its diagnostics remain independent. Pre-commit runs ty as an advisor
 check with diagnostics always shown, without blocking commits on type findings.
 Mypy remains required; ty setup or execution errors still block commits.
 
-## CLI navigation contract
+## Command-line interface
 
-### Canonical CLI migration
+### Installation
 
-The next CLI release consolidates the executables under `axis`. It provides
-direct commands, offline Zsh completion, and a guided launcher with a
-command prompt. All interaction paths use the same argument validation and
-operations. Library consumers do not need the optional `cli` dependencies.
+For isolated everyday use with Python 3.14:
 
-The command inventory is:
+```bash
+uv tool install --python 3.14 'axis[cli]'
+axis --help
+axis doctor
+```
+
+To evaluate this checkout rather than a published release:
+
+```bash
+uv tool install --python 3.14 --reinstall --from . 'axis[cli]'
+```
+
+For editable development, run `./setup.sh`, then `uv run axis`. To use Zsh
+completion against the development entrypoint, activate `.venv` in the current
+terminal with `source .venv/bin/activate`. This does not modify shell startup.
+Library-only installations do not need Click or prompt_toolkit; attempting to
+launch the CLI without its extra reports the installation command.
+
+### Discover commands
 
 ```text
-axis devices list|add|discover|remove|credentials
+axis
+axis devices list|add|discover|alias|remove|credentials
 axis device health
 axis api list|interfaces|read|browse
 axis params show
@@ -72,43 +88,143 @@ axis doctor
 axis completion zsh
 ```
 
-Bare `axis` opens the launcher only on a terminal. Bare command groups show
-help. Direct commands never prompt for missing arguments. `--device` selects
-a registered serial number or unique alias; interactive selection never
-implicitly supplies a target to an independent shell invocation.
+Bare `axis` opens guided navigation on a terminal. Select a device with `s`,
+browse groups by number, or enter the suggested command prompt with `c`.
+`b` returns to the parent menu; `e` exits. The command prompt accepts commands
+with or without the `axis` prefix; `/back` or Ctrl-D returns to navigation.
+Tab displays suggestions as you type. History is disabled to avoid retaining
+accidentally entered secrets. Menu shortcuts do not apply inside text fields.
 
-Remote writes require `--apply`; without it, commands validate and preview
-the intended change without contacting the device. Destructive changes also
-require confirmation, or `--yes` in scripts. Local registration commands
-explicitly change the local registry; removal requires confirmation.
+Both paths use the same Click command definitions, validation, and async
+operations. The guided path collects inputs and submits a canonical command;
+it does not maintain a second parser or silently execute a selected mutation.
+Ctrl-C cancels operations and closes device resources; at the home screen it
+exits. Bare groups show help. `api browse` is terminal-only; scripts use
+`api interfaces` and `api read`.
 
-Finite results support `--json`; event streaming uses JSON Lines. Diagnostics
-go to stderr. Exit statuses are 0 (success), 1 (operation failure), 2 (usage
-error), and 130 (interrupted). Passwords must not appear in arguments,
-completion, history, logs, diagnostics, or previews.
+### Devices and direct commands
 
-Completion reads command metadata and local identifiers only: it never
-discovers devices, authenticates, or contacts services. Shell setup is
-explicit and does not automatically modify startup files.
+Registrations remain in `~/.axis/config.toml`. Set `--config PATH` **before**
+the command to use a different registry. Direct commands never prompt or guess
+a target: use `--device` (or `-d`) with an exact serial or unique alias.
+Only commands inside the launcher can inherit its visible selected device.
 
-The breaking upgrade requires reinstalling the CLI extra and replacing
-`axis-cli` and old flat event/parameter invocations with canonical subcommands.
-Existing registrations remain readable. Internal Python compatibility helpers
-are not executable aliases.
+```bash
+axis devices list
+axis devices alias front-door --device B8A44F123456
+axis api list --device front-door --json
+axis api interfaces --device front-door
+axis api read basic_device_info --device front-door --json
+axis events listen --device front-door --stream-mode auto --json
+axis --config /private/devices.toml devices list
+```
 
-The interactive CLI in `axis/cli/` follows a menu-first model.
-Router runtime is the only interactive execution path.
+Use `axis` and choose `devices add` for hidden password entry. For scripts,
+`devices add`, `devices credentials`, and account writes accept
+`--password-file PATH`; keep that file private. Password arguments are
+intentionally unsupported.
 
-- Canonical route graph: `main -> devices -> device_operations -> {api|events|accounts}`.
-- `device_operations` routes to feature submenus using router navigation, not direct feature command execution.
-- Feature nodes (`api`, `events`, `accounts`) own their local menu layout and selected-device context rendering.
-- `b` always navigates to `parent_id`; `e` always exits.
+Device discovery is an explicit network action and never automatically
+registers devices. `devices alias`, `list`, `credentials`, and `remove` are
+local operations; removal does not delete a device or remote account.
+Registration authenticates and discovers a real serial number. Re-registering
+without `--alias` preserves an existing friendly name.
+New HTTPS registrations verify certificates by default; use `--no-verify-ssl`
+only for a trusted device with a self-signed certificate. Existing stored
+transport and verification settings remain in effect for device operations.
 
-To keep the CLI reusable boundary clear:
+Registry updates preserve unrecognized configuration keys and use locked,
+atomic writes with owner-only credential-file permissions. Credentials are
+still stored in plaintext at rest: protect the registry, password files, and
+their containing storage. The CLI does not display those secrets.
 
-- CLI concerns (menu keys, prompts, render text, router state) stay in `axis/cli/`.
-- `axis/interfaces/` and `axis/models/` must remain presentation-agnostic and reusable by non-CLI consumers.
-- Domain layers return typed data/errors; CLI adapters map them to user-facing text and flow.
+### Safe account changes and output
+
+Remote account writes require `--apply`. Without it, commands validate and
+preview the intended change without contacting the device or reading a
+password. Updates require an explicit `--privilege` so a password change cannot
+silently downgrade an administrator. Account deletion additionally requires
+interactive confirmation or `--yes` in scripts.
+
+```bash
+axis accounts create viewer --device front-door
+axis accounts create viewer --device front-door --apply --password-file /private/password
+axis accounts update viewer --device front-door --privilege viewer --apply --password-file /private/password
+axis accounts update viewer --device front-door --privilege operator --apply
+axis accounts delete viewer --device front-door --apply --yes
+```
+
+Password changes are required for creation and optional for updates. Omitting
+`--password-file` on a direct update changes privileges only; guided updates
+explicitly offer an optional hidden password change.
+
+Finite results support `--json`: device/API/event listings are arrays, health
+and mutation results are objects, account listings are keyed by username, and
+interface/parameter reads return their structured values. Live events use
+JSON Lines, one complete JSON value per line. Human results go to stdout;
+diagnostics go to stderr. Failures do not emit empty success results.
+
+Exit statuses are 0 (success), 1 (operation failure), 2 (usage error), and 130
+(interrupted). Sensitive values are redacted from reads. `--debug` enables
+safe CLI lifecycle diagnostics, not raw credential-bearing HTTP logging.
+
+### Zsh completion and offline diagnostics
+
+Completion reads command metadata and local serials/aliases only. It never
+discovers devices, authenticates, or makes service requests. Suggestions
+include descriptions, option choices, and paths; quoting preserves spaces.
+
+Generate a script explicitly:
+
+```bash
+mkdir -p ~/.axis
+axis completion zsh > ~/.axis/completion.zsh
+```
+
+For the **current terminal**, run:
+
+```zsh
+autoload -Uz compinit
+compinit
+source ~/.axis/completion.zsh
+```
+
+For **fresh terminals**, manually add the source line to your Zsh startup
+after your existing `compinit` initialization, then open a new terminal.
+The `axis` executable must be on PATH in that terminal. Regenerate the script
+after upgrading. The CLI does not automatically edit shell files, activate
+the parent shell, or claim that startup is configured merely because a script
+exists.
+
+`axis doctor` checks local installation, PATH shadowing, registry readability,
+permissions, and completion-script availability without network access.
+Use `axis doctor --check config --json` to select a diagnostic. Remote
+connectivity is checked separately with `axis device health --device SERIAL`.
+
+### Breaking upgrade and architecture
+
+Reinstall to replace old executable metadata. `axis-cli` is removed; there
+are no legacy executable aliases or flag-only compatibility routes.
+`python -m axis` uses the same canonical CLI.
+
+| Previous use | Canonical replacement |
+| --- | --- |
+| `axis-cli` menus | `axis` |
+| Flat host/username/password invocation | Register once, then use `--device` |
+| `--events` | `axis events listen --device SERIAL` |
+| `--params` | `axis params show --device SERIAL` |
+| API drill-down | `axis api browse --device SERIAL` or `api interfaces/read` |
+| Event transport options | `events listen --stream-mode auto\|rtsp\|event` |
+
+Existing registrations remain readable, with aliases added offline. Update
+scripts and service definitions; passwords should no longer be positional
+arguments. Internal Python helpers are not executable aliases.
+
+Presentation, prompts, command definitions, and navigation stay in `axis/cli/`.
+`axis/interfaces/` and `axis/models/` remain presentation-agnostic. Shared CLI
+operations return typed data or explicit errors, and the CLI maps them to
+human/JSON output. The old pack router remains an internal import surface;
+canonical interactive navigation derives from the Click tree.
 
 ## Initialization architecture
 

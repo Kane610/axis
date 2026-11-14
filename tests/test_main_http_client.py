@@ -202,56 +202,25 @@ async def test_main_cancels_event_wait_and_stops_stream() -> None:
 def test_module_entrypoint_parses_arguments_and_calls_main(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Execute the module guard with options and close its coroutine safely."""
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "axis",
-            "camera.local",
-            "root",
-            "secret",
-            "--proto",
-            "https",
-            "--events",
-            "--params",
-            "--stream-mode",
-            "event",
-            "--debug",
-        ],
-    )
-
-    def _run_and_close(coroutine: object) -> None:
-        coroutine.close()  # type: ignore[attr-defined]
-
+    """Module execution reaches the same canonical CLI as the installed executable."""
+    monkeypatch.setattr(sys, "argv", ["axis", "--help"])
     entrypoint = Path(__file__).resolve().parents[1] / "axis" / "__main__.py"
-    with (
-        patch.object(asyncio, "run", side_effect=_run_and_close),
-        patch.object(logging, "basicConfig"),
-    ):
+    with patch("axis.cli.entrypoint.main") as run:
         runpy.run_path(str(entrypoint), run_name="__main__")
+    run.assert_called_once()
 
 
 def test_module_entrypoint_logs_keyboard_interrupt(
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Log a keyboard interrupt raised by the executable async runner."""
+    """Legacy positional credentials are rejected rather than routed or logged."""
     monkeypatch.setattr(sys, "argv", ["axis", "camera.local", "root", "secret"])
-
-    def _interrupt(coroutine: object) -> None:
-        coroutine.close()  # type: ignore[attr-defined]
-        raise KeyboardInterrupt
-
     entrypoint = Path(__file__).resolve().parents[1] / "axis" / "__main__.py"
-    with (
-        patch.object(asyncio, "run", side_effect=_interrupt),
-        patch.object(logging, "basicConfig"),
-        caplog.at_level(logging.INFO, logger="axis.__main__"),
-    ):
+    with pytest.raises(SystemExit) as caught:
         runpy.run_path(str(entrypoint), run_name="__main__")
-
-    assert "Keyboard interrupt" in caplog.text
+    assert caught.value.code == 2
+    assert "secret" not in capsys.readouterr().err
 
 
 def test_event_handler_logs_event(caplog: pytest.LogCaptureFixture) -> None:

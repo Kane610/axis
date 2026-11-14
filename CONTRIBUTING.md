@@ -55,6 +55,24 @@ uv run ruff check axis/<file>.py
 
 Run broader checks only when your change affects shared behavior (for example, base classes, event parsing, or configuration).
 
+CLI development dependencies are included by `uv sync --all-extras`.
+For quick CLI iteration use `uv run pytest tests/cli --no-cov`; this is not a
+coverage acceptance check. The configured full-suite threshold is 100%.
+Zsh must be installed for the real completion tests.
+
+Before publishing CLI packaging or entrypoint changes, also run:
+
+```bash
+uv run python scripts/check_cli_install.py
+```
+
+This builds the wheel and installs library-only and CLI-extra profiles into
+temporary environments outside the checkout, verifies package origin, the
+single canonical executable, help for every command path, non-terminal
+behavior, and isolated Zsh startup/completion. It downloads runtime
+dependencies and needs network access. It does not change personal shell or
+device configuration. CI runs the same check independently.
+
 Async fixtures use function-scoped event loops, configured explicitly in
 `pyproject.toml`. Keep warnings treated as errors rather than suppressing
 pytest-asyncio configuration warnings.
