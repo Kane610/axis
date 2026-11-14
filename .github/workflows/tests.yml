@@ -20,6 +20,8 @@ jobs:
             command: ruff format --check .
           - name: Typing
             command: mypy axis
+          - name: Typing (ty, advisory)
+            command: ty check axis --output-format=github
 
     steps:
       - uses: actions/checkout@v7
@@ -34,7 +36,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --extra requirements --extra requirements-test
       - name: Run ${{ matrix.name }}
+        id: check
+        continue-on-error: ${{ matrix.name == 'Typing (ty, advisory)' }}
         run: uv run --locked ${{ matrix.command }}
+      - name: Report advisory typing failure
+        if: ${{ matrix.name == 'Typing (ty, advisory)' && steps.check.outcome == 'failure' }}
+        run: echo "::warning::ty reported a failure. This check is advisory; mypy remains required. See the check output for details."
 
   tests:
     name: Tests (Python 3.14)

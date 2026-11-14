@@ -29,22 +29,25 @@ Run checks with `uv`:
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy axis
+uv run ty check axis
 uv run pytest
 ```
 
 Pull requests expose independent **Lint**, **Formatting**, **Typing**, and
 **Tests (Python 3.14)** checks in GitHub. A failed check does not prevent the
 others from running. Ruff lint findings also appear as file-and-line annotations.
+An additional **Typing (ty, advisory)** check runs alongside mypy without blocking
+CI on ty failures. Its diagnostics appear as file-and-line annotations, and
+failures produce an explicit warning. Mypy remains required.
 The test job uploads JUnit XML and XML/HTML coverage reports as the
 `test-reports-python-3.14` artifact, including when tests fail.
 The workflow run summary shows the test outcome, counts, duration, line coverage,
 and configured coverage threshold. Missing reports are flagged explicitly.
 
-Initial `ty` support is configured as an opt-in check and does not replace `mypy`:
-
-```bash
-uvx ty check
-```
+Both type checkers are installed and pinned through the development setup above.
+Ty checks the same `axis` package as mypy and ignores mypy's `type: ignore`
+comments so its diagnostics remain independent. Pre-commit continues to require
+only mypy for type checking.
 
 ## CLI navigation contract
 

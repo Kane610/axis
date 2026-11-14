@@ -37,8 +37,14 @@ Always run the full suite before opening a pull request:
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy axis
+uv run ty check axis
 uv run pytest
 ```
+
+Mypy remains the required type checker. Ty runs alongside it in a non-blocking
+**Typing (ty, advisory)** CI check; review its diagnostics without suppressing
+them just to make CI pass. Both tools check `axis`, and ty does not honor mypy's
+`type: ignore` comments. Ty is not added to the required pre-commit hooks.
 
 For faster iteration, target only the files you changed:
 
