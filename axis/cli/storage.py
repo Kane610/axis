@@ -12,7 +12,7 @@ from uuid import uuid4
 import tomli_w
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from types import ModuleType
 
 if os.name == "posix":
@@ -193,7 +193,7 @@ class DeviceRegistry:
         return _resolve(self.load(), identifier)
 
     @contextmanager
-    def _locked(self) -> Iterator[None]:
+    def _locked(self) -> Generator[None]:
         if fcntl is None:
             _fail("Registry writes require POSIX advisory locking.")
         try:
@@ -228,11 +228,13 @@ class DeviceRegistry:
         except OSError, ValueError, TypeError:
             _fail("Cannot save config; check directory permissions and retry.")
 
-    def upsert(self, record: DeviceRecord) -> None:
+    def upsert(self, record: DeviceRecord, *, preserve_alias: bool = False) -> None:
         """Replace typed fields for a serial, preserving unrecognized TOML keys.
 
         Full-record updates are last-writer-wins, including stale records.
         Use update_credentials for a credentials-only read-modify-write.
+        With preserve_alias, keep the latest stored alias (empty for new
+        records) and reflect it on record after the write succeeds.
         """
         record.__post_init__()
         with self._locked():
@@ -240,10 +242,12 @@ class DeviceRegistry:
             _records(data)
             devices = data.setdefault("devices", {})
             entry = devices.setdefault(record.serial, {})
-            entry.update(alias=record.alias, model=record.model)
+            alias = entry.get("alias", "") if preserve_alias else record.alias
+            entry.update(alias=alias, model=record.model)
             entry.setdefault("config", {}).update(asdict(record.config))
             _records(data)
             self._write(data)
+            record.alias = alias
 
     def update_credentials(
         self, identifier: str, username: str, password: str
@@ -258,6 +262,18 @@ class DeviceRegistry:
             data["devices"][record.serial]["config"].update(
                 username=username, password=password
             )
+            self._write(data)
+            return record
+
+    def update_alias(self, identifier: str, alias: str) -> DeviceRecord:
+        """Set or clear an alias on the latest record under the write lock."""
+        with self._locked():
+            data = self._read()
+            record = _resolve(_records(data), identifier)
+            record.alias = alias
+            record.__post_init__()
+            data["devices"][record.serial]["alias"] = alias
+            _records(data)
             self._write(data)
             return record
 

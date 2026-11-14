@@ -1,7 +1,7 @@
 """Presentation-free, session-owned operations for VAPIX devices and events."""
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager, suppress
 from dataclasses import fields, is_dataclass
 from enum import Enum
@@ -52,7 +52,7 @@ class OperationError(Exception):
 
 
 @asynccontextmanager
-async def _device(settings: ConnectionSettings) -> AsyncIterator[AxisDevice]:
+async def _device(settings: ConnectionSettings) -> AsyncGenerator[AxisDevice]:
     try:
         async with ClientSession(
             connector=TCPConnector(ssl=settings.verify_ssl)

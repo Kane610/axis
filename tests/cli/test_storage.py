@@ -557,3 +557,203 @@ def test_concurrent_credentials_update_reloads_under_lock(
     latest.config.password = "new-password"
     assert result == latest
     assert registry.resolve("latest") == latest
+
+
+def test_update_alias_preserves_legacy_fields_and_clears(
+    registry: DeviceRegistry,
+) -> None:
+    """Offline alias changes leave credentials, legacy defaults, and extensions intact."""
+    write_config(
+        registry,
+        {
+            "theme": "dark",
+            "devices": {
+                "SERIAL": {
+                    "model": "legacy",
+                    "extra": [1, 2],
+                    "config": {
+                        "host": "camera",
+                        "username": "root",
+                        "password": "secret",
+                        "future": "retained",
+                    },
+                },
+            },
+        },
+    )
+    expected = raw_config(registry)
+    expected["devices"]["SERIAL"]["alias"] = "front"
+    result = registry.update_alias("SERIAL", "front")
+    assert raw_config(registry) == expected
+    assert result == DeviceRecord(
+        "SERIAL", ConnectionSettings("camera", "root", "secret"), "front", "legacy"
+    )
+    assert registry.resolve("front") == result
+    cleared = registry.update_alias("front", "")
+    expected["devices"]["SERIAL"]["alias"] = ""
+    assert raw_config(registry) == expected
+    assert cleared.alias == ""
+    assert registry.resolve("SERIAL") == cleared
+    with pytest.raises(StorageError, match="not found"):
+        registry.resolve("front")
+    assert registry.path.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize(
+    ("identifier", "alias"),
+    [
+        ("SERIAL", "existing"),
+        ("SERIAL", "OTHER"),
+        ("SERIAL", "bad\talias"),
+        ("SERIAL", " bad "),
+        ("SERIAL", None),
+        ("missing", "front"),
+    ],
+)
+def test_update_alias_rejects_invalid_changes_atomically(
+    registry: DeviceRegistry, identifier: str, alias: Any
+) -> None:
+    """Alias collisions, unsafe names, and unknown identities cannot alter storage."""
+    registry.upsert(device())
+    registry.upsert(device("OTHER", "existing"))
+    before = registry.path.read_bytes()
+    with pytest.raises(StorageError):
+        registry.update_alias(identifier, alias)
+    assert registry.path.read_bytes() == before
+    assert registry.update_alias("SERIAL", "SERIAL").alias == "SERIAL"
+
+
+def test_concurrent_alias_update_preserves_credentials(
+    registry: DeviceRegistry,
+) -> None:
+    """Alias changes wait for credential commits and reload the current record."""
+    registry.upsert(device())
+    other = DeviceRegistry(registry.path)
+    entered = threading.Event()
+    release = threading.Event()
+    second_started = threading.Event()
+    second_read = threading.Event()
+    original_write = registry._write
+    original_read = other._read
+
+    def paused_write(data: dict[str, Any]) -> None:
+        entered.set()
+        assert release.wait(5)
+        original_write(data)
+
+    def observed_read() -> dict[str, Any]:
+        second_read.set()
+        return original_read()
+
+    def alias_writer() -> DeviceRecord:
+        second_started.set()
+        return other.update_alias("SERIAL", "front")
+
+    with (
+        patch.object(registry, "_write", side_effect=paused_write),
+        patch.object(other, "_read", side_effect=observed_read),
+        ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        first = executor.submit(
+            registry.update_credentials, "SERIAL", "new-user", "new-password"
+        )
+        try:
+            assert entered.wait(5)
+            second = executor.submit(alias_writer)
+            assert second_started.wait(5)
+            assert not second_read.wait(0.1)
+        finally:
+            release.set()
+        credentials = first.result(timeout=5)
+        result = second.result(timeout=5)
+    assert result.config == credentials.config
+    assert result.alias == "front"
+    assert registry.resolve("front") == result
+
+
+def test_upsert_preserve_alias_uses_latest_value(registry: DeviceRegistry) -> None:
+    """Re-registration preserves current aliases but still replaces other typed fields."""
+    registry.upsert(device(alias="original"))
+    stale = registry.resolve("SERIAL")
+    registry.update_alias("SERIAL", "latest")
+    registry.update_credentials("SERIAL", "other-user", "other-password")
+    stale.config.host = "new-host"
+    registry.upsert(stale, preserve_alias=True)
+    assert stale.alias == "latest"
+    assert registry.resolve("latest") == stale
+    assert stale.config.username == "root"
+    registry.update_alias("SERIAL", "")
+    registry.upsert(stale, preserve_alias=True)
+    assert stale.alias == ""
+    assert registry.resolve("SERIAL") == stale
+
+
+def test_upsert_explicit_alias_replaces_or_clears(registry: DeviceRegistry) -> None:
+    """Explicit alias requests remain full replacements, including empty aliases."""
+    registry.upsert(device(alias="original"))
+    replacement = device(alias="replacement")
+    registry.upsert(replacement, preserve_alias=False)
+    assert registry.resolve("replacement") == replacement
+    cleared = device()
+    registry.upsert(cleared)
+    assert registry.resolve("SERIAL") == cleared
+    with pytest.raises(StorageError, match="not found"):
+        registry.resolve("replacement")
+
+
+@pytest.mark.parametrize("incoming_alias", ["", "ignored"])
+def test_upsert_preserve_alias_on_new_device_is_empty(
+    registry: DeviceRegistry, incoming_alias: str
+) -> None:
+    """An unspecified alias on a newly registered device defaults to empty."""
+    record = device(alias=incoming_alias)
+    registry.upsert(record, preserve_alias=True)
+    assert record.alias == ""
+    assert registry.resolve("SERIAL") == record
+
+
+def test_concurrent_upsert_preserves_alias_committed_under_lock(
+    registry: DeviceRegistry,
+) -> None:
+    """Re-registration reloads aliases after a concurrent alias writer commits."""
+    registry.upsert(device(alias="original"))
+    other = DeviceRegistry(registry.path)
+    registration = device()
+    registration.config.host = "new-host"
+    entered = threading.Event()
+    release = threading.Event()
+    second_started = threading.Event()
+    second_read = threading.Event()
+    original_write = registry._write
+    original_read = other._read
+
+    def paused_write(data: dict[str, Any]) -> None:
+        entered.set()
+        assert release.wait(5)
+        original_write(data)
+
+    def observed_read() -> dict[str, Any]:
+        second_read.set()
+        return original_read()
+
+    def registration_writer() -> None:
+        second_started.set()
+        other.upsert(registration, preserve_alias=True)
+
+    with (
+        patch.object(registry, "_write", side_effect=paused_write),
+        patch.object(other, "_read", side_effect=observed_read),
+        ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        first = executor.submit(registry.update_alias, "SERIAL", "latest")
+        try:
+            assert entered.wait(5)
+            second = executor.submit(registration_writer)
+            assert second_started.wait(5)
+            assert not second_read.wait(0.1)
+        finally:
+            release.set()
+        first.result(timeout=5)
+        second.result(timeout=5)
+    assert registration.alias == "latest"
+    assert registry.resolve("latest") == registration
