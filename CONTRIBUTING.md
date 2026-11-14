@@ -44,7 +44,7 @@ uv run pytest
 Mypy remains the required type checker. Ty runs alongside it in a non-blocking
 **Typing (ty, advisory)** CI check; review its diagnostics without suppressing
 them just to make CI pass. Both tools check `axis`, and ty does not honor mypy's
-`type: ignore` comments. Ty is not added to the required pre-commit hooks.
+`type: ignore` comments. Ty also runs as an advisory pre-commit hook.
 
 For faster iteration, target only the files you changed:
 
@@ -71,8 +71,10 @@ Coverage must stay at or above 95% overall. All new code you introduce must have
 ## Pre-commit hooks
 
 The repository ships local hooks that refresh dependency lock data when needed
-and run `ruff check --fix`, `ruff format`, and `mypy`. The bootstrap script installs
-them automatically; for manual environment setup, install them with:
+and run `ruff check --fix`, `ruff format`, `mypy`, and advisory `ty check axis`.
+The ty hook always displays diagnostics but does not block commits on type
+findings. Setup or execution errors still fail the hook. The bootstrap script
+installs the hooks automatically; for manual environment setup, install them with:
 
 ```bash
 uv run pre-commit install

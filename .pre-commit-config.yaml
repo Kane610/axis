@@ -24,3 +24,9 @@ repos:
         entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m mypy axis'
         language: system
         pass_filenames: false
+      - id: ty
+        name: ty (advisory)
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ty check axis --exit-zero'
+        language: system
+        pass_filenames: false
+        verbose: true

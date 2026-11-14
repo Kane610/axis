@@ -46,8 +46,9 @@ and configured coverage threshold. Missing reports are flagged explicitly.
 
 Both type checkers are installed and pinned through the development setup above.
 Ty checks the same `axis` package as mypy and ignores mypy's `type: ignore`
-comments so its diagnostics remain independent. Pre-commit continues to require
-only mypy for type checking.
+comments so its diagnostics remain independent. Pre-commit runs ty as an advisory
+check with diagnostics always shown, without blocking commits on type findings.
+Mypy remains required; ty setup or execution errors still block commits.
 
 ## CLI navigation contract
 
