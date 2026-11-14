@@ -52,6 +52,50 @@ Mypy remains required; ty setup or execution errors still block commits.
 
 ## CLI navigation contract
 
+### Canonical CLI migration
+
+The next CLI release consolidates the executables under `axis`. It provides
+direct commands, offline Zsh completion, and a guided launcher with a
+command prompt. All interaction paths use the same argument validation and
+operations. Library consumers do not need the optional `cli` dependencies.
+
+The command inventory is:
+
+```text
+axis devices list|add|discover|remove|credentials
+axis device health
+axis api list|interfaces|read|browse
+axis params show
+axis events list|listen
+axis accounts list|create|update|delete
+axis doctor
+axis completion zsh
+```
+
+Bare `axis` opens the launcher only on a terminal. Bare command groups show
+help. Direct commands never prompt for missing arguments. `--device` selects
+a registered serial number or unique alias; interactive selection never
+implicitly supplies a target to an independent shell invocation.
+
+Remote writes require `--apply`; without it, commands validate and preview
+the intended change without contacting the device. Destructive changes also
+require confirmation, or `--yes` in scripts. Local registration commands
+explicitly change the local registry; removal requires confirmation.
+
+Finite results support `--json`; event streaming uses JSON Lines. Diagnostics
+go to stderr. Exit statuses are 0 (success), 1 (operation failure), 2 (usage
+error), and 130 (interrupted). Passwords must not appear in arguments,
+completion, history, logs, diagnostics, or previews.
+
+Completion reads command metadata and local identifiers only: it never
+discovers devices, authenticates, or contacts services. Shell setup is
+explicit and does not automatically modify startup files.
+
+The breaking upgrade requires reinstalling the CLI extra and replacing
+`axis-cli` and old flat event/parameter invocations with canonical subcommands.
+Existing registrations remain readable. Internal Python compatibility helpers
+are not executable aliases.
+
 The interactive CLI in `axis/cli/` follows a menu-first model.
 Router runtime is the only interactive execution path.
 
