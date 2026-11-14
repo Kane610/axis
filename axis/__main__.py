@@ -1,6 +1,5 @@
 """Read events and parameters from your Axis device."""
 
-import argparse
 import asyncio
 import logging
 from typing import TYPE_CHECKING
@@ -138,50 +137,6 @@ def websocket_flags_from_mode(stream_mode: str) -> tuple[bool, bool]:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("host", type=str)
-    parser.add_argument("username", type=str)
-    parser.add_argument("password", type=str)
-    parser.add_argument("-p", "--port", type=int, default=0)
-    parser.add_argument("--proto", type=str, default="http")
-    parser.add_argument("--events", action="store_true")
-    parser.add_argument("--params", action="store_true")
-    parser.add_argument(
-        "--stream-mode",
-        choices=["auto", "rtsp", "event"],
-        default="rtsp",
-    )
-    parser.add_argument("-D", "--debug", action="store_true")
-    args = parser.parse_args()
+    from axis.cli.entrypoint import main as run_cli
 
-    loglevel = logging.INFO
-    if args.debug:
-        loglevel = logging.DEBUG
-    logging.basicConfig(format="%(message)s", level=loglevel)
-
-    LOGGER.info(
-        "%s, %s, %s, %s, %s, %s",
-        args.host,
-        args.username,
-        args.password,
-        args.port,
-        args.events,
-        args.params,
-    )
-
-    try:
-        asyncio.run(
-            main(
-                host=args.host,
-                username=args.username,
-                password=args.password,
-                port=args.port,
-                params=args.params,
-                events=args.events,
-                web_proto=WebProtocol(args.proto),
-                stream_mode=args.stream_mode,
-            )
-        )
-
-    except KeyboardInterrupt:
-        LOGGER.info("Keyboard interrupt")
+    run_cli()

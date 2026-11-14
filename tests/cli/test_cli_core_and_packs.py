@@ -1956,16 +1956,9 @@ def test_cli_argument_parser_and_module_entrypoint(
     assert _parse_args(["--debug"]).debug
     assert not _parse_args([]).debug
 
-    def _run_and_exit(coroutine: object) -> bool:
-        coroutine.close()  # type: ignore[attr-defined]
-        return True
-
-    monkeypatch.setattr(sys, "argv", ["axis-cli", "--debug"])
-    monkeypatch.setattr(asyncio, "run", _run_and_exit)
-    monkeypatch.setattr(
-        "axis.cli.packs.devices.get_config_path",
-        lambda: tmp_path / "config.toml",
-    )
+    monkeypatch.setattr(sys, "argv", ["axis", "--help"])
     entrypoint = Path(__file__).resolve().parents[2] / "axis" / "cli" / "main.py"
 
-    runpy.run_path(str(entrypoint), run_name="__main__")
+    with patch("axis.cli.entrypoint.main") as run:
+        runpy.run_path(str(entrypoint), run_name="__main__")
+    run.assert_called_once()

@@ -205,5 +205,6 @@ __all__ = [
 
 
 if __name__ == "__main__":
-    args = _parse_args()
-    main(debug=args.debug)
+    from axis.cli.entrypoint import main as run_cli
+
+    run_cli()
