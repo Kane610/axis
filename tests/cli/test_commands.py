@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import importlib.util
+import importlib.metadata
 import json
 import sys
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import click
 from click.testing import CliRunner, Result
@@ -689,14 +689,60 @@ def test_main_success_and_explicit_failure() -> None:
     assert caught.value.code == 1
 
 
-def test_optional_bootstrap() -> None:
+def test_optional_bootstrap(capsys: pytest.CaptureFixture[str]) -> None:
     """Missing extras get actionable errors; installed extras reach canonical parsing."""
     with (
-        patch.object(importlib.util, "find_spec", return_value=None),
+        patch.object(
+            importlib.metadata,
+            "version",
+            side_effect=importlib.metadata.PackageNotFoundError,
+        ),
         pytest.raises(SystemExit) as caught,
     ):
         entrypoint.main()
     assert caught.value.code == 1
+    message = capsys.readouterr().err
+    metadata = importlib.metadata.metadata("axis")
+    assert metadata["Requires-Python"] in message
+    assert "click" in message
+    assert "prompt-toolkit" in message
     with patch.object(commands, "main") as run:
         entrypoint.main()
     run.assert_called_once()
+
+
+@pytest.mark.parametrize("absent", [True, False])
+def test_bootstrap_uses_declared_metadata(
+    absent: bool, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Declared extras, version ranges, Python requirements, and package names drive diagnostics."""
+    distribution = MagicMock(spec=importlib.metadata.Distribution)
+    distribution.requires = [
+        "base>=1",
+        'conditional-base>=1; python_version >= "3"',
+        'fake-ui>=2; extra == "cli"',
+        'fake-engine>=4; extra == "cli"',
+        'test-only>=1; extra == "test"',
+        'inactive-ui>=1; extra == "cli" and sys_platform == "unsupported-platform"',
+    ]
+    distribution.metadata = {"Name": "axis-demo", "Requires-Python": ">=3.16.0"}
+    distribution.version = "99"
+
+    def installed_version(name: str) -> str:
+        if name == "fake-ui" and absent:
+            raise importlib.metadata.PackageNotFoundError(name)
+        return {"fake-ui": "1.0", "fake-engine": "4.5"}[name]
+
+    with (
+        patch.object(importlib.metadata, "distribution", return_value=distribution),
+        patch.object(importlib.metadata, "version", side_effect=installed_version),
+        pytest.raises(SystemExit) as caught,
+    ):
+        entrypoint.main()
+    assert caught.value.code == 1
+    message = capsys.readouterr().err
+    assert "axis-demo 99" in message
+    assert "fake-ui>=2" in message
+    assert "fake-engine" not in message
+    assert "axis-demo[cli]" in message
+    assert "Python >=3.16.0" in message
