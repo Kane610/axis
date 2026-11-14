@@ -1,10 +1,14 @@
 """Explicit local Axis video-service discovery, without prompts or registration."""
 
 import asyncio
+from contextlib import AsyncExitStack
+import math
 import re
 
 from zeroconf import IPVersion, ServiceStateChange
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
+
+from .errors import ErrorKind, OperationError, _failure
 
 DiscoveredDevice = dict[str, str]
 
@@ -86,6 +90,9 @@ def _zeroconf_instance_name(service_name: str) -> str:
 
 async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDevice]:
     """Discover Axis devices advertised via Zeroconf axis-video service."""
+    if not math.isfinite(scan_seconds) or scan_seconds < 0:
+        msg = "Discovery duration must be finite and non-negative."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
     discovered_names: set[str] = set()
 
     def _on_service_state_change(
@@ -98,40 +105,42 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
         if state_change in {ServiceStateChange.Added, ServiceStateChange.Updated}:
             discovered_names.add(name)
 
-    azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
-    browser = AsyncServiceBrowser(
-        azc.zeroconf,
-        [AXIS_SERVICE_TYPE],
-        handlers=[_on_service_state_change],
-    )
     try:
-        await asyncio.sleep(scan_seconds)
-
-        entries: list[DiscoveredDevice] = []
-        seen_hosts: set[str] = set()
-        for service_name in sorted(discovered_names):
-            info = AsyncServiceInfo(AXIS_SERVICE_TYPE, service_name)
-            if not await info.async_request(azc.zeroconf, timeout=1500):
-                continue
-            macaddress = _extract_macaddress_property(info.properties)
-            if not macaddress or not is_axis_macaddress(macaddress):
-                continue
-            addresses = info.parsed_addresses(IPVersion.V4Only)
-            if not addresses:
-                continue
-            host = addresses[0]
-            if host in seen_hosts:
-                continue
-            seen_hosts.add(host)
-            entries.append(
-                {
-                    "host": host,
-                    "name": _zeroconf_instance_name(service_name),
-                    "macaddress": macaddress,
-                    **_extract_discovery_metadata(info.properties),
-                }
+        async with AsyncExitStack() as resources:
+            azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
+            resources.push_async_callback(azc.async_close)
+            browser = AsyncServiceBrowser(
+                azc.zeroconf,
+                [AXIS_SERVICE_TYPE],
+                handlers=[_on_service_state_change],
             )
-        return entries
-    finally:
-        await browser.async_cancel()
-        await azc.async_close()
+            resources.push_async_callback(browser.async_cancel)
+            await asyncio.sleep(scan_seconds)
+
+            entries: list[DiscoveredDevice] = []
+            seen_hosts: set[str] = set()
+            for service_name in sorted(discovered_names):
+                info = AsyncServiceInfo(AXIS_SERVICE_TYPE, service_name)
+                if not await info.async_request(azc.zeroconf, timeout=1500):
+                    continue
+                macaddress = _extract_macaddress_property(info.properties)
+                if not macaddress or not is_axis_macaddress(macaddress):
+                    continue
+                addresses = info.parsed_addresses(IPVersion.V4Only)
+                if not addresses:
+                    continue
+                host = addresses[0]
+                if host in seen_hosts:
+                    continue
+                seen_hosts.add(host)
+                entries.append(
+                    {
+                        "host": host,
+                        "name": _zeroconf_instance_name(service_name),
+                        "macaddress": macaddress,
+                        **_extract_discovery_metadata(info.properties),
+                    }
+                )
+            return entries
+    except Exception as exc:  # noqa: BLE001 - safe boundary; cancellation propagates
+        raise _failure(exc, message="Device discovery failed.") from None

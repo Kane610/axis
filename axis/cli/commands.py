@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import importlib.metadata
 import json
 import logging
 from pathlib import Path
-import re
 import shutil
 import sys
 from typing import TYPE_CHECKING, Any
@@ -218,9 +217,11 @@ def devices_list(runtime: Runtime, as_json: bool) -> None:
                 "serial": record.serial,
                 "alias": record.alias,
                 "model": record.model,
-                "host": record.config.host,
+                "host": record.host,
             }
-            for record in runtime.registry.load().values()
+            for record in (
+                entry.summary() for entry in runtime.registry.load().values()
+            )
         ],
         as_json,
     )
@@ -489,21 +490,16 @@ def account_change(
     as_json: bool,
 ) -> None:
     """Validate and preview account changes before allowing explicit remote writes."""
-    if re.fullmatch(r"[a-zA-Z0-9]{1,14}", username) is None:
-        msg = "Username must be 1-14 alphanumeric characters."
-        raise click.BadParameter(msg)
+    try:
+        operations.validate_account_username(username)
+    except operations.OperationError as exc:
+        raise click.BadParameter(str(exc)) from None
     record = runtime.device(device)
-    payload: dict[str, object] = {
-        "status": "applied" if apply else "preview",
-        "action": action,
-        "device": record.serial,
-        "username": username,
-    }
-    if action != "delete":
-        payload["privilege"] = privilege
-        payload["password_change"] = action == "create" or password_file is not None
+    intent = operations.prepare_account_change(
+        record, action, username, privilege, password_change=password_file is not None
+    )
     if not apply:
-        render(payload, as_json)
+        render(intent.preview(), as_json)
         return
     if action == "delete":
         confirm(runtime, yes, f"Delete account {username} on {record.serial}?")
@@ -518,12 +514,17 @@ def account_change(
         )
     )
     password = secret(runtime, password_file) if change_password else None
-    if action != "delete":
-        payload["password_change"] = change_password
-    runtime.run(
-        operations.change_account(record, action, username, password, privilege)
+    intent = replace(intent, password_change=change_password)
+    result = runtime.run(
+        operations.apply_account_change(
+            record,
+            intent,
+            password,
+            authorized=True,
+            confirmed=action == "delete",
+        )
     )
-    render(payload, as_json)
+    render(result.payload(), as_json)
 
 
 def register_account_write(action: str) -> None:

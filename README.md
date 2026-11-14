@@ -26,6 +26,43 @@ and safety. Device protocol models remain separate from application records and
 future screen state. This separation does not regroup models/interfaces/VAPIX
 or introduce a new device-capability layer.
 
+For an application that uses the local registry:
+
+```python
+from axis.application.operations import read_health
+from axis.application.records import HealthSnapshot
+from axis.application.storage import DeviceRegistry, default_config_path
+
+
+async def inspect_registered_device(identifier: str) -> HealthSnapshot:
+    record = DeviceRegistry(default_config_path()).resolve(identifier)
+    return await read_health(record)
+```
+
+The caller owns its event loop; the operation closes its own HTTP session.
+`HealthSnapshot` retains the initiating public target, separately observed device
+identity, and a UTC observation timestamp. `DeviceRecord.summary()` omits login
+credentials. Saved metadata is not live health; a differing observed serial
+must be shown as an identity discrepancy. There is no implicit polling or cache.
+
+Use `prepare_account_change` for an offline, immutable, secret-free intention,
+then display its `preview()`. Only after explicit authorization should an adapter
+await `apply_account_change(..., authorized=True)`; deletion additionally needs
+`confirmed=True`. Password input must match the reviewed intention. Apply rejects
+changed targets/connection policy and verifies the live serial before writing.
+The returned `AccountChangeResult.payload()` preserves canonical mutation output.
+Do not use the compatibility executor `change_account` as a reviewed workflow.
+
+`OperationError.kind` provides safe recovery categories; `outcome_unknown` marks
+an ambiguous write acknowledgement. Do not retry that mutation automatically:
+read the account state before deciding what to do next. Cancelling a dispatched
+write also cannot undo it and may leave an uncertain outcome. No raw transport causes
+or credential-bearing traces are exposed by application boundaries.
+Discovery failures and cancellation release network resources, including browser
+initialization/cleanup failures. Registry persistence remains local, synchronous,
+and POSIX-locked, with plaintext credentials at rest; GUI/platform storage choices
+remain future work.
+
 ## Development setup
 
 `uv` is required for development setup:
@@ -172,6 +209,9 @@ preview the intended change without contacting the device or reading a
 password. Updates require an explicit `--privilege` so a password change cannot
 silently downgrade an administrator. Account deletion additionally requires
 interactive confirmation or `--yes` in scripts.
+Applied account changes now also verify that the connected serial matches the
+registered target before writing. A mismatch fails rather than changing another
+device at a reused address.
 
 ```bash
 axis accounts create viewer --device front-door

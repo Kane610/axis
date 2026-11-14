@@ -147,6 +147,7 @@ application services without optional CLI dependencies.
 | Endpoint support, device control, transport, or event handling | Existing library interfaces/transport |
 | Device and handler lifecycle | Existing device/VAPIX orchestration |
 | Reusable application read or mutation workflow | `axis/application/operations.py` |
+| Offline account validation and immutable intentions | `axis/application/accounts.py` |
 | Stored connection records and credential-free summaries | `axis/application/records.py` |
 | TOML registry, locking, and atomic local updates | `axis/application/storage.py` |
 | Network discovery without prompts or registration | `axis/application/discovery.py` |
@@ -162,8 +163,14 @@ A future device-capability layer or feature regrouping needs a separate proposal
 ### Public contracts and ownership
 
 The existing device-library interfaces remain available to integrations.
-Application contracts are the documented records/registry, discovery function,
-async read operations, typed health snapshots, and account intent/apply functions.
+Application contracts are the records/registry, `discover_axis_devices`, async
+read operations, `read_health`/`HealthSnapshot`, and
+`prepare_account_change`/`AccountChange`/`apply_account_change`/
+`AccountChangeResult`. `DeviceRecord.summary()` returns an immutable
+`DeviceSummary` with no login username/password. `OperationError.kind` uses
+`ErrorKind`; `outcome_unknown` indicates a lost/ambiguous write acknowledgement.
+`health` preserves the existing four-field dictionary for CLI consumers.
+`change_account` is a compatibility executor, not the reviewed apply API.
 Underscore-prefixed helpers, legacy menu/router machinery, and presentation
 helpers are internal. Re-exporting an implementation for compatibility does not
 make all of its internals a new supported API.
@@ -173,7 +180,11 @@ start an event loop, or choose a selected device. The CLI owns its runner; other
 consumers own their loop. Finite application operations own and close their
 HTTP sessions. A listener owns its subscription and stream until cancellation or
 failure, and releases them before returning. Cancellation is not a successful
-empty result. There is no implicit persistent connection, polling, or retry.
+empty result. Cancelling a dispatched write cannot undo it and may leave its
+remote outcome uncertain; reconcile account state before retrying. Finite HTTP
+requests retain existing session timeout defaults; consumers can set an outer
+`asyncio.timeout` budget. Stream startup has a 30-second limit. There is no
+implicit persistent connection, polling, or retry.
 
 | State | Owner and contract |
 |-------|--------------------|
@@ -202,8 +213,11 @@ at rest, protected by owner-only files rather than encryption.
 Share validation, mutation intentions, and device execution, not prompts or
 screens. Preview must not contact a device, read a password, or write. Application
 apply requires explicit authorization, and deletion requires confirmation.
-An intention is bound to its reviewed target; resolving a changed alias is not
-authorization to operate on another device. Password collection and terminal
+An intention is bound to its reviewed serial, address, and connection policy;
+friendly alias/model changes do not invalidate it. Apply also verifies live
+device identity before writing, so address reuse cannot silently target another
+device. Resolving a changed alias is not authorization to operate on another
+device. Password collection and terminal
 confirmation belong to the adapter. Lower-level library controls remain available
 without imposing interactive policy on integrations.
 
@@ -227,6 +241,17 @@ Use existing mocks for faults, target binding, cancellation, cleanup, and
 concurrent persistence. Test library/application imports without UI dependencies.
 Coverage is not evidence of hardware compatibility, usability, or accessibility;
 record real-device and human validation separately and state untested limitations.
+
+`read_health` captures its initiating target before awaiting and returns UTC
+`observed_at` with separately observed serial/model/product/firmware. A differing
+observed serial is not proof that the registered device is healthy: consumers
+must display that identity discrepancy, not relabel the result as another
+selection. It does not silently update local registration or maintain a cache.
+Reads/streams snapshot connection settings, including the redaction password,
+so later edits cannot alter transport or leak previously received credentials.
+Stream callbacks run synchronously on the operation's loop: adapters should
+enqueue bounded work rather than block them or perform UI updates from arbitrary
+threads. Cancelling the listener releases its stream and subscription.
 
 ### Handler initialization phases
 

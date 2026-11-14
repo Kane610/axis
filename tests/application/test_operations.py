@@ -2,16 +2,29 @@
 
 import asyncio
 from base64 import b64encode
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock
+from dataclasses import FrozenInstanceError, asdict, dataclass, replace
+from datetime import UTC, datetime
+import json
+from ssl import SSLError
+from typing import TYPE_CHECKING, get_type_hints
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import quote, quote_plus
 
+from aiohttp import ClientConnectionError, ClientPayloadError
 import pytest
 
 from axis.application import operations
+from axis.application.errors import ErrorKind, OperationError
 from axis.application.records import ConnectionSettings, DeviceRecord
-from axis.errors import PathNotFound, RequestError
+from axis.errors import (
+    Forbidden,
+    LoginRequired,
+    MethodNotAllowed,
+    PathNotFound,
+    RequestError,
+    ResponseError,
+    Unauthorized,
+)
 from axis.interfaces.vapix import InterfaceState
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 from axis.models.event import Event, EventOperation, EventTopic
@@ -916,3 +929,339 @@ async def test_listener_failures_after_startup(
     with pytest.raises(operations.OperationError, match=message):
         await task
     _assert_listener_closed(device)
+
+
+async def test_typed_health_retains_target_and_redaction_during_edits(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """An in-flight read cannot adopt new selection/credentials or lose redaction."""
+    original = record.summary()
+    secret = record.config.password
+    device.vapix.product_full_name = f"AXIS {secret}"
+
+    async def update() -> bool:
+        record.serial = "OTHER"
+        record.alias = "Changed"
+        record.config.host = "other.local"
+        record.config.password = "replacement"
+        return True
+
+    device.vapix.basic_device_info.update.side_effect = update
+    before = datetime.now(UTC)
+    snapshot = await operations.read_health(record)
+    assert snapshot.target == original
+    assert snapshot.serial == "CURRENT"
+    assert snapshot.product == "AXIS [redacted]"
+    assert before <= snapshot.observed_at <= datetime.now(UTC)
+    assert snapshot.observed_at.tzinfo is UTC
+    assert get_type_hints(type(snapshot))["observed_at"] is datetime
+    assert device.config.host == original.host
+    assert device.config.password == secret
+    assert device.config.session.closed
+    payload = operations.normalize_payload(snapshot)
+    assert isinstance(payload, dict)
+    assert payload["observed_at"] == snapshot.observed_at.isoformat()
+    assert secret not in json.dumps(payload)
+    assert "root" not in json.dumps(asdict(original))
+    with pytest.raises(FrozenInstanceError):
+        snapshot.serial = "OTHER"
+
+
+async def test_typed_health_rejects_malformed_identity(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Typed results do not disguise missing identity values as successful strings."""
+    device.vapix.firmware_version = None
+    with pytest.raises(OperationError) as caught:
+        await operations.read_health(record)
+    assert caught.value.kind is ErrorKind.RESPONSE
+    assert device.config.session.closed
+
+
+@pytest.mark.parametrize(
+    ("failure", "kind"),
+    [
+        (Unauthorized("secret"), ErrorKind.AUTHENTICATION),
+        (LoginRequired("secret"), ErrorKind.AUTHENTICATION),
+        (Forbidden("secret"), ErrorKind.PERMISSION),
+        (SSLError("secret"), ErrorKind.CERTIFICATE),
+        (TimeoutError("secret"), ErrorKind.TIMEOUT),
+        (RequestError("secret"), ErrorKind.CONNECTION),
+        (ClientConnectionError("secret"), ErrorKind.CONNECTION),
+        (PathNotFound("secret"), ErrorKind.UNSUPPORTED),
+        (MethodNotAllowed("secret"), ErrorKind.UNSUPPORTED),
+        (ResponseError("secret"), ErrorKind.RESPONSE),
+        (ClientPayloadError("secret"), ErrorKind.RESPONSE),
+        (ValueError("secret"), ErrorKind.VALIDATION),
+        (RuntimeError("secret"), ErrorKind.OPERATION),
+    ],
+)
+async def test_safe_recovery_categories(
+    record: DeviceRecord, device: MagicMock, failure: Exception, kind: ErrorKind
+) -> None:
+    """Adapters get actionable categories without raw exceptions or secret text."""
+    device.vapix.api_discovery.update.side_effect = failure
+    with pytest.raises(OperationError) as caught:
+        await operations.list_apis(record)
+    assert caught.value.kind is kind
+    assert not caught.value.outcome_unknown
+    assert "secret" not in str(caught.value)
+    assert caught.value.__cause__ is None
+    assert caught.value.__suppress_context__
+    assert device.config.session.closed
+
+
+def test_unknown_error_category_is_safe(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Future categories fall back without leaking arbitrary values through logging."""
+    with caplog.at_level("DEBUG", logger="axis.application.errors"):
+        error = OperationError("Safe message", kind="secret-new-category")
+    assert error.kind is ErrorKind.UNKNOWN
+    assert "secret-new-category" not in caplog.text
+    assert "Unknown application error category" in caplog.text
+
+
+@pytest.mark.parametrize("action", ["create", "update", "delete"])
+def test_offline_account_intentions(
+    record: DeviceRecord, device: MagicMock, action: str
+) -> None:
+    """Preparing an immutable intention neither connects nor contains credentials."""
+    with patch.object(operations, "ClientSession", side_effect=AssertionError):
+        intent = operations.prepare_account_change(record, action, "alice", "operator")
+        preview = intent.preview()
+    assert preview["status"] == "preview"
+    assert preview["device"] == record.serial
+    assert record.config.password not in json.dumps(asdict(intent))
+    assert "root" not in json.dumps(asdict(intent))
+    device.vapix.users.list.assert_not_awaited()
+    with pytest.raises(FrozenInstanceError):
+        intent.username = "bob"
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"action": "create", "password_change": False},
+        {"action": "delete", "password_change": True},
+        {"password_change": None},
+        {"target": None},
+    ],
+)
+def test_intent_rejects_invalid_password_or_target(
+    record: DeviceRecord, updates: dict[str, object]
+) -> None:
+    """Invalid intentions cannot reach an adapter or execution boundary."""
+    intent = operations.prepare_account_change(record, "update", "alice")
+    with pytest.raises(OperationError) as caught:
+        replace(intent, **updates)
+    assert caught.value.kind is ErrorKind.VALIDATION
+
+
+@pytest.mark.parametrize(
+    ("action", "username", "password"),
+    [("create", "bob", "new"), ("update", "alice", None), ("delete", "alice", None)],
+)
+async def test_apply_reviewed_intention(
+    record: DeviceRecord,
+    device: MagicMock,
+    action: str,
+    username: str,
+    password: str | None,
+) -> None:
+    """Apply verifies live identity and returns only acknowledged canonical results."""
+    device.vapix.serial_number = record.serial
+    intent = operations.prepare_account_change(record, action, username, "operator")
+    result = await operations.apply_account_change(
+        record, intent, password, authorized=True, confirmed=True
+    )
+    assert result.payload() == {**intent.preview(), "status": "applied"}
+    device.vapix.basic_device_info.update.assert_awaited_once()
+    assert device.config.session.closed
+
+
+@pytest.mark.parametrize(
+    ("action", "authorized", "confirmed", "message"),
+    [
+        ("update", False, False, "authorization"),
+        ("delete", True, False, "confirmation"),
+    ],
+)
+async def test_apply_requires_explicit_intent(
+    record: DeviceRecord,
+    device: MagicMock,
+    action: str,
+    authorized: bool,
+    confirmed: bool,
+    message: str,
+) -> None:
+    """Shared execution does not rely on the CLI to enforce authorization/deletion."""
+    intent = operations.prepare_account_change(record, action, "alice")
+    with pytest.raises(OperationError, match=message):
+        await operations.apply_account_change(
+            record, intent, authorized=authorized, confirmed=confirmed
+        )
+    device.vapix.users.list.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("serial", "OTHER"),
+        ("host", "other.local"),
+        ("port", 8443),
+        ("verify_ssl", True),
+    ],
+)
+async def test_apply_rejects_target_changes(
+    record: DeviceRecord, device: MagicMock, field: str, value: object
+) -> None:
+    """A changed address, identity, or transport policy invalidates prior review."""
+    intent = operations.prepare_account_change(record, "update", "alice")
+    setattr(record if field == "serial" else record.config, field, value)
+    with pytest.raises(OperationError, match="target changed") as caught:
+        await operations.apply_account_change(record, intent, authorized=True)
+    assert caught.value.kind is ErrorKind.CONFLICT
+    device.vapix.users.list.assert_not_awaited()
+
+
+async def test_apply_allows_metadata_changes(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Renaming an alias cannot retarget an intention and need not invalidate it."""
+    intent = operations.prepare_account_change(record, "update", "alice")
+    record.alias = "Renamed"
+    record.model = "Updated local label"
+    device.vapix.serial_number = record.serial
+    result = await operations.apply_account_change(record, intent, authorized=True)
+    assert result.intent.target.alias == "Front"
+    device.vapix.users.modify.assert_awaited_once()
+
+
+@pytest.mark.parametrize(("change", "password"), [(False, "new"), (True, None)])
+async def test_apply_rejects_unreviewed_password_changes(
+    record: DeviceRecord, device: MagicMock, change: bool, password: str | None
+) -> None:
+    """Password input must agree with what the caller reviewed before connecting."""
+    intent = operations.prepare_account_change(
+        record, "update", "alice", password_change=change
+    )
+    with pytest.raises(OperationError, match="reviewed intention"):
+        await operations.apply_account_change(record, intent, password, authorized=True)
+    device.vapix.users.list.assert_not_awaited()
+
+
+async def test_apply_rejects_wrong_live_device(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """An IP reused by another device cannot receive a reviewed account mutation."""
+    intent = operations.prepare_account_change(record, "update", "alice")
+    with pytest.raises(OperationError, match="identity differs") as caught:
+        await operations.apply_account_change(record, intent, authorized=True)
+    assert caught.value.kind is ErrorKind.CONFLICT
+    assert not caught.value.outcome_unknown
+    device.vapix.users.list.assert_not_awaited()
+    device.vapix.users.modify.assert_not_awaited()
+    assert device.config.session.closed
+
+
+@pytest.mark.parametrize(
+    ("failure", "kind", "uncertain"),
+    [
+        (TimeoutError("secret"), ErrorKind.TIMEOUT, True),
+        (RequestError("secret"), ErrorKind.CONNECTION, True),
+        (Unauthorized("secret"), ErrorKind.AUTHENTICATION, False),
+        (Forbidden("secret"), ErrorKind.PERMISSION, False),
+    ],
+)
+async def test_remote_write_outcome_and_no_retries(
+    record: DeviceRecord,
+    device: MagicMock,
+    failure: Exception,
+    kind: ErrorKind,
+    uncertain: bool,
+) -> None:
+    """Lost acknowledgements are uncertain; definite rejections are not retried."""
+    device.vapix.users.modify.side_effect = failure
+    with pytest.raises(OperationError) as caught:
+        await operations.change_account(record, "update", "alice")
+    assert caught.value.kind is kind
+    assert caught.value.outcome_unknown is uncertain
+    assert ("outcome is unknown" in str(caught.value)) is uncertain
+    assert "secret" not in str(caught.value)
+    device.vapix.users.modify.assert_awaited_once()
+    assert device.config.session.closed
+
+
+async def test_safe_mutation_failure_is_preserved(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Already categorized failures retain their explicit outcome metadata."""
+    failure = OperationError("Safe failure", kind=ErrorKind.PERMISSION)
+    device.vapix.users.modify.side_effect = failure
+    with pytest.raises(OperationError) as caught:
+        await operations.change_account(record, "update", "alice")
+    assert caught.value is failure
+    assert device.config.session.closed
+
+
+async def test_cancelled_apply_closes_session_without_retry(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Cancellation after dispatch propagates and releases resources, not success."""
+    started = asyncio.Event()
+    device.vapix.serial_number = record.serial
+
+    async def modify(*args: object, **kwargs: object) -> None:
+        started.set()
+        await asyncio.Future()
+
+    device.vapix.users.modify.side_effect = modify
+    intent = operations.prepare_account_change(record, "update", "alice")
+    task = asyncio.create_task(
+        operations.apply_account_change(record, intent, authorized=True)
+    )
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    device.vapix.users.modify.assert_awaited_once()
+    assert device.config.session.closed
+
+
+async def test_concurrent_health_owns_independent_targets_and_sessions(
+    record: DeviceRecord, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Multiple consumers can await services without global selection or a runner."""
+    other = DeviceRecord(
+        "OTHER", ConnectionSettings("other.local", "operator", "other")
+    )
+    ready = asyncio.Event()
+    devices: list[MagicMock] = []
+
+    async def update() -> bool:
+        await ready.wait()
+        return True
+
+    def construct(config: Configuration) -> MagicMock:
+        instance = MagicMock(config=config)
+        instance.vapix.basic_device_info.update = AsyncMock(side_effect=update)
+        instance.vapix.serial_number = (
+            "SERIAL" if config.host == "camera.local" else "OTHER"
+        )
+        instance.vapix.product_number = "M123"
+        instance.vapix.product_full_name = "AXIS M123"
+        instance.vapix.firmware_version = "12.1"
+        devices.append(instance)
+        if len(devices) == 2:
+            ready.set()
+        return instance
+
+    monkeypatch.setattr(operations, "AxisDevice", construct)
+    results = await asyncio.gather(
+        operations.read_health(record), operations.read_health(other)
+    )
+    assert [result.target.serial for result in results] == ["SERIAL", "OTHER"]
+    assert [result.serial for result in results] == ["SERIAL", "OTHER"]
+    assert devices[0].config.session is not devices[1].config.session
+    assert all(device.config.session.closed for device in devices)

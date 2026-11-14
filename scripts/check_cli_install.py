@@ -72,6 +72,63 @@ def verify() -> None:
             )
             executable = python.parent / ("axis.exe" if os.name == "nt" else "axis")
             if profile == "base":
+                application = run(
+                    [
+                        str(python),
+                        "-c",
+                        (
+                            "import asyncio, importlib.util, json, sys\n"
+                            "from dataclasses import asdict\n"
+                            "from datetime import datetime\n"
+                            "from pathlib import Path\n"
+                            "from typing import get_type_hints\n"
+                            "from aiohttp import ClientSession\n"
+                            "from axis.device import AxisDevice\n"
+                            "from axis.models.configuration import Configuration\n"
+                            "from axis.application import discovery, operations, storage\n"
+                            "from axis.application.records import ConnectionSettings, DeviceRecord, HealthSnapshot\n"
+                            "async def probe():\n"
+                            " async with ClientSession() as session:\n"
+                            "  device = AxisDevice(Configuration(session=session, host='camera.local', username='root', password='test-secret'))\n"
+                            "  if device.config.session is not session: raise RuntimeError('Library session ownership changed')\n"
+                            " return session.closed\n"
+                            "record = DeviceRecord('SERIAL', ConnectionSettings('camera.local', 'root', 'test-secret'))\n"
+                            "registry = storage.DeviceRegistry(Path('not-created/config.toml'))\n"
+                            "print(json.dumps({"
+                            "'origin': operations.__file__,"
+                            "'summary': asdict(record.summary()),"
+                            "'records': len(registry.load()),"
+                            "'closed': asyncio.run(probe()),"
+                            "'typed': get_type_hints(HealthSnapshot)['observed_at'] is datetime,"
+                            "'payload': operations.normalize_payload({'password':'test-secret','value':1}),"
+                            "'ui': [n for n in ('click','prompt_toolkit') if importlib.util.find_spec(n)],"
+                            "'presentation': [n for n in sys.modules if n.startswith('axis.cli')]"
+                            "}))\n"
+                        ),
+                    ],
+                    root,
+                    env,
+                )
+                report = json.loads(application.stdout)
+                require(
+                    Path(report["origin"]).is_relative_to(environment),
+                    f"Wrong application origin: {report}",
+                )
+                require(
+                    not report["ui"] and not report["presentation"],
+                    f"Library/application requires presentation: {report}",
+                )
+                require(
+                    report["closed"]
+                    and report["typed"]
+                    and report["records"] == 0
+                    and report["payload"] == {"value": 1}
+                    and report["summary"]["serial"] == "SERIAL"
+                    and "test-secret" not in application.stdout
+                    and "username" not in report["summary"]
+                    and not (root / "not-created").exists(),
+                    f"Invalid library/application contract: {report}",
+                )
                 missing = subprocess.run(  # noqa: S603
                     [str(executable), "--help"],
                     cwd=root,
@@ -86,6 +143,9 @@ def verify() -> None:
                     and "axis[cli]" in missing.stderr
                     and "Traceback" not in missing.stderr,
                     f"Invalid library-only CLI bootstrap: {missing}",
+                )
+                sys.stdout.write(
+                    "Library/application passed: no UI dependencies, caller-owned session, safe summaries, offline registry.\n"
                 )
                 continue
             tree = run(

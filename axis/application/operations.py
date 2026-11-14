@@ -3,7 +3,8 @@
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager, suppress
-from dataclasses import fields, is_dataclass
+from dataclasses import fields, is_dataclass, replace
+from datetime import UTC, datetime
 from enum import Enum
 import re
 from typing import TYPE_CHECKING
@@ -11,12 +12,20 @@ from urllib.parse import quote, quote_plus
 
 from aiohttp import ClientSession, TCPConnector
 
-from axis.application.errors import OperationError
-from axis.application.records import ConnectionSettings, DeviceRecord
+from axis.application.accounts import (
+    _PRIVILEGES,
+    AccountChange,
+    AccountChangeResult,
+    _validate_account,
+    _validate_password,
+    prepare_account_change,
+    validate_account_username,
+)
+from axis.application.errors import ErrorKind, OperationError, _failure
+from axis.application.records import ConnectionSettings, DeviceRecord, HealthSnapshot
 from axis.device import AxisDevice
 from axis.errors import AxisException
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
-from axis.models.pwdgrp_cgi import SecondaryGroup
 from axis.rtsp import Signal
 
 if TYPE_CHECKING:
@@ -25,6 +34,7 @@ if TYPE_CHECKING:
 __all__ = [
     "STARTUP_TIMEOUT",
     "OperationError",
+    "apply_account_change",
     "change_account",
     "health",
     "identify",
@@ -35,18 +45,13 @@ __all__ = [
     "listen",
     "normalize_payload",
     "parameters",
+    "prepare_account_change",
+    "read_health",
     "read_interface",
+    "validate_account_username",
 ]
 
 STARTUP_TIMEOUT = 30.0
-_PRIVILEGES = {
-    "admin": SecondaryGroup.ADMIN,
-    "admin_ptz": SecondaryGroup.ADMIN_PTZ,
-    "operator": SecondaryGroup.OPERATOR,
-    "operator_ptz": SecondaryGroup.OPERATOR_PTZ,
-    "viewer": SecondaryGroup.VIEWER,
-    "viewer_ptz": SecondaryGroup.VIEWER_PTZ,
-}
 _SENSITIVE = (
     "password",
     "passwd",
@@ -67,6 +72,7 @@ _SENSITIVE = (
 @asynccontextmanager
 async def _device(settings: ConnectionSettings) -> AsyncGenerator[AxisDevice]:
     try:
+        settings = replace(settings)
         async with ClientSession(
             connector=TCPConnector(ssl=settings.verify_ssl)
         ) as session:
@@ -87,9 +93,8 @@ async def _device(settings: ConnectionSettings) -> AsyncGenerator[AxisDevice]:
             )
     except OperationError:
         raise
-    except Exception:  # noqa: BLE001 - boundary must not expose transport credentials
-        msg = "Device operation failed."
-        raise OperationError(msg) from None
+    except Exception as exc:  # noqa: BLE001 - safe application boundary
+        raise _failure(exc) from None
 
 
 def _private(key: str) -> bool:
@@ -102,6 +107,8 @@ def _private(key: str) -> bool:
 
 
 def _serialize(value: object, password: str = "") -> object:
+    if isinstance(value, datetime):
+        value = value.isoformat()
     if isinstance(value, Enum):
         return _serialize(value.value, password)
     if is_dataclass(value) and not isinstance(value, type):
@@ -125,7 +132,7 @@ def _serialize(value: object, password: str = "") -> object:
     if value is None or isinstance(value, (bool, int, float)):
         return value
     msg = "Unsupported device response."
-    raise OperationError(msg)
+    raise OperationError(msg, kind=ErrorKind.RESPONSE)
 
 
 def _redact_text(value: str, password: str) -> str:
@@ -155,14 +162,14 @@ def normalize_payload(value: object, password: str = "") -> object:
         raise
     except Exception:  # noqa: BLE001 - normalization is also a public safe boundary
         msg = "Invalid device response."
-        raise OperationError(msg) from None
+        raise OperationError(msg, kind=ErrorKind.RESPONSE) from None
 
 
 def _row(value: object, password: str) -> dict[str, object]:
     result = normalize_payload(value, password)
     if not isinstance(result, dict):
         msg = "Unexpected device response."
-        raise OperationError(msg)
+        raise OperationError(msg, kind=ErrorKind.RESPONSE)
     return {str(key): item for key, item in result.items()}
 
 
@@ -174,7 +181,7 @@ async def _identity(device: AxisDevice) -> None:
         pass
     if not await device.vapix.params.property_handler.update():
         msg = "Device identity is unavailable."
-        raise OperationError(msg)
+        raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
     with suppress(AxisException):
         await device.vapix.params.brand_handler.update()
 
@@ -186,7 +193,7 @@ async def identify(settings: ConnectionSettings) -> DeviceRecord:
         serial = device.vapix.serial_number.strip()
         if not serial or serial.lower() in {"unknown", "<unknown>", "none", "n/a"}:
             msg = "Device did not provide a valid serial number."
-            raise OperationError(msg)
+            raise OperationError(msg, kind=ErrorKind.RESPONSE)
         return DeviceRecord(
             serial=serial,
             config=settings,
@@ -194,19 +201,38 @@ async def identify(settings: ConnectionSettings) -> DeviceRecord:
         )
 
 
-async def health(record: DeviceRecord) -> dict[str, object]:
-    """Read current basic device information, not cached registry metadata."""
+def _text(value: object, password: str) -> str:
+    if not isinstance(value, str):
+        msg = "Unexpected device identity response."
+        raise OperationError(msg, kind=ErrorKind.RESPONSE)
+    return _redact_text(value, password)
+
+
+async def read_health(record: DeviceRecord) -> HealthSnapshot:
+    """Read fresh identity with an immutable initiating target and UTC timestamp."""
+    target = record.summary()
     async with _device(record.config) as device:
         await _identity(device)
-        return _row(
-            {
-                "serial": device.vapix.serial_number,
-                "model": device.vapix.product_number,
-                "product": device.vapix.product_full_name,
-                "firmware_version": device.vapix.firmware_version,
-            },
-            record.config.password,
+        password = device.config.password
+        return HealthSnapshot(
+            firmware_version=_text(device.vapix.firmware_version, password),
+            model=_text(device.vapix.product_number, password),
+            observed_at=datetime.now(UTC),
+            product=_text(device.vapix.product_full_name, password),
+            serial=_text(device.vapix.serial_number, password),
+            target=target,
         )
+
+
+async def health(record: DeviceRecord) -> dict[str, object]:
+    """Preserve canonical health output; read_health adds typed ownership metadata."""
+    snapshot = await read_health(record)
+    return {
+        "serial": snapshot.serial,
+        "model": snapshot.model,
+        "product": snapshot.product,
+        "firmware_version": snapshot.firmware_version,
+    }
 
 
 async def list_apis(record: DeviceRecord) -> list[dict[str, object]]:
@@ -214,9 +240,9 @@ async def list_apis(record: DeviceRecord) -> list[dict[str, object]]:
     async with _device(record.config) as device:
         if not await device.vapix.api_discovery.update():
             msg = "API discovery is unavailable."
-            raise OperationError(msg)
+            raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
         return [
-            _row(api, record.config.password)
+            _row(api, device.config.password)
             for api in device.vapix.api_discovery.values()
         ]
 
@@ -227,7 +253,7 @@ async def list_interfaces(record: DeviceRecord) -> list[dict[str, object]]:
         states = await device.vapix.inspect_interfaces(
             refresh_discovery=True, probe=True
         )
-        return [_row(state, record.config.password) for state in states.values()]
+        return [_row(state, device.config.password) for state in states.values()]
 
 
 def _traverse(value: object, path: str) -> object:
@@ -235,16 +261,16 @@ def _traverse(value: object, path: str) -> object:
         if isinstance(value, dict):
             if token not in value:
                 msg = "Response path does not exist."
-                raise OperationError(msg)
+                raise OperationError(msg, kind=ErrorKind.VALIDATION)
             value = value[token]
         elif isinstance(value, list):
             if not token.isdecimal() or int(token) >= len(value):
                 msg = "Response path does not exist."
-                raise OperationError(msg)
+                raise OperationError(msg, kind=ErrorKind.VALIDATION)
             value = value[int(token)]
         else:
             msg = "Response path cannot be traversed."
-            raise OperationError(msg)
+            raise OperationError(msg, kind=ErrorKind.VALIDATION)
     return value
 
 
@@ -256,12 +282,12 @@ async def read_interface(
         handler = device.vapix.interfaces().get(name)
         if handler is None:
             msg = "Unknown device interface."
-            raise OperationError(msg)
+            raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
         await device.vapix.initialize()
         if not handler.initialized and not await handler.update():
             msg = "Device interface is unavailable."
-            raise OperationError(msg)
-        payload = normalize_payload(dict(handler.items()), record.config.password)
+            raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
+        payload = normalize_payload(dict(handler.items()), device.config.password)
         return _traverse(payload, path) if path else payload
 
 
@@ -270,9 +296,9 @@ async def parameters(record: DeviceRecord) -> object:
     async with _device(record.config) as device:
         if not await device.vapix.params.update():
             msg = "Device parameters are unavailable."
-            raise OperationError(msg)
+            raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
         return normalize_payload(
-            dict(device.vapix.params.items()), record.config.password
+            dict(device.vapix.params.items()), device.config.password
         )
 
 
@@ -281,9 +307,9 @@ async def list_events(record: DeviceRecord) -> list[dict[str, object]]:
     async with _device(record.config) as device:
         if not await device.vapix.event_instances.update():
             msg = "Device event definitions are unavailable."
-            raise OperationError(msg)
+            raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
         return [
-            _row(event, record.config.password)
+            _row(event, device.config.password)
             for event in device.vapix.event_instances.values()
         ]
 
@@ -293,7 +319,7 @@ async def list_accounts(record: DeviceRecord) -> object:
     async with _device(record.config) as device:
         users = await device.vapix.users.list()
         return {
-            username: normalize_payload(user, record.config.password)
+            username: normalize_payload(user, device.config.password)
             for username, user in users.items()
         }
 
@@ -304,45 +330,74 @@ async def change_account(
     username: str,
     password: str | None = None,
     privilege: str = "viewer",
+    *,
+    expected_serial: str | None = None,
 ) -> None:
-    """Create, update, or delete an account without silently changing actions."""
-    if action not in {"create", "update", "delete"}:
-        msg = "Unknown account action."
-        raise OperationError(msg)
-    if re.fullmatch(r"[A-Za-z0-9]{1,14}", username) is None:
-        msg = "Username must contain 1-14 ASCII letters or digits."
-        raise OperationError(msg)
-    if privilege not in _PRIVILEGES:
-        msg = "Unknown account privilege."
-        raise OperationError(msg)
-    if action == "create" and password is None:
-        msg = "Creating an account requires a password."
-        raise OperationError(msg)
-    if password is not None and (
-        not 1 <= len(password) <= 64
-        or any(not 32 <= ord(char) <= 126 for char in password)
-    ):
-        msg = "Password must contain 1-64 printable ASCII characters."
-        raise OperationError(msg)
+    """Compatibility executor; adapters should use reviewed apply_account_change."""
+    _validate_account(action, username, privilege)
+    _validate_password(action, password)
     async with _device(record.config) as device:
+        if expected_serial is not None:
+            await _identity(device)
+            if device.vapix.serial_number.strip() != expected_serial:
+                msg = "Connected device identity differs from the reviewed target."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
         users = await device.vapix.users.list()
         if action == "create":
             if username in users:
                 msg = "Account already exists."
-                raise OperationError(msg)
-            await device.vapix.users.create(
-                username, pwd=password or "", sgrp=_PRIVILEGES[privilege]
-            )
-        else:
-            if username not in users:
-                msg = "Account does not exist."
-                raise OperationError(msg)
-            if action == "update":
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+        elif username not in users:
+            msg = "Account does not exist."
+            raise OperationError(msg, kind=ErrorKind.CONFLICT)
+        try:
+            if action == "create":
+                await device.vapix.users.create(
+                    username, pwd=password or "", sgrp=_PRIVILEGES[privilege]
+                )
+            elif action == "update":
                 await device.vapix.users.modify(
                     username, pwd=password, sgrp=_PRIVILEGES[privilege]
                 )
             else:
                 await device.vapix.users.delete(username)
+        except OperationError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - no secrets or automatic write retries
+            raise _failure(exc, outcome_unknown=True) from None
+
+
+async def apply_account_change(
+    record: DeviceRecord,
+    intent: AccountChange,
+    password: str | None = None,
+    *,
+    authorized: bool = False,
+    confirmed: bool = False,
+) -> AccountChangeResult:
+    """Execute only an explicitly authorized, unchanged reviewed intention."""
+    if authorized is not True:
+        msg = "Account changes require explicit authorization."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    if intent.action == "delete" and confirmed is not True:
+        msg = "Account deletion requires confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    if not intent.target.same_target(record.summary()):
+        msg = "Reviewed device target changed; prepare and review the action again."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+    if intent.password_change != (password is not None):
+        msg = "Password input does not match the reviewed intention."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    snapshot = replace(record, config=replace(record.config))
+    await change_account(
+        snapshot,
+        intent.action,
+        intent.username,
+        password,
+        intent.privilege,
+        expected_serial=intent.target.serial,
+    )
+    return AccountChangeResult(intent)
 
 
 async def listen(
@@ -359,7 +414,7 @@ async def listen(
     """
     if stream_mode not in {"auto", "rtsp", "event"}:
         msg = "Unknown event stream mode."
-        raise OperationError(msg)
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
     async with _device(record.config) as device:
         if stream_mode != "auto":
             device.config.websocket_enabled = stream_mode == "event"
@@ -368,18 +423,18 @@ async def listen(
         connected: asyncio.Future[None] = loop.create_future()
         finished: asyncio.Future[None] = loop.create_future()
 
-        def fail(message: str) -> None:
+        def fail(message: str, kind: ErrorKind = ErrorKind.CONNECTION) -> None:
             future = finished if connected.done() else connected
             if not future.done():
-                future.set_exception(OperationError(message))
+                future.set_exception(OperationError(message, kind=kind))
 
         def on_event(event: Event) -> None:
             if topic is not None and event.topic != topic:
                 return
             try:
-                emit(normalize_payload(event, record.config.password))
+                emit(normalize_payload(event, device.config.password))
             except Exception:  # noqa: BLE001 - callbacks must not strand the listener
-                fail("Event callback failed.")
+                fail("Event callback failed.", ErrorKind.OPERATION)
 
         def on_signal(signal: Signal) -> None:
             if signal == Signal.FAILED:
@@ -406,7 +461,7 @@ async def listen(
                     await connected
             except TimeoutError:
                 msg = "Event stream startup timed out."
-                raise OperationError(msg) from None
+                raise OperationError(msg, kind=ErrorKind.TIMEOUT) from None
             await finished
         finally:
             device.stream.connection_status_callback.remove(on_signal)

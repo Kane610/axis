@@ -1,6 +1,7 @@
 """Session-free application records, separate from VAPIX runtime configuration."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import datetime  # noqa: TC003 - public snapshots support runtime type introspection
 from unicodedata import category
 
 from .errors import _fail
@@ -8,6 +9,37 @@ from .errors import _fail
 
 def _has_unsafe_characters(identifier: str) -> bool:
     return any(category(char) in ("Cc", "Cf", "Cs", "Zl", "Zp") for char in identifier)
+
+
+@dataclass(frozen=True)
+class DeviceSummary:
+    """Immutable local identity/connection snapshot without login credentials."""
+
+    auth_scheme: str
+    host: str
+    is_companion: bool
+    port: int
+    serial: str
+    verify_ssl: bool
+    web_proto: str
+    alias: str = ""
+    model: str = ""
+
+    def same_target(self, other: DeviceSummary) -> bool:
+        """Ignore friendly metadata, but not identity or connection policy changes."""
+        return replace(self, alias="", model="") == replace(other, alias="", model="")
+
+
+@dataclass(frozen=True)
+class HealthSnapshot:
+    """Fresh observed identity plus its initiating target and UTC observation time."""
+
+    firmware_version: str
+    model: str
+    observed_at: datetime
+    product: str
+    serial: str
+    target: DeviceSummary
 
 
 @dataclass
@@ -90,3 +122,17 @@ class DeviceRecord:
         if not isinstance(self.config, ConnectionSettings):
             _fail("Device config must be ConnectionSettings.")
         self.config.__post_init__()
+
+    def summary(self) -> DeviceSummary:
+        """Copy public registration metadata, never the credential-bearing config."""
+        return DeviceSummary(
+            auth_scheme=self.config.auth_scheme,
+            host=self.config.host,
+            is_companion=self.config.is_companion,
+            port=self.config.port,
+            serial=self.serial,
+            verify_ssl=self.config.verify_ssl,
+            web_proto=self.config.web_proto,
+            alias=self.alias,
+            model=self.model,
+        )
