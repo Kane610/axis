@@ -14,6 +14,19 @@
 
 ## Architecture
 
+- Read the authoritative separation-of-concerns and ownership contract in
+  `CONTRIBUTING.md` before adding or moving functionality. Keep this instruction
+  concise; update that guide instead of duplicating its architecture rules here.
+- Keep one repository/distribution with Python subpackages. The device library
+  must remain directly usable by Home Assistant and other integrations without
+  application registries or optional presentation dependencies.
+- Shared workflows, records, persistence, and discovery belong in
+  `axis/application/`; terminal parsing, prompts, completion, and rendering stay
+  in `axis/cli/`. Core code must not import applications/presentation, and
+  application code must not import CLI/GUI dependencies.
+- Do not restructure `axis/models/`, `axis/interfaces/`, or `axis/vapix/` as part
+  of application separation. A future capability layer or model regrouping
+  requires a separate proposal.
 - Keep boundaries clear:
 	- `axis/interfaces/` contains API handlers and transport-facing logic.
 	- `axis/models/` contains request/response models, enums, and parsing helpers.

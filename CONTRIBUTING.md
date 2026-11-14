@@ -116,6 +116,118 @@ The library is split into three layers. Keep changes inside the appropriate boun
 | Interfaces | `axis/interfaces/` | API handlers, transport-facing logic, VAPIX calls |
 | Orchestration | `axis/device.py`, `axis/interfaces/vapix.py` | Device lifecycle, handler registry, phase-based initialization |
 
+### Shared applications and separation of concerns
+
+Axis remains one repository and distribution. Scale responsibilities with Python
+subpackages, not by making the device library depend on a CLI or graphical app.
+Home Assistant and other integrations must retain direct access to the device
+library without local registrations, terminal dependencies, or application
+confirmation policies.
+
+The dependency direction is:
+
+```text
+CLI / future graphical adapter
+              |
+    axis.application services
+              |
+       existing device library
+```
+
+Applications may also use the local persistence adapter. Core library consumers
+can bypass application services and own their existing sessions and event loops.
+The core does not import `axis.application` or presentation packages; application
+services do not import `axis.cli`, Click, or prompt_toolkit. Architecture tests
+enforce these import boundaries, and installed-wheel checks exercise the
+application services without optional CLI dependencies.
+
+| Responsibility | Placement |
+|----------------|-----------|
+| VAPIX request, response, enum, or parser | Existing `axis/models/` feature |
+| Endpoint support, device control, transport, or event handling | Existing library interfaces/transport |
+| Device and handler lifecycle | Existing device/VAPIX orchestration |
+| Reusable application read or mutation workflow | `axis/application/operations.py` |
+| Stored connection records and credential-free summaries | `axis/application/records.py` |
+| TOML registry, locking, and atomic local updates | `axis/application/storage.py` |
+| Network discovery without prompts or registration | `axis/application/discovery.py` |
+| CLI arguments, completion, secret input, confirmation, rendering | `axis/cli/` |
+| Future screen navigation, loading state, pending edits | Graphical presentation adapter |
+
+Do not put every dataclass in `axis/models/`. Device protocol models remain
+separate from application registrations, mutation intentions, and presentation
+state. Keep API-specific enums and parsing close to their feature. The current
+separation does not reorganize models, interfaces, VAPIX, or their public imports.
+A future device-capability layer or feature regrouping needs a separate proposal.
+
+### Public contracts and ownership
+
+The existing device-library interfaces remain available to integrations.
+Application contracts are the documented records/registry, discovery function,
+async read operations, typed health snapshots, and account intent/apply functions.
+Underscore-prefixed helpers, legacy menu/router machinery, and presentation
+helpers are internal. Re-exporting an implementation for compatibility does not
+make all of its internals a new supported API.
+
+Application services are directly awaitable: they do not prompt, print, exit,
+start an event loop, or choose a selected device. The CLI owns its runner; other
+consumers own their loop. Finite application operations own and close their
+HTTP sessions. A listener owns its subscription and stream until cancellation or
+failure, and releases them before returning. Cancellation is not a successful
+empty result. There is no implicit persistent connection, polling, or retry.
+
+| State | Owner and contract |
+|-------|--------------------|
+| Saved registrations | Local registry; reads are snapshots, not live health |
+| Credentials | Connection records; never expose them as presentation state |
+| Observed health | Timestamped immutable result; retain the initiating identity |
+| Connections/subscriptions | Operation/listener that created them |
+| Selected device, pending edits, displayed data | Presentation adapter |
+| Mutation intention | Immutable reviewed target/action; no secrets |
+
+Resolve aliases before starting work. A later selection change must not retarget
+an operation or relabel its result. Do not merge stored connection settings with
+runtime configuration: runtime configuration includes a live HTTP session.
+Do not create a second mutable cache of handler state without defining refresh,
+invalidation, and ownership first.
+
+Registry writes lock and read the latest file before atomic replacement.
+Credentials-only and alias-only updates preserve unrelated changes. Full-record
+upserts are intentionally last-writer-wins; reads and old records are not
+transactions. File locks do not serialize remote changes by another administrator.
+Registry mutations currently require POSIX locking. Credentials remain plaintext
+at rest, protected by owner-only files rather than encryption.
+
+### Safety, errors, and compatibility
+
+Share validation, mutation intentions, and device execution, not prompts or
+screens. Preview must not contact a device, read a password, or write. Application
+apply requires explicit authorization, and deletion requires confirmation.
+An intention is bound to its reviewed target; resolving a changed alias is not
+authorization to operate on another device. Password collection and terminal
+confirmation belong to the adapter. Lower-level library controls remain available
+without imposing interactive policy on integrations.
+
+Application errors expose safe categories and messages, never credential-bearing
+transport causes. Consumers can distinguish unsupported features, permissions,
+authentication, connection/certificate failure, timeout, invalid input, malformed
+responses, and unknown operation failure. A failed mutation may have an uncertain
+remote outcome: report it, reconcile with a read, and never automatically retry.
+Redaction belongs at application display/export boundaries, not in the underlying
+device models. Preserve useful library data for integration consumers.
+
+Before adding or moving functionality:
+
+1. Identify its responsibility, consumers, and state/lifecycle owner.
+2. Search for existing behavior and choose the lowest appropriate layer.
+3. Verify dependency direction and supported public import paths.
+4. Preserve CLI output shapes, exit statuses, and device-library contracts.
+5. Add focused tests for the changed behavior and update this guide if needed.
+
+Use existing mocks for faults, target binding, cancellation, cleanup, and
+concurrent persistence. Test library/application imports without UI dependencies.
+Coverage is not evidence of hardware compatibility, usability, or accessibility;
+record real-device and human validation separately and state untested limitations.
+
 ### Handler initialization phases
 
 Handlers declare the phases they participate in via `handler_groups` on the `ApiHandler` subclass. The three phases are:
