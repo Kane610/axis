@@ -1,4 +1,4 @@
-"""Coverage-focused tests for CLI core runtime and pack helpers."""
+"""Test command registration, menu routing, and built-in CLI packs."""
 
 from __future__ import annotations
 

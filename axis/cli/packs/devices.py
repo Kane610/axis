@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D103,PLC0414
+# ruff: noqa: D103,PLC0414
+
+"""Device registration, discovery, and connection helpers for the earlier menu CLI."""
 
 from __future__ import annotations
 
@@ -137,7 +139,7 @@ DeviceStore = dict[str, DeviceEntry]
 
 @dataclass
 class HealthCheckResult:
-    """Result of device health check operation."""
+    """Connection-check outcome with response time, model, firmware, and any error."""
 
     success: bool
     response_time_ms: float | None = None
@@ -160,7 +162,7 @@ def _debug_dump(label: str, payload: object) -> None:
 
 
 def register(registry: CommandRegistry, router: CliRouter) -> None:
-    """Register device-pack commands and menu nodes."""
+    """Add device registration and discovery to the earlier CLI's registry and menus."""
     registry.register_command(_AddDeviceCommand())
     registry.register_command(_DiscoverDevicesCommand())
     registry.register_command(_SelectDeviceForOperationsCommand())

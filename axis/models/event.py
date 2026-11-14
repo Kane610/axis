@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to integrate with Home Assistant."""
+"""Decode Axis event-stream payloads and normalize event states and topics."""
 
 from dataclasses import dataclass
 import enum
@@ -8,7 +8,7 @@ import xmltodict
 
 
 class EventOperation(enum.StrEnum):
-    """Possible operations of an event."""
+    """Change reported for an event topic."""
 
     INITIALIZED = "Initialized"
     CHANGED = "Changed"
@@ -17,12 +17,12 @@ class EventOperation(enum.StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> EventOperation:
-        """Set default enum member if an unknown value is provided."""
+        """Return UNKNOWN when the device reports an unrecognized operation."""
         return EventOperation.UNKNOWN
 
 
 class EventTopic(enum.StrEnum):
-    """Supported event topics."""
+    """Known Axis and ONVIF event topics normalized by this package."""
 
     AUDIO_CLASSIFICATION = "tnsaxis:AudioClassification"
     DAY_NIGHT_VISION = "tns1:VideoSource/tnsaxis:DayNightVision"
@@ -49,7 +49,7 @@ class EventTopic(enum.StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> EventTopic:
-        """Set default enum member if an unknown value is provided."""
+        """Return UNKNOWN when the event topic is not in the known topic list."""
         return EventTopic.UNKNOWN
 
 
@@ -87,7 +87,7 @@ XML_NAMESPACES = {
 
 
 def traverse(data: Any, keys: tuple[str, ...] | list[str]) -> Any:
-    """Traverse dictionary using keys to retrieve last item."""
+    """Follow a sequence of dictionary keys and return the final value."""
     if not isinstance(data, dict):
         return {}
 
@@ -99,7 +99,7 @@ def traverse(data: Any, keys: tuple[str, ...] | list[str]) -> Any:
 def extract_name_value(
     data: dict[str, list[dict[str, str]] | dict[str, str]], prefer: str | None = None
 ) -> tuple[str, str]:
-    """Extract name and value from a simple item, take first dictionary if it is a list."""
+    """Read a SimpleItem's name and value, selecting a preferred or first list entry."""
     item = data.get("SimpleItem", {})
     if isinstance(item, list):
         if not item:
@@ -114,7 +114,7 @@ def extract_name_value(
 
 
 def is_tripped(value: object, topic_base: EventTopic, event_type: object) -> bool:
-    """Return whether an event value should be considered active/tripped."""
+    """Return True for active states or non-empty stateless values, else False."""
     if (expected_state := TOPIC_TO_STATE.get(topic_base)) is not None:
         return str(value) == expected_state
 
@@ -137,7 +137,7 @@ def is_tripped(value: object, topic_base: EventTopic, event_type: object) -> boo
 
 @dataclass
 class Event:
-    """Event data from Axis device."""
+    """Normalized event topic, source, operation, value, and active state."""
 
     id: str
     is_tripped: bool
@@ -150,14 +150,14 @@ class Event:
 
     @classmethod
     def decode(cls, data: bytes | dict[str, Any]) -> Self:
-        """Decode data to an event object."""
+        """Decode either a normalized event dictionary or an XML metadata message."""
         if isinstance(data, dict):
             return cls._decode_from_dict(data)
         return cls._decode_from_bytes(data)
 
     @classmethod
     def _decode_from_dict(cls, data: dict[str, Any]) -> Self:
-        """Create event instance from dict."""
+        """Normalize event fields and derive the topic base and active state."""
         operation = EventOperation(data.get(EVENT_OPERATION, ""))
         topic = data.get(EVENT_TOPIC, "")
         source = data.get(EVENT_SOURCE, "")
@@ -187,7 +187,7 @@ class Event:
 
     @classmethod
     def _decode_from_bytes(cls, data: bytes) -> Self:
-        """Parse metadata xml."""
+        """Extract topic, source, operation, and value from an ONVIF XML message."""
         raw = xmltodict.parse(
             data,
             attr_prefix="",  # Remove "@" prefix from XML attributes for easier access

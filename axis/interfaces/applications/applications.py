@@ -16,11 +16,11 @@ MINIMUM_VERSION = "1.20"
 
 
 class ApplicationsHandler(ApiHandler[Application]):
-    """API Discovery for Axis devices."""
+    """List applications installed on the device, such as video analytics."""
 
     @property
     def listed_in_parameters(self) -> bool:
-        """Is application supported and in a usable state."""
+        """Check whether device parameters report a supported application platform version."""
         if self.vapix.params.property_handler.supported and (
             properties := self.vapix.params.property_handler.get("0")
         ):
@@ -30,10 +30,10 @@ class ApplicationsHandler(ApiHandler[Application]):
         return False
 
     async def _api_request(self) -> dict[str, Application]:
-        """Get default data of API discovery."""
+        """Read installed applications for this handler's cached data."""
         return await self.list_applications()
 
     async def list_applications(self) -> dict[str, Application]:
-        """List all APIs registered on API Discovery service."""
+        """Read the applications installed on the device."""
         response = await self.vapix.api_request(ListApplicationsRequest())
         return response.data

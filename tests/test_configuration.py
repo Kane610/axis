@@ -1,4 +1,4 @@
-"""Test Axis API Discovery API.
+"""Test configuration defaults and normalization for device connections.
 
 pytest --cov-report term-missing --cov=axis.configuration tests/test_configuration.py
 """
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 async def test_configuration(session: ClientSession) -> None:
-    """Test Configuration works."""
+    """Keep explicitly supplied HTTPS connection and transport settings."""
     config = Configuration(
         session,
         "192.168.0.1",
@@ -39,7 +39,7 @@ async def test_configuration(session: ClientSession) -> None:
 
 
 async def test_minimal_configuration(session: ClientSession) -> None:
-    """Test Configuration works."""
+    """Fill in HTTP defaults when only host and credentials are supplied."""
     config = Configuration(
         session,
         "192.168.1.1",
@@ -61,7 +61,7 @@ async def test_minimal_configuration(session: ClientSession) -> None:
 
 
 async def test_configuration_websocket_can_be_enabled(session: ClientSession) -> None:
-    """Test websocket transport can be explicitly enabled."""
+    """Allow WebSocket transport without forcing it."""
     config = Configuration(
         session,
         "192.168.1.10",
@@ -75,14 +75,14 @@ async def test_configuration_websocket_can_be_enabled(session: ClientSession) ->
 
 
 def test_unsupported_auth_scheme_defaults_to_auto() -> None:
-    """Test unsupported auth scheme maps to AUTO."""
+    """Map an unknown authentication scheme to automatic selection."""
     assert AuthScheme("unsupported") == AuthScheme.AUTO
 
 
 async def test_configuration_auth_scheme_is_normalized_to_enum(
     session: ClientSession,
 ) -> None:
-    """Test auth scheme input is normalized to enum value."""
+    """Convert a string authentication scheme to its enum member."""
     config = Configuration(
         session,
         "192.168.1.2",
@@ -95,14 +95,14 @@ async def test_configuration_auth_scheme_is_normalized_to_enum(
 
 
 def test_unsupported_web_protocol_defaults_to_http() -> None:
-    """Test unsupported web protocol maps to HTTP."""
+    """Map an unknown web protocol to HTTP."""
     assert WebProtocol("unsupported") == WebProtocol.HTTP
 
 
 async def test_configuration_web_protocol_is_normalized_to_enum(
     session: ClientSession,
 ) -> None:
-    """Test web protocol input is normalized to enum value."""
+    """Convert a string web protocol to its enum member."""
     config = Configuration(
         session,
         "192.168.1.3",
@@ -115,7 +115,7 @@ async def test_configuration_web_protocol_is_normalized_to_enum(
 
 
 async def test_configuration_default_https_port_is_443(session: ClientSession) -> None:
-    """Test default HTTPS configuration uses port 443."""
+    """Choose port 443 when HTTPS is selected without an explicit port."""
     config = Configuration(
         session,
         "192.168.1.4",
@@ -131,7 +131,7 @@ async def test_configuration_default_https_port_is_443(session: ClientSession) -
 async def test_configuration_zero_port_uses_http_default(
     session: ClientSession,
 ) -> None:
-    """Test port 0 uses HTTP default port."""
+    """Replace port zero with the default HTTP port."""
     config = Configuration(
         session,
         "192.168.1.5",
@@ -160,7 +160,7 @@ async def test_configuration_zero_port_uses_http_default(
 async def test_configuration_rejects_invalid_host_values(
     session: ClientSession, host: str
 ) -> None:
-    """Test host must be a plain hostname or IP address."""
+    """Reject hosts containing a scheme, path, query, whitespace, or no value."""
     with pytest.raises(ValueError, match="Host must"):
         Configuration(
             session,

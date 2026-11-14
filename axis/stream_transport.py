@@ -1,4 +1,4 @@
-"""Transport protocol shared by stream implementations."""
+"""Define the connection state, start/stop operations, and data access required by event streams."""
 
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -15,7 +15,7 @@ class StreamSession(Protocol):
 
 
 class StreamTransport(Protocol):
-    """Minimal transport contract used by StreamManager."""
+    """Operations and state that every StreamManager transport must provide."""
 
     @property
     def session(self) -> StreamSession:
@@ -29,4 +29,4 @@ class StreamTransport(Protocol):
 
     @property
     def data(self) -> bytes | dict[str, Any]:
-        """Return latest stream payload."""
+        """Return the next available stream payload."""

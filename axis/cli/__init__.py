@@ -1,4 +1,1 @@
-"""Axis CLI package.
-
-This package contains the command-line interface for Axis configuration validation and TOML export.
-"""
+"""Commands, interactive menus, and shell completion for working with Axis devices."""

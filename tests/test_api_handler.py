@@ -1,4 +1,4 @@
-"""Validate API handler and its subsription handling."""
+"""Test API handler version selection, initialization phases, and subscriptions."""
 
 from unittest.mock import MagicMock, Mock
 
@@ -10,16 +10,16 @@ from axis.interfaces.light_control import LightHandler
 
 @pytest.fixture
 def test_class():
-    """Fixture creating class for testing."""
+    """Create a subscription handler for the tests in this module."""
 
     class ClassForTest(SubscriptionHandler):
-        """Class to test subscriptions."""
+        """Minimal subscription handler with the default behavior."""
 
     return ClassForTest()
 
 
 def test_no_subscribers(test_class) -> None:
-    """Check data on no subscribers."""
+    """Signals do not call a callback when no subscribers are registered."""
     assert len(test_class._subscribers) == 1
 
     callback = Mock()
@@ -28,7 +28,7 @@ def test_no_subscribers(test_class) -> None:
 
 
 def test_all_filter_subscribers(test_class) -> None:
-    """Validate signalling a ID all subscriber."""
+    """A subscriber without an ID filter receives updates for every object."""
     assert len(test_class._subscribers) == 1
     unsub = test_class.subscribe(callback := Mock())
     assert len(test_class._subscribers) == 1
@@ -43,7 +43,7 @@ def test_all_filter_subscribers(test_class) -> None:
 
 
 def test_id_1_filter_subscribers(test_class) -> None:
-    """Validate signalling one subscriber."""
+    """An ID-filtered subscriber receives only updates for its object."""
     assert len(test_class._subscribers) == 1
     test_class.subscribe(callback := Mock(), "1")
     assert len(test_class._subscribers) == 2
@@ -80,7 +80,7 @@ def test_tuple_id_filter_unsubscribe(test_class) -> None:
 
 
 def test_multiple_subscribers(test_class) -> None:
-    """Validate signalling multiple subscribers."""
+    """All-subscriber and ID-filtered callbacks receive only their matching updates."""
     assert len(test_class._subscribers) == 1
     test_class.subscribe(callback := Mock(), "1")
     assert len(test_class._subscribers) == 2

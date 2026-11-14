@@ -7,13 +7,13 @@ from .param_cgi import ParamItem
 
 
 class PtzImageSourceParamT(TypedDict):
-    """PTZ image source description."""
+    """Whether PTZ is enabled for one image source."""
 
     PTZEnabled: bool
 
 
 class PtzLimitParamT(TypedDict):
-    """PTZ limit data description."""
+    """Optional minimum and maximum movement, focus, iris, zoom, and brightness limits."""
 
     MaxBrightness: NotRequired[int]
     MaxFieldAngle: NotRequired[int]
@@ -32,14 +32,14 @@ class PtzLimitParamT(TypedDict):
 
 
 class PresetPositionT(TypedDict):
-    """PTZ preset position data description."""
+    """Coordinates and optional name for one saved PTZ position."""
 
     data: tuple[float, float, float]
     name: str | None
 
 
 class PtzPresetParamT(TypedDict):
-    """PTZ preset data description."""
+    """Home position, image source, name, and saved positions for a preset group."""
 
     HomePosition: int
     ImageSource: int
@@ -48,7 +48,7 @@ class PtzPresetParamT(TypedDict):
 
 
 class PtzSupportParamT(TypedDict):
-    """PTZ support data description."""
+    """PTZ operations and features supported by a video-channel driver."""
 
     AbsoluteBrightness: bool
     AbsoluteFocus: bool
@@ -88,13 +88,13 @@ class PtzSupportParamT(TypedDict):
 
 
 class PtzUserAdvParamT(TypedDict):
-    """PTZ user adv data description."""
+    """Advanced movement-speed setting for a PTZ video channel."""
 
     MoveSpeed: int
 
 
 class PtzUserCtlQueueParamT(TypedDict):
-    """PTZ user control queue data description."""
+    """User control queue policy and timeout settings for a PTZ channel."""
 
     Priority: int
     TimeoutTime: int
@@ -104,7 +104,7 @@ class PtzUserCtlQueueParamT(TypedDict):
 
 
 class PtzVariousParamT(TypedDict):
-    """PTZ various configurations data description."""
+    """Control-queue and optional movement settings for a PTZ video channel."""
 
     CtlQueueing: bool
     CtlQueueLimit: int
@@ -121,7 +121,7 @@ class PtzVariousParamT(TypedDict):
 
 
 class PtzParamT(TypedDict):
-    """PTZ representation."""
+    """Top-level PTZ channel, driver, preset, limit, and capability settings."""
 
     BoaProtPTZOperator: str
     CameraDefault: int
@@ -140,18 +140,18 @@ class PtzParamT(TypedDict):
 
 @dataclass
 class PtzImageSource:
-    """Image source."""
+    """PTZ enablement for one image source."""
 
     ptz_enabled: bool
 
     @classmethod
     def decode(cls, data: PtzImageSourceParamT) -> Self:
-        """Decode dictionary to class object."""
+        """Convert image-source PTZ settings into a model."""
         return cls(ptz_enabled=data["PTZEnabled"])
 
     @classmethod
     def from_dict(cls, data: dict[str, PtzImageSourceParamT]) -> dict[str, Self]:
-        """Create objects from dict."""
+        """Convert image-source entries and index them by source number."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
 
@@ -185,7 +185,7 @@ class PtzLimit:
 
     @classmethod
     def decode(cls, data: PtzLimitParamT) -> Self:
-        """Decode dictionary to class object."""
+        """Convert the available movement limits into normalized fields."""
         return cls(
             max_zoom=data.get("MaxZoom"),
             min_zoom=data.get("MinZoom"),
@@ -205,13 +205,13 @@ class PtzLimit:
 
     @classmethod
     def from_dict(cls, data: dict[str, PtzLimitParamT]) -> dict[str, Self]:
-        """Create objects from dict."""
+        """Convert limit entries and index them by video-channel number."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
 
 @dataclass
 class PtzSupport:
-    """PTZ.Support.S# are populated when a driver is installed on a video channel.
+    """Movement and lens capabilities reported for a PTZ video channel.
 
     A parameter in the group has the value true if the corresponding capability
     is supported by the driver. The index # is the video channel number
@@ -259,7 +259,7 @@ class PtzSupport:
 
     @classmethod
     def decode(cls, data: PtzSupportParamT) -> Self:
-        """Decode dictionary to class object."""
+        """Convert the driver's PTZ capability flags into normalized fields."""
         return cls(
             absolute_brightness=data["AbsoluteBrightness"],
             absolute_focus=data["AbsoluteFocus"],
@@ -300,13 +300,13 @@ class PtzSupport:
 
     @classmethod
     def from_dict(cls, data: dict[str, PtzSupportParamT]) -> dict[str, Self]:
-        """Create objects from dict."""
+        """Convert capability entries and index them by video-channel number."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
 
 @dataclass
 class PtzVarious:
-    """PTZ.Various.V# are populated when a driver is installed on a video channel.
+    """Control-queue and optional movement settings reported for a PTZ channel.
 
     The index # is the video channel number which starts from 1.
     The group consists of several different types of parameters for the video channel.
@@ -330,7 +330,7 @@ class PtzVarious:
 
     @classmethod
     def decode(cls, data: PtzVariousParamT) -> Self:
-        """Decode dictionary to class object."""
+        """Convert the driver's miscellaneous PTZ settings into normalized fields."""
         return cls(
             control_queueing=data["CtlQueueing"],
             control_queue_limit=data["CtlQueueLimit"],
@@ -348,42 +348,41 @@ class PtzVarious:
 
     @classmethod
     def from_dict(cls, data: dict[str, PtzVariousParamT]) -> dict[str, Self]:
-        """Create objects from dict."""
+        """Convert miscellaneous settings and index them by video-channel number."""
         return {k[1:]: cls.decode(v) for k, v in data.items()}
 
 
 @dataclass(frozen=True)
 class PtzParam(ParamItem):
-    """PTZ parameters."""
+    """Device PTZ channels, image sources, movement limits, and driver capabilities."""
 
     camera_default: int
-    """PTZ default video channel.
+    """Default video channel used by PTZ requests when they omit a camera number.
 
-    When camera parameter is omitted in HTTP requests.
     """
 
     number_of_cameras: int
-    """Amount of video channels."""
+    """Number of video channels available for PTZ control."""
 
     number_of_serial_ports: int
-    """Amount of serial ports."""
+    """Number of serial ports used by PTZ drivers."""
 
     cam_ports: dict[str, int]
 
     image_source: dict[str, PtzImageSource]
 
     limits: dict[str, PtzLimit]
-    """PTZ.Limit.L# are populated when a driver is installed on a video channel."""
+    """Per-channel movement and lens limits reported by installed PTZ drivers."""
 
     support: dict[str, PtzSupport]
-    """PTZ.Support.S# are populated when a driver is installed on a video channel."""
+    """PTZ operations and features supported by each installed driver."""
 
     various: dict[str, PtzVarious]
-    """PTZ.Various.V# are populated when a driver is installed on a video channel."""
+    """Additional movement and control-queue settings reported by each driver."""
 
     @classmethod
     def decode(cls, data: PtzParamT) -> Self:
-        """Decode dictionary to class object."""
+        """Convert the param.cgi PTZ group into normalized channel models."""
         return cls(
             id="ptz",
             camera_default=data["CameraDefault"],

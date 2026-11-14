@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to integrate with Home Assistant."""
+"""Bring device controls, event handling, and streaming together for one Axis device."""
 
 from typing import TYPE_CHECKING
 
@@ -11,15 +11,15 @@ if TYPE_CHECKING:
 
 
 class AxisDevice:
-    """Creates a new Axis device.self."""
+    """Provide access to one device's VAPIX APIs, event subscriptions, and stream."""
 
     def __init__(self, configuration: Configuration) -> None:
-        """Initialize device functionality."""
+        """Create API, event, and stream helpers using the supplied connection settings."""
         self.config = configuration
         self.vapix = Vapix(self)
         self.stream = StreamManager(self)
         self.event = EventManager()
 
     def enable_events(self) -> None:
-        """Enable events for stream."""
+        """Include event messages when the stream is next started."""
         self.stream.event = True

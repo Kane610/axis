@@ -1,4 +1,4 @@
-"""Test CLI HTTP client backend selection."""
+"""Test CLI HTTP sessions, stream settings, and executable entrypoint behavior."""
 
 import asyncio
 import logging

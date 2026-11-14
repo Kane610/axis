@@ -35,6 +35,11 @@
 - Prefer boundary normalization for incoming values (for example, enum coercion and defaults in model constructors/post-init).
 
 ## Conventions
+- Write purpose-first, human-readable descriptions throughout the repository.
+  Follow `CONTRIBUTING.md`'s "Writing descriptions readers can use" section:
+  explain the feature and actual behavior, not architecture jargon or copied
+  names. Distinguish local/cached data, network reads, previews, and writes where
+  relevant; do not promise behavior the code does not provide.
 - For every new model or interface file, add a brief, informative module-level docstring at the top of the file. Summarize the file's purpose and, for VAPIX-related code, reference the relevant VAPIX API or feature. Use the official VAPIX library documentation as a source for the summary when possible.
 
 - Prefer minimal, targeted changes that preserve existing behavior unless the task explicitly requires a behavior change.

@@ -7,7 +7,7 @@ from .param_cgi import ParamItem
 
 
 class BrandT(TypedDict):
-    """Represent a brand object."""
+    """Brand and product identity fields under the param.cgi Brand group."""
 
     Brand: str
     ProdFullName: str
@@ -20,7 +20,7 @@ class BrandT(TypedDict):
 
 @dataclass(frozen=True)
 class BrandParam(ParamItem):
-    """Brand parameters."""
+    """Normalized manufacturer, model, and product URL from the Brand group."""
 
     brand: str
     """Device branding."""
@@ -45,7 +45,7 @@ class BrandParam(ParamItem):
 
     @classmethod
     def decode(cls, data: BrandT) -> Self:
-        """Decode dictionary to class object."""
+        """Convert the Brand group payload to normalized product fields."""
         return cls(
             id="brand",
             brand=data["Brand"],

@@ -1,4 +1,4 @@
-"""Canonical CLI behavior, offline completion, and explicit mutation contracts."""
+"""Test canonical CLI commands, local completion, and authorization for device changes."""
 
 from __future__ import annotations
 

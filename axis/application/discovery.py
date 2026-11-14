@@ -1,4 +1,8 @@
-"""Explicit local Axis video-service discovery, without prompts or registration."""
+"""Find Axis devices advertising their video service on the local IPv4 network.
+
+Discovery runs only when requested. It does not log in, register devices, or
+prompt the user.
+"""
 
 import asyncio
 from contextlib import AsyncExitStack
@@ -89,7 +93,7 @@ def _zeroconf_instance_name(service_name: str) -> str:
 
 
 async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDevice]:
-    """Discover Axis devices advertised via Zeroconf axis-video service."""
+    """Search for Axis video-service announcements for the requested number of seconds."""
     if not math.isfinite(scan_seconds) or scan_seconds < 0:
         msg = "Discovery duration must be finite and non-negative."
         raise OperationError(msg, kind=ErrorKind.VALIDATION)

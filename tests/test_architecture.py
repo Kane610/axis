@@ -1,4 +1,4 @@
-"""Enforce application boundaries and compatibility with direct library consumers."""
+"""Test that library, service, and CLI imports stay separate and compatible."""
 
 import ast
 from importlib.util import resolve_name
@@ -45,7 +45,7 @@ def _forbidden(source: str, package: str, prefixes: tuple[str, ...]) -> set[str]
 
 
 def test_library_and_application_dependency_direction() -> None:
-    """Core remains integration-ready and shared services stay presentation-free."""
+    """Keep the library independent of CLI imports and services independent of UI code."""
     violations: dict[str, set[str]] = {}
     for path in (ROOT / "axis").rglob("*.py"):
         relative = path.relative_to(ROOT)

@@ -1,4 +1,4 @@
-"""Test Axis MQTT Client API.
+"""Test MQTT client requests, event publication settings, and message decoding.
 
 pytest --cov-report term-missing --cov=axis.mqtt tests/test_mqtt.py
 """
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def mqtt_client(axis_device: AxisDevice) -> MqttClientHandler:
-    """Return the mqtt_client mock object."""
+    """Return the MQTT handler with API discovery set to version 1.0."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
     return axis_device.vapix.mqtt
@@ -66,7 +66,7 @@ def mock_mqtt_event_request(mock_api_request):
 async def test_client_config_simple(
     mock_mqtt_client_request, mock_mqtt_event_request, mqtt_client: MqttClientHandler
 ):
-    """Test simple MQTT client configuration."""
+    """Serialize a client configuration with only the required server address."""
     route = mock_mqtt_client_request({})
 
     client_config = ClientConfig(Server("192.168.0.1"))
@@ -89,7 +89,7 @@ async def test_client_config_simple(
 async def test_client_config_advanced(
     mock_mqtt_client_request, mock_mqtt_event_request, mqtt_client: MqttClientHandler
 ):
-    """Test advanced MQTT client configuration."""
+    """Serialize server, TLS, credentials, lifecycle, and message settings."""
     route = mock_mqtt_client_request({})
 
     client_config = ClientConfig(
@@ -194,7 +194,7 @@ async def test_client_config_advanced(
 async def test_activate_client(
     mock_mqtt_client_request, mock_mqtt_event_request, mqtt_client: MqttClientHandler
 ):
-    """Test activate client method."""
+    """Send the request that activates the MQTT client."""
     route = mock_mqtt_client_request({})
 
     await mqtt_client.activate()
@@ -212,7 +212,7 @@ async def test_activate_client(
 async def test_deactivate_client(
     mock_mqtt_client_request, mock_mqtt_event_request, mqtt_client: MqttClientHandler
 ):
-    """Test deactivate client method."""
+    """Send the request that deactivates the MQTT client."""
     route = mock_mqtt_client_request({})
 
     await mqtt_client.deactivate()
@@ -230,7 +230,7 @@ async def test_deactivate_client(
 async def test_get_client_status(
     mock_mqtt_client_request, mock_mqtt_event_request, mqtt_client: MqttClientHandler
 ):
-    """Test get client status method."""
+    """Return active and connection state from the MQTT client status response."""
     route = mock_mqtt_client_request(
         GET_CLIENT_STATUS_RESPONSE,
     )
@@ -253,7 +253,7 @@ async def test_get_client_status(
 async def test_get_event_publication_config_small(
     mock_mqtt_client_request, mock_mqtt_event_request, mqtt_client: MqttClientHandler
 ):
-    """Test get event publication config method."""
+    """Decode event publication options and filter entries from the response."""
     route = mock_mqtt_event_request(
         {
             "apiVersion": "1.0",
@@ -307,7 +307,7 @@ async def test_get_event_publication_config_small(
 async def test_configure_event_publication_all_topics(
     mock_mqtt_client_request, mock_mqtt_event_request, mqtt_client: MqttClientHandler
 ):
-    """Test configure event publication method with all topics."""
+    """Subscribe to all event topics when no topic list is provided."""
     route = mock_mqtt_event_request({})
 
     await mqtt_client.configure_event_publication()
@@ -328,7 +328,7 @@ async def test_configure_event_publication_specific_topics(
     mock_mqtt_event_request,
     mqtt_client: MqttClientHandler,
 ):
-    """Test configure event publication method with specific topics."""
+    """Send each requested topic filter when configuring event publication."""
     route = mock_mqtt_event_request({})
 
     topics = [
@@ -386,7 +386,7 @@ async def test_convert_json_to_event_prefers_active_value() -> None:
 
 
 def test_mqtt_json_to_event_missing_keys(caplog):
-    """Test mqtt_json_to_event returns None and logs warning if keys are missing."""
+    """Fill missing MQTT topic or message fields with empty values during decoding."""
     # Missing 'topic'
     msg = b'{"message": {"source": {"sensor": "0"}, "data": {"state": "0"}}}'
     result = mqtt_json_to_event(msg)
@@ -463,8 +463,7 @@ GET_CLIENT_STATUS_RESPONSE = {
 
 
 def test_client_connection_state_missing():
-    """Test ClientConnectionState._missing_ returns DISCONNECTED for unknown values."""
-    # Test unknown value returns DISCONNECTED
+    """Map unrecognized connection-state strings to DISCONNECTED."""
     result = ClientConnectionState._missing_("unknown_state")
     assert result == ClientConnectionState.DISCONNECTED
 

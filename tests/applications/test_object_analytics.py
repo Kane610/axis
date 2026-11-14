@@ -1,4 +1,4 @@
-"""Test Axis Object Analytics API.
+"""Test configuration parsing for the Axis Object Analytics API.
 
 pytest --cov-report term-missing --cov=axis.applications.object_analytics tests/applications/test_object_analytics.py
 """
@@ -17,12 +17,12 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def object_analytics(axis_device) -> ObjectAnalyticsHandler:
-    """Return the object analytics mock object."""
+    """Return the Object Analytics handler attached to the mocked device."""
     return axis_device.vapix.object_analytics
 
 
 async def test_get_no_configuration(aiohttp_mock_server, object_analytics):
-    """Test no response from get_configuration."""
+    """A response without configuration data raises an error and adds no entries."""
     _server, requests = await aiohttp_mock_server(
         "/local/objectanalytics/control.cgi",
         response={},
@@ -47,7 +47,7 @@ async def test_get_no_configuration(aiohttp_mock_server, object_analytics):
 
 
 async def test_get_empty_configuration(aiohttp_mock_server, object_analytics):
-    """Test empty get_configuration."""
+    """An empty configuration is accepted and initializes one configuration entry."""
     await aiohttp_mock_server(
         "/local/objectanalytics/control.cgi",
         response=GET_CONFIGURATION_EMPTY_RESPONSE,
@@ -61,7 +61,7 @@ async def test_get_empty_configuration(aiohttp_mock_server, object_analytics):
 
 
 async def test_get_configuration(aiohttp_mock_server, object_analytics):
-    """Test get_configuration."""
+    """A populated configuration preserves camera, scenario, filter, and trigger data."""
     await aiohttp_mock_server(
         "/local/objectanalytics/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,

@@ -15,11 +15,11 @@ from .application_handler import ApplicationHandler
 
 
 class FenceGuardHandler(ApplicationHandler[Configuration]):
-    """Fence guard handler for Axis devices."""
+    """Read the Fence Guard application's configuration from an Axis device."""
 
     app_name = ApplicationName.FENCE_GUARD
 
     async def get_configuration(self) -> Configuration:
-        """Get configuration of VMD4 application."""
+        """Read the Fence Guard application's configuration."""
         response = await self.vapix.api_request(GetConfigurationRequest())
         return response.data

@@ -1,4 +1,4 @@
-"""Focused validation, compatibility, atomicity, and locking tests for storage."""
+"""Test registry validation, compatibility, safe writes, and concurrent updates."""
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict

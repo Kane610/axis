@@ -1,7 +1,7 @@
-"""VAPIX temperature control handler for Axis devices.
+"""Read temperature sensor, heater, and fan status through VAPIX temperature control.
 
-Implements the handler for the Axis VAPIX temperature control API, providing access to device temperature sensors, heaters, and fans through standardized endpoints.
-Coordinates API requests and response parsing for temperature-related device features.
+Status properties use cached data from the most recent handler update; they
+do not poll the device automatically.
 """
 
 from ..models.api_discovery import ApiId
@@ -26,7 +26,7 @@ class TemperatureControlHandler(ApiHandler[TemperatureDevice]):
     handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, TemperatureDevice]:
-        """Get default temperature status data."""
+        """Read temperature-device status for this handler's cached data."""
         return await self.get_status_all()
 
     async def get_status_all(self) -> dict[str, TemperatureDevice]:
@@ -36,37 +36,37 @@ class TemperatureControlHandler(ApiHandler[TemperatureDevice]):
 
     @property
     def sensors(self) -> dict[str, TemperatureSensor]:
-        """Return all temperature sensors keyed by id."""
+        """Return cached temperature sensors keyed by ID."""
         return {k: v for k, v in self.items() if isinstance(v, TemperatureSensor)}
 
     @property
     def heaters(self) -> dict[str, TemperatureHeater]:
-        """Return all heaters keyed by id."""
+        """Return cached heaters keyed by ID."""
         return {k: v for k, v in self.items() if isinstance(v, TemperatureHeater)}
 
     @property
     def fans(self) -> dict[str, TemperatureFan]:
-        """Return all fans keyed by id."""
+        """Return cached fans keyed by ID."""
         return {k: v for k, v in self.items() if isinstance(v, TemperatureFan)}
 
     def get_sensor(self, sensor_id: str) -> TemperatureSensor | None:
-        """Return a specific sensor by id when available."""
+        """Return a cached sensor by ID, or None if it has not been loaded."""
         item = self.get(sensor_id)
         return item if isinstance(item, TemperatureSensor) else None
 
     def get_heater(self, heater_id: str) -> TemperatureHeater | None:
-        """Return a specific heater by id when available."""
+        """Return a cached heater by ID, or None if it has not been loaded."""
         item = self.get(heater_id)
         return item if isinstance(item, TemperatureHeater) else None
 
     def get_fan(self, fan_id: str) -> TemperatureFan | None:
-        """Return a specific fan by id when available."""
+        """Return a cached fan by ID, or None if it has not been loaded."""
         item = self.get(fan_id)
         return item if isinstance(item, TemperatureFan) else None
 
     @property
     def running_heaters(self) -> dict[str, TemperatureHeater]:
-        """Return all currently running heaters keyed by id."""
+        """Return cached heaters whose most recently reported status is running."""
         return {
             k: v
             for k, v in self.heaters.items()
@@ -75,7 +75,7 @@ class TemperatureControlHandler(ApiHandler[TemperatureDevice]):
 
     @property
     def running_fans(self) -> dict[str, TemperatureFan]:
-        """Return all currently running fans keyed by id."""
+        """Return cached fans whose most recently reported status is running."""
         return {
             k: v
             for k, v in self.fans.items()
@@ -84,7 +84,7 @@ class TemperatureControlHandler(ApiHandler[TemperatureDevice]):
 
     @property
     def running_actuators(self) -> dict[str, TemperatureActuator]:
-        """Return all currently running actuators (heaters and fans) keyed by id."""
+        """Return cached heaters and fans whose most recently reported status is running."""
         return {
             k: v
             for k, v in self.items()

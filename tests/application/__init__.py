@@ -1,1 +1,1 @@
-"""Application contract tests independent of terminal presentation."""
+"""Test library operations and storage without invoking terminal presentation."""

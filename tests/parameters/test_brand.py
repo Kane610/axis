@@ -1,4 +1,4 @@
-"""Test Axis brand parameter management."""
+"""Test parsing of product identity fields from Axis brand parameters."""
 
 from typing import TYPE_CHECKING
 
@@ -27,7 +27,7 @@ root.Brand.WebURL=http://www.axis.com/
 
 @pytest.fixture
 def brand_handler(axis_device: AxisDevice) -> BrandParameterHandler:
-    """Return the param cgi mock object."""
+    """Return the brand parameter handler attached to the mocked device."""
     return axis_device.vapix.params.brand_handler
 
 
@@ -44,7 +44,7 @@ async def _setup_param_route(
 
 
 async def test_brand_handler(aiohttp_mock_server, brand_handler: BrandParameterHandler):
-    """Verify that update brand works."""
+    """Parse product identity and URL fields from the standard brand response."""
     await _setup_param_route(aiohttp_mock_server, brand_handler, BRAND_RESPONSE)
     assert not brand_handler.initialized
 
@@ -64,7 +64,7 @@ async def test_brand_handler(aiohttp_mock_server, brand_handler: BrandParameterH
 async def test_brand_handler_5_51(
     aiohttp_mock_server, brand_handler: BrandParameterHandler
 ):
-    """Verify that update brand works."""
+    """Parse brand identity when older firmware omits the product variant."""
     await _setup_param_route(aiohttp_mock_server, brand_handler, BRAND_5_51_RESPONSE)
     await brand_handler.update()
 

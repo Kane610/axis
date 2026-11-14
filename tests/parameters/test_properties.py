@@ -1,4 +1,4 @@
-"""Test Axis property parameter management."""
+"""Test parsing of device capabilities and identity from property parameters."""
 
 from typing import TYPE_CHECKING
 
@@ -185,7 +185,7 @@ root.Properties.VirtualInput.VirtualInput=yes
 
 @pytest.fixture
 def property_handler(axis_device: AxisDevice) -> PropertyParameterHandler:
-    """Return the param cgi mock object."""
+    """Return the property parameter handler attached to the mocked device."""
     return axis_device.vapix.params.property_handler
 
 
@@ -206,7 +206,7 @@ async def _setup_param_route(
 async def test_property_handler(
     aiohttp_mock_server, property_handler: PropertyParameterHandler
 ):
-    """Verify that update properties works."""
+    """Parse firmware, image, feature, and device identity properties."""
     await _setup_param_route(aiohttp_mock_server, property_handler, PROPERTY_RESPONSE)
     assert not property_handler.initialized
     await property_handler.update()
@@ -262,10 +262,7 @@ async def test_property_handler(
 async def test_mixed_properties(
     aiohttp_mock_server, property_handler: PropertyParameterHandler, property_response
 ):
-    """Verify that update ptz works.
-
-    No embedded development provided.
-    """
+    """Accept property responses from older devices without EmbeddedDevelopment."""
     await _setup_param_route(aiohttp_mock_server, property_handler, property_response)
 
     await property_handler.update()

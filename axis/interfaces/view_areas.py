@@ -22,14 +22,14 @@ from .api_handler import ApiHandler, HandlerGroup
 
 
 class ViewAreaHandler(ApiHandler[ViewArea]):
-    """View areas for Axis devices."""
+    """Read and adjust camera regions exposed as separate video channels."""
 
     api_id = ApiId.VIEW_AREA
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, ViewArea]:
-        """Get default data of stream profiles."""
+        """Read the camera's view areas for this handler's cached data."""
         return await self.list_view_areas()
 
     async def list_view_areas(self) -> dict[str, ViewArea]:
@@ -69,6 +69,6 @@ class ViewAreaHandler(ApiHandler[ViewArea]):
         return response.data
 
     async def get_supported_config_versions(self) -> list[str]:
-        """List supported configure API versions."""
+        """List supported versions of the view-area configuration format."""
         response = await self.vapix.api_request(GetSupportedConfigVersionsRequest())
         return response.data

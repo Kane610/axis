@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D103,TC001
+# ruff: noqa: D103,TC001
+
+"""API discovery and data-browsing commands for the earlier menu CLI."""
 
 from __future__ import annotations
 
@@ -83,7 +85,7 @@ def _render_api_node(ctx: CliContext, io: CliIO) -> None:
 
 
 def register(registry: CommandRegistry, router: CliRouter) -> None:
-    """Register API-pack commands and menu nodes."""
+    """Add API discovery and browsing to the earlier CLI's command registry and menus."""
     registry.register_command(_ListSupportedApisCommand())
     registry.register_command(_ApiDrillDownCommand())
 

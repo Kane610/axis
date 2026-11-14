@@ -1,8 +1,7 @@
-"""Stream profiles API.
+"""Models for VAPIX stream profiles, reusable video-stream settings.
 
- A stream profile contains a collection of parameters such as
-video codecs, resolutions, frame rates and compressions,
-and should be used to retrieve a video stream from your Axis product.
+A profile groups settings such as codecs, resolution, frame rate, and compression
+for use when requesting a video stream.
 """
 
 from dataclasses import dataclass, field
@@ -16,14 +15,14 @@ API_VERSION = "1.0"
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by the stream-profile API."""
 
     code: int
     message: str
 
 
 class StreamProfileT(TypedDict):
-    """Stream profile representation."""
+    """Name, description, and encoded settings for one stream profile."""
 
     name: str
     description: str
@@ -31,14 +30,14 @@ class StreamProfileT(TypedDict):
 
 
 class ListStreamProfilesDataT(TypedDict):
-    """List of stream profiles."""
+    """Profile limit and profile entries returned by the list method."""
 
     maxProfiles: int
     streamProfile: list[StreamProfileT]
 
 
 class ListStreamProfilesResponseT(TypedDict):
-    """List response."""
+    """JSON envelope returned by the stream-profile list method."""
 
     apiVersion: str
     context: str
@@ -48,13 +47,13 @@ class ListStreamProfilesResponseT(TypedDict):
 
 
 class ApiVersionsT(TypedDict):
-    """List of supported API versions."""
+    """Stream-profile API versions supported by the device."""
 
     apiVersions: list[str]
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """ListApis response."""
+    """JSON envelope returned by getSupportedVersions."""
 
     apiVersion: str
     context: str
@@ -74,7 +73,7 @@ error_codes = {
 
 @dataclass(frozen=True)
 class StreamProfile(ApiItem):
-    """Stream profile item."""
+    """Reusable video-stream settings, including their name and description."""
 
     description: str
     parameters: str
@@ -86,7 +85,7 @@ class StreamProfile(ApiItem):
 
     @classmethod
     def decode(cls, data: StreamProfileT) -> Self:
-        """Decode dict to class object."""
+        """Convert one stream-profile entry into a model."""
         return cls(
             id=data["name"],
             description=data["description"],
@@ -96,7 +95,7 @@ class StreamProfile(ApiItem):
 
 @dataclass
 class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
-    """Response object for list sensors response."""
+    """Stream profiles returned by the list method, indexed by profile name."""
 
     api_version: str
     context: str
@@ -106,7 +105,7 @@ class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse the profile list and index its entries by name."""
         data: ListStreamProfilesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -118,7 +117,7 @@ class ListStreamProfilesResponse(ApiResponse[dict[str, StreamProfile]]):
 
 @dataclass
 class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesResponse]):
-    """Request object for listing stream profiles descriptions."""
+    """Request descriptions and settings for the selected stream profiles."""
 
     method = "post"
     path = "/axis-cgi/streamprofile.cgi"
@@ -133,7 +132,7 @@ class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the selected profile names in a list request."""
         profile_list = [{"name": profile} for profile in self.profiles]
         return orjson.dumps(
             {
@@ -147,7 +146,7 @@ class ListStreamProfilesRequest(ApiRequest[ListStreamProfilesResponse]):
 
 @dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
-    """Response object for supported versions."""
+    """Stream-profile API versions supported by the device."""
 
     api_version: str
     context: str
@@ -157,7 +156,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse the supported-version list from the response envelope."""
         data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -169,7 +168,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 @dataclass
 class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
-    """Request object for listing supported API versions."""
+    """Request the stream-profile API versions supported by the device."""
 
     method = "post"
     path = "/axis-cgi/streamprofile.cgi"
@@ -181,7 +180,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getSupportedVersions request as JSON."""
         return orjson.dumps(
             {
                 "context": self.context,

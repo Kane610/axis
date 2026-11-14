@@ -1,4 +1,4 @@
-"""Guided Axis navigation and command suggestions backed by the canonical Click tree."""
+"""Guide users through Axis commands with menus and suggestions from the CLI definitions."""
 
 from __future__ import annotations
 
@@ -46,17 +46,17 @@ def token_start(text: str) -> int:
 
 
 class CommandCompleter(Completer):
-    """Reuse Click's completion protocol, including offline device providers."""
+    """Suggest commands, options, and saved devices without making device requests."""
 
     def __init__(self, command: click.Group, runtime: Runtime) -> None:
-        """Bind suggestions to the current parser and registry path."""
+        """Use the CLI's command definitions and the chosen device configuration file."""
         self.command = command
         self.runtime = runtime
 
     def get_completions(
         self, document: Document, complete_event: CompleteEvent
     ) -> Iterable[Completion]:
-        """Suggest canonical commands and values without executing callbacks."""
+        """Suggest matching command words and values without running a command."""
         text = document.text_before_cursor
         start = token_start(text)
         args = split_arg_string(text[:start])
@@ -113,7 +113,7 @@ class CommandCompleter(Completer):
 
 
 def execute(runtime: Runtime, command: click.Group, args: list[str]) -> bool:
-    """Execute through the canonical parser while keeping the interactive session alive."""
+    """Run a CLI command and show errors without closing the interactive session."""
     try:
         result = command.main(
             args=["--config", str(runtime.config_path), *args],
@@ -132,7 +132,7 @@ def execute(runtime: Runtime, command: click.Group, args: list[str]) -> bool:
 
 
 def select_device(runtime: Runtime) -> None:
-    """Select an explicit local identifier without contacting devices."""
+    """Let the user choose a saved device without connecting to it."""
     records = list(runtime.registry.load().values())
     if not records:
         click.echo("No registered devices. Use devices add or discover.")
@@ -152,7 +152,7 @@ def select_device(runtime: Runtime) -> None:
 
 
 def guided_arguments(runtime: Runtime, command: click.Command) -> list[str]:
-    """Build a command from its actual argument definitions, not a second schema."""
+    """Ask for arguments using the CLI command's definitions, so menu validation stays consistent."""
     args: list[str] = []
     with command.make_context(
         command.name or "axis", [], resilient_parsing=True
@@ -203,7 +203,7 @@ def guided_arguments(runtime: Runtime, command: click.Command) -> list[str]:
 
 
 def command_prompt(runtime: Runtime, command: click.Group) -> None:
-    """Offer live suggestions and retry malformed input without retaining secrets."""
+    """Suggest commands as users type and let them correct mistakes without saving history."""
     session: PromptSession[str] = PromptSession(
         completer=CommandCompleter(command, runtime),
         complete_while_typing=True,
@@ -239,7 +239,7 @@ def command_prompt(runtime: Runtime, command: click.Group) -> None:
 
 
 def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> None:
-    """Browse actual interface names, dispatching reads through the same parser."""
+    """Let the user select a library handler and read it through the CLI command parser."""
     interfaces = runtime.run(operations.list_interfaces(record))
     if not interfaces:
         click.echo("No interfaces available.")
@@ -262,7 +262,7 @@ def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> 
 
 
 def launch(runtime: Runtime, command: click.Group) -> None:
-    """Navigate the command tree with visible context and predictable back/exit keys."""
+    """Show command menus and the selected device, with shortcuts for back and exit."""
     stack: list[tuple[click.Group, list[str]]] = [(command, [])]
     while True:
         group, path = stack[-1]

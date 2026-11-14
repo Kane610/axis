@@ -147,15 +147,15 @@ application services without optional CLI dependencies.
 | Endpoint support, device control, transport, or event handling | Existing library interfaces/transport |
 | Device and handler lifecycle | Existing device/VAPIX orchestration |
 | Reusable application read or mutation workflow | `axis/application/operations.py` |
-| Offline account validation and immutable intentions | `axis/application/accounts.py` |
-| Stored connection records and credential-free summaries | `axis/application/records.py` |
-| TOML registry, locking, and atomic local updates | `axis/application/storage.py` |
+| Validate and describe account changes without device access or passwords | `axis/application/accounts.py` |
+| Saved device settings and displayable details without login credentials | `axis/application/records.py` |
+| Save devices in TOML, coordinate writers, and replace completed files | `axis/application/storage.py` |
 | Network discovery without prompts or registration | `axis/application/discovery.py` |
 | CLI arguments, completion, secret input, confirmation, rendering | `axis/cli/` |
 | Future screen navigation, loading state, pending edits | Graphical presentation adapter |
 
 Do not put every dataclass in `axis/models/`. Device protocol models remain
-separate from application registrations, mutation intentions, and presentation
+separate from saved device registrations, proposed account changes, and screen
 state. Keep API-specific enums and parsing close to their feature. The current
 separation does not reorganize models, interfaces, VAPIX, or their public imports.
 A future device-capability layer or feature regrouping needs a separate proposal.
@@ -168,20 +168,21 @@ read operations, `read_health`/`HealthSnapshot`, and
 `prepare_account_change`/`AccountChange`/`apply_account_change`/
 `AccountChangeResult`. `DeviceRecord.summary()` returns an immutable
 `DeviceSummary` with no login username/password. `OperationError.kind` uses
-`ErrorKind`; `outcome_unknown` indicates a lost/ambiguous write acknowledgement.
+`ErrorKind`; `outcome_unknown` means a write may have completed without a clear
+response from the device.
 `health` preserves the existing four-field dictionary for CLI consumers.
 `change_account` is a compatibility executor, not the reviewed apply API.
 Underscore-prefixed helpers, legacy menu/router machinery, and presentation
 helpers are internal. Re-exporting an implementation for compatibility does not
 make all of its internals a new supported API.
 
-Application services are directly awaitable: they do not prompt, print, exit,
+Application functions can be awaited directly: they do not prompt, print, exit,
 start an event loop, or choose a selected device. The CLI owns its runner; other
 consumers own their loop. Finite application operations own and close their
 HTTP sessions. A listener owns its subscription and stream until cancellation or
 failure, and releases them before returning. Cancellation is not a successful
 empty result. Cancelling a dispatched write cannot undo it and may leave its
-remote outcome uncertain; reconcile account state before retrying. Finite HTTP
+remote outcome uncertain; read the account state before deciding whether to retry. Finite HTTP
 requests retain existing session timeout defaults; consumers can set an outer
 `asyncio.timeout` budget. Stream startup has a 30-second limit. There is no
 implicit persistent connection, polling, or retry.
@@ -190,10 +191,10 @@ implicit persistent connection, polling, or retry.
 |-------|--------------------|
 | Saved registrations | Local registry; reads are snapshots, not live health |
 | Credentials | Connection records; never expose them as presentation state |
-| Observed health | Timestamped immutable result; retain the initiating identity |
+| Observed health | Read-only result with the requested target, reported identity, and read time |
 | Connections/subscriptions | Operation/listener that created them |
 | Selected device, pending edits, displayed data | Presentation adapter |
-| Mutation intention | Immutable reviewed target/action; no secrets |
+| Proposed account change | Read-only description of the reviewed device and action; no passwords |
 
 Resolve aliases before starting work. A later selection change must not retarget
 an operation or relabel its result. Do not merge stored connection settings with
@@ -210,10 +211,10 @@ at rest, protected by owner-only files rather than encryption.
 
 ### Safety, errors, and compatibility
 
-Share validation, mutation intentions, and device execution, not prompts or
+Share validation, descriptions of proposed changes, and device execution, not prompts or
 screens. Preview must not contact a device, read a password, or write. Application
 apply requires explicit authorization, and deletion requires confirmation.
-An intention is bound to its reviewed serial, address, and connection policy;
+Each proposed change records its reviewed serial, address, and connection settings;
 friendly alias/model changes do not invalidate it. Apply also verifies live
 device identity before writing, so address reuse cannot silently target another
 device. Resolving a changed alias is not authorization to operate on another
@@ -224,8 +225,8 @@ without imposing interactive policy on integrations.
 Application errors expose safe categories and messages, never credential-bearing
 transport causes. Consumers can distinguish unsupported features, permissions,
 authentication, connection/certificate failure, timeout, invalid input, malformed
-responses, and unknown operation failure. A failed mutation may have an uncertain
-remote outcome: report it, reconcile with a read, and never automatically retry.
+responses, and unknown operation failure. A failed write may still have changed
+the device: report that uncertainty, read the current state, and never automatically retry.
 Redaction belongs at application display/export boundaries, not in the underlying
 device models. Preserve useful library data for integration consumers.
 
@@ -237,7 +238,7 @@ Before adding or moving functionality:
 4. Preserve CLI output shapes, exit statuses, and device-library contracts.
 5. Add focused tests for the changed behavior and update this guide if needed.
 
-Use existing mocks for faults, target binding, cancellation, cleanup, and
+Use existing mocks for failures, device identity checks, cancellation, cleanup, and
 concurrent persistence. Test library/application imports without UI dependencies.
 Coverage is not evidence of hardware compatibility, usability, or accessibility;
 record real-device and human validation separately and state untested limitations.
@@ -262,6 +263,40 @@ Handlers declare the phases they participate in via `handler_groups` on the `Api
 - `APPLICATION` — initialized after application loading.
 
 Override `should_initialize_in_group()` to customize eligibility within a phase. See [`axis/interfaces/light_control.py`](axis/interfaces/light_control.py) for a concrete fallback example.
+
+### Writing descriptions readers can use
+
+These rules apply to contributors and coding agents across the repository:
+module, class, function, test, fixture, CLI help, and documentation descriptions.
+
+- Start with the purpose: what the code lets a caller or user do, and which
+  device feature or data it handles. Do not just repeat its filename or class name.
+- Use plain language first. Keep precise API and protocol names where needed,
+  but explain their practical meaning instead of relying on architecture jargon.
+- Describe what the implementation actually does. Distinguish cached data from
+  a fresh network read, saved settings from device state, and reviewing a change
+  from applying it when that distinction matters.
+- Mention important limits or responsibilities when useful: who opens and closes
+  connections, whether passwords are included, or whether a call changes a device.
+  Do not imply encryption, rollback, automatic recovery, or hardware support that
+  the implementation does not provide.
+- Test and fixture descriptions should explain the scenario or setup and why it
+  matters, not say only "test function" or "mock response."
+- Read the implementation before editing its description. Fix copied feature
+  names and incorrect return or side-effect claims. Keep already clear wording
+  and relevant official VAPIX references; avoid decorative rewrites.
+- Keep the first sentence brief. Add detail only where it helps a reader use the
+  code correctly. Documentation changes should not change behavior or package
+  structure.
+
+For example, describe application operations as:
+
+> Read device information, manage accounts, and receive events for Axis
+> applications. Each async operation opens and closes its HTTP connection; these
+> functions do not display terminal prompts.
+
+This explains the purpose and connection lifetime instead of relying on
+"presentation-free, session-owned operations."
 
 ## Adding a new API handler
 

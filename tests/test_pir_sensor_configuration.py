@@ -1,4 +1,4 @@
-"""Test Axis PIR sensor configuration API.
+"""Test PIR sensor listing, sensitivity controls, and supported versions.
 
 pytest --cov-report term-missing --cov=axis.interfaces.pir_sensor_configuration tests/test_pir_sensor_configuration.py
 """
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 def pir_sensor_configuration(
     axis_device: AxisDevice,
 ) -> PirSensorConfigurationHandler:
-    """Return the pir_sensor_configuration mock object."""
+    """Return the PIR handler with API discovery set to version 1.0."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
     return axis_device.vapix.pir_sensor_configuration
@@ -53,7 +53,7 @@ async def test_get_api_list(
     mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
-    """Test list_sensors call."""
+    """Load sensor identifiers, configurability, and sensitivity from the sensor list."""
     route = mock_pir_request(
         ListSensorsRequest,
         {
@@ -89,7 +89,7 @@ async def test_get_sensitivity(
     mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
-    """Test list_sensors call."""
+    """Return the requested PIR sensor's sensitivity."""
     route = mock_pir_request(
         GetSensitivityRequest,
         {
@@ -113,7 +113,7 @@ async def test_set_sensitivity(
     mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
-    """Test list_sensors call."""
+    """Send the requested sensitivity for the selected PIR sensor."""
     route = mock_pir_request(
         SetSensitivityRequest,
         {
@@ -134,7 +134,7 @@ async def test_supported_versions(
     mock_pir_request,
     pir_sensor_configuration: PirSensorConfigurationHandler,
 ) -> None:
-    """Test list_sensors call."""
+    """Return versions advertised by the PIR sensor endpoint."""
     route = mock_pir_request(
         GetSupportedVersionsRequest,
         {

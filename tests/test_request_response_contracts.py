@@ -1,4 +1,4 @@
-"""Tests for request/response typed contract mappings."""
+"""Test that API request models declare the response type their decoder returns."""
 
 from typing import get_args, get_origin
 
@@ -219,7 +219,7 @@ from axis.models.virtual_input import (
     ],
 )
 def test_request_response_type_contracts(request_cls, response_cls) -> None:
-    """Verify request classes expose the intended typed response contract."""
+    """Verify each request model declares its expected typed response class."""
     assert request_cls.response_type is response_cls
     generic_base = request_cls.__orig_bases__[0]
     assert get_origin(generic_base) is ApiRequest
@@ -247,7 +247,7 @@ def test_request_response_type_contracts(request_cls, response_cls) -> None:
     ],
 )
 def test_write_and_bytes_requests_have_no_response_contract(request_cls) -> None:
-    """Verify write requests use wrapped raw-byte response contracts."""
+    """Verify write requests receive raw-byte responses wrapped in BytesResponse."""
     assert request_cls.response_type is BytesResponse
     generic_base = request_cls.__orig_bases__[0]
     assert get_origin(generic_base) is ApiRequest

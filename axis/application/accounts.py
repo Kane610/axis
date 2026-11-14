@@ -1,4 +1,8 @@
-"""Offline account intentions and validation for VAPIX pwdgrp.cgi workflows."""
+"""Describe and validate account changes before sending them to an Axis device.
+
+Prepared changes contain the account, privileges, and device to review, but no
+passwords. Device writes are performed separately through application operations.
+"""
 
 from dataclasses import dataclass
 import re
@@ -19,7 +23,7 @@ _PRIVILEGES = {
 
 
 def validate_account_username(username: str) -> None:
-    """Validate once for previews, execution, and presentation adapters."""
+    """Require an account name of 1-14 ASCII letters or digits."""
     if (
         not isinstance(username, str)
         or re.fullmatch(r"[A-Za-z0-9]{1,14}", username) is None
@@ -63,7 +67,7 @@ def _validate_intent(action: str, target: object, password_change: object) -> No
 
 @dataclass(frozen=True)
 class AccountChange:
-    """A validated, secret-free intention bound to a reviewed device target."""
+    """The account change to review, including its device but not its password."""
 
     action: str
     password_change: bool
@@ -72,12 +76,12 @@ class AccountChange:
     username: str
 
     def __post_init__(self) -> None:
-        """Reject invalid action/password combinations before any device access."""
+        """Reject invalid actions, privileges, or password-change choices."""
         _validate_account(self.action, self.username, self.privilege)
         _validate_intent(self.action, self.target, self.password_change)
 
     def preview(self) -> dict[str, object]:
-        """Return the existing CLI preview shape, without I/O or secrets."""
+        """Describe the proposed change without contacting the device or reading a password."""
         payload: dict[str, object] = {
             "status": "preview",
             "action": self.action,
@@ -92,12 +96,12 @@ class AccountChange:
 
 @dataclass(frozen=True)
 class AccountChangeResult:
-    """An acknowledged application write; uncertain outcomes are errors instead."""
+    """A change the device accepted; failed or uncertain writes do not produce this result."""
 
     intent: AccountChange
 
     def payload(self) -> dict[str, object]:
-        """Preserve canonical mutation output without duplicating preview fields."""
+        """Return the reviewed change with its status set to applied."""
         return {**self.intent.preview(), "status": "applied"}
 
 
@@ -109,7 +113,7 @@ def prepare_account_change(
     *,
     password_change: bool = False,
 ) -> AccountChange:
-    """Prepare offline; creation always declares a password change."""
+    """Build an account-change description without network access; new accounts need a password."""
     return AccountChange(
         action=action,
         password_change=action == "create" or password_change,

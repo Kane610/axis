@@ -1,4 +1,4 @@
-"""Compatibility imports for application records and local registry persistence."""
+"""Keep older CLI imports working for saved device records and configuration storage."""
 
 from axis.application.errors import StorageError
 from axis.application.records import ConnectionSettings, DeviceRecord

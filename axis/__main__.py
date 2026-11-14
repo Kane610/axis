@@ -1,4 +1,4 @@
-"""Read events and parameters from your Axis device."""
+"""Launch the Axis CLI and retain helpers for older event-reading integrations."""
 
 import asyncio
 import logging
@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def event_handler(event: Event) -> None:
-    """Receive and print events from RTSP stream."""
+    """Write a received device event to the application log."""
     LOGGER.info(event)
 
 
@@ -30,7 +30,7 @@ async def axis_device(
     stream_mode: str = "rtsp",
     is_companion: bool = False,
 ) -> axis.device.AxisDevice:
-    """Create a Axis device."""
+    """Create a device connection and attempt to load its accounts and permissions."""
     session = create_session()
     websocket_enabled, websocket_force = websocket_flags_from_mode(stream_mode)
     device = AxisDevice(
@@ -79,7 +79,7 @@ async def main(
     web_proto: WebProtocol,
     stream_mode: str,
 ) -> None:
-    """CLI method for library."""
+    """Run the older parameter/event reader and close its connection when finished."""
     LOGGER.info("Connecting to Axis device")
 
     device = await axis_device(
@@ -117,7 +117,7 @@ async def main(
 
 
 def create_session() -> aiohttp.ClientSession:
-    """Create aiohttp session used for HTTP requests."""
+    """Open an HTTP client connection with certificate verification disabled."""
     connector = aiohttp.TCPConnector(ssl=False)
     return aiohttp.ClientSession(connector=connector)
 
@@ -128,7 +128,7 @@ async def close_session(session: aiohttp.ClientSession) -> None:
 
 
 def websocket_flags_from_mode(stream_mode: str) -> tuple[bool, bool]:
-    """Translate CLI stream mode to websocket enable/force flags."""
+    """Choose whether WebSocket events are allowed or required for a stream mode."""
     if stream_mode == "auto":
         return True, False
     if stream_mode == "event":

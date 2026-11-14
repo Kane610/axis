@@ -1,4 +1,4 @@
-"""Safe application failures, independent of terminal or graphical adapters."""
+"""Report device and configuration problems without exposing login details."""
 
 from enum import StrEnum
 import logging
@@ -21,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ErrorKind(StrEnum):
-    """Stable categories for application recovery, not raw transport exceptions."""
+    """Identify a failure so applications can offer an appropriate next step."""
 
     AUTHENTICATION = "authentication"
     CERTIFICATE = "certificate"
@@ -37,17 +37,17 @@ class ErrorKind(StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> ErrorKind:
-        """Preserve safe fallback behavior without logging arbitrary input."""
+        """Treat unrecognized categories as unknown without logging their contents."""
         LOGGER.debug("Unknown application error category.")
         return cls.UNKNOWN
 
 
 class StorageError(ValueError):
-    """Safe, actionable registry validation or persistence failure."""
+    """Saved device configuration is invalid or cannot be read or updated."""
 
 
 class OperationError(Exception):
-    """A device operation failed, with a message safe for presentation."""
+    """A device operation failed, with a safe message and information about recovery."""
 
     def __init__(
         self,
@@ -56,7 +56,7 @@ class OperationError(Exception):
         kind: ErrorKind | str = ErrorKind.OPERATION,
         outcome_unknown: bool = False,
     ) -> None:
-        """Expose recovery metadata without retaining a transport exception."""
+        """Store the failure category and whether a device write may have completed."""
         super().__init__(message)
         self.kind = ErrorKind(kind)
         self.outcome_unknown = outcome_unknown

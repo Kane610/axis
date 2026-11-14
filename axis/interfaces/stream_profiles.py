@@ -19,14 +19,14 @@ from .api_handler import ApiHandler, HandlerGroup
 
 
 class StreamProfilesHandler(ApiHandler[StreamProfile]):
-    """API Discovery for Axis devices."""
+    """Read saved video-stream settings such as codec, resolution, and frame rate."""
 
     api_id = ApiId.STREAM_PROFILES
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, StreamProfile]:
-        """Get default data of stream profiles."""
+        """Read stream profiles for this handler's cached data."""
         return await self.list_stream_profiles()
 
     async def list_stream_profiles(self) -> dict[str, StreamProfile]:

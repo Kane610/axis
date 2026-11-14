@@ -1,1 +1,1 @@
-"""Control stand alone applications of an Axis device."""
+"""Models for listing installed analytics apps and reading their configuration."""

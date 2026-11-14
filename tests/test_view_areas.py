@@ -1,4 +1,4 @@
-"""Test Axis view area API.
+"""Test listing view areas, updating their geometry, and handling device errors.
 
 pytest --cov-report term-missing --cov=axis.view_areas tests/test_view_areas.py
 """
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def view_areas(axis_device: AxisDevice) -> ViewAreaHandler:
-    """Return the view_areas mock object."""
+    """Return the view-area handler with API discovery set to version 1.0."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
     return axis_device.vapix.view_areas
@@ -49,7 +49,7 @@ def mock_view_area_request(mock_api_request):
 
 
 async def test_list_view_areas(mock_view_area_request, view_areas: ViewAreaHandler):
-    """Test simple view area."""
+    """Decode configurable and fixed view areas, including optional geometry fields."""
     route = mock_view_area_request(
         ListViewAreasRequest,
         {
@@ -145,7 +145,7 @@ async def test_list_view_areas(mock_view_area_request, view_areas: ViewAreaHandl
 async def test_get_supported_versions(
     mock_view_area_request, view_areas: ViewAreaHandler
 ):
-    """Test get supported versions api."""
+    """Return versions advertised by the view-area information endpoint."""
     route = mock_view_area_request(
         GetSupportedVersionsRequest,
         {
@@ -169,7 +169,7 @@ async def test_get_supported_versions(
 async def test_set_geometry_of_view_area(
     mock_view_area_request, view_areas: ViewAreaHandler
 ):
-    """Test simple view area."""
+    """Set a view area's geometry and return its updated configuration."""
     mock_view_area_request(
         SetGeometryRequest,
         {
@@ -252,7 +252,7 @@ async def test_set_geometry_of_view_area(
 async def test_reset_geometry_of_view_area(
     mock_view_area_request, view_areas: ViewAreaHandler
 ):
-    """Test simple view area."""
+    """Reset a view area's geometry to the full canvas dimensions."""
     mock_view_area_request(
         ResetGeometryRequest,
         {
@@ -329,7 +329,7 @@ async def test_reset_geometry_of_view_area(
 async def test_get_supported_config_versions(
     mock_view_area_request, view_areas: ViewAreaHandler
 ):
-    """Test get supported versions api."""
+    """Return versions advertised by the view-area configuration endpoint."""
     route = mock_view_area_request(
         GetSupportedConfigVersionsRequest,
         {
@@ -351,11 +351,7 @@ async def test_get_supported_config_versions(
 
 
 async def test_general_error_101(http_route_mock, view_areas: ViewAreaHandler):
-    """Test handling error 101.
-
-    HTTP code: 200 OK
-    Content-type: application/json
-    """
+    """Return no versions when the device rejects an unsupported API version."""
     http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
@@ -374,11 +370,7 @@ async def test_general_error_101(http_route_mock, view_areas: ViewAreaHandler):
 
 
 async def test_general_error_102(http_route_mock, view_areas: ViewAreaHandler):
-    """Test handling error 102.
-
-    HTTP code: 200 OK
-    Content-type: application/json
-    """
+    """Return no versions when the device does not support the requested method."""
     http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
@@ -397,11 +389,7 @@ async def test_general_error_102(http_route_mock, view_areas: ViewAreaHandler):
 
 
 async def test_general_error_103(http_route_mock, view_areas: ViewAreaHandler):
-    """Test handling error 103.
-
-    HTTP code: 200 OK
-    Content-type: application/json
-    """
+    """Return no versions when the device reports an internal API error."""
     http_route_mock.post("/axis-cgi/viewarea/info.cgi").respond(
         json={
             "apiVersion": "1.0",
@@ -420,11 +408,7 @@ async def test_general_error_103(http_route_mock, view_areas: ViewAreaHandler):
 
 
 async def test_method_specific_error_200(http_route_mock, view_areas: ViewAreaHandler):
-    """Test handling error 200.
-
-    HTTP code: 200 OK
-    Content-type: application/json
-    """
+    """Ignore a device error when resetting geometry for an invalid view-area ID."""
     http_route_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
@@ -441,11 +425,7 @@ async def test_method_specific_error_200(http_route_mock, view_areas: ViewAreaHa
 
 
 async def test_method_specific_error_201(http_route_mock, view_areas: ViewAreaHandler):
-    """Test handling error 201.
-
-    HTTP code: 200 OK
-    Content-type: application/json
-    """
+    """Ignore a device error when the view area cannot be configured."""
     http_route_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",
@@ -462,11 +442,7 @@ async def test_method_specific_error_201(http_route_mock, view_areas: ViewAreaHa
 
 
 async def test_method_specific_error_202(http_route_mock, view_areas: ViewAreaHandler):
-    """Test handling error 202.
-
-    HTTP code: 200 OK
-    Content-type: application/json
-    """
+    """Ignore a device error when the requested view-area geometry is invalid."""
     http_route_mock.post("/axis-cgi/viewarea/configure.cgi").respond(
         json={
             "apiVersion": "1.0",

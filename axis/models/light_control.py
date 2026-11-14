@@ -1,4 +1,4 @@
-"""Light Control API data model."""
+"""Models for the VAPIX Light Control API and controllable illuminators."""
 
 from dataclasses import dataclass
 from typing import NotRequired, Self, TypedDict
@@ -11,14 +11,14 @@ API_VERSION = "1.1"
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by the Light Control API."""
 
     code: int
     message: str
 
 
 class LightInformationT(TypedDict):
-    """Light information."""
+    """State, capabilities, LED count, and error details for one light."""
 
     enabled: bool
     lightID: str
@@ -33,13 +33,13 @@ class LightInformationT(TypedDict):
 
 
 class LightInformationItemsT(TypedDict):
-    """Represent list of light information objects."""
+    """Light entries returned by getLightInformation."""
 
     items: list[LightInformationT]
 
 
 class GetLightInformationResponseT(TypedDict):
-    """Represent get light information response."""
+    """JSON envelope returned by getLightInformation."""
 
     apiVersion: str
     context: str
@@ -49,7 +49,7 @@ class GetLightInformationResponseT(TypedDict):
 
 
 class ServiceCapabilitiesT(TypedDict):
-    """Service capability."""
+    """Whether the device supports each Light Control operation."""
 
     automaticIntensitySupport: bool
     manualIntensitySupport: bool
@@ -61,7 +61,7 @@ class ServiceCapabilitiesT(TypedDict):
 
 
 class GetServiceCapabilitiesResponseT(TypedDict):
-    """Represent get service capability response."""
+    """JSON envelope returned by getServiceCapabilities."""
 
     apiVersion: str
     context: str
@@ -71,13 +71,13 @@ class GetServiceCapabilitiesResponseT(TypedDict):
 
 
 class LightStatusT(TypedDict):
-    """Light status."""
+    """Enabled state returned for a light."""
 
     status: bool
 
 
 class GetLightStatusResponseT(TypedDict):
-    """Represent get light status response."""
+    """JSON envelope returned by getLightStatus."""
 
     apiVersion: str
     context: str
@@ -87,20 +87,20 @@ class GetLightStatusResponseT(TypedDict):
 
 
 class RangeT(TypedDict):
-    """Range."""
+    """Inclusive low and high values for an intensity or angle setting."""
 
     low: int
     high: int
 
 
 class ValidRangesT(TypedDict):
-    """Light status."""
+    """Supported value ranges returned by a Light Control query."""
 
     ranges: list[RangeT]
 
 
 class GetValidRangesResponseT(TypedDict):
-    """Represent valid intensity response."""
+    """JSON envelope containing one or more supported value ranges."""
 
     apiVersion: str
     context: str
@@ -110,13 +110,13 @@ class GetValidRangesResponseT(TypedDict):
 
 
 class IntensityT(TypedDict):
-    """Light intensity."""
+    """Intensity value returned by the API."""
 
     intensity: int
 
 
 class GetIntensityResponseT(TypedDict):
-    """Represent a get intensity response."""
+    """JSON envelope returned by an intensity query."""
 
     apiVersion: str
     context: str
@@ -126,13 +126,13 @@ class GetIntensityResponseT(TypedDict):
 
 
 class AngleOfIlluminationT(TypedDict):
-    """Light intensity."""
+    """Angle-of-illumination value returned by the API."""
 
     angleOfIllumination: int
 
 
 class GetAngleOfIlluminationResponseT(TypedDict):
-    """Represent a get angle of illumination response."""
+    """JSON envelope returned by an angle-of-illumination query."""
 
     apiVersion: str
     context: str
@@ -142,13 +142,13 @@ class GetAngleOfIlluminationResponseT(TypedDict):
 
 
 class SynchronizeT(TypedDict):
-    """Synchronize day night mode."""
+    """Whether this light follows the camera's day/night mode."""
 
     synchronize: bool
 
 
 class GetLightSynchronizationDayNightModeResponseT(TypedDict):
-    """Represent a get light synchronization day night mode response."""
+    """JSON envelope returned by the day/night synchronization query."""
 
     apiVersion: str
     context: str
@@ -158,13 +158,13 @@ class GetLightSynchronizationDayNightModeResponseT(TypedDict):
 
 
 class ApiVersionsT(TypedDict):
-    """List of supported API versions."""
+    """Light Control API versions supported by the device."""
 
     apiVersions: list[str]
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """Get supported versions response."""
+    """JSON envelope returned by getSupportedVersions."""
 
     apiVersion: str
     context: str
@@ -185,7 +185,7 @@ general_error_codes = {
 
 @dataclass(frozen=True)
 class LightInformation(ApiItem):
-    """Light information item."""
+    """One light's enabled state, hardware type, modes, and reported errors."""
 
     enabled: bool
     light_state: bool
@@ -199,7 +199,7 @@ class LightInformation(ApiItem):
 
     @classmethod
     def decode(cls, data: LightInformationT) -> Self:
-        """Create light information object from dict."""
+        """Convert one getLightInformation entry into a light model."""
         return cls(
             id=data["lightID"],
             enabled=data["enabled"],
@@ -218,25 +218,25 @@ class LightInformation(ApiItem):
 
 @dataclass
 class Range:
-    """High to low range."""
+    """Lowest and highest supported values for a light setting."""
 
     low: int
     high: int
 
     @classmethod
     def from_dict(cls, data: RangeT) -> Self:
-        """Create range object from dict."""
+        """Convert an API low/high pair into a Range model."""
         return cls(low=data["low"], high=data["high"])
 
     @classmethod
     def from_list(cls, data: list[RangeT]) -> list[Self]:
-        """Create range object from dict."""
+        """Convert each API low/high pair in a list into a Range model."""
         return [cls.from_dict(range) for range in data]
 
 
 @dataclass
 class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
-    """Response object for getting light information."""
+    """Available lights indexed by their device-assigned IDs."""
 
     api_version: str
     context: str
@@ -246,7 +246,7 @@ class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the response and index decoded lights by ID."""
         data: GetLightInformationResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -258,7 +258,7 @@ class GetLightInformationResponse(ApiResponse[dict[str, LightInformation]]):
 
 @dataclass
 class GetLightInformationRequest(ApiRequest[GetLightInformationResponse]):
-    """Request object for getting light information."""
+    """Request the device's light inventory and each light's current settings."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -271,7 +271,7 @@ class GetLightInformationRequest(ApiRequest[GetLightInformationResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getLightInformation request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -283,7 +283,7 @@ class GetLightInformationRequest(ApiRequest[GetLightInformationResponse]):
 
 @dataclass
 class ServiceCapabilities:
-    """Service capabilities item."""
+    """Light Control operations supported by the device."""
 
     automatic_intensity_support: bool
     manual_intensity_support: bool
@@ -295,7 +295,7 @@ class ServiceCapabilities:
 
     @classmethod
     def from_dict(cls, data: ServiceCapabilitiesT) -> Self:
-        """Create service capabilities object from dict."""
+        """Convert the API capability flags into a ServiceCapabilities model."""
         return cls(
             automatic_intensity_support=data["automaticIntensitySupport"],
             manual_intensity_support=data["manualIntensitySupport"],
@@ -313,7 +313,7 @@ class ServiceCapabilities:
 
 @dataclass
 class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
-    """Response object for getting service capabilities."""
+    """Supported Light Control operations reported by the device."""
 
     api_version: str
     context: str
@@ -323,7 +323,7 @@ class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the capability flags from the response envelope."""
         data: GetServiceCapabilitiesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -335,7 +335,7 @@ class GetServiceCapabilitiesResponse(ApiResponse[ServiceCapabilities]):
 
 @dataclass
 class GetServiceCapabilitiesRequest(ApiRequest[GetServiceCapabilitiesResponse]):
-    """Request object for getting service capabilities."""
+    """Request the Light Control operations supported by the device."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -348,7 +348,7 @@ class GetServiceCapabilitiesRequest(ApiRequest[GetServiceCapabilitiesResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getServiceCapabilities request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -360,7 +360,7 @@ class GetServiceCapabilitiesRequest(ApiRequest[GetServiceCapabilitiesResponse]):
 
 @dataclass
 class ActivateLightRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for activating light."""
+    """Activate a light by its device-assigned ID."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -375,7 +375,7 @@ class ActivateLightRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode an activateLight request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -388,11 +388,11 @@ class ActivateLightRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class DeactivateLightRequest(ActivateLightRequest):
-    """Request object for activating light."""
+    """Deactivate a light by its device-assigned ID."""
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a deactivateLight request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -405,11 +405,11 @@ class DeactivateLightRequest(ActivateLightRequest):
 
 @dataclass
 class EnableLightRequest(ActivateLightRequest):
-    """Request object for enabling light."""
+    """Enable a light so it can be controlled."""
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode an enableLight request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -422,11 +422,11 @@ class EnableLightRequest(ActivateLightRequest):
 
 @dataclass
 class DisableLightRequest(ActivateLightRequest):
-    """Request object for disabling light."""
+    """Disable a light so it cannot be activated."""
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a disableLight request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -439,7 +439,7 @@ class DisableLightRequest(ActivateLightRequest):
 
 @dataclass
 class GetLightStatusResponse(ApiResponse[bool]):
-    """Response object for getting light status."""
+    """Enabled or disabled state reported for the requested light."""
 
     api_version: str
     context: str
@@ -449,7 +449,7 @@ class GetLightStatusResponse(ApiResponse[bool]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the light's boolean status from the response envelope."""
         data: GetLightStatusResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -461,7 +461,7 @@ class GetLightStatusResponse(ApiResponse[bool]):
 
 @dataclass
 class GetLightStatusRequest(ApiRequest[GetLightStatusResponse]):
-    """Request object for getting light status."""
+    """Request the enabled state of one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -476,7 +476,7 @@ class GetLightStatusRequest(ApiRequest[GetLightStatusResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getLightStatus request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -489,7 +489,7 @@ class GetLightStatusRequest(ApiRequest[GetLightStatusResponse]):
 
 @dataclass
 class SetAutomaticIntensityModeRequest(ApiRequest[ApiResponse[bytes]]):
-    """Enable the automatic light intensity control."""
+    """Enable or disable automatic intensity adjustment for one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -505,7 +505,7 @@ class SetAutomaticIntensityModeRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the automatic-intensity setting for this light."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -518,7 +518,7 @@ class SetAutomaticIntensityModeRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class GetValidIntensityResponse(ApiResponse[Range]):
-    """Response object for getting valid intensity range of light."""
+    """Supported intensity range reported for a light."""
 
     api_version: str
     context: str
@@ -528,7 +528,7 @@ class GetValidIntensityResponse(ApiResponse[Range]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the first supported intensity range from the response."""
         data: GetValidRangesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -540,7 +540,7 @@ class GetValidIntensityResponse(ApiResponse[Range]):
 
 @dataclass
 class GetValidIntensityRequest(ApiRequest[GetValidIntensityResponse]):
-    """Request object for getting valid intensity range of light."""
+    """Request the intensity range accepted by one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -555,7 +555,7 @@ class GetValidIntensityRequest(ApiRequest[GetValidIntensityResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getValidIntensity request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -568,7 +568,7 @@ class GetValidIntensityRequest(ApiRequest[GetValidIntensityResponse]):
 
 @dataclass
 class SetManualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
-    """Set manual light intensity."""
+    """Set a light's manually controlled intensity."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -584,7 +584,7 @@ class SetManualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the requested manual intensity for this light."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -597,7 +597,7 @@ class SetManualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class GetManualIntensityResponse(ApiResponse[int]):
-    """Response object for getting manual intensity."""
+    """Manual intensity value currently configured for a light."""
 
     api_version: str
     context: str
@@ -607,7 +607,7 @@ class GetManualIntensityResponse(ApiResponse[int]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the intensity value from the response envelope."""
         data: GetIntensityResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -619,7 +619,7 @@ class GetManualIntensityResponse(ApiResponse[int]):
 
 @dataclass
 class GetManualIntensityRequest(ApiRequest[GetManualIntensityResponse]):
-    """Request object for getting manual intensity."""
+    """Request the manually configured intensity for one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -634,7 +634,7 @@ class GetManualIntensityRequest(ApiRequest[GetManualIntensityResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getManualIntensity request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -647,7 +647,7 @@ class GetManualIntensityRequest(ApiRequest[GetManualIntensityResponse]):
 
 @dataclass
 class SetIndividualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
-    """Set individual light intensity."""
+    """Set the intensity of one LED within a light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -664,7 +664,7 @@ class SetIndividualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the LED ID and requested intensity for this light."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -681,7 +681,7 @@ class SetIndividualIntensityRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class GetIndividualIntensityResponse(ApiResponse[int]):
-    """Response object for getting individual intensity."""
+    """Intensity value reported for one LED."""
 
     api_version: str
     context: str
@@ -691,7 +691,7 @@ class GetIndividualIntensityResponse(ApiResponse[int]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the LED intensity value from the response envelope."""
         data: GetIntensityResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -703,7 +703,7 @@ class GetIndividualIntensityResponse(ApiResponse[int]):
 
 @dataclass
 class GetIndividualIntensityRequest(ApiRequest[GetIndividualIntensityResponse]):
-    """Request object for getting individual intensity."""
+    """Request the intensity of one LED within a light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -719,7 +719,7 @@ class GetIndividualIntensityRequest(ApiRequest[GetIndividualIntensityResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the light and LED IDs in a getIndividualIntensity request."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -732,7 +732,7 @@ class GetIndividualIntensityRequest(ApiRequest[GetIndividualIntensityResponse]):
 
 @dataclass
 class GetCurrentIntensityResponse(ApiResponse[int]):
-    """Response object for getting current intensity."""
+    """Current intensity value reported for a light."""
 
     api_version: str
     context: str
@@ -742,7 +742,7 @@ class GetCurrentIntensityResponse(ApiResponse[int]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the current intensity value from the response envelope."""
         data: GetIntensityResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -754,7 +754,7 @@ class GetCurrentIntensityResponse(ApiResponse[int]):
 
 @dataclass
 class GetCurrentIntensityRequest(ApiRequest[GetCurrentIntensityResponse]):
-    """Request object for getting current intensity."""
+    """Request the current intensity of one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -769,7 +769,7 @@ class GetCurrentIntensityRequest(ApiRequest[GetCurrentIntensityResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getCurrentIntensity request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -782,7 +782,7 @@ class GetCurrentIntensityRequest(ApiRequest[GetCurrentIntensityResponse]):
 
 @dataclass
 class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]]):
-    """Enable the automatic angle of illumination control."""
+    """Enable or disable automatic angle adjustment for one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -798,7 +798,7 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]])
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the automatic-angle setting for this light."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -811,7 +811,7 @@ class SetAutomaticAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]])
 
 @dataclass
 class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
-    """Response object for getting valid angle of illumination range."""
+    """Supported angle-of-illumination ranges reported for a light."""
 
     api_version: str
     context: str
@@ -821,7 +821,7 @@ class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Convert each supported angle range in the response to a Range model."""
         data: GetValidRangesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -835,7 +835,7 @@ class GetValidAngleOfIlluminationResponse(ApiResponse[list[Range]]):
 class GetValidAngleOfIlluminationRequest(
     ApiRequest[GetValidAngleOfIlluminationResponse]
 ):
-    """Request object for getting valid angle of illumination range."""
+    """Request the angle-of-illumination ranges accepted by one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -850,7 +850,7 @@ class GetValidAngleOfIlluminationRequest(
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getValidAngleOfIllumination request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -863,7 +863,7 @@ class GetValidAngleOfIlluminationRequest(
 
 @dataclass
 class SetManualAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]]):
-    """Set the manual angle of illumination."""
+    """Set a light's manually controlled angle of illumination."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -879,7 +879,7 @@ class SetManualAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the requested manual angle for this light."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -895,7 +895,7 @@ class SetManualAngleOfIlluminationModeRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
-    """Response object for getting manual angle of illumination."""
+    """Manually configured angle of illumination reported for a light."""
 
     api_version: str
     context: str
@@ -905,7 +905,7 @@ class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the configured angle from the response envelope."""
         data: GetAngleOfIlluminationResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -919,7 +919,7 @@ class GetManualAngleOfIlluminationResponse(ApiResponse[int]):
 class GetManualAngleOfIlluminationRequest(
     ApiRequest[GetManualAngleOfIlluminationResponse]
 ):
-    """Request object for getting manual angle of illumination."""
+    """Request the manually configured angle of one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -934,7 +934,7 @@ class GetManualAngleOfIlluminationRequest(
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getManualAngleOfIllumination request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -947,7 +947,7 @@ class GetManualAngleOfIlluminationRequest(
 
 @dataclass
 class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
-    """Response object for getting current angle of illumination."""
+    """Current angle of illumination reported for a light."""
 
     api_version: str
     context: str
@@ -957,7 +957,7 @@ class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the current angle from the response envelope."""
         data: GetAngleOfIlluminationResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -971,7 +971,7 @@ class GetCurrentAngleOfIlluminationResponse(ApiResponse[int]):
 class GetCurrentAngleOfIlluminationRequest(
     ApiRequest[GetCurrentAngleOfIlluminationResponse]
 ):
-    """Request object for getting current angle of illumination."""
+    """Request the current angle of illumination for one light."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -986,7 +986,7 @@ class GetCurrentAngleOfIlluminationRequest(
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getCurrentAngleOfIllumination request for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -999,7 +999,7 @@ class GetCurrentAngleOfIlluminationRequest(
 
 @dataclass
 class SetLightSynchronizeDayNightModeRequest(ApiRequest[ApiResponse[bytes]]):
-    """Enable automatic synchronization with the day/night mode."""
+    """Enable or disable synchronization with the camera's day/night mode."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -1015,7 +1015,7 @@ class SetLightSynchronizeDayNightModeRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the day/night synchronization setting for this light."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -1028,7 +1028,7 @@ class SetLightSynchronizeDayNightModeRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
-    """Response object for getting day night mode synchronization setting."""
+    """Whether a light follows the camera's day/night mode."""
 
     api_version: str
     context: str
@@ -1038,7 +1038,7 @@ class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Extract the synchronization setting from the response envelope."""
         data: GetLightSynchronizationDayNightModeResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -1052,7 +1052,7 @@ class GetLightSynchronizeDayNightModeResponse(ApiResponse[bool]):
 class GetLightSynchronizeDayNightModeRequest(
     ApiRequest[GetLightSynchronizeDayNightModeResponse]
 ):
-    """Request object for getting day night mode synchronization setting."""
+    """Request whether one light follows the camera's day/night mode."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -1067,7 +1067,7 @@ class GetLightSynchronizeDayNightModeRequest(
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a day/night synchronization query for this light ID."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -1080,7 +1080,7 @@ class GetLightSynchronizeDayNightModeRequest(
 
 @dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
-    """Response object for supported versions."""
+    """Light Control API versions supported by the device."""
 
     api_version: str
     context: str
@@ -1090,7 +1090,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the supported-version list from the response envelope."""
         data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -1102,7 +1102,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 @dataclass
 class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
-    """Request object for listing supported API versions."""
+    """Request the Light Control API versions supported by the device."""
 
     method = "post"
     path = "/axis-cgi/lightcontrol.cgi"
@@ -1114,7 +1114,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getSupportedVersions request as JSON."""
         return orjson.dumps(
             {
                 "context": self.context,

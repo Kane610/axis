@@ -1,4 +1,4 @@
-"""Discovery lifecycle faults that must not leak resources or emit false success."""
+"""Test discovery failure cleanup and prevent invalid scans from reporting success."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

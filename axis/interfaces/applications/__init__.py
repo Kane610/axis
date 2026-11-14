@@ -1,3 +1,3 @@
-"""Control stand alone applications of an Axis device."""
+"""Read installed device applications and their analytics configuration."""
 
 from .applications import *  # noqa: F403

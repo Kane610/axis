@@ -38,7 +38,7 @@ class Users(ApiHandler[User]):
         )
 
     async def _api_request(self) -> dict[str, User]:
-        """Get default data of basic device information."""
+        """Read device accounts for this handler's cached user data."""
         return await self.list()
 
     async def list(self) -> dict[str, User]:

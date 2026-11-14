@@ -1,4 +1,4 @@
-"""Test RTSP client.
+"""Test RTSP session setup, RTP delivery, and teardown behavior.
 
 pytest --cov-report term-missing --cov=axis.rtsp tests/test_rtsp.py
 """
@@ -23,7 +23,7 @@ LOGGER = logging.getLogger(__name__)
 
 @pytest.fixture
 async def rtsp_client(axis_device) -> RTSPClient:
-    """Return the RTSP client."""
+    """Start an RTSP client with a live local RTP endpoint for each test."""
     axis_device.enable_events()
     with patch("axis.rtsp.RTSP_PORT", RTSP_PORT):
         axis_device.stream.start()
@@ -58,7 +58,7 @@ async def rtsp_client(axis_device) -> RTSPClient:
 
 
 async def test_successful_connect(rtsp_server, rtsp_client):
-    """Verify successful setup of RTSP session to server."""
+    """Complete an authenticated RTSP setup and begin receiving server media."""
     rtsp_server.register_responses(
         [
             # OPTIONS

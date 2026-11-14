@@ -17,14 +17,14 @@ from .api_handler import ApiHandler, HandlerGroup
 
 
 class PirSensorConfigurationHandler(ApiHandler[PirSensorConfiguration]):
-    """PIR sensor configuration for Axis devices."""
+    """Read and adjust the sensitivity of device passive infrared sensors."""
 
     api_id = ApiId.PIR_SENSOR_CONFIGURATION
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, PirSensorConfiguration]:
-        """Get default data of PIR sensor configuration."""
+        """Read passive infrared sensor settings for this handler's cached data."""
         return await self.list_sensors()
 
     async def list_sensors(self) -> dict[str, PirSensorConfiguration]:

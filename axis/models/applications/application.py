@@ -1,4 +1,4 @@
-"""Application API.
+"""Models for listing installed apps and licenses through the VAPIX Application API.
 
 Use VAPIX® Application API to upload, control and manage applications
 and their license keys.
@@ -14,7 +14,7 @@ from ..api import ApiItem, ApiRequest, ApiResponse
 
 
 class ApplicationObjectT(TypedDict):
-    """Application object description."""
+    """Application details returned by the Application API list endpoint."""
 
     ApplicationID: str
     ConfigurationPage: str
@@ -31,20 +31,20 @@ class ApplicationObjectT(TypedDict):
 
 
 class ListApplicationReplyDataT(TypedDict):
-    """List applications response."""
+    """Application list result and any returned application entries."""
 
     application: NotRequired[list[ApplicationObjectT]]
     result: Literal["ok", "error"]
 
 
 class ListApplicationDataT(TypedDict):
-    """List of applications root data."""
+    """XML reply node containing the application-list result and entries."""
 
     reply: NotRequired[ListApplicationReplyDataT]
 
 
 class ApplicationName(enum.StrEnum):
-    """Application name."""
+    """Known Axis analytics application identifiers."""
 
     FENCE_GUARD = "fenceguard"
     LOITERING_GUARD = "loiteringguard"
@@ -54,7 +54,7 @@ class ApplicationName(enum.StrEnum):
 
 
 class ApplicationLicense(enum.StrEnum):
-    """Application license."""
+    """License state reported for an installed application."""
 
     VALID = "Valid"
     INVALID = "Invalid"
@@ -64,7 +64,7 @@ class ApplicationLicense(enum.StrEnum):
 
 
 class ApplicationStatus(enum.StrEnum):
-    """Application license."""
+    """Run state reported for an installed application."""
 
     RUNNING = "Running"
     STOPPED = "Stopped"
@@ -73,10 +73,10 @@ class ApplicationStatus(enum.StrEnum):
 
 @dataclass(frozen=True)
 class Application(ApiItem):
-    """Representation of an Application instance."""
+    """Installed application metadata, including license and run state."""
 
     application_id: str | None
-    """Id of application."""
+    """Application identifier supplied by the device, when available."""
 
     configuration_page: str | None
     """Relative URL to application configuration page."""
@@ -99,10 +99,10 @@ class Application(ApiItem):
     """Date (YYYY-MM-DD) when the license expires."""
 
     name: str
-    """Name of application."""
+    """Application's machine-readable name."""
 
     nice_name: str
-    """Name of application."""
+    """Application's display name."""
 
     status: ApplicationStatus
     """Status of application.
@@ -114,20 +114,20 @@ class Application(ApiItem):
     """
 
     validation_result_page: str
-    """Complete URL to a validation or result page."""
+    """Validation result or page reference returned by the device."""
 
     vendor: str
-    """Vendor of application."""
+    """Company that publishes the application."""
 
     vendor_page: str
-    """Vendor of application."""
+    """Vendor's homepage URL, when provided by the device."""
 
     version: str
     """Version of application."""
 
     @classmethod
     def decode(cls, data: ApplicationObjectT) -> Self:
-        """Decode dict to class object."""
+        """Convert an Application API list entry to an application model."""
         return cls(
             id=data["Name"],
             application_id=data.get("ApplicationID"),
@@ -147,13 +147,13 @@ class Application(ApiItem):
 
 @dataclass
 class ListApplicationsResponse(ApiResponse[dict[str, Application]]):
-    """Response object for listing all applications."""
+    """Installed applications indexed by their names."""
 
     data: dict[str, Application]
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the XML application list and index its entries by name."""
         data = xmltodict.parse(bytes_data, attr_prefix="", force_list={"application"})
         apps: list[ApplicationObjectT] = data.get("reply", {}).get("application", [])
         return cls(data=Application.decode_to_dict(apps))
@@ -161,7 +161,7 @@ class ListApplicationsResponse(ApiResponse[dict[str, Application]]):
 
 @dataclass
 class ListApplicationsRequest(ApiRequest[ListApplicationsResponse]):
-    """Request object for listing installed applications."""
+    """Request the list of applications installed on the device."""
 
     method = "post"
     path = "/axis-cgi/applications/list.cgi"

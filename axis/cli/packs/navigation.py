@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D103,PLC0415
+# ruff: noqa: D103,PLC0415
+
+"""Device-operation menus, health checks, and saved-device edits for the earlier CLI."""
 
 from __future__ import annotations
 
@@ -133,7 +135,7 @@ class _DeleteDeviceCommand:
 
 
 def register(registry: CommandRegistry, router: CliRouter) -> None:
-    """Register navigation-pack commands and menu nodes."""
+    """Add device-operation menus and commands to the earlier CLI."""
     registry.register_command(_HealthCheckCommand())
     registry.register_command(_EditCredentialsCommand())
     registry.register_command(_DeleteDeviceCommand())

@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to integrate with Home Assistant."""
+"""Start and reconnect device event streams using WebSocket or RTSP."""
 
 import asyncio
 import logging
@@ -23,10 +23,10 @@ RETRY_TIMER = 15
 
 
 class StreamManager:
-    """Setup, start, stop and retry stream."""
+    """Choose an event transport, manage its connection, and forward device events."""
 
     def __init__(self, device: AxisDevice) -> None:
-        """Initialize stream manager."""
+        """Prepare stream settings and callbacks without opening a connection."""
         self.device = device
         self.video = None  # Unsupported
         self.audio = None  # Unsupported
@@ -67,17 +67,17 @@ class StreamManager:
 
     @property
     def video_query(self) -> int:
-        """Generate video query, not supported."""
+        """Disable video in RTSP requests; this stream manager handles event data."""
         return 0
 
     @property
     def audio_query(self) -> int:
-        """Generate audio query, not supported."""
+        """Disable audio in RTSP requests; this stream manager handles event data."""
         return 0
 
     @property
     def event_query(self) -> str:
-        """Generate event query."""
+        """Return on or off for the RTSP event-metadata query parameter."""
         return "on" if self.event else "off"
 
     @property
@@ -139,11 +139,11 @@ class StreamManager:
         )
 
     def session_callback(self, signal: Signal) -> None:
-        """Signalling from stream session.
+        """Forward received events, reconnect failed streams, and report connection status.
 
         Data - new data available for processing.
         Playing - Connection is healthy.
-        Retry - if there is no connection to device.
+        Failed - schedule reconnection after a stream failure.
         """
         if signal == Signal.DATA and self.event:
             self.device.event.handler(self.data)
@@ -158,7 +158,7 @@ class StreamManager:
 
     @property
     def data(self) -> bytes | dict[str, Any]:
-        """Get stream data."""
+        """Return the next available stream payload, or empty bytes if there is no stream."""
         if not self.stream:
             return b""
         return self.stream.data
@@ -171,7 +171,7 @@ class StreamManager:
         return self.stream.session.state
 
     def start(self) -> None:
-        """Start stream."""
+        """Schedule a connection to the selected transport unless already starting."""
         if self._starting:
             return
 
@@ -188,7 +188,7 @@ class StreamManager:
             task.add_done_callback(_on_done)
 
     def stop(self) -> None:
-        """Stop stream."""
+        """Cancel connection tasks, stop the active stream, and cancel scheduled retries."""
         self._starting = False
         for task in self.background_tasks:
             task.cancel()

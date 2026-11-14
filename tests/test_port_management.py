@@ -1,4 +1,4 @@
-"""Test Axis I/O port management API.
+"""Test reading, setting, and sequencing device I/O ports.
 
 pytest --cov-report term-missing --cov=axis.port_management tests/test_port_management.py
 """
@@ -24,7 +24,7 @@ from tests.conftest import (
 
 @pytest.fixture
 def io_port_management(axis_device) -> IoPortManagement:
-    """Return the io_port_management mock object."""
+    """Return an I/O port manager for the mocked device."""
     return IoPortManagement(axis_device.vapix)
 
 
@@ -42,7 +42,7 @@ def mock_port_management_request(mock_api_request):
 
 
 async def test_get_ports(mock_port_management_request, io_port_management):
-    """Test get_ports call."""
+    """Load port details and send open and close requests with the correct state."""
     route = mock_port_management_request(
         GetPortsRequest,
         GET_PORTS_RESPONSE,
@@ -96,7 +96,7 @@ async def test_get_ports(mock_port_management_request, io_port_management):
 async def test_get_empty_ports_response(
     mock_port_management_request, io_port_management
 ):
-    """Test get_ports call."""
+    """Initialize successfully when the device reports no ports."""
     mock_port_management_request(
         GetPortsRequest,
         GET_EMPTY_PORTS_RESPONSE,
@@ -109,7 +109,7 @@ async def test_get_empty_ports_response(
 
 
 async def test_set_ports(mock_port_management_request, io_port_management):
-    """Test set_ports call."""
+    """Serialize and send a configuration update for one port."""
     port_configuration = PortConfiguration(
         "0",
         usage="",
@@ -136,7 +136,7 @@ async def test_set_ports(mock_port_management_request, io_port_management):
 
 
 async def test_set_state_sequence(mock_port_management_request, io_port_management):
-    """Test setting state sequence call."""
+    """Send the requested sequence of timed open and close states."""
     expected_sequence = [Sequence("open", 3000), Sequence("closed", 5000)]
     route = mock_port_management_request(
         SetStateSequenceRequest,
@@ -156,7 +156,7 @@ async def test_set_state_sequence(mock_port_management_request, io_port_manageme
 
 
 async def test_get_supported_versions(mock_port_management_request, io_port_management):
-    """Test get_supported_versions."""
+    """Return versions advertised by the I/O port management endpoint."""
     route = mock_port_management_request(
         GetSupportedVersionsRequest,
         GET_SUPPORTED_VERSIONS_RESPONSE,

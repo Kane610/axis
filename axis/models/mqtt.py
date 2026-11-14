@@ -1,4 +1,4 @@
-"""MQTT Client api."""
+"""Models for configuring the VAPIX MQTT client and publishing device events."""
 
 from dataclasses import dataclass
 import enum
@@ -12,14 +12,14 @@ API_VERSION = "1.0"
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by the MQTT API."""
 
     code: int
     message: str
 
 
 class MessageT(TypedDict):
-    """Represent a message object."""
+    """MQTT message options used for connect, disconnect, or last-will messages."""
 
     useDefault: bool
     message: NotRequired[str]
@@ -29,7 +29,7 @@ class MessageT(TypedDict):
 
 
 class ServerT(TypedDict):
-    """Represent a server object."""
+    """Broker address and optional transport settings in the client configuration."""
 
     host: str
     protocol: NotRequired[Literal["ssl", "tcp", "ws", "wss"]]
@@ -39,7 +39,7 @@ class ServerT(TypedDict):
 
 
 class SslT(TypedDict):
-    """Represent a SSL object."""
+    """TLS certificate validation and client-certificate settings."""
 
     validateServerCert: bool
     CACertID: NotRequired[str]
@@ -47,7 +47,7 @@ class SslT(TypedDict):
 
 
 class ConfigT(TypedDict):
-    """Represent client config."""
+    """Connection, authentication, and message settings for the MQTT client."""
 
     server: ServerT
     activateOnReboot: NotRequired[bool]
@@ -67,21 +67,21 @@ class ConfigT(TypedDict):
 
 
 class StatusT(TypedDict):
-    """Represent a status object."""
+    """Connection state and activation state reported for the MQTT client."""
 
     connectionStatus: Literal["connected", "disconnected", "not connected"]
     state: Literal["active", "inactive"]
 
 
 class ClientStatusDataT(TypedDict):
-    """Client status data."""
+    """MQTT client configuration and its current status."""
 
     config: ConfigT
     status: StatusT
 
 
 class GetClientStatusResponseT(TypedDict):
-    """Represent client config."""
+    """JSON envelope returned by getClientStatus."""
 
     apiVersion: str
     context: str
@@ -91,7 +91,7 @@ class GetClientStatusResponseT(TypedDict):
 
 
 class EventFilterT(TypedDict):
-    """Event filter."""
+    """Topic and optional delivery settings for filtering published events."""
 
     topicFilter: str
     qos: NotRequired[int]
@@ -99,7 +99,7 @@ class EventFilterT(TypedDict):
 
 
 class EventPublicationConfigT(TypedDict):
-    """Event publication config."""
+    """Topic naming, payload, and filtering options for MQTT event publication."""
 
     appendEventTopic: NotRequired[bool]
     customTopicPrefix: NotRequired[str]
@@ -110,13 +110,13 @@ class EventPublicationConfigT(TypedDict):
 
 
 class EventPublicationConfigDataT(TypedDict):
-    """Event publication config data."""
+    """Event publication settings nested in an API response."""
 
     eventPublicationConfig: EventPublicationConfigT
 
 
 class GetEventPublicationConfigResponseT(TypedDict):
-    """Represent event publication config."""
+    """JSON envelope returned by getEventPublicationConfig."""
 
     apiVersion: str
     context: str
@@ -126,7 +126,7 @@ class GetEventPublicationConfigResponseT(TypedDict):
 
 
 def mqtt_json_to_event(msg: bytes | bytearray | memoryview | str) -> dict[str, Any]:
-    """Convert MQTT JSON payload into the internal event dict format."""
+    """Map an Axis MQTT event message to the event fields used by Event.decode."""
     message = orjson.loads(msg)
     topic = source = source_idx = data_type = data_value = ""
 
@@ -162,14 +162,14 @@ general_error_codes = {
 
 
 class ClientState(enum.StrEnum):
-    """The current state of the client."""
+    """Whether the MQTT client is active or inactive."""
 
     ACTIVE = "active"
     INACTIVE = "inactive"
 
 
 class ClientConnectionState(enum.StrEnum):
-    """The current connection state of the client."""
+    """Broker connection state reported for the MQTT client."""
 
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
@@ -184,7 +184,7 @@ class ClientConnectionState(enum.StrEnum):
 
 
 class ServerProtocol(enum.StrEnum):
-    """Connection protocols used in the server configuration."""
+    """Transport protocols accepted in MQTT broker configuration."""
 
     SSL = "ssl"
     TCP = "tcp"
@@ -194,26 +194,26 @@ class ServerProtocol(enum.StrEnum):
 
 @dataclass
 class Message:
-    """Message description."""
+    """Optional MQTT message sent on connection or disconnection events."""
 
     use_default: bool = True
     """Specifies if the default configuration should be used.
 
     If set to true, other options in this parameter will be discarded.
-    If set to false, topic, messages, retained and qos options are required and used.
+    If false, the configured topic, payload, retain flag, and QoS are used.
     """
     topic: str | None = None
-    """The topic that should be used with the message."""
+    """Topic to publish this message to."""
     message: str | None = None
-    """The message that should be used with the message."""
+    """Payload to publish on the configured topic."""
     retain: bool | None = None
-    """The retained option that should be used with the message."""
+    """Whether the broker should retain the most recent message for new subscribers."""
     qos: Literal[0, 1, 2] | None = None
-    """The QoS option that should be used with the message."""
+    """MQTT delivery quality level: at most once, at least once, or exactly once."""
 
     @classmethod
     def from_dict(cls, data: MessageT) -> Self:
-        """Create message object from dict."""
+        """Convert API message options into a Message model."""
         return cls(
             use_default=data["useDefault"],
             topic=data.get("topic"),
@@ -224,11 +224,11 @@ class Message:
 
     @classmethod
     def from_dict_or_none(cls, data: MessageT | None) -> Self | None:
-        """Create class instance if data is not None."""
+        """Convert message options when present, otherwise return None."""
         return cls.from_dict(data) if data is not None else None
 
     def to_dict(self) -> MessageT:
-        """Create json dict from object."""
+        """Serialize configured message options using API field names."""
         data: MessageT = {"useDefault": self.use_default}
         if self.topic is not None:
             data["topic"] = self.topic
@@ -243,12 +243,12 @@ class Message:
 
 @dataclass
 class Server:
-    """Represent server config."""
+    """MQTT broker address, transport protocol, and optional connection settings."""
 
     host: str
     """The Broker location, i.e. the Hostname or IP address."""
     protocol: ServerProtocol = ServerProtocol.TCP
-    """Contains the protocols used by params.server.
+    """Transport used to connect to the broker.
 
     Possible values are:
     - tcp: MQTT over TCP
@@ -257,19 +257,18 @@ class Server:
     - wss: MQTT over Websocket Secure
     """
     alpn_protocol: str | None = None
-    """The ALPN protocol that should be used if the selected protocol was ssl or wss.
+    """ALPN protocol to negotiate for an SSL or WSS connection.
 
     If the string value is empty the ALPN will not be used.
     Default value is empty and the maximum length of the protocol is 255 bytes.
     """
     basepath: str | None = None
-    """The path that should be used as a suffix for the constructed URL.
+    """Path suffix for the broker URL used with WebSocket transports.
 
-    Will only be used for the ws and wss connections.
-    The default value is empty string.
+    The default is an empty string.
     """
     port: int | None = None
-    """The port that should be used.
+    """Broker port.
 
     Default values for the protocols are:
     - tcp: 1883
@@ -280,7 +279,7 @@ class Server:
 
     @classmethod
     def from_dict(cls, data: ServerT) -> Self:
-        """Create server object from dict."""
+        """Convert broker connection options from the API payload."""
         return cls(
             host=data["host"],
             protocol=ServerProtocol(data["protocol"]),
@@ -290,7 +289,7 @@ class Server:
         )
 
     def to_dict(self) -> ServerT:
-        """Create json dict from object."""
+        """Serialize broker settings using the MQTT API field names."""
         data: ServerT = {"host": self.host, "protocol": self.protocol.value}
         if self.alpn_protocol is not None:
             data["alpnProtocol"] = self.alpn_protocol
@@ -303,7 +302,7 @@ class Server:
 
 @dataclass
 class Ssl:
-    """Represent SSL config."""
+    """TLS verification and certificate selection for a secure broker connection."""
 
     validate_server_cert: bool = False
     """Specifies if the server certificate shall be validated."""
@@ -320,7 +319,7 @@ class Ssl:
 
     @classmethod
     def from_dict(cls, data: SslT) -> Self:
-        """Create client status object from dict."""
+        """Convert TLS options from the API payload."""
         return cls(
             validate_server_cert=data["validateServerCert"],
             ca_cert_id=data.get("CACertID"),
@@ -329,11 +328,11 @@ class Ssl:
 
     @classmethod
     def from_dict_or_none(cls, data: SslT | None) -> Self | None:
-        """Create class instance if data is not None."""
+        """Convert TLS options when present, otherwise return None."""
         return cls.from_dict(data) if data is not None else None
 
     def to_dict(self) -> SslT:
-        """Create json dict from object."""
+        """Serialize TLS settings using the MQTT API field names."""
         data: SslT = {"validateServerCert": self.validate_server_cert}
         if self.ca_cert_id is not None:
             data["CACertID"] = self.ca_cert_id
@@ -344,7 +343,7 @@ class Ssl:
 
 @dataclass
 class ClientConfig:
-    """Represent client config."""
+    """Broker, credentials, reconnect policy, and message settings for the client."""
 
     server: Server
     """Contains the address and protocol related information."""
@@ -352,11 +351,9 @@ class ClientConfig:
     auto_reconnect: bool | None = None
     """Specifies if the client should reconnect on an unintentional disconnect."""
     clean_session: bool | None = None
-    """This parameter controls the behavior during connection and disconnection time.
+    """Whether the client and broker discard session state when the client disconnects.
 
-    Affects both the client and the server when this parameters is true,
-    the state information is discarded when the client and server change state.
-    Setting the parameter to false means that the state information is kept.
+    True discards the state; False preserves it for a later connection.
     """
     client_id: str | None = None
     """The client identifier sent to the server when the client connects to it."""
@@ -387,14 +384,11 @@ class ClientConfig:
     as it is used when the connection is lost and managed by the broker.
     """
     keep_alive_interval: int | None = None
-    """Defines the maximum time (in seconds).
+    """Maximum seconds between communication with the broker.
 
-    Time intervalthat should pass without communication between the client and server.
-    At least one message will be sent over the network by the client
-    during each keep alive period and the interval makes it possible to detect
-    when the server is no longer available without having to
-    wait for the TCP/IP timeout.
-    The default value is 60."""
+    The client sends at least one message during each interval to detect an
+    unavailable broker before the TCP timeout. The default is 60 seconds.
+    """
     last_will_testament: Message | None = None
     """Contains the options related to LWT.
 
@@ -412,7 +406,7 @@ class ClientConfig:
 
     @classmethod
     def from_dict(cls, data: ConfigT) -> Self:
-        """Create client status object from dict."""
+        """Convert the API client configuration into nested model objects."""
         return cls(
             server=Server.from_dict(data["server"]),
             activate_on_reboot=data.get("activateOnReboot"),
@@ -433,7 +427,7 @@ class ClientConfig:
         )
 
     def to_dict(self) -> ConfigT:
-        """Create json dict from object."""
+        """Serialize the configured client options using API field names."""
         data: ConfigT = {"server": self.server.to_dict()}
         if self.activate_on_reboot is not None:
             data["activateOnReboot"] = self.activate_on_reboot
@@ -464,18 +458,18 @@ class ClientConfig:
 
 @dataclass
 class ClientStatus:
-    """Represent client status."""
+    """Normalized MQTT activation and broker-connection state."""
 
     connection_status: ClientConnectionState
     state: ClientState
     active: bool
-    """The current state of the client. Possible values are active and inactive."""
+    """True when the MQTT client is enabled."""
     connected: bool
-    """The current connection state of your client. Possible values are connected, disconnected."""
+    """True when the client is connected to its broker."""
 
     @classmethod
     def from_dict(cls, data: StatusT) -> Self:
-        """Create client status object from dict."""
+        """Convert device status strings into enums and boolean flags."""
         return cls(
             connection_status=ClientConnectionState(data["connectionStatus"].lower()),
             state=ClientState(data["state"].lower()),
@@ -486,16 +480,16 @@ class ClientStatus:
 
 @dataclass
 class ClientConfigStatus:
-    """GetClientStatus response."""
+    """Client settings and connection state returned together by getClientStatus."""
 
     config: ClientConfig
-    """The Config of the MQTT client."""
+    """Broker and connection options currently configured on the client."""
     status: ClientStatus
-    """The Status of the MQTT client."""
+    """Current activation and broker-connection state."""
 
     @classmethod
     def from_dict(cls, data: ClientStatusDataT) -> Self:
-        """Create client config status object from dict."""
+        """Convert the API's configuration and status objects into models."""
         return cls(
             config=ClientConfig.from_dict(data["config"]),
             status=ClientStatus.from_dict(data["status"]),
@@ -504,7 +498,7 @@ class ClientConfigStatus:
 
 @dataclass
 class EventFilter:
-    """Event filter."""
+    """Topic filter and optional MQTT delivery settings for published events."""
 
     topic_filter: str
     qos: int | None = None
@@ -512,7 +506,7 @@ class EventFilter:
 
     @classmethod
     def from_dict(cls, data: EventFilterT) -> Self:
-        """Create event filter object from dict."""
+        """Convert one API event-filter entry into a model."""
         return cls(
             topic_filter=data["topicFilter"],
             qos=data.get("qos"),
@@ -521,11 +515,11 @@ class EventFilter:
 
     @classmethod
     def from_list(cls, data: list[EventFilterT]) -> list[Self]:
-        """Create event filter object from dict."""
+        """Convert a list of API event-filter entries into models."""
         return [cls.from_dict(item) for item in data]
 
     def to_dict(self) -> EventFilterT:
-        """Create json dict from object."""
+        """Serialize this filter using the API's field names."""
         data: EventFilterT = {"topicFilter": self.topic_filter}
         if self.qos is not None:
             data["qos"] = self.qos
@@ -535,13 +529,13 @@ class EventFilter:
 
     @classmethod
     def to_list(cls, data: list[EventFilter]) -> list[EventFilterT]:
-        """Create json list from object."""
+        """Serialize a list of filters for an API request."""
         return [item.to_dict() for item in data]
 
 
 @dataclass
 class EventPublicationConfig:
-    """Event publication config."""
+    """Topic naming and filtering options for events published over MQTT."""
 
     topic_prefix: str | None = None
     custom_topic_prefix: str | None = None
@@ -552,7 +546,7 @@ class EventPublicationConfig:
 
     @classmethod
     def from_dict(cls, data: EventPublicationConfigT) -> Self:
-        """Create client config status object from dict."""
+        """Convert the API event-publication options into a model."""
         return cls(
             topic_prefix=data["topicPrefix"],
             custom_topic_prefix=data["customTopicPrefix"],
@@ -563,7 +557,7 @@ class EventPublicationConfig:
         )
 
     def to_dict(self) -> EventPublicationConfigT:
-        """Create json dict from object."""
+        """Serialize configured publication options using API field names."""
         data: EventPublicationConfigT = {}
         if self.topic_prefix is not None:
             data["topicPrefix"] = self.topic_prefix
@@ -582,7 +576,7 @@ class EventPublicationConfig:
 
 @dataclass
 class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
-    """Response object for get client status request."""
+    """MQTT client configuration and status returned by getClientStatus."""
 
     api_version: str
     context: str
@@ -592,7 +586,7 @@ class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse the JSON envelope and normalize its client configuration and status."""
         data: GetClientStatusResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -604,7 +598,7 @@ class GetClientStatusResponse(ApiResponse[ClientConfigStatus]):
 
 @dataclass
 class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
-    """Response object for event publication config get request."""
+    """MQTT topic and filtering settings returned by getEventPublicationConfig."""
 
     api_version: str
     context: str
@@ -614,7 +608,7 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse and normalize the event-publication settings in the response."""
         data: GetEventPublicationConfigResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -628,7 +622,7 @@ class GetEventPublicationConfigResponse(ApiResponse[EventPublicationConfig]):
 
 @dataclass
 class ConfigureClientRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for configuring MQTT client."""
+    """Replace the MQTT client's broker, credentials, and connection settings."""
 
     method = "post"
     path = "/axis-cgi/mqtt/client.cgi"
@@ -643,7 +637,7 @@ class ConfigureClientRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the client configuration as a configureClient request."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -656,7 +650,7 @@ class ConfigureClientRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class ActivateClientRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for activating MQTT client."""
+    """Enable the MQTT client on the device."""
 
     method = "post"
     path = "/axis-cgi/mqtt/client.cgi"
@@ -669,7 +663,7 @@ class ActivateClientRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode an activateClient request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -681,11 +675,11 @@ class ActivateClientRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class DeactivateClientRequest(ActivateClientRequest):
-    """Request object for deactivating MQTT client."""
+    """Disable the MQTT client on the device."""
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a deactivateClient request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -697,7 +691,7 @@ class DeactivateClientRequest(ActivateClientRequest):
 
 @dataclass
 class GetClientStatusRequest(ApiRequest[GetClientStatusResponse]):
-    """Request object for getting MQTT client status."""
+    """Request the MQTT client's configuration and current connection status."""
 
     method = "post"
     path = "/axis-cgi/mqtt/client.cgi"
@@ -710,7 +704,7 @@ class GetClientStatusRequest(ApiRequest[GetClientStatusResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getClientStatus request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -722,7 +716,7 @@ class GetClientStatusRequest(ApiRequest[GetClientStatusResponse]):
 
 @dataclass
 class GetEventPublicationConfigRequest(ApiRequest[GetEventPublicationConfigResponse]):
-    """Request object for getting MQTT event publication config."""
+    """Request the device's MQTT event-publication settings."""
 
     method = "post"
     path = "/axis-cgi/mqtt/event.cgi"
@@ -735,7 +729,7 @@ class GetEventPublicationConfigRequest(ApiRequest[GetEventPublicationConfigRespo
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getEventPublicationConfig request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -747,7 +741,7 @@ class GetEventPublicationConfigRequest(ApiRequest[GetEventPublicationConfigRespo
 
 @dataclass
 class ConfigureEventPublicationRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for configuring event publication over MQTT."""
+    """Set topic naming and filtering for events published over MQTT."""
 
     method = "post"
     path = "/axis-cgi/mqtt/event.cgi"
@@ -762,7 +756,7 @@ class ConfigureEventPublicationRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the publication settings as a configureEventPublication request."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

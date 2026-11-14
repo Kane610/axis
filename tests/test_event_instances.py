@@ -1,4 +1,4 @@
-"""Test Axis event instance API.
+"""Test SOAP event-instance parsing and conversion to expected stream events.
 
 pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_instances.py
 """
@@ -32,12 +32,12 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def event_instances(axis_device) -> EventInstanceHandler:
-    """Return the event_instances mock object."""
+    """Return the event-instance handler attached to the mocked device."""
     return axis_device.vapix.event_instances
 
 
 async def test_full_list_of_event_instances(http_route_mock, event_instances):
-    """Test loading of event instances work."""
+    """Load all 44 event instances returned by the SOAP endpoint."""
     http_route_mock.post("/vapix/services").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
@@ -166,7 +166,7 @@ async def test_single_event_instance(
     response: str,
     expected: dict,
 ):
-    """Verify expected outcome from different event instances."""
+    """Parse topic, availability, name, and typed source/data fields for one event."""
     http_route_mock.post("/vapix/services").respond(
         text=response,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
@@ -301,7 +301,7 @@ async def test_single_event_instance(
     ],
 )
 def test_get_events(input: dict, output: list):
-    """Verify expected output of get_events."""
+    """Flatten a nested event tree into topic-and-data entries."""
     assert get_events(input) == output
 
 

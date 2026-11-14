@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to integrate with Home Assistant."""
+"""Manage one device's VAPIX API handlers and send requests through its HTTP session."""
 
 import asyncio
 from dataclasses import dataclass
@@ -50,10 +50,10 @@ TIME_OUT = 15
 
 @dataclass(frozen=True)
 class InterfaceState:
-    """Structured interface truth exposed by Vapix.
+    """Availability and loaded-data status for one library handler.
 
     The CLI and other consumers should render this state directly instead of
-    deriving support heuristics independently.
+    guessing API availability from a separate set of rules.
     """
 
     name: str
@@ -68,12 +68,12 @@ class InterfaceState:
 
 
 class Vapix:
-    """Vapix parameter request."""
+    """Provide device API handlers, initialize supported features, and send HTTP requests."""
 
     auth: str | None
 
     def __init__(self, device: AxisDevice) -> None:
-        """Store local reference to device config."""
+        """Set up authentication and API handlers without contacting the device."""
         self.device = device
         self._aiohttp_digest_middleware: Any | None = None
 
@@ -121,7 +121,7 @@ class Vapix:
 
     @property
     def firmware_version(self) -> str:
-        """Firmware version of device."""
+        """Return the firmware version from already loaded device data."""
         if self.basic_device_info.initialized:
             return self.basic_device_info["0"].firmware_version
         if self.params.property_handler.initialized:
@@ -130,7 +130,7 @@ class Vapix:
 
     @property
     def product_full_name(self) -> str:
-        """Product full name of device."""
+        """Return the full product name from already loaded device data."""
         if self.basic_device_info.initialized:
             return self.basic_device_info["0"].product_full_name
         if self.params.brand_handler.initialized:
@@ -139,7 +139,7 @@ class Vapix:
 
     @property
     def product_number(self) -> str:
-        """Product number of device."""
+        """Return the product number from already loaded device data."""
         if self.basic_device_info.initialized:
             return self.basic_device_info["0"].product_number
         if self.params.brand_handler.initialized:
@@ -148,7 +148,7 @@ class Vapix:
 
     @property
     def product_type(self) -> str:
-        """Product type of device."""
+        """Return the product type from already loaded device data."""
         if self.basic_device_info.initialized:
             return self.basic_device_info["0"].product_type
         if self.params.brand_handler.initialized:
@@ -157,7 +157,7 @@ class Vapix:
 
     @property
     def serial_number(self) -> str:
-        """Device serial number."""
+        """Return the serial number from already loaded device data."""
         if self.basic_device_info.initialized:
             return self.basic_device_info["0"].serial_number
         if self.params.property_handler.initialized:
@@ -166,14 +166,14 @@ class Vapix:
 
     @property
     def access_rights(self) -> SecondaryGroup:
-        """Access rights with the account."""
+        """Return the logged-in account's cached privileges, or UNKNOWN if not loaded."""
         if user := self.user_groups.get("0"):
             return user.privileges
         return SecondaryGroup.UNKNOWN
 
     @property
     def streaming_profiles(self) -> list[StreamProfile]:
-        """List streaming profiles."""
+        """Return cached video-stream profiles, falling back to parameter data."""
         if self.stream_profiles.initialized:
             return list(self.stream_profiles.values())
         if self.params.stream_profile_handler.initialized:
@@ -182,13 +182,13 @@ class Vapix:
 
     @property
     def ports(self) -> IoPortManagement | Ports:
-        """Temporary port property."""
+        """Use the newer I/O API when supported, otherwise the older port.cgi handler."""
         if self.io_port_management.supported:
             return self.io_port_management
         return self.port_cgi
 
     async def initialize(self) -> None:
-        """Initialize Vapix functions."""
+        """Discover device APIs, load fallback parameters, and initialize applications."""
         await self.initialize_api_discovery()
         await self.initialize_param_cgi(preload_data=False)
         if "Companion" in self.product_full_name:
@@ -196,7 +196,7 @@ class Vapix:
         await self.initialize_applications()
 
     async def initialize_api_discovery(self) -> None:
-        """Load API list from API Discovery."""
+        """Read advertised APIs and initialize handlers in the discovery phase."""
         if not await self.api_discovery.update():
             return
 
@@ -234,7 +234,7 @@ class Vapix:
         refresh_discovery: bool = True,
         probe: bool = False,
     ) -> dict[str, InterfaceState]:
-        """Return structured interface state for consumers like CLI.
+        """Report each handler's availability and loaded data, optionally testing its endpoint.
 
         Args:
             refresh_discovery: Refresh API discovery before evaluation.
@@ -284,7 +284,7 @@ class Vapix:
         )
 
     async def initialize_param_cgi(self, preload_data: bool = True) -> None:
-        """Load data from param.cgi."""
+        """Read parameter groups and initialize handlers that use parameter-based support."""
         tasks: list[Awaitable[bool]] = []
 
         if preload_data:
@@ -329,7 +329,7 @@ class Vapix:
         await self._initialize_handlers(HandlerGroup.APPLICATION)
 
     async def initialize_event_instances(self) -> None:
-        """Initialize event instances of what events are supported by the device."""
+        """Read the event sources and types supported by the device."""
         await self.event_instances.update()
 
     async def initialize_users(self) -> None:
@@ -353,7 +353,7 @@ class Vapix:
         self,
         api_request: ApiRequest[ApiResponseT],
     ) -> ApiResponseT:
-        """Make a request and decode response based on the request contract."""
+        """Send an API request and decode its bytes using the request's response type."""
         params = api_request.params or {}
         if self.device.config.is_companion and api_request.supports_companion_param:
             params["Axis-Orig-Sw"] = "true"
@@ -378,7 +378,7 @@ class Vapix:
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
     ) -> bytes:
-        """Make a request to the device."""
+        """Send an HTTP request to the device and return its response bytes."""
         return await self._request(
             method=method,
             path=path,
@@ -399,7 +399,7 @@ class Vapix:
         params: dict[str, str] | None = None,
         allow_auto_basic_retry: bool = False,
     ) -> bytes:
-        """Make a request to the device."""
+        """Send an HTTP request, handle failures, and optionally retry with Basic authentication."""
         url = self.device.config.url + path
         LOGGER.debug("%s, %s, '%s', '%s', '%s'", method, url, content, data, params)
 

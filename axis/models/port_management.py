@@ -1,7 +1,7 @@
-"""I/O Port Management API.
+"""Models for the VAPIX I/O Port Management API.
 
-The I/O port management API makes it possible to retrieve
-information about the ports and apply product dependent configurations
+The API lists physical I/O ports, changes their settings, and configures
+timed sequences of output states.
 """
 
 from dataclasses import dataclass
@@ -15,14 +15,14 @@ API_VERSION = "1.0"
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by the I/O Port Management API."""
 
     code: int
     message: str
 
 
 class PortItemT(TypedDict):
-    """Port representation."""
+    """State, direction, name, and usage fields for one physical I/O port."""
 
     port: str
     configurable: bool
@@ -34,21 +34,21 @@ class PortItemT(TypedDict):
 
 
 class PortDataT(TypedDict):
-    """Port getPorts response."""
+    """Port count and port entries returned by getPorts."""
 
     numberOfPorts: int
     items: list[PortItemT]
 
 
 class SequenceT(TypedDict):
-    """Port sequence representation."""
+    """One output state and its duration in a port sequence."""
 
     state: Literal["open", "closed"]
     time: int
 
 
 class GetPortsResponseT(TypedDict):
-    """Get ports response data."""
+    """JSON envelope returned by getPorts."""
 
     apiVersion: str
     context: str
@@ -58,13 +58,13 @@ class GetPortsResponseT(TypedDict):
 
 
 class ApiVersionsT(TypedDict):
-    """List of supported API versions."""
+    """I/O Port Management API versions supported by the device."""
 
     apiVersions: list[str]
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """ListApis response."""
+    """JSON envelope returned by getSupportedVersions."""
 
     apiVersion: str
     context: str
@@ -86,7 +86,7 @@ error_codes = {
 
 @dataclass
 class PortConfiguration:
-    """Port configuration used with set_ports interface."""
+    """Optional settings to apply to one physical I/O port."""
 
     port: str
     usage: str | None = None
@@ -96,7 +96,7 @@ class PortConfiguration:
     state: str | None = None
 
     def to_dict(self) -> dict[str, str]:
-        """Convert to dictionary with populated fields."""
+        """Serialize the port and only the settings supplied by the caller."""
         data: dict[str, str] = {"port": self.port}
         if self.usage is not None:
             data["usage"] = self.usage
@@ -113,19 +113,19 @@ class PortConfiguration:
 
 @dataclass
 class Sequence:
-    """Sequence class."""
+    """One open or closed output state and how long it should last."""
 
     state: Literal["open", "closed"]
     time: int
 
     def to_dict(self) -> SequenceT:
-        """Convert to dictionary."""
+        """Serialize this state step for the API request."""
         return {"state": self.state, "time": self.time}
 
 
 @dataclass
 class PortSequence:
-    """Port sequence class."""
+    """An ordered sequence of output states for one port."""
 
     port: str
     sequence: list[Sequence]
@@ -133,13 +133,13 @@ class PortSequence:
 
 @dataclass(frozen=True)
 class Port(ApiItem):
-    """I/O port management port."""
+    """Physical I/O port state and configuration reported by getPorts."""
 
     configurable: bool
-    """Is port configurable."""
+    """Whether the device allows this port's configuration to be changed."""
 
     direction: str
-    """Direction of port.
+    """Whether the port is an input or output.
 
     <input|output>.
     """
@@ -148,23 +148,23 @@ class Port(ApiItem):
     """Name of port."""
 
     normal_state: str
-    """Port normal state.
+    """Circuit state treated as normal for this port.
 
     <open|closed>.
     """
 
     state: str
-    """State of port.
+    """Current circuit state reported for this port.
 
     <open|closed>.
     """
 
     usage: str
-    """Usage of port."""
+    """Configured role of the port, as reported by the device."""
 
     @classmethod
     def decode(cls, data: PortItemT) -> Self:
-        """Create object from dict."""
+        """Convert one getPorts entry into a port model."""
         return cls(
             id=data["port"],
             configurable=data["configurable"],
@@ -178,7 +178,7 @@ class Port(ApiItem):
 
 @dataclass
 class GetPortsResponse(ApiResponse[dict[str, Port]]):
-    """Response object for listing ports."""
+    """Physical I/O ports returned by getPorts, indexed by port ID."""
 
     api_version: str
     context: str
@@ -188,7 +188,7 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse and index the port entries in the getPorts response."""
         data: GetPortsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -200,7 +200,7 @@ class GetPortsResponse(ApiResponse[dict[str, Port]]):
 
 @dataclass
 class GetPortsRequest(ApiRequest[GetPortsResponse]):
-    """Request object for listing ports."""
+    """Request the physical I/O ports and their current settings."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
@@ -213,7 +213,7 @@ class GetPortsRequest(ApiRequest[GetPortsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getPorts request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -225,7 +225,7 @@ class GetPortsRequest(ApiRequest[GetPortsResponse]):
 
 @dataclass
 class SetPortsRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for configuring ports."""
+    """Apply one or more physical I/O port configuration changes."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
@@ -240,7 +240,7 @@ class SetPortsRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the supplied port settings as a setPorts request."""
         if not isinstance(self.port_config, list):
             self.port_config = [self.port_config]
         ports: list[dict[str, str]] = [port.to_dict() for port in self.port_config]
@@ -256,7 +256,7 @@ class SetPortsRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class SetStateSequenceRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for configuring port sequence."""
+    """Set the sequence of timed output states for a physical port."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
@@ -272,7 +272,7 @@ class SetStateSequenceRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the ordered output-state steps as a setStateSequence request."""
         sequence = [item.to_dict() for item in self.sequence]
         return orjson.dumps(
             {
@@ -286,7 +286,7 @@ class SetStateSequenceRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
-    """Response object for supported versions."""
+    """I/O Port Management API versions supported by the device."""
 
     api_version: str
     context: str
@@ -296,7 +296,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the supported-version list from the response envelope."""
         data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -308,7 +308,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 @dataclass
 class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
-    """Request object for listing supported API versions."""
+    """Request the I/O Port Management API versions supported by the device."""
 
     method = "post"
     path = "/axis-cgi/io/portmanagement.cgi"
@@ -320,7 +320,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getSupportedVersions request as JSON."""
         return orjson.dumps(
             {
                 "context": self.context,

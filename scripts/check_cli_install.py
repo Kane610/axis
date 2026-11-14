@@ -1,4 +1,4 @@
-"""Verify canonical Axis wheel installation and Zsh startup outside the checkout."""
+"""Test installed library and CLI packages, command help, and Zsh completion outside the checkout."""
 
 # ruff: noqa: INP001
 
@@ -16,7 +16,7 @@ from tempfile import TemporaryDirectory
 def run(
     args: list[str], cwd: Path, env: dict[str, str]
 ) -> subprocess.CompletedProcess[str]:
-    """Run an isolated validation command, preserving full failure evidence."""
+    """Run a validation command and retain its output if it fails."""
     return subprocess.run(  # noqa: S603
         args, cwd=cwd, env=env, text=True, capture_output=True, check=True, timeout=180
     )
@@ -29,7 +29,7 @@ def require(condition: bool, message: str) -> None:
 
 
 def verify() -> None:
-    """Build and exercise base and CLI-extra installations without personal state."""
+    """Install a built wheel into temporary environments and test it without personal config."""
     repository = Path(__file__).resolve().parents[1]
     with TemporaryDirectory(prefix="axis-cli-install-") as temporary:
         root = Path(temporary)

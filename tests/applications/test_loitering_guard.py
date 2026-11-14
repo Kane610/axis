@@ -1,4 +1,4 @@
-"""Test Axis Loitering Guard API.
+"""Test reading profile configuration from the Axis Loitering Guard API.
 
 pytest --cov-report term-missing --cov=axis.applications.loitering_guard tests/applications/test_loitering_guard.py
 """
@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def loitering_guard(axis_device) -> LoiteringGuardHandler:
-    """Return the loitering guard mock object."""
+    """Return the Loitering Guard handler attached to the mocked device."""
     return axis_device.vapix.loitering_guard
 
 
 async def test_get_empty_configuration(
     aiohttp_mock_server, loitering_guard: LoiteringGuardHandler
 ):
-    """Test empty get_configuration."""
+    """An empty profile list is accepted and sends the expected configuration request."""
     _server, requests = await aiohttp_mock_server(
         "/local/loiteringguard/control.cgi",
         response=GET_CONFIGURATION_EMPTY_RESPONSE,
@@ -45,7 +45,7 @@ async def test_get_empty_configuration(
 async def test_get_configuration(
     aiohttp_mock_server, loitering_guard: LoiteringGuardHandler
 ):
-    """Test get_configuration."""
+    """A returned profile preserves its configured filters and triggers."""
     await aiohttp_mock_server(
         "/local/loiteringguard/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,

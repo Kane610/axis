@@ -58,7 +58,7 @@ class WebSocketFailureReason(enum.StrEnum):
 
 
 def _walk_exception_chain(err: BaseException) -> list[BaseException]:
-    """Return exceptions in causal chain for robust error classification."""
+    """Follow an exception's causes and contexts to find the underlying connection failure."""
     chain: list[BaseException] = []
     seen: set[int] = set()
     current: BaseException | None = err
@@ -206,7 +206,7 @@ class WebSocketClient:
 
     @property
     def should_disable_runtime_websocket(self) -> bool:
-        """Return true if websocket should be disabled for this runtime."""
+        """Report authentication or certificate failures that can trigger RTSP fallback."""
         return self._last_failure_reason in (
             WebSocketFailureReason.AUTHENTICATION,
             WebSocketFailureReason.SSL_CERTIFICATE,
@@ -413,7 +413,7 @@ class WebSocketClient:
         self._signal(Signal.DATA)
 
     async def _close(self) -> None:
-        """Close websocket connection and session (idempotent)."""
+        """Close the WebSocket and any HTTP session created by this client."""
         if self._ws is not None:
             await self._ws.close()
             self._ws = None
@@ -425,7 +425,7 @@ class WebSocketClient:
         self._owns_ws_session = False
 
     def _signal(self, signal: Signal) -> None:
-        """Invoke the signal callback, swallowing any exceptions."""
+        """Notify the stream callback and log any callback failures."""
         try:
             self.callback(signal)
         except Exception:  # pragma: no cover

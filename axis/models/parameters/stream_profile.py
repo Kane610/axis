@@ -8,7 +8,7 @@ from .param_cgi import ParamItem
 
 
 class ProfileParamT(TypedDict):
-    """Profile descriptions."""
+    """Name, description, and settings string for one stream profile."""
 
     Description: str
     Name: str
@@ -16,7 +16,7 @@ class ProfileParamT(TypedDict):
 
 
 class StreamProfileParamT(TypedDict):
-    """Represent a property object."""
+    """Maximum profile count and numbered profiles from the StreamProfile group."""
 
     MaxGroups: int
     S0: NotRequired[ProfileParamT]
@@ -27,17 +27,17 @@ class StreamProfileParamT(TypedDict):
 
 @dataclass(frozen=True)
 class StreamProfileParam(ParamItem):
-    """Stream profile parameters."""
+    """Stream profile capacity and configured profiles from param.cgi."""
 
     max_groups: int
     """Maximum number of supported stream profiles."""
 
     stream_profiles: list[StreamProfile]
-    """List of stream profiles."""
+    """Configured profiles with their descriptions and parameter strings."""
 
     @classmethod
     def decode(cls, data: dict[str, Any]) -> Self:
-        """Decode dictionary to class object."""
+        """Convert the StreamProfile group into profile models and a capacity limit."""
         max_groups = int(data.get("MaxGroups", 0))
 
         raw_profiles = dict(data)

@@ -1,4 +1,4 @@
-"""Test Axis IO port parameter management."""
+"""Test normalization and parsing of Axis I/O port parameters."""
 
 from typing import TYPE_CHECKING
 
@@ -19,7 +19,7 @@ root.IOPort.I0.Input.Trig=closed
 
 @pytest.fixture
 def io_port_handler(axis_device: AxisDevice) -> IOPortParameterHandler:
-    """Return the param cgi mock object."""
+    """Return the I/O port parameter handler attached to the mocked device."""
     return axis_device.vapix.params.io_port_handler
 
 
@@ -36,7 +36,7 @@ async def test_port_direction_enum():
 async def test_io_port_handler(
     aiohttp_mock_server, io_port_handler: IOPortParameterHandler
 ):
-    """Verify that update brand works."""
+    """Parse port direction, input trigger, and configurability from parameters."""
     await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=PORT_RESPONSE.encode("iso-8859-1"),

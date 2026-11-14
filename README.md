@@ -1,24 +1,26 @@
 # axis
 
-Python project to set up a connection towards Axis Communications devices and to subscribe to specific events on the metadatastream.
+Python library and CLI for reading information, controlling features, and receiving
+events from Axis Communications devices.
 
 ## Library and application boundaries
 
-Axis remains one repository and distribution with independent Python subpackages.
+Axis is one repository and installable package, organized into Python subpackages.
 Home Assistant and other integrations can continue using `AxisDevice`,
 configuration, handlers, models, events, and transport directly. Their public
 imports and handler initialization phases are unchanged.
 
-`axis.application` contains optional-to-use, presentation-neutral workflows over
-that library: stored connection records, local registry persistence, explicit
-discovery, async reads, and account operations. These services do not need Click,
-prompt_toolkit, a terminal, or a selected device. Library-only installations can
-import them without installing the `cli` extra.
+`axis.application` provides functions shared by the CLI and future applications:
+find devices, save their connection settings, read device information, and manage
+accounts. Applications may use these functions or use the device library directly.
+The shared functions do not display menus or manage screen selection, and work
+without Click, prompt_toolkit, a terminal, or the `cli` extra.
 
-The CLI is an adapter over these services. A future graphical adapter can await
-the same workflows while owning its own navigation and event loop; it should not
-execute CLI commands or inherit terminal prompts. Core device code never imports
-applications or presentation. Shared services never import presentation.
+The CLI supplies terminal commands, prompts, and output around these functions.
+A future graphical application can call the same async functions while managing
+its own screens and event loop; it should not execute CLI commands or reuse
+terminal prompts. The device library does not import application or UI code.
+Shared application functions do not import CLI or graphical UI code.
 
 The authoritative [contributor and agent architecture contract](CONTRIBUTING.md#shared-applications-and-separation-of-concerns)
 describes placement, public APIs, state ownership, dependencies, compatibility,
@@ -39,28 +41,34 @@ async def inspect_registered_device(identifier: str) -> HealthSnapshot:
     return await read_health(record)
 ```
 
-The caller owns its event loop; the operation closes its own HTTP session.
-`HealthSnapshot` retains the initiating public target, separately observed device
-identity, and a UTC observation timestamp. `DeviceRecord.summary()` omits login
-credentials. Saved metadata is not live health; a differing observed serial
-must be shown as an identity discrepancy. There is no implicit polling or cache.
+The caller runs the event loop; the operation opens and closes its HTTP session.
+`HealthSnapshot` records which saved device was requested, what identity the device
+actually reported, and when the information was read in UTC.
+`DeviceRecord.summary()` omits login credentials. Saved device details do not prove
+that a device is online. If the reported serial differs from the saved one, show
+that mismatch rather than treating the connection as healthy. These functions
+do not keep a cache or refresh data automatically.
 
-Use `prepare_account_change` for an offline, immutable, secret-free intention,
-then display its `preview()`. Only after explicit authorization should an adapter
+Use `prepare_account_change` to describe a proposed account change without
+contacting a device or storing its password, then display its `preview()`.
+Only after explicit authorization should an application
 await `apply_account_change(..., authorized=True)`; deletion additionally needs
-`confirmed=True`. Password input must match the reviewed intention. Apply rejects
-changed targets/connection policy and verifies the live serial before writing.
-The returned `AccountChangeResult.payload()` preserves canonical mutation output.
-Do not use the compatibility executor `change_account` as a reviewed workflow.
+`confirmed=True`. Supply a password only if the reviewed change includes a password
+change. Apply rejects changed device or connection settings and checks the device's
+serial over the network before writing. `AccountChangeResult.payload()` returns
+the reviewed change with its status set to applied. The older `change_account`
+function remains for compatibility but does not enforce these review steps.
 
-`OperationError.kind` provides safe recovery categories; `outcome_unknown` marks
-an ambiguous write acknowledgement. Do not retry that mutation automatically:
+`OperationError.kind` identifies the type of failure without exposing login details.
+`outcome_unknown` means a write may have reached the device but its response was
+lost or unclear. Do not retry that change automatically:
 read the account state before deciding what to do next. Cancelling a dispatched
 write also cannot undo it and may leave an uncertain outcome. No raw transport causes
 or credential-bearing traces are exposed by application boundaries.
-Discovery failures and cancellation release network resources, including browser
-initialization/cleanup failures. Registry persistence remains local, synchronous,
-and POSIX-locked, with plaintext credentials at rest; GUI/platform storage choices
+Discovery closes its network resources even if starting or stopping the search
+fails. Saving device settings uses a local file and blocks until the update is
+complete. Writes use POSIX file locks; credentials are stored as plaintext in
+owner-only files, not encrypted. GUI-specific and cross-platform storage choices
 remain future work.
 
 ## Development setup

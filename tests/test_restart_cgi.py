@@ -1,4 +1,4 @@
-"""Test Axis restart API."""
+"""Test device restart requests and authorization errors."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 async def test_restart(mock_api_request, axis_device: AxisDevice) -> None:
-    """Verify that restart calls restart.cgi."""
+    """Send a GET request to restart.cgi."""
     route = mock_api_request(RestartRequest, response=MockApiResponseSpec())
 
     await axis_device.vapix.restart_cgi.restart()

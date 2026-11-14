@@ -1,4 +1,8 @@
-"""Locked local persistence preserving the existing VAPIX connection TOML format."""
+"""Read and update saved devices in a TOML file without losing unrelated settings.
+
+Writes lock the file and replace it only after the new contents are complete.
+The existing connection format is preserved, including unrecognized fields.
+"""
 
 from contextlib import contextmanager
 from dataclasses import asdict, fields
@@ -82,14 +86,14 @@ def _resolve(records: dict[str, DeviceRecord], identifier: str) -> DeviceRecord:
 
 
 class DeviceRegistry:
-    """Read and atomically mutate the registry under a POSIX advisory lock.
+    """Store devices locally and prevent simultaneous writers from corrupting the file.
 
     Mutations are unsupported on non-POSIX platforms rather than proceeding
     without locking. Readers do not create files and see atomic snapshots.
     """
 
     def __init__(self, path: Path) -> None:
-        """Select a config path without filesystem side effects."""
+        """Choose the configuration file without creating or reading it."""
         self.path = path
 
     def _read(self) -> dict[str, Any]:
@@ -102,7 +106,7 @@ class DeviceRegistry:
             _fail("Cannot read config; check permissions and repair invalid TOML.")
 
     def load(self) -> dict[str, DeviceRecord]:
-        """Load validated records, returning an empty registry if absent."""
+        """Read saved devices, or return an empty dictionary if the file does not exist."""
         return _records(self._read())
 
     def resolve(self, identifier: str) -> DeviceRecord:
@@ -146,7 +150,7 @@ class DeviceRegistry:
             _fail("Cannot save config; check directory permissions and retry.")
 
     def upsert(self, record: DeviceRecord, *, preserve_alias: bool = False) -> None:
-        """Replace typed fields for a serial, preserving unrecognized TOML keys.
+        """Save a complete device record while keeping unrecognized configuration fields.
 
         Full-record updates are last-writer-wins, including stale records.
         Use update_credentials for a credentials-only read-modify-write.
@@ -169,7 +173,7 @@ class DeviceRegistry:
     def update_credentials(
         self, identifier: str, username: str, password: str
     ) -> DeviceRecord:
-        """Update only credentials on the latest record under the write lock."""
+        """Replace login credentials without overwriting other saved device changes."""
         with self._locked():
             data = self._read()
             record = _resolve(_records(data), identifier)
@@ -183,7 +187,7 @@ class DeviceRegistry:
             return record
 
     def update_alias(self, identifier: str, alias: str) -> DeviceRecord:
-        """Set or clear an alias on the latest record under the write lock."""
+        """Set or clear the friendly name without overwriting other saved device changes."""
         with self._locked():
             data = self._read()
             record = _resolve(_records(data), identifier)

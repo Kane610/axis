@@ -1,39 +1,36 @@
-"""Axis errors."""
+"""Identify device request, authentication, permission, and response failures."""
 
 
 class AxisException(Exception):
-    """Base error for Axis."""
+    """Base exception for failures reported by the Axis device library."""
 
 
 class RequestError(AxisException):
-    """Unable to fulfill request.
-
-    Raised when device cannot be reached.
-    """
+    """A device request could not be completed, for example after a connection timeout."""
 
 
 class ResponseError(AxisException):
-    """Invalid response."""
+    """The device response is invalid or unexpected."""
 
 
 class Unauthorized(AxisException):
-    """Username is not authorized."""
+    """The device rejected authentication (HTTP 401)."""
 
 
 class Forbidden(AxisException):
-    """Endpoint is not accessible due to low permissions."""
+    """The device refused access to the requested endpoint (HTTP 403)."""
 
 
 class LoginRequired(AxisException):
-    """User is logged out."""
+    """The device requires the user to log in."""
 
 
 class MethodNotAllowed(AxisException):
-    """Invalid request."""
+    """The endpoint does not allow the requested HTTP method (HTTP 405)."""
 
 
 class PathNotFound(AxisException):
-    """Path not found."""
+    """The requested device endpoint was not found (HTTP 404)."""
 
 
 ERRORS = {
@@ -45,6 +42,6 @@ ERRORS = {
 
 
 def raise_error(error: int) -> None:
-    """Raise error."""
+    """Raise the exception mapped to an HTTP status, or AxisException for other codes."""
     cls = ERRORS.get(error, AxisException)
     raise cls(error)

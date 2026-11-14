@@ -1,4 +1,4 @@
-"""Canonical Axis commands shared by shells, guided menus, and the command prompt."""
+"""Define Axis device commands used by both direct calls and interactive menus."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ class AxisZshComplete(ZshComplete):
 
 @dataclass
 class Runtime:
-    """Own configuration, selection, and one event loop for a CLI invocation."""
+    """Keep settings, the selected device, and an async runner for one CLI invocation."""
 
     config_path: Path = field(default_factory=default_config_path)
     interactive: bool = False
@@ -53,15 +53,15 @@ class Runtime:
 
     @property
     def registry(self) -> DeviceRegistry:
-        """Access the selected local registry without creating it."""
+        """Open the saved device registry without creating a configuration file."""
         return DeviceRegistry(self.config_path)
 
     def run[T](self, coroutine: Coroutine[Any, Any, T]) -> T:
-        """Run a shared async operation in the owned event loop."""
+        """Run an async device operation using this CLI invocation's runner."""
         return self.runner.run(coroutine)
 
     def device(self, identifier: str | None) -> DeviceRecord:
-        """Resolve explicit targets or the interactive selection, never guess."""
+        """Find the requested serial or alias, using menu selection only in interactive mode."""
         target = identifier or (self.selected if self.interactive else None)
         if target is None:
             msg = (
@@ -75,7 +75,7 @@ class Runtime:
 def complete_devices(
     ctx: click.Context, param: click.Parameter, incomplete: str
 ) -> list[CompletionItem]:
-    """Complete local public identifiers without invoking command callbacks."""
+    """Suggest saved device serials and aliases without contacting devices."""
     root = ctx.find_root()
     path = root.params.get("config") or default_config_path()
     try:
@@ -359,7 +359,7 @@ def health(runtime: Runtime, device: str | None, as_json: bool) -> None:
 
 @cli.group()
 def api() -> None:
-    """Discover VAPIX support and read interface data."""
+    """Find supported device APIs and read their data."""
 
 
 @api.command("list")
@@ -376,7 +376,7 @@ def api_list(runtime: Runtime, device: str | None, as_json: bool) -> None:
 @json_option
 @click.pass_obj
 def interfaces(runtime: Runtime, device: str | None, as_json: bool) -> None:
-    """Inspect advertised and probed interfaces using the normal initialization model."""
+    """Check which library handlers the device advertises or responds to."""
     render(runtime.run(operations.list_interfaces(runtime.device(device))), as_json)
 
 
@@ -413,7 +413,7 @@ def browse(runtime: Runtime, device: str | None) -> None:
 
 @cli.group()
 def params() -> None:
-    """Inspect VAPIX parameters."""
+    """Read device configuration parameters."""
 
 
 @params.command()
@@ -427,7 +427,7 @@ def show(runtime: Runtime, device: str | None, as_json: bool) -> None:
 
 @cli.group()
 def events() -> None:
-    """List event instances and subscribe to live events."""
+    """Find available event types and receive live device events."""
 
 
 @events.command("list")
@@ -435,7 +435,7 @@ def events() -> None:
 @json_option
 @click.pass_obj
 def events_list(runtime: Runtime, device: str | None, as_json: bool) -> None:
-    """List available event instances."""
+    """List the event sources and types advertised by the device."""
     render(runtime.run(operations.list_events(runtime.device(device))), as_json)
 
 
@@ -528,7 +528,7 @@ def account_change(
 
 
 def register_account_write(action: str) -> None:
-    """Register account verbs with one consistent parser and execution contract."""
+    """Define create, update, and delete commands with the same review and apply rules."""
 
     @accounts.command(
         action,
@@ -694,7 +694,7 @@ def zsh() -> None:
 
 
 def main() -> None:
-    """Execute canonical parsing with explicit failure and resource cleanup."""
+    """Run the Axis command parser, report failures, and close the async runner."""
     runtime = Runtime()
     logging.basicConfig(level=logging.CRITICAL, format="%(message)s")
     try:

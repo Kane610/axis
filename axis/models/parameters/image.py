@@ -7,7 +7,7 @@ from .param_cgi import ParamItem
 
 
 class ImageAppearanceParamT(TypedDict):
-    """Represent an appearance object."""
+    """Appearance settings for one image channel, including format and rotation."""
 
     ColorEnabled: str
     Compression: str
@@ -17,14 +17,14 @@ class ImageAppearanceParamT(TypedDict):
 
 
 class ImageMpegH264ParamT(TypedDict):
-    """Represent an MPEG H264 object."""
+    """H.264-specific encoding settings within an image channel's MPEG group."""
 
     Profile: str
     PSEnabled: str
 
 
 class ImageMpegParamT(TypedDict):
-    """Represent an MPEG object."""
+    """Video encoding and frame-rate settings within an image channel's MPEG group."""
 
     Complexity: str
     ConfigHeaderInterval: str
@@ -43,13 +43,13 @@ class ImageMpegParamT(TypedDict):
 
 
 class ImageOverlayMaskWindowsParamT(TypedDict):
-    """Represent an mask windows object."""
+    """Mask-window color setting in an image overlay configuration."""
 
     Color: str
 
 
 class ImageOverlayParamT(TypedDict):
-    """Represent an overlay object."""
+    """Position, visibility, and mask-window settings for an image overlay."""
 
     Enabled: str
     XPos: str
@@ -58,7 +58,7 @@ class ImageOverlayParamT(TypedDict):
 
 
 class ImageRateControlParamT(TypedDict):
-    """Represent an rate control object."""
+    """Bitrate mode and target settings for an image channel."""
 
     MaxBitrate: str
     Mode: str
@@ -67,13 +67,13 @@ class ImageRateControlParamT(TypedDict):
 
 
 class ImageSizeControlParamT(TypedDict):
-    """Represent an size control object."""
+    """Maximum encoded frame size for an image channel."""
 
     MaxFrameSize: str
 
 
 class ImageStreamParamT(TypedDict):
-    """Represent a stream object."""
+    """Stream duration, frame rate, and frame-count settings for an image channel."""
 
     Duration: str
     FPS: str
@@ -81,7 +81,7 @@ class ImageStreamParamT(TypedDict):
 
 
 class ImageTextParamT(TypedDict):
-    """Represent a text object."""
+    """Text, date, and clock overlay settings for an image channel."""
 
     BGColor: str
     ClockEnabled: str
@@ -94,7 +94,7 @@ class ImageTextParamT(TypedDict):
 
 
 class ImageTriggerDataParamT(TypedDict):
-    """Represent a trigger data object."""
+    """Whether motion, audio, tampering, or user triggers are enabled for a channel."""
 
     AudioEnabled: bool
     MotionDetectionEnabled: bool
@@ -104,7 +104,7 @@ class ImageTriggerDataParamT(TypedDict):
 
 
 class ImageParamT(TypedDict):
-    """Represent an image object."""
+    """Image-channel settings returned under an I<n> entry in param.cgi."""
 
     Enabled: str
     Name: str
@@ -121,7 +121,7 @@ class ImageParamT(TypedDict):
 
 @dataclass(frozen=True)
 class ImageParam(ParamItem):
-    """Image parameters."""
+    """Image-channel appearance, encoding, overlay, and stream settings."""
 
     enabled: str
     name: str
@@ -137,7 +137,7 @@ class ImageParam(ParamItem):
 
     @classmethod
     def decode(cls, data: tuple[str, ImageParamT]) -> Self:
-        """Decode dictionary to class object."""
+        """Convert one I<n> image-channel entry into a normalized model."""
         id, raw = data
         return cls(
             id=id,
@@ -156,7 +156,7 @@ class ImageParam(ParamItem):
 
     @classmethod
     def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
-        """Create objects from dict."""
+        """Convert I0-I19 channel entries and index them by numeric channel ID."""
         image_data = [  # Rename channels I0-I19 to 0-19
             (str(id), data[0][channel_id])
             for id in range(20)

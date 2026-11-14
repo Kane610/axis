@@ -1,4 +1,4 @@
-"""API Discovery api.
+"""Find the APIs and versions an Axis device advertises through VAPIX API Discovery.
 
 The AXIS API Discovery service makes it possible to retrieve information
 about what APIs are supported per device.
@@ -15,18 +15,18 @@ from .api_handler import ApiHandler
 
 
 class ApiDiscoveryHandler(ApiHandler[Api]):
-    """API Discovery for Axis devices."""
+    """Read the device's advertised API list and supported discovery-service versions."""
 
     api_id = ApiId.API_DISCOVERY
     default_api_version = API_VERSION
 
     @property
     def listed_in_api_discovery(self) -> bool:
-        """API Discovery is always listed in API Discovery."""
+        """Allow discovery itself to be queried before any API list has been loaded."""
         return True
 
     async def _api_request(self) -> dict[str, Api]:
-        """Get default data of API discovery."""
+        """Read the advertised API list for this handler's cached data."""
         return await self.get_api_list()
 
     async def get_api_list(self) -> dict[str, Api]:

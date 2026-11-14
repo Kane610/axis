@@ -1,4 +1,4 @@
-"""Test Axis stream profiles API."""
+"""Test listing named stream profiles and supported endpoint versions."""
 
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def stream_profiles(axis_device: AxisDevice) -> StreamProfilesHandler:
-    """Return the stream_profiles mock object."""
+    """Return the stream-profile handler with API discovery set to version 1.0."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.__getitem__().version = "1.0"
     return axis_device.vapix.stream_profiles
@@ -45,7 +45,7 @@ def mock_stream_profile_request(mock_api_request):
 async def test_list_stream_profiles(
     mock_stream_profile_request, stream_profiles: StreamProfilesHandler
 ) -> None:
-    """Test get_supported_versions."""
+    """Load profile names, descriptions, and parameters from the list response."""
     route = mock_stream_profile_request(
         ListStreamProfilesRequest,
         LIST_RESPONSE,
@@ -72,7 +72,7 @@ async def test_list_stream_profiles_no_profiles(
     mock_stream_profile_request,
     stream_profiles: StreamProfilesHandler,
 ) -> None:
-    """Test get_supported_versions."""
+    """Initialize the handler when the device reports that no profiles exist."""
     route = mock_stream_profile_request(
         ListStreamProfilesRequest,
         {
@@ -98,7 +98,7 @@ async def test_list_stream_profiles_no_profiles(
 async def test_get_supported_versions(
     mock_stream_profile_request, stream_profiles: StreamProfilesHandler
 ) -> None:
-    """Test get_supported_versions."""
+    """Return versions advertised by the stream-profile endpoint."""
     route = mock_stream_profile_request(
         GetSupportedVersionsRequest,
         GET_SUPPORTED_VERSIONS_RESPONSE,

@@ -1,4 +1,4 @@
-"""Test Axis user groups API.
+"""Test parsing account privilege membership from the user-group endpoint.
 
 pytest --cov-report term-missing --cov=axis.user_groups tests/test_user_groups.py
 """
@@ -11,12 +11,12 @@ from axis.models.pwdgrp_cgi import SecondaryGroup
 
 @pytest.fixture
 def user_groups(axis_device) -> UserGroups:
-    """Return the user_groups mock object."""
+    """Return a user-group handler for the mocked device."""
     return UserGroups(axis_device.vapix)
 
 
 async def test_empty_response(aiohttp_mock_server, user_groups):
-    """Test get_supported_versions."""
+    """An empty response leaves the handler without a user-group entry."""
     await aiohttp_mock_server(
         "/axis-cgi/usergroup.cgi",
         method="GET",
@@ -32,7 +32,7 @@ async def test_empty_response(aiohttp_mock_server, user_groups):
 
 
 async def test_root_user(aiohttp_mock_server, user_groups):
-    """Test get_supported_versions."""
+    """Parse root membership as administrator, operator, viewer, and PTZ access."""
     await aiohttp_mock_server(
         "/axis-cgi/usergroup.cgi",
         method="GET",
@@ -55,7 +55,7 @@ async def test_root_user(aiohttp_mock_server, user_groups):
 
 
 async def test_admin_user(aiohttp_mock_server, user_groups):
-    """Test get_supported_versions."""
+    """Parse administrator membership without granting PTZ access."""
     await aiohttp_mock_server(
         "/axis-cgi/usergroup.cgi",
         method="GET",
@@ -77,7 +77,7 @@ async def test_admin_user(aiohttp_mock_server, user_groups):
 
 
 async def test_operator_user(aiohttp_mock_server, user_groups):
-    """Test get_supported_versions."""
+    """Parse operator membership without administrator or PTZ access."""
     await aiohttp_mock_server(
         "/axis-cgi/usergroup.cgi",
         method="GET",
@@ -99,7 +99,7 @@ async def test_operator_user(aiohttp_mock_server, user_groups):
 
 
 async def test_viewer_user(aiohttp_mock_server, user_groups):
-    """Test get_supported_versions."""
+    """Parse viewer-only membership without elevated privileges."""
     await aiohttp_mock_server(
         "/axis-cgi/usergroup.cgi",
         method="GET",

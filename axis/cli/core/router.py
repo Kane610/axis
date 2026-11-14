@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D101,D102
+# ruff: noqa: D101,D102
+
+"""Display the earlier CLI's menus and route selections to commands or other menus."""
 
 from __future__ import annotations
 

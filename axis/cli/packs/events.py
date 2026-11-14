@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D103
+# ruff: noqa: D103
+
+"""Event listing and live-listening commands for the earlier menu CLI."""
 
 from __future__ import annotations
 
@@ -94,7 +96,7 @@ def _render_events_node(ctx: CliContext, io: CliIO) -> None:
 
 
 def register(registry: CommandRegistry, router: CliRouter) -> None:
-    """Register event-pack commands and menu nodes."""
+    """Add event listing and listening to the earlier CLI's command registry and menus."""
     registry.register_command(_EventsMenuCommand())
 
     router.register_node(

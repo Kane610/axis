@@ -1,4 +1,4 @@
-"""Test Axis firmware management API."""
+"""Test firmware-management support detection and reboot requests."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def firmware_management(axis_device: AxisDevice) -> FirmwareManagementHandler:
-    """Return the firmware management handler."""
+    """Return the firmware-management handler attached to the mocked device."""
     return axis_device.vapix.firmware_management
 
 

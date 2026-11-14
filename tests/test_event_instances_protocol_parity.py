@@ -1,4 +1,4 @@
-"""Protocol parity tests for event-instance expected-event discovery.
+"""Test that expected events match the identities in WebSocket and MQTT messages.
 
 pytest --cov-report term-missing --cov=axis.event_instances tests/test_event_instances_protocol_parity.py
 """

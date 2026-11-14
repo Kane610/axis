@@ -1,9 +1,4 @@
-"""Basic Device Info api.
-
-AXIS Basic device information API can be used to retrieve
- simple information about the product.
-This information is used to identify basic properties of the product.
-"""
+"""Read device identity and firmware through the VAPIX Basic Device Information API."""
 
 from ..models.api_discovery import ApiId
 from ..models.basic_device_info import (
@@ -23,11 +18,11 @@ class BasicDeviceInfoHandler(ApiHandler[DeviceInformation]):
     handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, DeviceInformation]:
-        """Get default data of basic device information."""
+        """Read product information for this handler's cached data."""
         return await self.get_all_properties()
 
     async def get_all_properties(self) -> dict[str, DeviceInformation]:
-        """List all properties of basic device info."""
+        """Read all basic product properties and return them under item ID 0."""
         response = await self.vapix.api_request(
             GetAllPropertiesRequest(self.api_version)
         )

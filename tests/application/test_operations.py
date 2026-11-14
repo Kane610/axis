@@ -1,4 +1,4 @@
-"""Focused tests for session-owned, presentation-free device operations."""
+"""Test device operations that manage HTTP sessions and return data without terminal output."""
 
 import asyncio
 from base64 import b64encode

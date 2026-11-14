@@ -1,1 +1,1 @@
-"""Presentation-neutral workflows over the existing Axis device library."""
+"""Device discovery, saved connections, and operations shared by Axis applications."""

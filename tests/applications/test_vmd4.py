@@ -1,4 +1,4 @@
-"""Test Axis VMD4 API.
+"""Test configuration parsing for the Axis VMD4 API.
 
 pytest --cov-report term-missing --cov=axis.applications.vmd4 tests/applications/test_vmd4.py
 """
@@ -13,12 +13,12 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def vmd4(axis_device) -> Vmd4Handler:
-    """Return the vmd4 mock object."""
+    """Return the VMD4 handler attached to the mocked device."""
     return axis_device.vapix.vmd4
 
 
 async def test_get_empty_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
-    """Test empty get_configuration."""
+    """An empty configuration is accepted and initializes the handler."""
     _server, requests = await aiohttp_mock_server(
         "/local/vmd/control.cgi",
         response=GET_CONFIGURATION_EMPTY_RESPONSE,
@@ -41,7 +41,7 @@ async def test_get_empty_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
 
 
 async def test_get_configuration(aiohttp_mock_server, vmd4: Vmd4Handler):
-    """Test get_supported_versions."""
+    """A populated configuration retains its supported versions and settings."""
     await aiohttp_mock_server(
         "/local/vmd/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,

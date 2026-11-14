@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to integrate with Home Assistant."""
+"""Decode incoming device events and deliver matching events to subscribers."""
 
 from collections.abc import Callable
 import logging
@@ -26,16 +26,16 @@ LOGGER = logging.getLogger(__name__)
 
 
 class EventManager:
-    """Initialize new events and update states of existing events."""
+    """Track known event sources and call subscribers whose filters match each event."""
 
     def __init__(self) -> None:
-        """Ready information about events."""
+        """Start with no known event sources or subscribers."""
         self._known_topics: set[str] = set()
         self._unsupported_topics: set[str] = set()
         self._subscribers: dict[str, list[SubscriptionType]] = {ID_FILTER_ALL: []}
 
     def handler(self, data: bytes | dict[str, Any]) -> None:
-        """Create event and pass it along to subscribers."""
+        """Decode an event, ignore unsupported topics, and notify matching subscribers."""
         event = Event.decode(data)
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(event)
@@ -75,10 +75,9 @@ class EventManager:
         topic_filter: tuple[EventTopic, ...] | EventTopic | None = None,
         operation_filter: tuple[EventOperation, ...] | EventOperation | None = None,
     ) -> UnsubscribeType:
-        """Subscribe to events.
+        """Call a function for events matching optional source, topic, and operation filters.
 
-        "callback" - callback function to call when on event.
-        Return function to unsubscribe.
+        Return a function that removes this subscription.
         """
         if isinstance(topic_filter, EventTopic):
             topic_filter = (topic_filter,)
@@ -110,5 +109,5 @@ class EventManager:
         return unsubscribe
 
     def __len__(self) -> int:
-        """List number of subscribers."""
+        """Return the number of registered subscriptions across all source IDs."""
         return sum(len(s) for s in self._subscribers.values())

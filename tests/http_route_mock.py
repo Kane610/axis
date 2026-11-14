@@ -1,7 +1,7 @@
-"""HTTP route mock backed by aiohttp_mock_server for migrated tests.
+"""Register and dispatch mock HTTP routes through an aiohttp test server.
 
-Route registration and dispatch behavior lives here.
-Fixture exposure (http_route_mock_factory, http_route_mock) lives in conftest.py.
+The ``http_route_mock`` and ``http_route_mock_factory`` fixtures are defined in
+``conftest.py``.
 """
 
 from types import SimpleNamespace

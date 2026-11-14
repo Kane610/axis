@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D101,D102
+# ruff: noqa: D101,D102
+
+"""Separate the earlier menu's input and output calls from the terminal implementation."""
 
 from __future__ import annotations
 

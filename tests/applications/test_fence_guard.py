@@ -1,4 +1,4 @@
-"""Test Axis Fence Guard API.
+"""Test reading camera profiles from the Axis Fence Guard API.
 
 pytest --cov-report term-missing --cov=axis.applications.fence_guard tests/applications/test_fence_guard.py
 """
@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def fence_guard(axis_device) -> FenceGuardHandler:
-    """Return the fence guard mock object."""
+    """Return the Fence Guard handler attached to the mocked device."""
     return axis_device.vapix.fence_guard
 
 
 async def test_get_empty_configuration(
     aiohttp_mock_server, fence_guard: FenceGuardHandler
 ):
-    """Test empty get_configuration."""
+    """An empty profile list is accepted and sends the expected configuration request."""
     _server, requests = await aiohttp_mock_server(
         "/local/fenceguard/control.cgi",
         response=GET_CONFIGURATION_EMPTY_RESPONSE,
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(
 
 
 async def test_get_configuration(aiohttp_mock_server, fence_guard: FenceGuardHandler):
-    """Test get_configuration."""
+    """A returned profile preserves its camera, filters, fence, and direction."""
     await aiohttp_mock_server(
         "/local/fenceguard/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,

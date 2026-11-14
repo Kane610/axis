@@ -1,4 +1,9 @@
-"""Presentation-free, session-owned operations for VAPIX devices and events."""
+"""Read device information, manage accounts, and receive events for Axis applications.
+
+These async functions can be used by the CLI or other applications without
+terminal prompts. Each operation opens its HTTP connection and closes it when
+finished; an event listener keeps its connection until stopped or disconnected.
+"""
 
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Mapping
@@ -149,7 +154,7 @@ def _redact_text(value: str, password: str) -> str:
 
 
 def normalize_payload(value: object, password: str = "") -> object:
-    """Serialize public fields and recursively redact credentials.
+    """Convert device data into JSON-compatible values and hide login details.
 
     Supply the connection password to redact its raw and URL-encoded forms in
     arbitrary strings and keys. Credential field matching is case-insensitive;
@@ -187,7 +192,7 @@ async def _identity(device: AxisDevice) -> None:
 
 
 async def identify(settings: ConnectionSettings) -> DeviceRecord:
-    """Identify a device using basic information or legacy parameters."""
+    """Read a device's serial and model, falling back to parameters on older devices."""
     async with _device(settings) as device:
         await _identity(device)
         serial = device.vapix.serial_number.strip()
@@ -209,7 +214,7 @@ def _text(value: object, password: str) -> str:
 
 
 async def read_health(record: DeviceRecord) -> HealthSnapshot:
-    """Read fresh identity with an immutable initiating target and UTC timestamp."""
+    """Read serial, model, product, and firmware, recording the target and read time."""
     target = record.summary()
     async with _device(record.config) as device:
         await _identity(device)
@@ -225,7 +230,7 @@ async def read_health(record: DeviceRecord) -> HealthSnapshot:
 
 
 async def health(record: DeviceRecord) -> dict[str, object]:
-    """Preserve canonical health output; read_health adds typed ownership metadata."""
+    """Return serial, model, product, and firmware in the CLI's existing dictionary format."""
     snapshot = await read_health(record)
     return {
         "serial": snapshot.serial,
@@ -236,7 +241,7 @@ async def health(record: DeviceRecord) -> dict[str, object]:
 
 
 async def list_apis(record: DeviceRecord) -> list[dict[str, object]]:
-    """List API discovery entries."""
+    """Ask the device which APIs and versions it advertises."""
     async with _device(record.config) as device:
         if not await device.vapix.api_discovery.update():
             msg = "API discovery is unavailable."
@@ -248,7 +253,7 @@ async def list_apis(record: DeviceRecord) -> list[dict[str, object]]:
 
 
 async def list_interfaces(record: DeviceRecord) -> list[dict[str, object]]:
-    """Inspect library interfaces using the canonical VAPIX support probes."""
+    """Check which library handlers the device advertises or responds to."""
     async with _device(record.config) as device:
         states = await device.vapix.inspect_interfaces(
             refresh_discovery=True, probe=True
@@ -277,7 +282,7 @@ def _traverse(value: object, path: str) -> object:
 async def read_interface(
     record: DeviceRecord, name: str, path: str | None = None
 ) -> object:
-    """Read a registered interface, optionally traversing its serialized data."""
+    """Read a handler's data, optionally selecting a value with a dotted path."""
     async with _device(record.config) as device:
         handler = device.vapix.interfaces().get(name)
         if handler is None:
@@ -303,7 +308,7 @@ async def parameters(record: DeviceRecord) -> object:
 
 
 async def list_events(record: DeviceRecord) -> list[dict[str, object]]:
-    """Read event instance definitions using the library's namespace parser."""
+    """List the event types and sources advertised by the device."""
     async with _device(record.config) as device:
         if not await device.vapix.event_instances.update():
             msg = "Device event definitions are unavailable."
@@ -333,7 +338,11 @@ async def change_account(
     *,
     expected_serial: str | None = None,
 ) -> None:
-    """Compatibility executor; adapters should use reviewed apply_account_change."""
+    """Create, update, or delete an account without a separate review step.
+
+    Retained for existing callers. New applications should prepare an account
+    change and use apply_account_change to enforce authorization and target checks.
+    """
     _validate_account(action, username, privilege)
     _validate_password(action, password)
     async with _device(record.config) as device:
@@ -375,7 +384,7 @@ async def apply_account_change(
     authorized: bool = False,
     confirmed: bool = False,
 ) -> AccountChangeResult:
-    """Execute only an explicitly authorized, unchanged reviewed intention."""
+    """Apply an approved account change after checking its device and password intent."""
     if authorized is not True:
         msg = "Account changes require explicit authorization."
         raise OperationError(msg, kind=ErrorKind.VALIDATION)
@@ -406,7 +415,7 @@ async def listen(
     topic: str | None = None,
     stream_mode: str = "auto",
 ) -> None:
-    """Emit serialized events until cancellation or a terminal stream failure.
+    """Send each received event to a callback until cancelled or the stream fails.
 
     ``auto`` preserves stored WebSocket settings; ``rtsp`` disables WebSockets,
     and ``event`` forces the VAPIX WebSocket event transport. STARTUP_TIMEOUT

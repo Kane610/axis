@@ -1,4 +1,4 @@
-"""API management class and base class for the different end points."""
+"""Base request, response, and item models for Axis API endpoints."""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -9,23 +9,23 @@ CONTEXT = "Axis library"
 
 @dataclass(frozen=True)
 class ApiItem(ABC):
-    """API item class."""
+    """Base for decoded API items that have an identifier."""
 
     id: str
 
     @classmethod
     @abstractmethod
     def decode(cls, data: Any) -> Self:
-        """Decode data to class object."""
+        """Build an item from its decoded API payload."""
 
     @classmethod
     def decode_to_list(cls, data_list: list[Any]) -> list[Self]:
-        """Decode list of data to a list of class objects."""
+        """Build one item for each payload in a list."""
         return [cls.decode(data) for data in data_list]
 
     @classmethod
     def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
-        """Decode list of data to a dict of class objects."""
+        """Build items from a list and index them by their identifiers."""
         return {v.id: v for v in cls.decode_to_list(data)}
 
 
@@ -39,7 +39,7 @@ class ApiResponseDecoder[DecodedT](Protocol):
 
 @dataclass
 class ApiResponse[ApiDataT](ABC):
-    """Response from API request."""
+    """Typed data returned by an API request."""
 
     data: ApiDataT
     # error: str
@@ -47,7 +47,7 @@ class ApiResponse[ApiDataT](ABC):
     @classmethod
     @abstractmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Decode data to class object."""
+        """Parse the response bytes into this response type."""
 
 
 @dataclass
@@ -62,7 +62,7 @@ class BytesResponse(ApiResponse[bytes]):
 
 @dataclass
 class ApiRequest[ResponseT = ApiResponse[bytes]]:
-    """Create API request body with typed response contract."""
+    """Describe an HTTP request and the response type expected from it."""
 
     method: str = field(init=False)
     path: str = field(init=False)
@@ -73,12 +73,12 @@ class ApiRequest[ResponseT = ApiResponse[bytes]]:
 
     @property
     def content(self) -> bytes | None:
-        """Request content."""
+        """Return the encoded request body, if this endpoint has one."""
         return None
 
     @property
     def data(self) -> dict[str, str] | None:
-        """Request data.
+        """Return form or query data to send with this request.
 
         In:
           path: /axis-cgi/com/ptz.cgi
@@ -91,17 +91,10 @@ class ApiRequest[ResponseT = ApiResponse[bytes]]:
 
     @property
     def headers(self) -> dict[str, str]:
-        """Request headers."""
+        """Return headers required to send this request."""
         return {"Content-Type": self.content_type}
 
     @property
     def params(self) -> dict[str, str] | None:
-        """Request query parameters.
-
-        In:
-          path: /axis-cgi/io/port.cgi
-          params: {"action": "1:/"}
-        Out:
-          url: /axis-cgi/io/port.cgi?action=4%3A%5C"
-        """
+        """Return URL query parameters for this request, if any."""
         return None

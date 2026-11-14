@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D103,TC001
+# ruff: noqa: D103,TC001
+
+"""Account management commands and terminal prompts for the earlier menu CLI."""
 
 from __future__ import annotations
 
@@ -71,7 +73,7 @@ def _render_accounts_node(ctx: CliContext, io: CliIO) -> None:
 
 
 def register(registry: CommandRegistry, router: CliRouter) -> None:
-    """Register account-pack commands and menu nodes."""
+    """Add account management to the earlier CLI's command registry and menus."""
     registry.register_command(_AccountsMenuCommand())
 
     router.register_node(

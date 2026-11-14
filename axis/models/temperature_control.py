@@ -1,7 +1,7 @@
-"""VAPIX temperature control support for Axis devices.
+"""Models for temperaturecontrol.cgi sensors, heaters, and fans.
 
-Defines models for the Axis VAPIX temperature control API, enabling integration and management of device temperature sensors, heaters, and fans via standardized endpoints.
-Implements parsing, normalization, and status representation for temperature-related device features.
+The statusall response includes sensor readings and heater or fan status,
+including actuator intensity and time until stop.
 """
 
 from abc import abstractmethod
@@ -33,12 +33,12 @@ class TemperatureDeviceStatus(enum.StrEnum):
 
 @dataclass(frozen=True)
 class TemperatureDevice(ApiItem):
-    """Abstract base for any temperature-managed device."""
+    """Base type for sensors and actuators parsed from statusall data."""
 
     @classmethod
     @abstractmethod
     def decode(cls, data: dict[str, str]) -> Self:
-        """Decode data to class object."""
+        """Build a temperature-device model from parsed statusall fields."""
 
 
 @dataclass(frozen=True)
@@ -102,7 +102,7 @@ _DEVICE_FACTORY: dict[str, type[TemperatureDevice]] = {
 
 @dataclass
 class GetStatusAllResponse(ApiResponse[dict[str, TemperatureDevice]]):
-    """Response object for temperature statusall."""
+    """Temperature sensor readings and heater or fan status, indexed by device ID."""
 
     data: dict[str, TemperatureDevice]
 
@@ -120,7 +120,7 @@ class GetStatusAllResponse(ApiResponse[dict[str, TemperatureDevice]]):
 
 @dataclass
 class GetStatusAllRequest(ApiRequest[GetStatusAllResponse]):
-    """Request object for temperature statusall."""
+    """Request sensor, heater, and fan status from temperaturecontrol.cgi."""
 
     method = "get"
     path = "/axis-cgi/temperaturecontrol.cgi"
@@ -129,14 +129,14 @@ class GetStatusAllRequest(ApiRequest[GetStatusAllResponse]):
 
     @property
     def params(self) -> dict[str, str]:
-        """Request query parameters."""
+        """Select the temperature-control statusall action."""
         return {"action": "statusall"}
 
 
 def _parse_statusall_entries(
     payload: str,
 ) -> dict[str, dict[str, dict[str, str]]]:
-    """Parse statusall response into a dict with 'sensor', 'heater', 'fan' keys, each mapping to id→field dicts."""
+    """Group recognized sensor, heater, and fan fields by device entry ID."""
     sensors: dict[str, dict[str, str]] = {}
     heaters: dict[str, dict[str, str]] = {}
     fans: dict[str, dict[str, str]] = {}

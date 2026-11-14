@@ -1,4 +1,4 @@
-"""Object Analytics API data model."""
+"""Models for Object Analytics scenarios, cameras, overlays, and perspectives."""
 
 from dataclasses import dataclass
 import enum
@@ -12,7 +12,7 @@ API_VERSION = "1.0"
 
 
 class ConfigurationDeviceDataT(TypedDict):
-    """Device configuration data from response."""
+    """Camera identifier, rotation, and active state in a configuration response."""
 
     id: int
     type: Literal["camera"]
@@ -21,7 +21,7 @@ class ConfigurationDeviceDataT(TypedDict):
 
 
 class ConfigurationMetadataOverlayDataT(TypedDict):
-    """Metadata overlay configuration data from response."""
+    """Metadata overlay ID and video resolutions where it is drawn."""
 
     id: int
     drawOnAllResolutions: bool
@@ -29,14 +29,14 @@ class ConfigurationMetadataOverlayDataT(TypedDict):
 
 
 class ConfigurationPerspectiveDataT(TypedDict):
-    """Perspective configuration data from response."""
+    """Perspective calibration ID and its calibration bars."""
 
     id: int
     bars: list[dict[str, Any]]
 
 
 class ConfigurationScenarioDataT(TypedDict):
-    """Scenario configuration data from response."""
+    """Detection scenario settings returned by the Object Analytics API."""
 
     id: int
     name: str
@@ -52,7 +52,7 @@ class ConfigurationScenarioDataT(TypedDict):
 
 
 class ConfigurationDataT(TypedDict):
-    """Configuration data from response."""
+    """Cameras, overlays, perspectives, and scenarios in the configuration."""
 
     devices: list[ConfigurationDeviceDataT]
     metadataOverlay: list[ConfigurationMetadataOverlayDataT]
@@ -61,7 +61,7 @@ class ConfigurationDataT(TypedDict):
 
 
 class GetConfigurationResponseT(TypedDict):
-    """Get configuration response."""
+    """JSON envelope returned by getConfiguration."""
 
     apiVersion: str
     context: str
@@ -71,70 +71,54 @@ class GetConfigurationResponseT(TypedDict):
 
 
 class ScenarioType(enum.StrEnum):
-    """Scenario types."""
+    """Detection tasks that an Object Analytics scenario can perform."""
 
     CROSS_LINE_COUNTING = "crosslinecounting"
-    """Crossline Counting scenario count objects crossing a defined
-    counting line. The line has a polyline shape and is triggered by objects passing
-    the line in a specified direction.
-    """
+    """Count objects crossing a configured line in the selected direction."""
     FENCE = "fence"
-    """This scenario makes it possible to define a special fence trigger with a
-    polyline shape activated by objects passing the line in a certain direction.
-    """
+    """Trigger when objects cross a configured line in the selected direction."""
     MOTION = "motion"
-    """This scenario makes it possible to define an include area which acts
-    as a trigger zone for moving objects. Additionally, filters can be configured to
-    exclude objects based on other criteria, such as size.
-    """
+    """Trigger on moving objects in an included area, with optional exclusion filters."""
     OCCUPANCY_IN_AREA = "occupancyInArea"
-    """Occupancy in Area scenario allows defining an include area which are
-    able to count objects. This include stationary objects.
-    """
+    """Count objects inside an included area, including stationary objects."""
 
 
 @dataclass(frozen=True)
 class ScenarioConfiguration(ApiItem):
-    """Profile configuration."""
+    """Object Analytics scenario and its detection settings."""
 
     devices: list[dict[str, int]]
-    """Lists the devices that the scenario should be applied to."""
+    """Video devices to which this scenario applies."""
 
     filters: list[dict[str, Any]]
-    """Array of exclude filters."""
+    """Filters that exclude detections from the scenario."""
 
     name: str
-    """Nice name of scenario."""
+    """Display name assigned to the scenario."""
 
     object_classifications: list[dict[str, str]]
-    """Identifies the object type and additional subtype."""
+    """Object categories and subtypes included in this scenario."""
 
     perspectives: list[int]
-    """A list of perspective IDs used in the scenario."""
+    """Perspective calibration IDs used to estimate object size or height."""
 
     presets: list[int]
-    """For mechanical PTZ cameras, each profile can be connected to one preset.
+    """For mechanical PTZ cameras, tracking can be limited to preset positions.
 
-    If a preset is added, the profile will only be active when the camera is at
-    the given preset. If this parameter is omitted or the profile is not connected
-    to any preset it will always be active.
-
-    -2 - Tracking is always enabled, except when camera is moving.
-    -1 - Tracking is done on all preset positions.
-    No tracking is done if the PTZ device is not set to a preset.
-    1 - Tracking on the home position of the PTZ device.
-    2... - Tracking on specific presets only.
+    -2 tracks whenever the camera is stationary.
+    -1 tracks at all preset positions, but not when no preset is selected.
+    1 tracks at the home position; values above 1 select specific presets.
     """
 
     triggers: list[dict[str, Any]]
-    """Array of triggers."""
+    """Trigger regions and settings configured for this scenario."""
 
     type: ScenarioType
-    """Possible scenario types."""
+    """Detection task performed by this scenario."""
 
     @classmethod
     def decode(cls, data: ConfigurationScenarioDataT) -> Self:
-        """Decode dict to class object."""
+        """Convert one Object Analytics scenario payload to a model."""
         return cls(
             id=str(data["id"]),
             devices=data["devices"],
@@ -150,23 +134,23 @@ class ScenarioConfiguration(ApiItem):
 
 @dataclass(frozen=True)
 class Configuration(ApiItem):
-    """Object analytics configuration."""
+    """Current Object Analytics cameras, overlays, perspectives, and scenarios."""
 
     devices: list[ConfigurationDeviceDataT]
-    """Container for the supported video devices."""
+    """Video devices available to scenarios, including each camera's active state."""
 
     metadata_overlay: list[ConfigurationMetadataOverlayDataT]
-    """Container for the metadata overlay options."""
+    """Metadata overlay settings and the resolutions where overlays are drawn."""
 
     perspectives: list[ConfigurationPerspectiveDataT]
-    """Container for the perspective data."""
+    """Perspective calibration data used by scenarios."""
 
     scenarios: dict[str, ScenarioConfiguration]
-    """Container for the scenario data."""
+    """Scenarios indexed by their device-assigned identifiers."""
 
     @classmethod
     def decode(cls, data: ConfigurationDataT) -> Self:
-        """Decode dict to class object."""
+        """Convert the response configuration into indexed scenario models."""
         return cls(
             id="object analytics",
             devices=data["devices"],
@@ -178,7 +162,7 @@ class Configuration(ApiItem):
 
 @dataclass
 class GetConfigurationResponse(ApiResponse[Configuration]):
-    """Response object for Object analytics configuration."""
+    """Object Analytics configuration returned by getConfiguration."""
 
     api_version: str
     context: str
@@ -186,7 +170,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare Object analytics configuration response data."""
+        """Parse the JSON envelope and decode its Object Analytics configuration."""
         data: GetConfigurationResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -198,7 +182,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
 @dataclass
 class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
-    """Request object for listing Object analytics configuration."""
+    """Request the current Object Analytics configuration."""
 
     method = "post"
     path = "/local/objectanalytics/control.cgi"
@@ -210,7 +194,7 @@ class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getConfiguration request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

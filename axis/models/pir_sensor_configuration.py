@@ -1,4 +1,4 @@
-"""PIR sensor configuration api.
+"""Models for the VAPIX PIR Sensor Configuration API.
 
 The PIR sensor configuration API helps you list and configure
 the sensitivity of the PIR (passive infrared) sensors on your Axis device.
@@ -15,14 +15,14 @@ API_VERSION = "1.0"
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by the PIR Sensor Configuration API."""
 
     code: int
     message: str
 
 
 class PirSensorConfigurationT(TypedDict):
-    """Pir sensor configuration representation."""
+    """Sensor ID, sensitivity editability, and optional current sensitivity."""
 
     id: int
     sensitivityConfigurable: bool
@@ -30,13 +30,13 @@ class PirSensorConfigurationT(TypedDict):
 
 
 class ListSensorsDataT(TypedDict):
-    """List of Pir sensor configuration data."""
+    """Sensors returned by the listSensors method."""
 
     sensors: list[PirSensorConfigurationT]
 
 
 class ListSensorsResponseT(TypedDict):
-    """ListSensors response."""
+    """JSON envelope returned by listSensors."""
 
     apiVersion: str
     context: str
@@ -46,13 +46,13 @@ class ListSensorsResponseT(TypedDict):
 
 
 class GetSensitivityDataT(TypedDict):
-    """Sensitivity data."""
+    """Sensitivity value returned for one sensor."""
 
     sensitivity: float
 
 
 class GetSensitivityResponseT(TypedDict):
-    """GetSensitivity response."""
+    """JSON envelope returned by getSensitivity."""
 
     apiVersion: str
     context: str
@@ -62,7 +62,7 @@ class GetSensitivityResponseT(TypedDict):
 
 
 class SetSensitivityResponseT(TypedDict):
-    """SetSensitivity response."""
+    """JSON envelope returned by setSensitivity."""
 
     apiVersion: str
     context: str
@@ -71,13 +71,13 @@ class SetSensitivityResponseT(TypedDict):
 
 
 class ApiVersionsT(TypedDict):
-    """List of supported API versions."""
+    """PIR Sensor Configuration API versions supported by the device."""
 
     apiVersions: list[str]
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """ListSensors response."""
+    """JSON envelope returned by getSupportedVersions."""
 
     apiVersion: str
     context: str
@@ -103,14 +103,14 @@ sensor_specific_error_codes = general_error_codes | {
 
 @dataclass(frozen=True)
 class PirSensorConfiguration(ApiItem):
-    """Pir sensor configuration representation."""
+    """One PIR sensor's ID, ability to change sensitivity, and current value."""
 
     configurable: bool
     sensitivity: float | None = None
 
     @classmethod
     def decode(cls, data: PirSensorConfigurationT) -> Self:
-        """Decode dict to class object."""
+        """Convert one API sensor entry into a configuration model."""
         return cls(
             id=str(data["id"]),
             configurable=data["sensitivityConfigurable"],
@@ -120,7 +120,7 @@ class PirSensorConfiguration(ApiItem):
 
 @dataclass
 class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
-    """Response object for list sensors response."""
+    """PIR sensors indexed by their IDs."""
 
     api_version: str
     context: str
@@ -130,7 +130,7 @@ class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse and index the sensor configurations returned by listSensors."""
         data: ListSensorsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -142,7 +142,7 @@ class ListSensorsResponse(ApiResponse[dict[str, PirSensorConfiguration]]):
 
 @dataclass
 class ListSensorsRequest(ApiRequest[ListSensorsResponse]):
-    """Request object for listing PIR sensors."""
+    """Request the PIR sensors present on the device."""
 
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
@@ -155,7 +155,7 @@ class ListSensorsRequest(ApiRequest[ListSensorsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a listSensors request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -167,7 +167,7 @@ class ListSensorsRequest(ApiRequest[ListSensorsResponse]):
 
 @dataclass
 class GetSensitivityResponse(ApiResponse[float | None]):
-    """Response object for get sensitivity response."""
+    """Sensitivity value returned for one PIR sensor."""
 
     api_version: str
     context: str
@@ -177,7 +177,7 @@ class GetSensitivityResponse(ApiResponse[float | None]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Extract the sensitivity value from the response envelope."""
         data: GetSensitivityResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -189,7 +189,7 @@ class GetSensitivityResponse(ApiResponse[float | None]):
 
 @dataclass
 class GetSensitivityRequest(ApiRequest[GetSensitivityResponse]):
-    """Request object for getting PIR sensor sensitivity."""
+    """Request the current sensitivity of one PIR sensor."""
 
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
@@ -204,7 +204,7 @@ class GetSensitivityRequest(ApiRequest[GetSensitivityResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the sensor ID in a getSensitivity request."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -219,7 +219,7 @@ class GetSensitivityRequest(ApiRequest[GetSensitivityResponse]):
 
 @dataclass
 class SetSensitivityRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for setting PIR sensor sensitivity."""
+    """Set the sensitivity of one PIR sensor."""
 
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
@@ -235,7 +235,7 @@ class SetSensitivityRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the sensor ID and new sensitivity in a setSensitivity request."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -251,7 +251,7 @@ class SetSensitivityRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
-    """Response object for supported versions."""
+    """PIR Sensor Configuration API versions supported by the device."""
 
     api_version: str
     context: str
@@ -261,7 +261,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse the supported-version list from the response envelope."""
         data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -273,7 +273,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 @dataclass
 class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
-    """Request object for listing supported API versions."""
+    """Request the PIR Sensor Configuration API versions supported by the device."""
 
     method = "post"
     path = "/axis-cgi/pirsensor.cgi"
@@ -285,7 +285,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getSupportedVersions request as JSON."""
         return orjson.dumps(
             {
                 "context": self.context,

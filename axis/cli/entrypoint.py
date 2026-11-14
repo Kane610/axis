@@ -1,4 +1,4 @@
-"""Bootstrap the optional canonical Axis CLI without affecting library imports."""
+"""Start the Axis CLI and explain how to install any missing CLI dependencies."""
 
 import importlib.metadata
 import sys

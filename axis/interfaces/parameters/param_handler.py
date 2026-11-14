@@ -1,9 +1,4 @@
-"""Parameter handler sub class of API handler.
-
-Generalises parameter specific handling like
-- Subscribing to new data
-- Defining parameter group
-"""
+"""Keep typed data for one param.cgi group in sync with parameter updates."""
 
 from typing import TYPE_CHECKING
 
@@ -17,13 +12,13 @@ from ..api_handler import ApiHandler
 
 
 class ParamHandler[ParamItemT: ParamItem](ApiHandler[ParamItemT]):
-    """Base class for a map of API Items."""
+    """Decode one parameter group and update its cached items when new data arrives."""
 
     parameter_group: ParameterGroup
     parameter_item: type[ParamItemT]
 
     def __init__(self, param_handler: Params) -> None:
-        """Initialize API items."""
+        """Subscribe to updates for this handler's parameter group."""
         super().__init__(param_handler.vapix)
         param_handler.subscribe(self._update_params_callback, self.parameter_group)
 
@@ -40,7 +35,7 @@ class ParamHandler[ParamItemT: ParamItem](ApiHandler[ParamItemT]):
         return await self.vapix.params.request_group(self.parameter_group)
 
     def _update_params_callback(self, obj_id: str) -> None:
-        """Update parameter data from parameter handler subscription."""
+        """Decode updated group data into this handler's cached items."""
         if data := self.vapix.params.get(self.parameter_group):
             self._items.update(self.parameter_item.decode_to_dict([data]))
             self.initialized = True

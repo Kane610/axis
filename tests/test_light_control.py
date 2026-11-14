@@ -1,4 +1,4 @@
-"""Test Axis Light Control API.
+"""Test light status, controls, and illumination settings via the Axis Light Control API.
 
 pytest --cov-report term-missing --cov=axis.light_control tests/test_light_control.py
 """
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 async def light_control(axis_device: AxisDevice) -> LightHandler:
-    """Return the light_control mock object."""
+    """Return the light handler with API discovery set to version 1.0."""
     axis_device.vapix.api_discovery._items = {
         api.id: api
         for api in [
@@ -78,7 +78,7 @@ def mock_light_api_request(mock_api_request):
 
 
 async def test_update(mock_light_api_request, light_control):
-    """Test update method."""
+    """Load light information and expose the returned light's status and capabilities."""
     route = mock_light_api_request(
         GetLightInformationRequest,
         {
@@ -136,7 +136,7 @@ async def test_update(mock_light_api_request, light_control):
 async def test_get_service_capabilities(
     mock_light_api_request, light_control: LightHandler
 ):
-    """Test get service capabilities API."""
+    """Return the service capability flags reported by the device."""
     route = mock_light_api_request(
         GetServiceCapabilitiesRequest,
         {
@@ -179,7 +179,7 @@ async def test_get_service_capabilities(
 async def test_get_light_information(
     mock_light_api_request, light_control: LightHandler
 ):
-    """Test get light information API."""
+    """Return light identity, state, and mode fields from the information response."""
     route = mock_light_api_request(
         GetLightInformationRequest,
         {
@@ -233,7 +233,7 @@ async def test_get_light_information(
 async def test_get_light_information_error(
     mock_light_api_request, light_control: LightHandler
 ):
-    """Test get light information API return error."""
+    """Return no light entries when the device reports that no light hardware exists."""
     mock_light_api_request(
         GetLightInformationRequest,
         {
@@ -253,7 +253,7 @@ async def test_get_light_information_error(
 
 
 async def test_activate_light(mock_light_api_request, light_control):
-    """Test activating light API."""
+    """Send an activation request for the selected light."""
     route = mock_light_api_request(
         ActivateLightRequest,
         {
@@ -278,7 +278,7 @@ async def test_activate_light(mock_light_api_request, light_control):
 
 
 async def test_deactivate_light(mock_light_api_request, light_control):
-    """Test deactivating light API."""
+    """Send a deactivation request for the selected light."""
     route = mock_light_api_request(
         DeactivateLightRequest,
         {
@@ -303,7 +303,7 @@ async def test_deactivate_light(mock_light_api_request, light_control):
 
 
 async def test_enable_light(mock_light_api_request, light_control):
-    """Test enabling light API."""
+    """Send an enable request for the selected light."""
     route = mock_light_api_request(
         EnableLightRequest,
         {
@@ -328,7 +328,7 @@ async def test_enable_light(mock_light_api_request, light_control):
 
 
 async def test_disable_light(mock_light_api_request, light_control):
-    """Test disabling light API."""
+    """Send a disable request for the selected light."""
     route = mock_light_api_request(
         DisableLightRequest,
         {
@@ -353,7 +353,7 @@ async def test_disable_light(mock_light_api_request, light_control):
 
 
 async def test_get_light_status(mock_light_api_request, light_control):
-    """Test get light status API."""
+    """Return the current on/off status for the selected light."""
     route = mock_light_api_request(
         GetLightStatusRequest,
         {
@@ -381,7 +381,7 @@ async def test_get_light_status(mock_light_api_request, light_control):
 
 
 async def test_set_automatic_intensity_mode(mock_light_api_request, light_control):
-    """Test set automatic intensity mode API."""
+    """Enable or disable automatic intensity mode for the selected light."""
     route = mock_light_api_request(
         SetAutomaticIntensityModeRequest,
         {
@@ -411,7 +411,7 @@ async def test_set_automatic_intensity_mode(mock_light_api_request, light_contro
 
 
 async def test_get_manual_intensity(mock_light_api_request, light_control):
-    """Test get valid intensity API."""
+    """Return the configured manual intensity for the selected light."""
     route = mock_light_api_request(
         GetManualIntensityRequest,
         {
@@ -439,7 +439,7 @@ async def test_get_manual_intensity(mock_light_api_request, light_control):
 
 
 async def test_set_manual_intensity(mock_light_api_request, light_control):
-    """Test set manual intensity API."""
+    """Set a fixed intensity for the selected light."""
     route = mock_light_api_request(
         SetManualIntensityRequest,
         {
@@ -469,7 +469,7 @@ async def test_set_manual_intensity(mock_light_api_request, light_control):
 
 
 async def test_get_valid_intensity(mock_light_api_request, light_control):
-    """Test get valid intensity API."""
+    """Return the permitted intensity range for the selected light."""
     route = mock_light_api_request(
         GetValidIntensityRequest,
         {
@@ -498,7 +498,7 @@ async def test_get_valid_intensity(mock_light_api_request, light_control):
 
 
 async def test_set_individual_intensity(mock_light_api_request, light_control):
-    """Test set individual intensity API."""
+    """Set the intensity of one LED in the selected light."""
     route = mock_light_api_request(
         SetIndividualIntensityRequest,
         {
@@ -528,7 +528,7 @@ async def test_set_individual_intensity(mock_light_api_request, light_control):
 
 
 async def test_get_individual_intensity(mock_light_api_request, light_control):
-    """Test get individual intensity API."""
+    """Return the intensity of one LED in the selected light."""
     route = mock_light_api_request(
         GetIndividualIntensityRequest,
         {
@@ -560,7 +560,7 @@ async def test_get_individual_intensity(mock_light_api_request, light_control):
 
 
 async def test_get_current_intensity(mock_light_api_request, light_control):
-    """Test get current intensity API."""
+    """Return the current intensity for the selected light."""
     route = mock_light_api_request(
         GetCurrentIntensityRequest,
         {
@@ -590,7 +590,7 @@ async def test_get_current_intensity(mock_light_api_request, light_control):
 async def test_set_automatic_angle_of_illumination_mode(
     mock_light_api_request, light_control
 ):
-    """Test set automatic angle of illumination mode API."""
+    """Enable or disable automatic angle-of-illumination mode for the light."""
     route = mock_light_api_request(
         SetAutomaticAngleOfIlluminationModeRequest,
         {
@@ -621,7 +621,7 @@ async def test_set_automatic_angle_of_illumination_mode(
 async def test_get_valid_angle_of_illumination(
     mock_light_api_request, light_control: LightHandler
 ):
-    """Test get valid angle of illumination API."""
+    """Return all supported angle-of-illumination ranges for the light."""
     route = mock_light_api_request(
         GetValidAngleOfIlluminationRequest,
         {
@@ -655,7 +655,7 @@ async def test_get_valid_angle_of_illumination(
 
 
 async def test_set_manual_angle_of_illumination(mock_light_api_request, light_control):
-    """Test set manual angle of illumination API."""
+    """Set a fixed angle of illumination for the selected light."""
     route = mock_light_api_request(
         SetManualAngleOfIlluminationModeRequest,
         {
@@ -684,7 +684,7 @@ async def test_set_manual_angle_of_illumination(mock_light_api_request, light_co
 
 
 async def test_get_manual_angle_of_illumination(mock_light_api_request, light_control):
-    """Test get manual angle of illumination API."""
+    """Return the configured manual angle of illumination for the light."""
     route = mock_light_api_request(
         GetManualAngleOfIlluminationRequest,
         {
@@ -715,7 +715,7 @@ async def test_get_manual_angle_of_illumination(mock_light_api_request, light_co
 
 
 async def test_get_current_angle_of_illumination(mock_light_api_request, light_control):
-    """Test get current angle of illumination API."""
+    """Return the current angle of illumination for the selected light."""
     route = mock_light_api_request(
         GetCurrentAngleOfIlluminationRequest,
         {
@@ -748,7 +748,7 @@ async def test_get_current_angle_of_illumination(mock_light_api_request, light_c
 async def test_set_light_synchronization_day_night_mode(
     mock_light_api_request, light_control
 ):
-    """Test set light synchronization day night mode API."""
+    """Enable or disable synchronization with the camera's day/night mode."""
     route = mock_light_api_request(
         SetLightSynchronizeDayNightModeRequest,
         {
@@ -779,7 +779,7 @@ async def test_set_light_synchronization_day_night_mode(
 async def test_get_light_synchronization_day_night_mode(
     mock_light_api_request, light_control: LightHandler
 ):
-    """Test get light synchronization day night mode API."""
+    """Return whether the light follows the camera's day/night mode."""
     route = mock_light_api_request(
         GetLightSynchronizeDayNightModeRequest,
         {
@@ -810,7 +810,7 @@ async def test_get_light_synchronization_day_night_mode(
 
 
 async def test_get_supported_versions(mock_light_api_request, light_control):
-    """Test get supported versions api."""
+    """Return versions advertised by the Light Control endpoint."""
     route = mock_light_api_request(
         GetSupportedVersionsRequest,
         {

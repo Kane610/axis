@@ -8,14 +8,14 @@ from .param_cgi import ParamItem
 
 
 class PortInputParamT(TypedDict):
-    """Input port representation."""
+    """Input name and trigger condition returned by the param.cgi IOPort group."""
 
     Name: str
     Trig: str
 
 
 class PortOutputParamT(TypedDict):
-    """Output port representation."""
+    """Output name, state, timing, and mode returned by the IOPort group."""
 
     Active: str
     Button: str
@@ -26,7 +26,7 @@ class PortOutputParamT(TypedDict):
 
 
 class PortParamT(TypedDict):
-    """Port representation."""
+    """Direction, usage, and optional input/output settings for one I/O port."""
 
     Configurable: NotRequired[bool]
     Direction: str
@@ -36,7 +36,7 @@ class PortParamT(TypedDict):
 
 
 class PortAction(enum.StrEnum):
-    """Port action."""
+    """Electrical state used to activate or deactivate an output port."""
 
     HIGH = "/"
     LOW = "\\"
@@ -44,12 +44,12 @@ class PortAction(enum.StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> PortAction:
-        """Set default enum member if an unknown value is provided."""
+        """Return UNKNOWN when the device reports an unrecognized output action."""
         return cls.UNKNOWN
 
 
 class PortDirection(enum.StrEnum):
-    """Port action."""
+    """Whether an I/O port is configured as an input or output."""
 
     IN = "input"
     OUT = "output"
@@ -57,35 +57,35 @@ class PortDirection(enum.StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> PortDirection:
-        """Set default enum member if an unknown value is provided."""
+        """Return UNKNOWN when the device reports an unrecognized port direction."""
         return cls.UNKNOWN
 
 
 @dataclass(frozen=True)
 class IOPortParam(ParamItem):
-    """Represents a IO port."""
+    """One I/O port's direction, configurability, name, and trigger/state settings."""
 
     configurable: bool
-    """Is port configurable."""
+    """Whether the device allows this port's settings to be changed."""
 
     direction: PortDirection
-    """Port is configured to act as input or output.
+    """Whether the port is configured to act as an input or output.
 
     Read-only for non-configurable ports.
     """
 
     input_trigger: str
-    """When port should trigger.
+    """Input circuit state that causes the port to trigger.
 
     closed=The input port triggers when the circuit is closed.
     open=The input port triggers when the circuit is open.
     """
 
     name: str
-    """Return name relevant to direction."""
+    """Name configured for the input or output side of the port."""
 
     output_active: str
-    """When is output port state active.
+    """Output circuit state that the device treats as active.
 
     closed=The output port is active when the circuit is closed.
     open=The output port is active when the circuit is open.
@@ -93,7 +93,7 @@ class IOPortParam(ParamItem):
 
     @classmethod
     def decode(cls, data: tuple[str, PortParamT]) -> Self:
-        """Decode dict to class object."""
+        """Convert a named IOPort group entry into a port model."""
         id, raw = data
         direction = PortDirection(raw.get("Direction", "input"))
         name = (
@@ -112,7 +112,7 @@ class IOPortParam(ParamItem):
 
     @classmethod
     def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
-        """Create objects from dict."""
+        """Convert I<n> port entries and index them by numeric port ID."""
         return {
             v.id: v
             for v in cls.decode_to_list([(k[1:], v) for k, v in data[0].items()])

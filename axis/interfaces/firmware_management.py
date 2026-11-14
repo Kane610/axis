@@ -1,4 +1,4 @@
-"""Firmware management API.
+"""Reboot Axis devices through the VAPIX firmware management API.
 
 Listed in API discovery from AXIS OS 7.40, it replaces restart.cgi for
 rebooting. Requires an administrator account.
@@ -11,7 +11,7 @@ from .api_handler import ApiHandler
 
 
 class FirmwareManagementHandler(ApiHandler[ApiItem]):
-    """Firmware management of a device."""
+    """Reboot a device using the firmware management API."""
 
     api_id = ApiId.FIRMWARE_MANAGER
     default_api_version = API_VERSION

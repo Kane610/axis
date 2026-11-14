@@ -1,4 +1,4 @@
-"""Fence guard analytics application."""
+"""Models for reading Fence Guard profiles and cameras through its control API."""
 
 from dataclasses import dataclass
 from typing import Any, NotRequired, Self, TypedDict
@@ -11,7 +11,7 @@ API_VERSION = "1.3"
 
 
 class ConfigurationCameraDataT(TypedDict):
-    """Camera configuration data from response."""
+    """Camera active state and image rotation in a Fence Guard response."""
 
     active: bool
     id: int
@@ -19,7 +19,7 @@ class ConfigurationCameraDataT(TypedDict):
 
 
 class ConfigurationProfileDataT(TypedDict):
-    """Profile configuration data from response."""
+    """Fence Guard profile fields as returned by the control API."""
 
     alarmOverlayEnabled: bool
     camera: int
@@ -32,7 +32,7 @@ class ConfigurationProfileDataT(TypedDict):
 
 
 class ConfigurationDataT(TypedDict):
-    """Configuration data from response."""
+    """Camera, profile, and revision data in a configuration response."""
 
     cameras: list[ConfigurationCameraDataT]
     profiles: list[ConfigurationProfileDataT]
@@ -40,7 +40,7 @@ class ConfigurationDataT(TypedDict):
 
 
 class GetConfigurationResponseT(TypedDict):
-    """Get configuration response."""
+    """JSON envelope returned by getConfiguration."""
 
     apiVersion: str
     context: str
@@ -51,19 +51,19 @@ class GetConfigurationResponseT(TypedDict):
 
 @dataclass(frozen=True)
 class ProfileConfiguration(ApiItem):
-    """Profile configuration."""
+    """Fence Guard profile with its camera, filters, triggers, and PTZ presets."""
 
     camera: int
     """Camera ID."""
 
     filters: list[dict[str, Any]]
-    """Array of exclude filters."""
+    """Filters that exclude detections from this profile."""
 
     name: str
-    """Nice name of profile."""
+    """Display name assigned to the profile."""
 
     perspective: list[dict[str, Any]]
-    """Perspective for improve triggers based on heights."""
+    """Perspective calibration data used to account for object height."""
 
     presets: list[int]
     """For mechanical PTZ cameras, each profile can be connected to one preset.
@@ -74,11 +74,11 @@ class ProfileConfiguration(ApiItem):
     """
 
     triggers: list[dict[str, Any]]
-    """Array of triggers."""
+    """Detection trigger regions and settings configured for this profile."""
 
     @classmethod
     def decode(cls, data: Any) -> Self:
-        """Decode dict to class object."""
+        """Convert one Fence Guard profile payload to a model."""
         return cls(
             id=str(data["uid"]),
             camera=data["camera"],
@@ -92,19 +92,19 @@ class ProfileConfiguration(ApiItem):
 
 @dataclass(frozen=True)
 class Configuration(ApiItem):
-    """Fence guard configuration."""
+    """Current Fence Guard camera and profile configuration."""
 
     cameras: list[ConfigurationCameraDataT]
-    """Cameras."""
+    """Camera settings returned by the Fence Guard control API."""
 
     profiles: dict[str, ProfileConfiguration]
-    """Profiles"""
+    """Profiles indexed by their device-assigned identifiers."""
 
     configuration_status: int
 
     @classmethod
     def decode(cls, data: ConfigurationDataT) -> Self:
-        """Decode dict to class object."""
+        """Convert the response configuration into cameras and indexed profiles."""
         return cls(
             id="fence guard",
             cameras=data["cameras"],
@@ -115,7 +115,7 @@ class Configuration(ApiItem):
 
 @dataclass
 class GetConfigurationResponse(ApiResponse[Configuration]):
-    """Response object for Fence guard configuration."""
+    """Fence Guard configuration returned by getConfiguration."""
 
     api_version: str
     context: str
@@ -123,7 +123,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare Fence guard configuration response data."""
+        """Parse the JSON envelope and decode its Fence Guard configuration."""
         data: GetConfigurationResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -135,7 +135,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
 @dataclass
 class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
-    """Request object for listing Fence guard configuration."""
+    """Request the current Fence Guard camera and profile configuration."""
 
     method = "post"
     path = "/local/fenceguard/control.cgi"
@@ -147,7 +147,7 @@ class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getConfiguration request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

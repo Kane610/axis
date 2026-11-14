@@ -1,4 +1,4 @@
-"""Compatibility imports; device workflows now live in axis.application."""
+"""Keep older CLI operation imports working through the shared application functions."""
 
 from axis.application.operations import (
     STARTUP_TIMEOUT,

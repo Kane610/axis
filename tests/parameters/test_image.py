@@ -1,4 +1,4 @@
-"""Test Axis image parameter management."""
+"""Test parsing image, stream, overlay, and trigger settings from parameters."""
 
 from typing import TYPE_CHECKING
 
@@ -224,7 +224,7 @@ root.Image.I0.Stream.Duration=0
 
 @pytest.fixture
 def image_handler(axis_device: AxisDevice) -> ImageParameterHandler:
-    """Return the param cgi mock object."""
+    """Return the image parameter handler attached to the mocked device."""
     return axis_device.vapix.params.image_handler
 
 
@@ -243,7 +243,7 @@ async def _setup_param_route(
 
 
 async def test_image_handler(aiohttp_mock_server, image_handler: ImageParameterHandler):
-    """Verify that update image works."""
+    """Parse image settings and nested stream controls from the parameter response."""
     await _setup_param_route(aiohttp_mock_server, image_handler, IMAGE_RESPONSE)
     assert not image_handler.initialized
 
@@ -383,9 +383,6 @@ async def test_image_handler(aiohttp_mock_server, image_handler: ImageParameterH
 async def test_limited_image_data(
     aiohttp_mock_server, image_handler: ImageParameterHandler, image_response
 ):
-    """Verify that update image works.
-
-    ImageParam missing Overlay, RateControl, SizeControl and Text.
-    """
+    """Accept image responses where overlay, rate, size, or text settings are absent."""
     await _setup_param_route(aiohttp_mock_server, image_handler, image_response)
     await image_handler.update()

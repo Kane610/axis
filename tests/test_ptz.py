@@ -1,4 +1,4 @@
-"""Test Axis PTZ control API."""
+"""Test PTZ parameter loading and command encoding for device controls."""
 
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def ptz_control_handler(axis_device: AxisDevice) -> PtzControl:
-    """Return the PTZ control mock object."""
+    """Return the PTZ control handler attached to the mocked device."""
     return axis_device.vapix.ptz
 
 
@@ -83,7 +83,7 @@ def mock_param_request(mock_api_request):
 async def test_ptz_control_handler(
     mock_ptz_request, mock_param_request, ptz_control_handler: PtzControl
 ):
-    """Verify that update ptz works."""
+    """Load camera counts and ports from the PTZ parameter group."""
     route = mock_param_request(
         text=PTZ_RESPONSE,
         headers={"Content-Type": "text/plain"},

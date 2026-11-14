@@ -1,4 +1,4 @@
-"""Test AXIS PTZ parameter management."""
+"""Test parsing camera, movement-limit, support, and control-queue PTZ settings."""
 
 from typing import TYPE_CHECKING
 
@@ -1593,7 +1593,7 @@ root.PTZ.Various.V8.CtlQueuePollTime=20
 
 @pytest.fixture
 def ptz_handler(axis_device: AxisDevice) -> PtzParameterHandler:
-    """Return the PTZ control mock object."""
+    """Return the PTZ parameter handler attached to the mocked device."""
     return axis_device.vapix.params.ptz_handler
 
 
@@ -1612,7 +1612,7 @@ async def _setup_param_route(
 
 
 async def test_update_ptz(aiohttp_mock_server, ptz_handler: PtzParameterHandler):
-    """Verify that update ptz works."""
+    """Parse camera counts, movement limits, supported controls, and queue settings."""
     await _setup_param_route(aiohttp_mock_server, ptz_handler, PTZ_RESPONSE)
     assert not ptz_handler.initialized
 
@@ -1712,11 +1712,7 @@ async def test_update_ptz(aiohttp_mock_server, ptz_handler: PtzParameterHandler)
 async def test_ptz_5_51(
     aiohttp_mock_server, ptz_handler: PtzParameterHandler, ptz_response
 ):
-    """Verify that update ptz works.
-
-    Max/Min Field Angle not reported.
-    NbrOfCameras not reported.
-    """
+    """Accept firmware responses that omit field-angle limits and camera counts."""
     await _setup_param_route(aiohttp_mock_server, ptz_handler, ptz_response)
 
     await ptz_handler.update()

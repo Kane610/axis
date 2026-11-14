@@ -1,4 +1,4 @@
-"""Exercise real Zsh completion protocols with isolated homes and local registries."""
+"""Test Zsh tab completion against isolated homes and local device registries."""
 
 from __future__ import annotations
 

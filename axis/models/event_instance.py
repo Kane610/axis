@@ -1,4 +1,4 @@
-"""Event service and action service APIs available in Axis network device."""
+"""Models for the VAPIX Event Service GetEventInstances SOAP operation."""
 
 from dataclasses import dataclass
 import enum
@@ -38,7 +38,7 @@ NAMESPACES = {
 
 
 def get_events(data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Get all events.
+    """Flatten the SOAP topic tree into event declarations with full topic paths.
 
     Ignore keys with "@" while traversing structure. Indicates an attribute in value.
     When @topic is reached, return event data and build topic structure.
@@ -79,7 +79,7 @@ def _as_dict(data: object) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class EventInstanceSimpleItem:
-    """Typed representation of a single event-instance simple item."""
+    """Name, display name, value type, and values of one event simple item."""
 
     name: str = ""
     nice_name: str = ""
@@ -130,7 +130,7 @@ class EventInstanceSimpleItem:
 
 @dataclass(frozen=True)
 class EventInstanceSource:
-    """Structured source definition for an event instance."""
+    """Typed source items that identify where an event instance originates."""
 
     items: tuple[EventInstanceSimpleItem, ...] = ()
 
@@ -156,7 +156,7 @@ class EventInstanceSource:
 
     @property
     def values(self) -> tuple[str, ...]:
-        """Return source values for event synthesis."""
+        """Return primary source values, using an empty value when none are declared."""
         if self.primary_item is None:
             return ("",)
         return self.primary_item.values or ("",)
@@ -173,7 +173,7 @@ class EventInstanceSource:
 
 @dataclass(frozen=True)
 class EventInstanceData:
-    """Structured data definition for an event instance."""
+    """Typed state or event values declared by an event instance."""
 
     items: tuple[EventInstanceSimpleItem, ...] = ()
 
@@ -201,7 +201,7 @@ class EventInstanceData:
 
     @property
     def state_value(self) -> str:
-        """Return a representative value for state synthesis."""
+        """Return the active item's value, or the first item's value if no active item exists."""
         if self.state_item is None:
             return ""
         return self.state_item.value
@@ -254,30 +254,23 @@ def _default_inactive_state(topic: str) -> str:
 
 @dataclass(frozen=True)
 class EventInstance(ApiItem):
-    """Events are emitted when the Axis product detects an occurrence of some kind.
+    """An event declaration returned by GetEventInstances.
 
-    For example motion in camera field of view or a change of status from an I/O port.
-    The events can be used to trigger actions in the Axis product or in other systems
-    and can also be stored together with video and audio data for later access.
+    The declaration describes its topic, availability, statefulness, source, and data.
+    It can also be converted into a normalized event for consumers of event streams.
     """
 
     topic: str
-    """Event topic.
-
-    Event declaration namespace.
-    """
+    """Namespace-qualified topic under which the device publishes the event."""
 
     topic_filter: str
-    """Event topic.
-
-    Event topic filter namespace.
-    """
+    """Same topic with namespace prefixes converted for event-filter matching."""
 
     is_available: bool
-    """Means the event is available."""
+    """Whether the device marks this event topic as available."""
 
     is_application_data: bool
-    """Indicate event and/or data is produced for specific system or application.
+    """Whether this event or its data is reserved for a specific system or app.
 
     Events with isApplicationData=true are usually intended
     to be used only by the specific system or application, that is,
@@ -288,11 +281,10 @@ class EventInstance(ApiItem):
     """User-friendly and human-readable name describing the event."""
 
     stateful: bool
-    """Stateful event is a property (a state variable) with a number of states.
+    """Whether the event describes a persistent property that can change state.
 
-    The event is always in one of its states.
-    Example: The Motion detection event is in state true when motion is detected
-    and in state false when motion is not detected.
+    For example, motion detection remains true while motion is detected and false
+    when no motion is detected.
     """
 
     stateless: bool
@@ -302,10 +294,10 @@ class EventInstance(ApiItem):
     """
 
     source: EventInstanceSource
-    """Event source information."""
+    """Source item names and values declared for this event."""
 
     data: EventInstanceData
-    """Event data description."""
+    """State or event-data item names, types, and values declared by this event."""
 
     @property
     def raw_source(self) -> dict[str, Any] | list[dict[str, Any]]:
@@ -319,7 +311,7 @@ class EventInstance(ApiItem):
 
     @classmethod
     def decode(cls, data: dict[str, Any]) -> Self:
-        """Decode dict to class object."""
+        """Convert one parsed topic declaration into a typed event instance."""
         event_data = _as_dict(data.get("data"))
         message = _as_dict(event_data.get("MessageInstance"))
         source_instance = _as_dict(message.get("SourceInstance"))
@@ -345,10 +337,10 @@ class EventInstance(ApiItem):
         )
 
     def to_events(self) -> list[Event]:
-        """Synthesize normalized expected events from event-instance schema data.
+        """Create initial normalized events for the sources declared by this topic.
 
-        Topics are preserved exactly as they are declared by event instances so topic
-        representation stays identical to emitted event topics.
+        Topics are preserved exactly as declared, and an empty data value is replaced
+        by the topic's default inactive state.
         """
         source_name, source_values = _extract_source_values(self.source)
         state_value = _extract_data_value(self.data)
@@ -371,13 +363,13 @@ class EventInstance(ApiItem):
 
 @dataclass
 class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
-    """Response object for listing all applications."""
+    """Event declarations returned by the Event Service, indexed by topic."""
 
     data: dict[str, Any]
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the SOAP XML topic tree and decode each event declaration."""
         data = xmltodict.parse(
             bytes_data,
             # attr_prefix="",
@@ -392,7 +384,7 @@ class ListEventInstancesResponse(ApiResponse[dict[str, Any]]):
 
 @dataclass
 class ListEventInstancesRequest(ApiRequest[ListEventInstancesResponse]):
-    """Request object for listing installed applications."""
+    """Request all event declarations from the VAPIX Event Service."""
 
     method = "post"
     path = "/vapix/services"
@@ -401,7 +393,7 @@ class ListEventInstancesRequest(ApiRequest[ListEventInstancesResponse]):
 
     @property
     def content(self) -> bytes:
-        """Request content."""
+        """Return the SOAP envelope that calls GetEventInstances."""
         return (
             b'<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">'
             b'<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
@@ -413,7 +405,7 @@ class ListEventInstancesRequest(ApiRequest[ListEventInstancesResponse]):
 
     @property
     def headers(self) -> dict[str, str]:
-        """Request headers."""
+        """Return the SOAP content type and action required by the Event Service."""
         return {
             "Content-Type": "application/soap+xml",
             "SOAPAction": "http://www.axis.com/vapix/ws/event1/GetEventInstances",

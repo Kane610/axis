@@ -1,4 +1,4 @@
-"""Session-free application records, separate from VAPIX runtime configuration."""
+"""Describe saved devices and read results without keeping HTTP connections open."""
 
 from dataclasses import dataclass, field, replace
 from datetime import datetime  # noqa: TC003 - public snapshots support runtime type introspection
@@ -13,7 +13,7 @@ def _has_unsafe_characters(identifier: str) -> bool:
 
 @dataclass(frozen=True)
 class DeviceSummary:
-    """Immutable local identity/connection snapshot without login credentials."""
+    """A saved device's identity and connection choices, without username or password."""
 
     auth_scheme: str
     host: str
@@ -26,13 +26,13 @@ class DeviceSummary:
     model: str = ""
 
     def same_target(self, other: DeviceSummary) -> bool:
-        """Ignore friendly metadata, but not identity or connection policy changes."""
+        """Compare the device and connection settings, ignoring alias and model labels."""
         return replace(self, alias="", model="") == replace(other, alias="", model="")
 
 
 @dataclass(frozen=True)
 class HealthSnapshot:
-    """Fresh observed identity plus its initiating target and UTC observation time."""
+    """Device information read from the network, with the requested target and UTC read time."""
 
     firmware_version: str
     model: str
@@ -44,7 +44,7 @@ class HealthSnapshot:
 
 @dataclass
 class ConnectionSettings:
-    """Stored connection settings; zero port selects the protocol default."""
+    """Address, credentials, and connection options; port zero uses the protocol default."""
 
     host: str
     username: str
@@ -58,7 +58,7 @@ class ConnectionSettings:
     websocket_force: bool = False
 
     def __post_init__(self) -> None:
-        """Reject malformed settings without echoing credential values."""
+        """Reject invalid connection options without showing login details in errors."""
         if (
             not isinstance(self.host, str)
             or not self.host
@@ -90,7 +90,7 @@ class ConnectionSettings:
 
 @dataclass
 class DeviceRecord:
-    """A canonical serial and optional exact-match alias for a stored device."""
+    """A saved device identified by its serial number and optional friendly alias."""
 
     serial: str
     config: ConnectionSettings
@@ -98,7 +98,7 @@ class DeviceRecord:
     model: str = ""
 
     def __post_init__(self) -> None:
-        """Validate device identity and settings at the input boundary."""
+        """Require a known serial, a safe alias, and valid connection settings."""
         if (
             not isinstance(self.serial, str)
             or not self.serial.strip()
@@ -124,7 +124,7 @@ class DeviceRecord:
         self.config.__post_init__()
 
     def summary(self) -> DeviceSummary:
-        """Copy public registration metadata, never the credential-bearing config."""
+        """Return device details that can be displayed without exposing login credentials."""
         return DeviceSummary(
             auth_scheme=self.config.auth_scheme,
             host=self.config.host,
