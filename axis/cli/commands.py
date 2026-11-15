@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+from copy import copy
 from dataclasses import dataclass, field, replace
+import errno
 import importlib.metadata
 import json
 import logging
@@ -28,6 +30,28 @@ from axis.cli import interactive
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
+
+
+class _CliFormatter(logging.Formatter):
+    """Explain unavailable discovery interfaces without hiding unexpected tracebacks."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Keep interface-down warnings visible and leave other diagnostics unchanged."""
+        if (
+            (record.name == "zeroconf" or record.name.startswith("zeroconf."))
+            and record.exc_info
+            and isinstance(record.exc_info[1], OSError)
+            and record.exc_info[1].errno == errno.ENETDOWN
+        ):
+            record = copy(record)
+            record.msg = (
+                "Warning: a network interface is down; discovery results may be "
+                "incomplete. Check inactive network connections or VPNs."
+            )
+            record.args = ()
+            record.exc_info = None
+            record.exc_text = None
+        return super().format(record)
 
 
 @add_completion_class
@@ -696,7 +720,9 @@ def zsh() -> None:
 def main() -> None:
     """Run the Axis command parser, report failures, and close the async runner."""
     runtime = Runtime()
-    logging.basicConfig(level=logging.CRITICAL, format="%(message)s")
+    handler = logging.StreamHandler()
+    handler.setFormatter(_CliFormatter("%(message)s"))
+    logging.basicConfig(level=logging.CRITICAL, handlers=[handler])
     try:
         with runtime.runner:
             result = cli.main(prog_name="axis", obj=runtime, standalone_mode=False)

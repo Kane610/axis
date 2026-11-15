@@ -121,7 +121,7 @@ def test_execute_errors_keep_session(runtime: Runtime, error: BaseException) -> 
         assert not interactive.execute(runtime, cli, ["doctor"])
 
 
-def test_select_device(runtime: Runtime) -> None:
+def test_select_device(runtime: Runtime, capsys: pytest.CaptureFixture[str]) -> None:
     """Device selection handles explicit choice, cancellation, and invalid input."""
     with patch.object(click, "prompt", return_value="b"):
         interactive.select_device(runtime)
@@ -134,6 +134,13 @@ def test_select_device(runtime: Runtime) -> None:
     with patch.object(click, "prompt", return_value="1"):
         interactive.select_device(runtime)
     assert runtime.selected == "SERIAL"
+    record = runtime.registry.resolve("SERIAL")
+    record.alias = ""
+    runtime.registry.upsert(record)
+    capsys.readouterr()
+    with patch.object(click, "prompt", return_value=" b "):
+        assert not interactive.select_device(runtime)
+    assert capsys.readouterr().out.count("SERIAL") == 1
     runtime.registry.remove("SERIAL")
     interactive.select_device(runtime)
 
@@ -281,24 +288,136 @@ def test_api_browse_dispatches_canonical_read(runtime: Runtime) -> None:
 
 
 def test_launcher_navigation_and_shared_execution(runtime: Runtime) -> None:
-    """Home, subgroup, selection, prompt, back, and operation dispatch are consistent."""
-    root = click.Group(
-        "axis",
-        commands={"api": click.Group("api", commands={"list": click.Command("list")})},
-    )
+    """Regrouped menus dispatch every kind of operation through its canonical path."""
     with (
         patch.object(
-            click, "prompt", side_effect=["invalid", "b", "s", "c", "1", "1", "b", "e"]
+            click,
+            "prompt",
+            side_effect=[
+                "invalid",
+                "b",
+                "s",
+                "c",
+                "1",
+                "1",
+                "2",
+                "1",
+                "b",
+                "s",
+                "b",
+                "2",
+                "1",
+                "b",
+                "3",
+                "1",
+                "2",
+                "1",
+                "b",
+                "b",
+                "e",
+            ],
         ),
-        patch.object(interactive, "select_device") as select,
+        patch.object(interactive, "select_device", return_value=True) as select,
         patch.object(interactive, "command_prompt") as prompt,
-        patch.object(interactive, "guided_arguments", return_value=["--json"]),
+        patch.object(interactive, "guided_arguments", return_value=[]),
         patch.object(interactive, "execute") as execute,
     ):
-        interactive.launch(runtime, root)
-    select.assert_called_once()
+        interactive.launch(runtime, cli)
+    assert select.call_count == 2
     prompt.assert_called_once()
-    execute.assert_called_once_with(runtime, root, ["api", "list", "--json"])
+    assert [call.args for call in execute.call_args_list] == [
+        (runtime, cli, path)
+        for path in (
+            ["device", "health"],
+            ["api", "list"],
+            ["devices", "list"],
+            ["doctor"],
+            ["completion", "zsh"],
+        )
+    ]
+
+
+def test_launcher_selects_before_device_operations(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Entering device operations lists saved devices before offering commands."""
+    with (
+        patch.object(click, "prompt", side_effect=["1", "1", "1", "b", "e"]),
+        patch.object(interactive, "execute") as execute,
+    ):
+        interactive.launch(runtime, cli)
+    output = capsys.readouterr().out
+    assert output.index("front door (SERIAL, camera)") < output.index("Health")
+    assert runtime.selected == "SERIAL"
+    execute.assert_called_once_with(runtime, cli, ["device", "health"])
+
+
+@pytest.mark.parametrize("empty_registry", [False, True])
+def test_launcher_cancelled_selection_does_not_enter_device_menu(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str], empty_registry: bool
+) -> None:
+    """Cancelling a new selection never silently reuses a previously selected device."""
+    if empty_registry:
+        runtime.registry.remove("SERIAL")
+        answers = ["1", "e"]
+    else:
+        runtime.selected = "SERIAL"
+        answers = ["1", "b", "e"]
+    with (
+        patch.object(click, "prompt", side_effect=answers),
+        patch.object(interactive, "execute") as execute,
+    ):
+        interactive.launch(runtime, cli)
+    assert "Axis / Use a device" not in capsys.readouterr().out
+    execute.assert_not_called()
+
+
+def test_launcher_enter_defaults_are_non_exiting(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Enter stays at home and returns from submenus without executing anything."""
+    with (
+        patch.object(click, "prompt", side_effect=["", "2", "b", "e"]) as prompt,
+        patch.object(interactive, "execute") as execute,
+    ):
+        interactive.launch(runtime, cli)
+    assert [call.kwargs["default"] for call in prompt.call_args_list] == [
+        "",
+        "",
+        "b",
+        "",
+    ]
+    assert capsys.readouterr().out.count("Axis / home") == 3
+    execute.assert_not_called()
+
+
+@pytest.mark.parametrize("error", [KeyboardInterrupt, EOFError, click.Abort])
+def test_launcher_cancelled_field_returns_to_its_menu(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str], error: type[BaseException]
+) -> None:
+    """Cancelling registration input leaves management open and never submits the command."""
+    with (
+        patch.object(
+            click, "prompt", side_effect=["2", "3", "b", error(), "1", "b", "e"]
+        ),
+        patch.object(interactive, "execute") as execute,
+    ):
+        interactive.launch(runtime, cli)
+    captured = capsys.readouterr()
+    output = captured.out
+    assert "Ctrl-C cancels this command" in output
+    assert "Cancelled; returning to the menu." in captured.err
+    assert output.count("Axis / Manage saved devices") == 3
+    execute.assert_called_once_with(runtime, cli, ["devices", "list"])
+
+
+@pytest.mark.parametrize("error", [KeyboardInterrupt, EOFError, click.Abort])
+def test_launcher_cancelled_picker_returns_home(
+    runtime: Runtime, error: type[BaseException]
+) -> None:
+    """Cancelling the device picker returns home rather than exiting the launcher."""
+    with patch.object(click, "prompt", side_effect=["1", error(), "e"]):
+        interactive.launch(runtime, cli)
 
 
 @pytest.mark.parametrize(
@@ -312,7 +431,7 @@ def test_launcher_navigation_and_shared_execution(runtime: Runtime) -> None:
 def test_launcher_recovers_expected_errors(runtime: Runtime, error: Exception) -> None:
     """Expected operation failures leave the guided launcher usable."""
     with (
-        patch.object(click, "prompt", side_effect=["s", "e"]),
+        patch.object(click, "prompt", side_effect=["1", "e"]),
         patch.object(interactive, "select_device", side_effect=error),
     ):
         interactive.launch(runtime, cli)
@@ -320,8 +439,8 @@ def test_launcher_recovers_expected_errors(runtime: Runtime, error: Exception) -
 
 @pytest.mark.parametrize("error", [KeyboardInterrupt, EOFError, click.Abort])
 def test_launcher_cancellation(runtime: Runtime, error: type[BaseException]) -> None:
-    """Cancel at home exits; cancellation in a submenu returns home."""
+    """Cancel at the home prompt exits; cancellation at a submenu prompt goes back."""
     with patch.object(click, "prompt", side_effect=error):
         interactive.launch(runtime, cli)
-    with patch.object(click, "prompt", side_effect=["1", error(), "e"]):
+    with patch.object(click, "prompt", side_effect=["2", error(), "e"]):
         interactive.launch(runtime, cli)

@@ -131,29 +131,35 @@ def execute(runtime: Runtime, command: click.Group, args: list[str]) -> bool:
     return False
 
 
-def select_device(runtime: Runtime) -> None:
-    """Let the user choose a saved device without connecting to it."""
+def select_device(runtime: Runtime) -> bool:
+    """Choose a saved device offline, returning false when selection is cancelled."""
     records = list(runtime.registry.load().values())
     if not records:
-        click.echo("No registered devices. Use devices add or discover.")
-        return
+        click.echo("No registered devices. Choose Manage saved devices to add one.")
+        return False
     for index, record in enumerate(records, 1):
         click.echo(
-            f"  {index}. {record.alias or record.serial} "
+            f"  {index}. {record.alias or 'Axis device'} "
             f"({record.serial}, {record.config.host})"
         )
-    answer = click.prompt("Device number (b cancels)", default="b")
+    answer = (
+        click.prompt("Device number (Enter or b returns; Ctrl-C cancels)", default="b")
+        .strip()
+        .lower()
+    )
     if answer == "b":
-        return
+        return False
     if not answer.isdigit() or not 1 <= int(answer) <= len(records):
         msg = "Choose a device number from the list."
         raise click.UsageError(msg)
     runtime.selected = records[int(answer) - 1].serial
+    return True
 
 
 def guided_arguments(runtime: Runtime, command: click.Command) -> list[str]:
     """Ask for arguments using the CLI command's definitions, so menu validation stays consistent."""
     args: list[str] = []
+    click.echo("Ctrl-C cancels this command and returns to the menu.")
     with command.make_context(
         command.name or "axis", [], resilient_parsing=True
     ) as context:
@@ -209,7 +215,9 @@ def command_prompt(runtime: Runtime, command: click.Group) -> None:
         complete_while_typing=True,
         history=DummyHistory(),
     )
-    click.echo("Enter commands with or without 'axis'. /back returns; Ctrl-D returns.")
+    click.echo(
+        "Enter commands with or without 'axis'. /back, Ctrl-C, or Ctrl-D returns."
+    )
     click.echo("Tab shows suggestions. Command history is disabled for secret safety.")
     retry = ""
     while True:
@@ -244,6 +252,7 @@ def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> 
     if not interfaces:
         click.echo("No interfaces available.")
         return
+    click.echo("Enter returns from the interface list; Ctrl-C cancels browsing.")
     while True:
         for index, interface in enumerate(interfaces, 1):
             click.echo(f"  {index}. {interface['name']}")
@@ -261,46 +270,107 @@ def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> 
         execute(runtime, command, args)
 
 
+def _command_paths(
+    command: click.Command, path: list[str]
+) -> dict[click.Command, list[str]]:
+    """Find canonical command paths even when menus display commands in other groups."""
+    paths = {command: path}
+    if isinstance(command, click.Group):
+        for name, entry in command.commands.items():
+            paths.update(_command_paths(entry, [*path, name]))
+    return paths
+
+
 def launch(runtime: Runtime, command: click.Group) -> None:
-    """Show command menus and the selected device, with shortcuts for back and exit."""
-    stack: list[tuple[click.Group, list[str]]] = [(command, [])]
+    """Separate saved-device management from operations on a chosen device."""
+    paths = _command_paths(command, [])
+    device_menu = click.Group(
+        help="Choose a saved device, then read data, listen to events, or manage accounts."
+    )
+    tools_menu = click.Group(
+        help="Check the local installation or set up shell completion."
+    )
+    home = click.Group(commands={"Use a device": device_menu})
+    for name, entry in command.commands.items():
+        if name == "devices":
+            home.commands["Manage saved devices"] = entry
+        elif name in {"doctor", "completion"}:
+            tools_menu.commands[name] = entry
+        elif name == "device" and isinstance(entry, click.Group):
+            device_menu.commands.update(entry.commands)
+        else:
+            device_menu.commands[name] = entry
+    home.commands["Setup & diagnostics"] = tools_menu
+    labels = {
+        "health": "Health",
+        "api": "APIs",
+        "params": "Parameters",
+        "events": "Events",
+        "accounts": "Accounts",
+    }
+    stack: list[tuple[click.Group, list[str]]] = [(home, [])]
     while True:
         group, path = stack[-1]
         click.echo(f"\nAxis / {' / '.join(path) or 'home'}")
         click.echo(f"Device: {runtime.selected or 'none selected'}")
         entries = list(group.commands.items())
+        names = [labels.get(name, name) for name, _ in entries]
+        width = max((len(name) for name in names), default=0)
         for index, (name, entry) in enumerate(entries, 1):
-            click.echo(f"  {index}. {name:<12} {entry.get_short_help_str()}")
-        click.echo("  s. Select device   c. Command prompt   b. Back   e. Exit")
+            click.echo(
+                f"  {index}. {labels.get(name, name):<{width}} "
+                f"{entry.get_short_help_str(limit=1000)}"
+            )
+        using_device = len(stack) > 1 and stack[1][0] is device_menu
+        if using_device:
+            click.echo("  s. Change device")
+        click.echo(
+            "  c. Command prompt   b. Back   e. Exit"
+            if len(stack) > 1
+            else "  c. Command prompt   e. Exit   Enter stays here"
+        )
+        choosing_menu = True
         try:
-            answer = click.prompt("Select", default="e").strip().lower()
+            answer = (
+                click.prompt(
+                    "Select",
+                    default="b" if len(stack) > 1 else "",
+                    show_default=len(stack) > 1,
+                )
+                .strip()
+                .lower()
+            )
+            choosing_menu = False
             if answer == "e":
                 return
-            if answer == "b":
+            if answer == "b" or not answer:
                 if len(stack) > 1:
                     stack.pop()
                 continue
-            if answer == "s":
+            if answer == "s" and using_device:
                 select_device(runtime)
                 continue
             if answer == "c":
                 command_prompt(runtime, command)
                 continue
             if not answer.isdigit() or not 1 <= int(answer) <= len(entries):
-                click.echo("Choose a listed number, s, c, b, or e.", err=True)
+                click.echo("Choose a listed number or shortcut.", err=True)
                 continue
             name, entry = entries[int(answer) - 1]
             if isinstance(entry, click.Group):
-                stack.append((entry, [*path, name]))
+                if entry is device_menu and not select_device(runtime):
+                    continue
+                stack.append((entry, [*path, labels.get(name, name)]))
                 continue
             args = guided_arguments(runtime, entry)
-            execute(runtime, command, [*path, name, *args])
+            execute(runtime, command, [*paths[entry], *args])
         except (StorageError, operations.OperationError) as exc:
             click.echo(f"Error: {exc}", err=True)
         except click.ClickException as exc:
             exc.show()
         except KeyboardInterrupt, click.Abort, EOFError:
-            if len(stack) == 1:
+            if len(stack) == 1 and choosing_menu:
                 return
-            click.echo("Cancelled; returning home.", err=True)
-            stack = [(command, [])]
+            click.echo("Cancelled; returning to the menu.", err=True)
+            if choosing_menu:
+                stack.pop()

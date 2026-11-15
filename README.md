@@ -167,18 +167,28 @@ axis doctor
 axis completion zsh
 ```
 
-Bare `axis` opens guided navigation on a terminal. Select a device with `s`,
-browse groups by number, or enter the suggested command prompt with `c`.
-`b` returns to the parent menu; `e` exits. The command prompt accepts commands
-with or without the `axis` prefix; `/back` or Ctrl-D returns to navigation.
+Bare `axis` opens guided navigation on a terminal:
+
+- **Use a device** lists saved devices before showing Health, APIs, Parameters,
+  Events, and Accounts. Selection is offline; `s` changes the device inside
+  these menus.
+- **Manage saved devices** lists, discovers, registers, renames, updates
+  credentials, or removes local registrations.
+- **Setup & diagnostics** provides Doctor and shell completion.
+
+Choose a menu item by number, or open the suggested command prompt with `c`.
+Enter or `b` returns to the parent menu; Enter stays at home rather than exiting.
+`e` explicitly exits. The command prompt accepts commands with or without the
+`axis` prefix; `/back`, Ctrl-C, or Ctrl-D returns to navigation.
 Tab displays suggestions as you type. History is disabled to avoid retaining
 accidentally entered secrets. Menu shortcuts do not apply inside text fields.
 
 Both paths use the same Click command definitions, validation, and async
 operations. The guided path collects inputs and submits a canonical command;
 it does not maintain a second parser or silently execute a selected mutation.
-Ctrl-C cancels operations and closes device resources; at the home screen it
-exits. Bare groups show help. `api browse` is terminal-only; scripts use
+Ctrl-C cancels prompted commands and operations, closes device resources, and
+returns to the current menu. At a menu prompt it goes back; at the home menu
+prompt it exits. Bare groups show help. `api browse` is terminal-only; scripts use
 `api interfaces` and `api read`.
 
 ### Devices and direct commands
@@ -198,13 +208,19 @@ axis events listen --device front-door --stream-mode auto --json
 axis --config /private/devices.toml devices list
 ```
 
-Use `axis` and choose `devices add` for hidden password entry. For scripts,
+Use `axis` and choose **Manage saved devices**, then **add**, for hidden password
+entry. For scripts,
 `devices add`, `devices credentials`, and account writes accept
 `--password-file PATH`; keep that file private. Password arguments are
 intentionally unsupported.
 
 Device discovery is an explicit network action and never automatically
-registers devices. `devices alias`, `list`, `credentials`, and `remove` are
+registers devices. It prefers non-link-local IPv4 addresses advertised by each
+device and lists devices with only link-local addresses (`169.254.x.x`) last.
+Those addresses require a suitable local network interface; discovery does not
+prove that an address is reachable. If an interface reports "network is down",
+the CLI warns that results may be incomplete; other interfaces continue scanning.
+`devices alias`, `list`, `credentials`, and `remove` are
 local operations; removal does not delete a device or remote account.
 Registration authenticates and discovers a real serial number. Re-registering
 without `--alias` preserves an existing friendly name.

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import errno
 import importlib.metadata
 import json
+import logging
 import sys
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -25,6 +27,48 @@ from axis.cli.storage import (
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from pathlib import Path
+
+
+@pytest.mark.parametrize(
+    ("logger", "error", "friendly"),
+    [
+        ("zeroconf", OSError(errno.ENETDOWN, "Network is down"), True),
+        ("zeroconf.listener", OSError(errno.ENETDOWN, "Network is down"), True),
+        ("zeroconf", OSError(errno.EINVAL, "Unexpected socket failure"), False),
+        ("axis.cli", OSError(errno.ENETDOWN, "Other operation failed"), False),
+        ("zeroconf", None, False),
+    ],
+)
+def test_cli_discovery_warning_formatting(
+    logger: str, error: OSError | None, friendly: bool
+) -> None:
+    """Only known Zeroconf interface-down warnings lose their traceback, without mutating records."""
+    record = logging.LogRecord(
+        logger,
+        logging.WARNING,
+        __file__,
+        1,
+        "Socket warning: %s",
+        ("details",),
+        (type(error), error, None) if error else None,
+    )
+    original = logging.Formatter("%(message)s").format(record)
+    original_exception_text = record.exc_text
+    output = commands._CliFormatter("%(message)s").format(record)
+    if friendly:
+        assert output.startswith("Warning: a network interface is down")
+        assert "discovery results may be incomplete" in output
+        assert "OSError" not in output
+    else:
+        assert output == original
+    assert record.msg == "Socket warning: %s"
+    assert record.args == ("details",)
+    assert record.exc_text == original_exception_text
+    if error is None:
+        assert record.exc_info is None
+    else:
+        assert record.exc_info is not None
+        assert record.exc_info[1] is error
 
 
 @pytest.fixture

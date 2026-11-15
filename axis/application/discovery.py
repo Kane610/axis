@@ -6,6 +6,7 @@ prompt the user.
 
 import asyncio
 from contextlib import AsyncExitStack
+from ipaddress import IPv4Address
 import math
 import re
 
@@ -93,7 +94,11 @@ def _zeroconf_instance_name(service_name: str) -> str:
 
 
 async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDevice]:
-    """Search for Axis video-service announcements for the requested number of seconds."""
+    """Find Axis devices, preferring advertised non-link-local IPv4 addresses.
+
+    Devices advertising only link-local addresses remain in the results, after
+    devices with non-link-local addresses.
+    """
     if not math.isfinite(scan_seconds) or scan_seconds < 0:
         msg = "Discovery duration must be finite and non-negative."
         raise OperationError(msg, kind=ErrorKind.VALIDATION)
@@ -133,7 +138,9 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
                 addresses = info.parsed_addresses(IPVersion.V4Only)
                 if not addresses:
                     continue
-                host = addresses[0]
+                host = min(
+                    addresses, key=lambda address: IPv4Address(address).is_link_local
+                )
                 if host in seen_hosts:
                     continue
                 seen_hosts.add(host)
@@ -145,6 +152,8 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
                         **_extract_discovery_metadata(info.properties),
                     }
                 )
-            return entries
+            return sorted(
+                entries, key=lambda entry: IPv4Address(entry["host"]).is_link_local
+            )
     except Exception as exc:  # noqa: BLE001 - safe boundary; cancellation propagates
         raise _failure(exc, message="Device discovery failed.") from None
