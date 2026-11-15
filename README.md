@@ -198,6 +198,11 @@ prompt it exits. Bare groups show help. `api browse` is terminal-only; scripts u
 API and interface lists use case-insensitive alphabetical order, with embedded
 numbers sorted numerically. Human-readable reads sort dictionary keys the same
 way, including API Discovery results; list order and `--path` indices stay intact.
+Guided **read** and **browse** show the same numbered, live-checked handler list.
+Choose a number or name, use `/text` to filter without renumbering (`/` clears),
+or `m` to enter a handler name manually. Enter or `b` cancels selection.
+Other guided inputs show allowed values or explain their purpose with examples;
+optional fields explicitly say how to skip them. An empty alias clears it.
 
 ### Devices and direct commands
 

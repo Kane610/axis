@@ -77,10 +77,10 @@ def test_real_terminal_launcher_and_command_prompt(tmp_path: Path) -> None:
         assert b"Axis / Manage saved devices" in output
         assert b"without contacting devices." in output
         os.write(master, b"3\n")
-        output = read_until(master, b"Hostname or IP, without scheme or path.:")
+        output = read_until(master, b"example: 192.0.2.10).:")
         assert b"Ctrl-C cancels this command" in output
         os.write(master, b"b\n")
-        read_until(master, b"Device login name.:")
+        read_until(master, b"Device login name (example: root).:")
         process.send_signal(signal.SIGINT)
         output = read_until(master, b"Select [b]:")
         assert b"Cancelled; returning to the menu." in output
@@ -108,11 +108,11 @@ def test_real_terminal_launcher_and_command_prompt(tmp_path: Path) -> None:
         read_until(master, b"Ctrl-C cancels) [b]:")
         os.write(master, b"\n")
         output = read_until(master, b"Select [b]:")
-        assert b"name:" not in output
+        assert b"New local alias" not in output
         os.write(master, b"4\n")
         read_until(master, b"Ctrl-C cancels) [b]:")
         os.write(master, b"2\n")
-        read_until(master, b"name:")
+        read_until(master, b"empty clears it) []:")
         os.write(master, b"renamed\n")
         read_until(master, b"Select [b]:")
         assert DeviceRegistry(config).resolve("SECOND").alias == "renamed"

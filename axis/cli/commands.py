@@ -276,7 +276,11 @@ def devices_list(runtime: Runtime, as_json: bool) -> None:
 
 @devices.command()
 @click.option(
-    "--seconds", type=click.FloatRange(0.1, 60), default=5.0, show_default=True
+    "--seconds",
+    type=click.FloatRange(0.1, 60),
+    default=5.0,
+    show_default=True,
+    help="Discovery duration in seconds (0.1-60).",
 )
 @json_option
 @click.pass_obj
@@ -298,19 +302,39 @@ def discover(runtime: Runtime, seconds: float, as_json: bool) -> None:
 
 
 @devices.command()
-@click.option("--host", required=True, help="Hostname or IP, without scheme or path.")
-@click.option("--username", required=True, help="Device login name.")
+@click.option(
+    "--host",
+    required=True,
+    help="Hostname or IP, without scheme or path (example: 192.0.2.10).",
+)
+@click.option("--username", required=True, help="Device login name (example: root).")
 @click.option("--password-file", type=click.Path(path_type=Path, dir_okay=False))
 @click.option("--alias", default=None, help="Unique local friendly name.")
-@click.option("--port", type=click.IntRange(0, 65535), default=0, show_default=True)
-@click.option("--proto", type=click.Choice(["http", "https"]), default="http")
+@click.option(
+    "--port",
+    type=click.IntRange(0, 65535),
+    default=0,
+    show_default=True,
+    help="HTTP port (0 uses the protocol default; example: 8443).",
+)
+@click.option(
+    "--proto",
+    type=click.Choice(["http", "https"]),
+    default="http",
+    help="Connection protocol.",
+)
 @click.option(
     "--verify-ssl/--no-verify-ssl",
     default=True,
     show_default=True,
     help="Verify HTTPS certificates; disable explicitly for trusted self-signed devices.",
 )
-@click.option("--auth", type=click.Choice(["auto", "basic", "digest"]), default="auto")
+@click.option(
+    "--auth",
+    type=click.Choice(["auto", "basic", "digest"]),
+    default="auto",
+    help="Login authentication method (auto negotiates with the device).",
+)
 @click.option("--companion", is_flag=True, help="Register a companion device.")
 @json_option
 @click.pass_obj
@@ -383,7 +407,9 @@ def remove(runtime: Runtime, device: str | None, yes: bool, as_json: bool) -> No
 
 @devices.command()
 @device_option
-@click.option("--username", required=True, help="Replacement device login name.")
+@click.option(
+    "--username", required=True, help="Replacement device login name (example: root)."
+)
 @click.option("--password-file", type=click.Path(path_type=Path, dir_okay=False))
 @json_option
 @click.pass_obj
@@ -453,7 +479,9 @@ def interfaces(runtime: Runtime, device: str | None, as_json: bool) -> None:
 
 @api.command()
 @click.argument("interface")
-@click.option("--path", help="Optional dot-separated dictionary/list traversal.")
+@click.option(
+    "--path", help="Nested value to read (example: 0.name; Enter reads all data)."
+)
 @device_option
 @json_option
 @click.pass_obj
@@ -512,9 +540,15 @@ def events_list(runtime: Runtime, device: str | None, as_json: bool) -> None:
 
 @events.command()
 @device_option
-@click.option("--topic", help="Subscribe only to this event topic.")
 @click.option(
-    "--stream-mode", type=click.Choice(["auto", "rtsp", "event"]), default="auto"
+    "--topic",
+    help="Event topic filter (example: tns1:VideoSource; Enter subscribes to all).",
+)
+@click.option(
+    "--stream-mode",
+    type=click.Choice(["auto", "rtsp", "event"]),
+    default="auto",
+    help="Event transport (auto chooses a supported transport).",
 )
 @json_option
 @click.pass_obj

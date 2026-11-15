@@ -176,6 +176,59 @@ def select_device(runtime: Runtime) -> bool:
     return True
 
 
+def _interface_choices(
+    runtime: Runtime, record: DeviceRecord
+) -> list[dict[str, object]]:
+    """Check the selected device's handlers before offering live read choices."""
+    click.echo("Checking interfaces on this device (live, read-only network requests).")
+    return runtime.run(operations.list_interfaces(record))
+
+
+def select_interface(interfaces: list[dict[str, object]]) -> str | None:
+    """Choose a handler by stable number or name, with search, manual entry, and cancellation."""
+    entries = list(
+        enumerate(sorted(interfaces, key=lambda row: natural_key(str(row["name"]))), 1)
+    )
+    if not entries:
+        click.echo("No interfaces available.")
+        return None
+    search = ""
+    while True:
+        visible = [
+            entry for entry in entries if search in str(entry[1]["name"]).casefold()
+        ]
+        if not visible:
+            click.echo("No matching interfaces. Enter / to clear the search.")
+        for index, interface in visible:
+            status = (
+                "advertised"
+                if interface.get("listed")
+                else "responded to probe"
+                if interface.get("probe_succeeded")
+                else "not confirmed"
+            )
+            click.echo(f"  {index}. {display_text(str(interface['name']))} ({status})")
+        answer = click.prompt(
+            "Interface number or listed name; /search filters; m enters a name manually "
+            "(Enter/b returns)",
+            default="b",
+        ).strip()
+        if answer in {"", "b"}:
+            return None
+        if answer.startswith("/"):
+            search = answer[1:].casefold()
+            continue
+        if answer == "m":
+            return str(click.prompt("Handler name (example: basic_device_info)"))
+        for index, interface in visible:
+            if (
+                answer == str(index)
+                or answer.casefold() == str(interface["name"]).casefold()
+            ):
+                return str(interface["name"])
+        click.echo("Choose a listed number or name, /search, m, or b.", err=True)
+
+
 def guided_arguments(
     runtime: Runtime, command: click.Command, *, choose_device: bool = False
 ) -> list[str]:
@@ -196,8 +249,30 @@ def guided_arguments(
     ) as context:
         defaults = context.params
     for parameter in command.params:
+        if isinstance(parameter, (click.Argument, click.Option)) and isinstance(
+            parameter.type, click.Choice
+        ):
+            click.echo(f"Allowed values: {', '.join(map(str, parameter.type.choices))}")
         if isinstance(parameter, click.Argument):
-            value = click.prompt(parameter.name or "Value", type=parameter.type)
+            if parameter.name == "interface":
+                value = select_interface(
+                    _interface_choices(runtime, runtime.device(None))
+                )
+                if value is None:
+                    raise click.Abort
+            elif parameter.name == "name" and command.name == "alias":
+                value = click.prompt(
+                    "New local alias (example: front-door; empty clears it)",
+                    default="",
+                    type=parameter.type,
+                )
+            else:
+                label = (
+                    "Remote account login name (example: viewer)"
+                    if parameter.name == "username"
+                    else (parameter.name or "Value").replace("_", " ").capitalize()
+                )
+                value = click.prompt(label, type=parameter.type)
             args.append(str(value))
             continue
         if not isinstance(parameter, click.Option):
@@ -217,6 +292,7 @@ def guided_arguments(
             continue
         default = defaults.get(parameter.name or "")
         if not parameter.required and default is None:
+            click.echo("Optional: Enter skips this field.")
             value = click.prompt(
                 parameter.help or parameter.name or "Value", default=""
             )
@@ -274,25 +350,12 @@ def command_prompt(runtime: Runtime, command: click.Group) -> None:
 
 def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> None:
     """Let the user select a library handler and read it through the CLI command parser."""
-    interfaces = sorted(
-        runtime.run(operations.list_interfaces(record)),
-        key=lambda row: natural_key(str(row["name"])),
-    )
-    if not interfaces:
-        click.echo("No interfaces available.")
-        return
+    interfaces = _interface_choices(runtime, record)
     click.echo("Enter returns from the interface list; Ctrl-C cancels browsing.")
-    while True:
-        for index, interface in enumerate(interfaces, 1):
-            click.echo(f"  {index}. {interface['name']}")
-        answer = click.prompt("Interface number (b returns)", default="b")
-        if answer == "b":
-            return
-        if not answer.isdigit() or not 1 <= int(answer) <= len(interfaces):
-            click.echo("Choose an interface number from the list.", err=True)
-            continue
-        name = str(interfaces[int(answer) - 1]["name"])
-        path = click.prompt("Dot path (empty shows all data)", default="")
+    while (name := select_interface(interfaces)) is not None:
+        path = click.prompt(
+            "Nested value (example: 0.name; Enter shows all data)", default=""
+        )
         args = ["api", "read", name, "--device", record.serial]
         if path:
             args.extend(["--path", path])

@@ -366,6 +366,20 @@ Handlers declare the phases they participate in via `handler_groups` on the `Api
 
 Override `should_initialize_in_group()` to customize eligibility within a phase. See [`axis/interfaces/light_control.py`](axis/interfaces/light_control.py) for a concrete fallback example.
 
+### Terminal UX guidelines
+
+- Resolve the device before other inputs; keep its identity visible.
+- Prefer recognition over recall: show valid, numbered choices for catalogs.
+  Sort names naturally and keep choice numbers stable while filtering.
+- Explain each input's purpose, format, and example; show finite allowed values,
+  defaults, and how to skip optional fields. Never ask for an unexplained internal name.
+- Label live network checks separately from offline or previously discovered data.
+- Separate names from descriptions visually; do not rely on color alone.
+- Make Back and Ctrl-C cancellation explicit. Cancellation must not submit
+  unfinished commands or reuse an unconfirmed target.
+- Preserve preview defaults and hidden secret input; confirm remote writes
+  with the target and consequences. Do not add network reads to offline previews.
+
 ### Writing descriptions readers can use
 
 These rules apply to contributors and coding agents across the repository:

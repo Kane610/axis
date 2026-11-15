@@ -209,6 +209,96 @@ def test_guided_unknown_parameter_is_ignored(runtime: Runtime) -> None:
         assert interactive.guided_arguments(runtime, command) == []
 
 
+def test_guided_read_offers_live_numbered_interfaces(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Guided reads offer actual handler choices before asking for an optional path."""
+    runtime.selected = "SERIAL"
+    command = cli.commands["api"].commands["read"]
+    with (
+        patch.object(
+            operations,
+            "list_interfaces",
+            new=AsyncMock(
+                return_value=[{"name": "zoo"}, {"name": "basic_device_info"}]
+            ),
+        ) as lookup,
+        patch.object(click, "prompt", side_effect=["1", ""]) as prompt,
+    ):
+        args = interactive.guided_arguments(runtime, command)
+    assert args == ["basic_device_info"]
+    lookup.assert_awaited_once()
+    assert "Interface number" in prompt.call_args_list[0].args[0]
+    output = capsys.readouterr().out
+    assert "live" in output
+    assert "basic_device_info" in output
+    assert "0.name" in prompt.call_args_list[1].args[0]
+
+
+def test_guided_read_cancel_stops_before_path(runtime: Runtime) -> None:
+    """Cancelling the interface picker never collects a path or executes a read."""
+    runtime.selected = "SERIAL"
+    with (
+        patch.object(
+            operations, "list_interfaces", new=AsyncMock(return_value=[{"name": "api"}])
+        ),
+        patch.object(click, "prompt", return_value="b") as prompt,
+        pytest.raises(click.Abort),
+    ):
+        interactive.guided_arguments(runtime, cli.commands["api"].commands["read"])
+    assert prompt.call_count == 1
+
+
+def test_guided_choices_explain_allowed_values(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Finite choices are shown before prompting, not left for users to guess."""
+    with patch.object(click, "prompt", return_value="config"):
+        interactive.guided_arguments(runtime, cli.commands["doctor"])
+    assert "all, installation, path, config, completion" in capsys.readouterr().out
+
+
+def test_interface_search_keeps_original_numbers(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Filtering keeps stable references and rejects choices hidden by the filter."""
+    with patch.object(click, "prompt", side_effect=["/z", "1", "3"]):
+        assert (
+            interactive.select_interface(
+                [
+                    {"name": "zoo", "listed": True},
+                    {"name": "api10", "probe_succeeded": True},
+                    {"name": "api2"},
+                ]
+            )
+            == "zoo"
+        )
+    output = capsys.readouterr()
+    assert "3. zoo (advertised)" in output.out
+    assert "responded to probe" in output.out
+    assert "Choose a listed number" in output.err
+
+
+def test_interface_manual_entry_and_empty_search(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An empty search can be cleared, and manual handler entry is explicit."""
+    with patch.object(
+        click, "prompt", side_effect=["/absent", "/", "m", "api_discovery"]
+    ):
+        assert interactive.select_interface([{"name": "api2"}]) == "api_discovery"
+    assert "No matching interfaces" in capsys.readouterr().out
+    with patch.object(click, "prompt", return_value="API2"):
+        assert interactive.select_interface([{"name": "api2"}]) == "api2"
+
+
+def test_guided_alias_can_clear_name(runtime: Runtime) -> None:
+    """The guided alias field explains and supports clearing the saved friendly name."""
+    with patch.object(click, "prompt", side_effect=["2", "4", "1", "", "b", "e"]):
+        interactive.launch(runtime, cli)
+    assert runtime.registry.resolve("SERIAL").alias == ""
+
+
 def test_guided_dual_flag_honors_both_choices(runtime: Runtime) -> None:
     """Guided TLS settings preserve canonical defaults and explicit disabling."""
     command = click.Command(
@@ -385,7 +475,7 @@ def test_management_alias_selects_device_before_name(runtime: Runtime) -> None:
     ) as prompt:
         interactive.launch(runtime, cli)
     assert "Device number" in prompt.call_args_list[2].args[0]
-    assert prompt.call_args_list[3].args[0] == "name"
+    assert prompt.call_args_list[3].args[0].startswith("New local alias")
     assert runtime.registry.resolve("SECOND").alias == "renamed"
     assert runtime.registry.resolve("SERIAL").alias == "front door"
 
