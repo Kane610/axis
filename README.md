@@ -224,7 +224,14 @@ axis --config /private/devices.toml devices list
 ```
 
 Use `axis` and choose **Manage saved devices**, then **add**, for hidden password
-entry. For scripts,
+entry. After **discover** in the same launcher session, **add** offers the
+scan's numbered devices and fills in the chosen host; `m` allows manual host
+entry, and Enter or `b` cancels before any login prompts. Numbers match the
+human-readable discovery table. These are unauthenticated announcements from
+the last successful scan, not a new reachability check. A new successful scan
+replaces the session choices; closing the launcher discards them. Login details
+and transport settings are still requested explicitly. Discovery JSON is unchanged.
+For scripts,
 `devices add`, `devices credentials`, and account writes accept
 `--password-file PATH`; keep that file private. Password arguments are
 intentionally unsupported.

@@ -231,6 +231,40 @@ def select_interface(interfaces: list[dict[str, object]]) -> str | None:
         click.echo("Choose a listed number or name, /search, m, or b.", err=True)
 
 
+def select_discovered_host(
+    devices: list[dict[str, str]], parameter: click.Option
+) -> str | None:
+    """Reuse a scan address by number, or explicitly enter a different host."""
+    click.echo(
+        "Devices from the last discovery in this session "
+        "(unauthenticated announcements; addresses are not rechecked here)."
+    )
+    while True:
+        for index, device in enumerate(devices, 1):
+            name = device.get("name") or device.get("model") or "Axis device"
+            click.echo(
+                f"  {index}. {display_text(name)}  |  {display_text(device['host'])}"
+            )
+        click.echo("  m. Enter a hostname or IP manually")
+        answer = (
+            click.prompt(
+                "Discovered device number (Enter/b returns; m enters a host manually)",
+                default="b",
+            )
+            .strip()
+            .lower()
+        )
+        if answer in {"", "b"}:
+            return None
+        if answer == "m":
+            return str(
+                click.prompt(parameter.help or "Hostname or IP", type=parameter.type)
+            )
+        if answer.isdecimal() and 1 <= int(answer) <= len(devices):
+            return devices[int(answer) - 1]["host"]
+        click.echo("Choose a discovered device number, m, or b.", err=True)
+
+
 def guided_arguments(
     runtime: Runtime, command: click.Command, *, choose_device: bool = False
 ) -> list[str]:
@@ -282,6 +316,16 @@ def guided_arguments(
         if parameter.name in ("as_json", "yes", "password_file"):
             continue
         if parameter.name == "device":
+            continue
+        if (
+            parameter.name == "host"
+            and command.name == "add"
+            and runtime.discovered_devices
+        ):
+            value = select_discovered_host(runtime.discovered_devices, parameter)
+            if value is None:
+                raise click.Abort
+            args.extend([parameter.opts[0], value])
             continue
         if parameter.is_flag:
             if click.confirm(

@@ -215,6 +215,28 @@ def test_discovery_is_explicit(runtime: Runtime) -> None:
     assert invoke(runtime, ["devices", "discover", "--seconds", "0"]).exit_code == 2
 
 
+def test_discovery_replaces_session_choices_and_keeps_json_shape(
+    runtime: Runtime,
+) -> None:
+    """Each successful scan replaces the session list, including an empty scan."""
+    first = [{"host": "192.0.2.1", "name": "First"}]
+    second = [{"host": "192.0.2.2", "name": "Second"}]
+    with patch.object(
+        commands,
+        "discover_axis_devices",
+        new=AsyncMock(side_effect=[first, second, []]),
+    ):
+        result = invoke(runtime, ["devices", "discover"])
+        assert result.exit_code == 0
+        assert "number" in result.stdout
+        assert runtime.discovered_devices == first
+        result = invoke(runtime, ["devices", "discover", "--json"])
+        assert json.loads(result.stdout) == second
+        assert runtime.discovered_devices == second
+        assert invoke(runtime, ["devices", "discover"]).exit_code == 0
+        assert runtime.discovered_devices == []
+
+
 def test_discovery_refresh_is_saved_and_visible_offline(runtime: Runtime) -> None:
     """Scanning updates known devices and exposes fresh names/addresses without changing aliases."""
     row = {

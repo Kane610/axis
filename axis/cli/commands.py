@@ -75,6 +75,7 @@ class Runtime:
     interactive: bool = False
     selected: str | None = None
     runner: asyncio.Runner = field(default_factory=asyncio.Runner)
+    discovered_devices: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def registry(self) -> DeviceRegistry:
@@ -293,7 +294,13 @@ def discover(runtime: Runtime, seconds: float, as_json: bool) -> None:
     started = datetime.now(UTC)
     results = runtime.run(discover_axis_devices(scan_seconds=seconds))
     updated = runtime.registry.refresh_discovery(results, started)
-    render(results, as_json)
+    runtime.discovered_devices = [dict(row) for row in results]
+    render(
+        results
+        if as_json
+        else [{"number": index, **row} for index, row in enumerate(results, 1)],
+        as_json,
+    )
     if updated:
         click.echo(
             f"Refreshed {len(updated)} saved device(s); aliases and credentials preserved.",

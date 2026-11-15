@@ -14,7 +14,7 @@ import pytest
 
 from axis.application import operations
 from axis.application.records import DiscoverySnapshot
-from axis.cli import interactive
+from axis.cli import commands, interactive
 from axis.cli.commands import Runtime, cli
 from axis.cli.storage import ConnectionSettings, DeviceRecord, StorageError
 
@@ -297,6 +297,88 @@ def test_guided_alias_can_clear_name(runtime: Runtime) -> None:
     with patch.object(click, "prompt", side_effect=["2", "4", "1", "", "b", "e"]):
         interactive.launch(runtime, cli)
     assert runtime.registry.resolve("SERIAL").alias == ""
+
+
+def test_discover_then_add_uses_numbered_host(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Registration reuses the selected scan address without retyping or inventing credentials."""
+    with patch.object(
+        commands,
+        "discover_axis_devices",
+        new=AsyncMock(
+            return_value=[
+                {"host": "192.0.2.1", "name": "First"},
+                {"host": "192.0.2.2", "name": "Second"},
+            ]
+        ),
+    ):
+        assert interactive.execute(runtime, cli, ["devices", "discover"])
+    with (
+        patch.object(
+            click,
+            "prompt",
+            side_effect=[
+                "2",
+                "3",
+                "2",
+                "root",
+                "",
+                0,
+                "http",
+                "auto",
+                "new-hidden-value",
+                "b",
+                "e",
+            ],
+        ) as prompt,
+        patch.object(click, "confirm", side_effect=[True, False]),
+        patch.object(
+            operations,
+            "identify",
+            new=AsyncMock(side_effect=lambda settings: DeviceRecord("NEW", settings)),
+        ) as identify,
+    ):
+        interactive.launch(runtime, cli)
+    assert "Discovered device number" in prompt.call_args_list[2].args[0]
+    identify.assert_awaited_once()
+    assert identify.call_args.args[0].host == "192.0.2.2"
+    assert runtime.registry.resolve("NEW").config.host == "192.0.2.2"
+    output = capsys.readouterr().out
+    assert "Second" in output
+    assert "unauthenticated" in output
+    assert "new-hidden-value" not in output
+
+
+def test_cancel_discovered_host_stops_before_login(runtime: Runtime) -> None:
+    """Cancelling discovery-assisted registration never requests credentials or dispatches."""
+    runtime.discovered_devices = [{"host": "192.0.2.1", "name": "First"}]
+    with (
+        patch.object(
+            click, "prompt", side_effect=["2", "3", "bad", "b", "b", "e"]
+        ) as prompt,
+        patch.object(interactive, "execute") as execute,
+    ):
+        interactive.launch(runtime, cli)
+    assert "Discovered device number" in prompt.call_args_list[2].args[0]
+    assert "Discovered device number" in prompt.call_args_list[3].args[0]
+    execute.assert_not_called()
+
+
+def test_discovered_host_can_be_entered_manually(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A cached scan never prevents explicit manual host entry or interprets device controls."""
+    runtime.discovered_devices = [{"host": "192.0.2.1", "name": "Device\x1b[31m"}]
+    command = click.Command("add", params=[click.Option(["--host"], required=True)])
+    with patch.object(click, "prompt", side_effect=["m", "manual.local"]):
+        assert interactive.guided_arguments(runtime, command) == [
+            "--host",
+            "manual.local",
+        ]
+    output = capsys.readouterr().out
+    assert "\\u001b" in output
+    assert "\x1b" not in output
 
 
 def test_guided_dual_flag_honors_both_choices(runtime: Runtime) -> None:
