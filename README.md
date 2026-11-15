@@ -28,6 +28,13 @@ and safety. Device protocol models remain separate from application records and
 future screen state. This separation does not regroup models/interfaces/VAPIX
 or introduce a new device-capability layer.
 
+See [supported Python APIs and import paths](CONTRIBUTING.md#supported-python-apis-and-import-paths)
+to choose between direct library access and shared application operations.
+Existing core imports remain supported. New applications should import shared
+functions from `axis.application`'s defining modules, not CLI helpers or older
+compatibility re-exports. The guide separates supported APIs, retained
+compatibility paths, and private implementation details.
+
 For an application that uses the local registry:
 
 ```python

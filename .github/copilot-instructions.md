@@ -17,6 +17,10 @@
 - Read the authoritative separation-of-concerns and ownership contract in
   `CONTRIBUTING.md` before adding or moving functionality. Keep this instruction
   concise; update that guide instead of duplicating its architecture rules here.
+- Follow that guide's "Supported Python APIs and import paths" section. Use
+  supported defining modules for new consumers; do not treat CLI internals,
+  incidental imports, or compatibility re-exports as new public APIs. Preserve
+  existing core imports and require compatibility review for public-contract changes.
 - Keep one repository/distribution with Python subpackages. The device library
   must remain directly usable by Home Assistant and other integrations without
   application registries or optional presentation dependencies.

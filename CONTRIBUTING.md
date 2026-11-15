@@ -160,21 +160,112 @@ state. Keep API-specific enums and parsing close to their feature. The current
 separation does not reorganize models, interfaces, VAPIX, or their public imports.
 A future device-capability layer or feature regrouping needs a separate proposal.
 
+### Supported Python APIs and import paths
+
+Choose an API by who manages the device connection, not by which interface the
+user sees. A graphical application does not need to import CLI code.
+
+#### Device library: integrations manage their own connections
+
+Home Assistant and other integrations can continue using the existing device
+library directly:
+
+```python
+from axis import AxisDevice
+from axis.models.configuration import Configuration
+```
+
+`axis.device.AxisDevice` is also an existing supported import. The device's
+`vapix` handlers expose controls and cached device data; `event.subscribe`
+registers event callbacks; `stream` manages event streaming. The integration
+supplies the HTTP session in `Configuration` and manages its own event loop and
+device lifecycle.
+
+Existing documented feature handlers in `axis.interfaces`, request/response
+types and enums in `axis.models`, and event/stream APIs remain available at their
+current import paths. Device exceptions remain available from `axis.errors` and
+the existing `axis` exports. This PR does not remove or move those APIs, or require
+integrations to adopt application records, a local registry, or CLI dependencies.
+
+#### Shared application APIs: operations manage their own connections
+
+Use these defining modules for new applications and third-party consumers:
+
+| Purpose | Import from | Supported entry points |
+|---------|-------------|------------------------|
+| Find devices on the local network | `axis.application.discovery` | `discover_axis_devices` |
+| Describe connections and read results | `axis.application.records` | `ConnectionSettings`, `DeviceRecord`, `DeviceSummary`, `HealthSnapshot` |
+| Save and select local registrations | `axis.application.storage` | `DeviceRegistry`, `default_config_path` |
+| Identify a device or read its information | `axis.application.operations` | `identify`, `read_health`, `list_apis`, `list_interfaces`, `read_interface`, `parameters`, `list_events`, `list_accounts` |
+| Receive live events | `axis.application.operations` | `listen` |
+| Validate and review account changes | `axis.application.accounts` | `validate_account_username`, `prepare_account_change`, `AccountChange`, `AccountChangeResult` |
+| Execute an approved account change | `axis.application.operations` | `apply_account_change` |
+| Convert data for safe display/export | `axis.application.operations` | `normalize_payload` |
+| Handle application failures | `axis.application.errors` | `ErrorKind`, `OperationError`, `StorageError` |
+
+For example:
+
+```python
+from axis.application.operations import read_health
+from axis.application.records import DeviceRecord, HealthSnapshot
+from axis.application.storage import DeviceRegistry
+```
+
+Import application symbols from these modules, not from `axis.cli` or an assumed
+package-root facade. `axis.application` currently does not re-export this table's
+symbols. A saved registry is optional: callers can construct a `DeviceRecord`
+from connection settings instead. These operations open and close their own
+connections; they do not borrow an integration's existing `AxisDevice` session.
+
+Public means intended for consumer use, not supported by every device or account.
+Handle feature availability and failures. Use exception types for library errors,
+and `OperationError.kind`/`outcome_unknown` for application recovery decisions,
+rather than matching human-readable error messages.
+
+#### Retained compatibility imports: keep working, but do not build on them
+
+| Existing path | Preferred path for new code |
+|---------------|-----------------------------|
+| `axis.cli.operations` device-operation re-exports | `axis.application.operations`; exceptions from `axis.application.errors` |
+| `axis.cli.storage` record/registry re-exports | `axis.application.records`, `axis.application.storage`, `axis.application.errors` |
+| `discover_axis_devices` re-exported by `axis.cli.main` or `axis.cli.packs.devices` | `axis.application.discovery.discover_axis_devices` |
+
+These imports remain in place for existing callers. Their presence, including
+names in `__all__`, does not make CLI internals a reusable application API.
+No compatibility import is removed or given a new deprecation warning here.
+
+Within application operations, `health` retains the four-field dictionary for
+existing callers; prefer `read_health` for a typed result with target and read
+time. `change_account` retains the older direct executor; new applications should
+use `prepare_account_change` and `apply_account_change` for review, authorization,
+and device identity checks. Lower-level device-library account controls remain
+available to integrations that manage their own policies.
+
+#### Internal implementation: not a third-party contract
+
+Underscore-prefixed helpers, CLI command callbacks, `Runtime`, completion/menu
+machinery, and the earlier `axis.cli.core`/`axis.cli.packs` router implementation
+are internal. Implementation constants such as `STARTUP_TIMEOUT` are not
+configuration APIs, even if an older module re-exports them. Importability or a
+name without an underscore alone does not establish a supported API.
+
+Scripts should use documented `axis` commands and output formats rather than
+importing command callbacks. Python applications should use the library or
+application APIs above, not launch the CLI to reach device operations.
+
+Changes to supported imports, signatures, result fields/output shapes, connection
+ownership, or error meanings require explicit compatibility review and relevant
+release/migration documentation. Keep compatibility exports distinct from new
+public APIs when adding functionality; do not silently widen the supported
+surface by importing a helper into another module.
+
 ### Public contracts and ownership
 
-The existing device-library interfaces remain available to integrations.
-Application contracts are the records/registry, `discover_axis_devices`, async
-read operations, `read_health`/`HealthSnapshot`, and
-`prepare_account_change`/`AccountChange`/`apply_account_change`/
-`AccountChangeResult`. `DeviceRecord.summary()` returns an immutable
+The APIs above follow these state and connection ownership rules.
+`DeviceRecord.summary()` returns an immutable
 `DeviceSummary` with no login username/password. `OperationError.kind` uses
 `ErrorKind`; `outcome_unknown` means a write may have completed without a clear
 response from the device.
-`health` preserves the existing four-field dictionary for CLI consumers.
-`change_account` is a compatibility executor, not the reviewed apply API.
-Underscore-prefixed helpers, legacy menu/router machinery, and presentation
-helpers are internal. Re-exporting an implementation for compatibility does not
-make all of its internals a new supported API.
 
 Application functions can be awaited directly: they do not prompt, print, exit,
 start an event loop, or choose a selected device. The CLI owns its runner; other
