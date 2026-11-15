@@ -128,15 +128,33 @@ device_option = click.option(
 json_option = click.option("--json", "as_json", is_flag=True, help="Output JSON.")
 
 
+def _ordered_payload(payload: object) -> object:
+    """Sort human-readable dictionary keys without changing list-index meanings."""
+    if isinstance(payload, dict):
+        return {
+            key: _ordered_payload(payload[key])
+            for key in sorted(
+                payload, key=lambda key: interactive.natural_key(str(key))
+            )
+        }
+    if isinstance(payload, list):
+        return [_ordered_payload(value) for value in payload]
+    return payload
+
+
 def render(payload: object, as_json: bool = False) -> None:
     """Render structured results without mixing diagnostics into stdout."""
     if as_json or not isinstance(payload, list) or not payload:
         click.echo(
-            json.dumps(payload, indent=None if as_json else 2, ensure_ascii=True)
+            json.dumps(
+                payload if as_json else _ordered_payload(payload),
+                indent=None if as_json else 2,
+                ensure_ascii=True,
+            )
         )
         return
     if not all(isinstance(row, dict) for row in payload):
-        click.echo(json.dumps(payload, indent=2))
+        click.echo(json.dumps(_ordered_payload(payload), indent=2))
         return
     columns = list(payload[0])
     rows = [
@@ -409,7 +427,13 @@ def api() -> None:
 @click.pass_obj
 def api_list(runtime: Runtime, device: str | None, as_json: bool) -> None:
     """List supported APIs. Example: axis api list --device front-door --json."""
-    render(runtime.run(operations.list_apis(runtime.device(device))), as_json)
+    render(
+        sorted(
+            runtime.run(operations.list_apis(runtime.device(device))),
+            key=lambda row: interactive.natural_key(str(row.get("name") or row["id"])),
+        ),
+        as_json,
+    )
 
 
 @api.command()
@@ -418,7 +442,13 @@ def api_list(runtime: Runtime, device: str | None, as_json: bool) -> None:
 @click.pass_obj
 def interfaces(runtime: Runtime, device: str | None, as_json: bool) -> None:
     """Check which library handlers the device advertises or responds to."""
-    render(runtime.run(operations.list_interfaces(runtime.device(device))), as_json)
+    render(
+        sorted(
+            runtime.run(operations.list_interfaces(runtime.device(device))),
+            key=lambda row: interactive.natural_key(str(row["name"])),
+        ),
+        as_json,
+    )
 
 
 @api.command()

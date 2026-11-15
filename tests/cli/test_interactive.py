@@ -281,7 +281,9 @@ def test_api_browse_dispatches_canonical_read(runtime: Runtime) -> None:
     record = runtime.registry.resolve("SERIAL")
     with (
         patch.object(
-            operations, "list_interfaces", new=AsyncMock(return_value=[{"name": "api"}])
+            operations,
+            "list_interfaces",
+            new=AsyncMock(return_value=[{"name": "api10"}, {"name": "api2"}]),
         ),
         patch.object(click, "prompt", side_effect=["bad", "1", "0.name", "1", "", "b"]),
         patch.object(interactive, "execute") as execute,
@@ -290,7 +292,7 @@ def test_api_browse_dispatches_canonical_read(runtime: Runtime) -> None:
     assert execute.call_args_list[0].args[2] == [
         "api",
         "read",
-        "api",
+        "api2",
         "--device",
         "SERIAL",
         "--path",
@@ -299,7 +301,7 @@ def test_api_browse_dispatches_canonical_read(runtime: Runtime) -> None:
     assert execute.call_args_list[1].args[2] == [
         "api",
         "read",
-        "api",
+        "api2",
         "--device",
         "SERIAL",
     ]

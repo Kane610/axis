@@ -744,6 +744,43 @@ def test_render_shapes(payload: object, capsys: pytest.CaptureFixture[str]) -> N
 
 
 @pytest.mark.parametrize(
+    ("command", "operation"), [("list", "list_apis"), ("interfaces", "list_interfaces")]
+)
+def test_api_lists_use_natural_name_order(
+    runtime: Runtime, command: str, operation: str
+) -> None:
+    """API lists sort names alphabetically and embedded numbers numerically."""
+    with patch.object(
+        operations,
+        operation,
+        new=AsyncMock(
+            return_value=[{"name": "Zoo"}, {"name": "API10"}, {"name": "api2"}]
+        ),
+    ):
+        result = invoke(runtime, ["api", command, "--device", "SERIAL", "--json"])
+    assert result.exit_code == 0
+    assert [row["name"] for row in json.loads(result.stdout)] == [
+        "api2",
+        "API10",
+        "Zoo",
+    ]
+
+
+def test_api_read_orders_nested_keys_without_reordering_lists(runtime: Runtime) -> None:
+    """Human API reads sort discovery maps without changing list-index traversal."""
+    payload = {"zoo": {}, "api10": {}, "api2": {"10": {}, "2": [10, 2]}}
+    with patch.object(
+        operations, "read_interface", new=AsyncMock(return_value=payload)
+    ):
+        result = invoke(runtime, ["api", "read", "api_discovery", "--device", "SERIAL"])
+    assert result.exit_code == 0
+    rendered = json.loads(result.stdout)
+    assert list(rendered) == ["api2", "api10", "zoo"]
+    assert list(rendered["api2"]) == ["2", "10"]
+    assert rendered["api2"]["2"] == [10, 2]
+
+
+@pytest.mark.parametrize(
     ("error", "code"),
     [
         (operations.OperationError("Device operation failed."), 1),

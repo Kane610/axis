@@ -195,6 +195,9 @@ Ctrl-C cancels prompted commands and operations, closes device resources, and
 returns to the current menu. At a menu prompt it goes back; at the home menu
 prompt it exits. Bare groups show help. `api browse` is terminal-only; scripts use
 `api interfaces` and `api read`.
+API and interface lists use case-insensitive alphabetical order, with embedded
+numbers sorted numerically. Human-readable reads sort dictionary keys the same
+way, including API Discovery results; list order and `--path` indices stay intact.
 
 ### Devices and direct commands
 

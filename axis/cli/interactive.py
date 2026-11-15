@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import shlex
 from typing import TYPE_CHECKING
 
@@ -29,6 +30,15 @@ if TYPE_CHECKING:
 def display_text(value: str) -> str:
     """Escape control characters in device-provided text before showing it in a terminal."""
     return value if value.isprintable() else json.dumps(value, ensure_ascii=True)
+
+
+def natural_key(value: str) -> tuple[tuple[str, int], ...]:
+    """Sort names case-insensitively, comparing embedded numbers as numbers."""
+    parts = (
+        ("", int(part)) if part.isdecimal() else (part.casefold(), -1)
+        for part in re.split(r"(\d+)", value)
+    )
+    return (*parts, (value, -1))
 
 
 def token_start(text: str) -> int:
@@ -264,7 +274,10 @@ def command_prompt(runtime: Runtime, command: click.Group) -> None:
 
 def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> None:
     """Let the user select a library handler and read it through the CLI command parser."""
-    interfaces = runtime.run(operations.list_interfaces(record))
+    interfaces = sorted(
+        runtime.run(operations.list_interfaces(record)),
+        key=lambda row: natural_key(str(row["name"])),
+    )
     if not interfaces:
         click.echo("No interfaces available.")
         return
