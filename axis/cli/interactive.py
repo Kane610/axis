@@ -166,10 +166,21 @@ def select_device(runtime: Runtime) -> bool:
     return True
 
 
-def guided_arguments(runtime: Runtime, command: click.Command) -> list[str]:
-    """Ask for arguments using the CLI command's definitions, so menu validation stays consistent."""
+def guided_arguments(
+    runtime: Runtime, command: click.Command, *, choose_device: bool = False
+) -> list[str]:
+    """Choose a device before collecting other inputs from the canonical command definitions."""
     args: list[str] = []
     click.echo("Ctrl-C cancels this command and returns to the menu.")
+    if (
+        any(
+            isinstance(parameter, click.Option) and parameter.name == "device"
+            for parameter in command.params
+        )
+        and (choose_device or runtime.selected is None)
+        and not select_device(runtime)
+    ):
+        raise click.Abort
     with command.make_context(
         command.name or "axis", [], resilient_parsing=True
     ) as context:
@@ -184,11 +195,6 @@ def guided_arguments(runtime: Runtime, command: click.Command) -> list[str]:
         if parameter.name in ("as_json", "yes", "password_file"):
             continue
         if parameter.name == "device":
-            if runtime.selected is None:
-                select_device(runtime)
-            if runtime.selected is None:
-                msg = "Select a device before running this operation."
-                raise click.UsageError(msg)
             continue
         if parameter.is_flag:
             if click.confirm(
@@ -372,7 +378,7 @@ def launch(runtime: Runtime, command: click.Group) -> None:
                     continue
                 stack.append((entry, [*path, labels.get(name, name)]))
                 continue
-            args = guided_arguments(runtime, entry)
+            args = guided_arguments(runtime, entry, choose_device=not using_device)
             execute(runtime, command, [*paths[entry], *args])
         except (StorageError, operations.OperationError) as exc:
             click.echo(f"Error: {exc}", err=True)

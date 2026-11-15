@@ -173,7 +173,9 @@ Bare `axis` opens guided navigation on a terminal:
   Events, and Accounts. Selection is offline; `s` changes the device inside
   these menus.
 - **Manage saved devices** lists, discovers, registers, renames, updates
-  credentials, or removes local registrations.
+  credentials, or removes local registrations. Alias, remove, and credentials
+  always ask for a device first, before other inputs, even if another device
+  was previously selected.
 - **Setup & diagnostics** provides Doctor and shell completion.
 
 Choose a menu item by number, or open the suggested command prompt with `c`.
@@ -186,6 +188,9 @@ accidentally entered secrets. Menu shortcuts do not apply inside text fields.
 Both paths use the same Click command definitions, validation, and async
 operations. The guided path collects inputs and submits a canonical command;
 it does not maintain a second parser or silently execute a selected mutation.
+Device-targeted commands resolve their device before collecting any other
+input; commands inside **Use a device** reuse that menu's visible selection.
+Cancelling device selection never collects further inputs or runs the command.
 Ctrl-C cancels prompted commands and operations, closes device resources, and
 returns to the current menu. At a menu prompt it goes back; at the home menu
 prompt it exits. Bare groups show help. `api browse` is terminal-only; scripts use

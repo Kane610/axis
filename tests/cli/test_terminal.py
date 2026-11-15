@@ -44,6 +44,9 @@ def test_real_terminal_launcher_and_command_prompt(tmp_path: Path) -> None:
     DeviceRegistry(config).upsert(
         DeviceRecord("SERIAL", ConnectionSettings("camera", "root", "hidden"), "front")
     )
+    DeviceRegistry(config).upsert(
+        DeviceRecord("SECOND", ConnectionSettings("other", "root", "hidden"), "back")
+    )
     home = tmp_path / "home"
     home.mkdir()
     master, slave = os.openpty()
@@ -97,6 +100,23 @@ def test_real_terminal_launcher_and_command_prompt(tmp_path: Path) -> None:
         assert b"Device: SERIAL" in output
         assert b"Health" in output
         assert b"APIs" in output
+        os.write(master, b"\n")
+        read_until(master, b"Select:")
+        os.write(master, b"2\n")
+        read_until(master, b"Select [b]:")
+        os.write(master, b"4\n")
+        read_until(master, b"Ctrl-C cancels) [b]:")
+        os.write(master, b"\n")
+        output = read_until(master, b"Select [b]:")
+        assert b"name:" not in output
+        os.write(master, b"4\n")
+        read_until(master, b"Ctrl-C cancels) [b]:")
+        os.write(master, b"2\n")
+        read_until(master, b"name:")
+        os.write(master, b"renamed\n")
+        read_until(master, b"Select [b]:")
+        assert DeviceRegistry(config).resolve("SECOND").alias == "renamed"
+        assert DeviceRegistry(config).resolve("SERIAL").alias == "front"
         os.write(master, b"\n")
         read_until(master, b"Select:")
         os.write(master, b"e\n")

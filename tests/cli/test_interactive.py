@@ -182,7 +182,7 @@ def test_guided_arguments_derive_from_parser(runtime: Runtime) -> None:
         ],
     )
     with (
-        patch.object(click, "prompt", side_effect=["value", "1", "", "path", "viewer"]),
+        patch.object(click, "prompt", side_effect=["1", "value", "", "path", "viewer"]),
         patch.object(click, "confirm", return_value=True),
     ):
         args = interactive.guided_arguments(runtime, command)
@@ -197,7 +197,7 @@ def test_guided_arguments_derive_from_parser(runtime: Runtime) -> None:
     runtime.registry.remove("SERIAL")
     with (
         patch.object(click, "prompt", return_value="value"),
-        pytest.raises(click.UsageError),
+        pytest.raises(click.Abort),
     ):
         interactive.guided_arguments(runtime, command)
 
@@ -370,6 +370,41 @@ def test_launcher_selects_before_device_operations(
     assert output.index("front door (SERIAL, camera)") < output.index("Health")
     assert runtime.selected == "SERIAL"
     execute.assert_called_once_with(runtime, cli, ["device", "health"])
+
+
+def test_management_alias_selects_device_before_name(runtime: Runtime) -> None:
+    """Renaming a saved device asks for its target before collecting the new name."""
+    runtime.registry.upsert(
+        DeviceRecord("SECOND", ConnectionSettings("other", "root", "secret"), "other")
+    )
+    runtime.selected = "SERIAL"
+    with patch.object(
+        click, "prompt", side_effect=["2", "4", "2", "renamed", "b", "e"]
+    ) as prompt:
+        interactive.launch(runtime, cli)
+    assert "Device number" in prompt.call_args_list[2].args[0]
+    assert prompt.call_args_list[3].args[0] == "name"
+    assert runtime.registry.resolve("SECOND").alias == "renamed"
+    assert runtime.registry.resolve("SERIAL").alias == "front door"
+
+
+@pytest.mark.parametrize("action", ["4", "5", "6"])
+def test_management_cancelled_picker_never_reuses_previous_device(
+    runtime: Runtime, action: str
+) -> None:
+    """Alias, removal, and credentials require a fresh choice even with a previous selection."""
+    runtime.selected = "SERIAL"
+    with (
+        patch.object(
+            click, "prompt", side_effect=["2", action, "b", "b", "e"]
+        ) as prompt,
+        patch.object(click, "confirm") as confirm,
+        patch.object(interactive, "execute") as execute,
+    ):
+        interactive.launch(runtime, cli)
+    assert "Device number" in prompt.call_args_list[2].args[0]
+    execute.assert_not_called()
+    confirm.assert_not_called()
 
 
 @pytest.mark.parametrize("empty_registry", [False, True])
