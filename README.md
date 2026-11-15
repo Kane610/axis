@@ -179,6 +179,8 @@ Bare `axis` opens guided navigation on a terminal:
 - **Setup & diagnostics** provides Doctor and shell completion.
 
 Choose a menu item by number, or open the suggested command prompt with `c`.
+Menu names and descriptions are separated by a visible ` | `, without relying
+on color. Interface choices use the same separator before their live status.
 Enter or `b` returns to the parent menu; Enter stays at home rather than exiting.
 `e` explicitly exits. The command prompt accepts commands with or without the
 `axis` prefix; `/back`, Ctrl-C, or Ctrl-D returns to navigation.

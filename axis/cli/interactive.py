@@ -207,7 +207,9 @@ def select_interface(interfaces: list[dict[str, object]]) -> str | None:
                 if interface.get("probe_succeeded")
                 else "not confirmed"
             )
-            click.echo(f"  {index}. {display_text(str(interface['name']))} ({status})")
+            click.echo(
+                f"  {index}. {display_text(str(interface['name']))}  |  {status}"
+            )
         answer = click.prompt(
             "Interface number or listed name; /search filters; m enters a name manually "
             "(Enter/b returns)",
@@ -410,7 +412,7 @@ def launch(runtime: Runtime, command: click.Group) -> None:
         width = max((len(name) for name in names), default=0)
         for index, (name, entry) in enumerate(entries, 1):
             click.echo(
-                f"  {index}. {labels.get(name, name):<{width}} "
+                f"  {index}. {labels.get(name, name):<{width}}  |  "
                 f"{entry.get_short_help_str(limit=1000)}"
             )
         using_device = len(stack) > 1 and stack[1][0] is device_menu

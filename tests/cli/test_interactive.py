@@ -274,7 +274,7 @@ def test_interface_search_keeps_original_numbers(
             == "zoo"
         )
     output = capsys.readouterr()
-    assert "3. zoo (advertised)" in output.out
+    assert "3. zoo  |  advertised" in output.out
     assert "responded to probe" in output.out
     assert "Choose a listed number" in output.err
 
@@ -462,6 +462,17 @@ def test_launcher_selects_before_device_operations(
     assert output.index("front door (SERIAL, camera)") < output.index("Health")
     assert runtime.selected == "SERIAL"
     execute.assert_called_once_with(runtime, cli, ["device", "health"])
+
+
+def test_menu_names_and_descriptions_are_visually_separate(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Menu labels remain distinct from their descriptions without relying on color."""
+    with patch.object(click, "prompt", side_effect=["1", "1", "e"]):
+        interactive.launch(runtime, cli)
+    output = capsys.readouterr().out
+    assert "3. Parameters  |  Read device configuration parameters." in output
+    assert "5. Accounts    |  Manage remote accounts." in output
 
 
 def test_management_alias_selects_device_before_name(runtime: Runtime) -> None:
