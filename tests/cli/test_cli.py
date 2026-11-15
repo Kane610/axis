@@ -442,7 +442,7 @@ def test_discover_axis_devices_filters_axis_and_deduplicates_hosts() -> None:
     with (
         patch(
             "axis.application.discovery.ServiceStateChange",
-            SimpleNamespace(Added="added", Updated="updated"),
+            SimpleNamespace(Added="added", Updated="updated", Removed="removed"),
         ),
         patch("axis.application.discovery.AsyncZeroconf", return_value=fake_azc),
         patch(
@@ -507,7 +507,7 @@ def test_discover_axis_devices_includes_metadata_fields() -> None:
     with (
         patch(
             "axis.application.discovery.ServiceStateChange",
-            SimpleNamespace(Added="added", Updated="updated"),
+            SimpleNamespace(Added="added", Updated="updated", Removed="removed"),
         ),
         patch("axis.application.discovery.AsyncZeroconf", return_value=fake_azc),
         patch(
@@ -550,7 +550,7 @@ def test_discover_axis_devices_skips_bad_and_duplicate_services() -> None:
         handlers: list[object],
     ) -> object:
         callback = cast("Callable[..., None]", handlers[0])
-        for state_change in ("added", "updated", "removed"):
+        for state_change in ("added", "updated"):
             callback(
                 zeroconf=None,
                 service_type="_axis-video._tcp.local.",
@@ -582,7 +582,7 @@ def test_discover_axis_devices_skips_bad_and_duplicate_services() -> None:
     with (
         patch(
             "axis.application.discovery.ServiceStateChange",
-            SimpleNamespace(Added="added", Updated="updated"),
+            SimpleNamespace(Added="added", Updated="updated", Removed="removed"),
         ),
         patch("axis.application.discovery.AsyncZeroconf", return_value=fake_azc),
         patch(

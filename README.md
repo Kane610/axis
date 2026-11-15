@@ -220,6 +220,27 @@ device and lists devices with only link-local addresses (`169.254.x.x`) last.
 Those addresses require a suitable local network interface; discovery does not
 prove that an address is reachable. If an interface reports "network is down",
 the CLI warns that results may be incomplete; other interfaces continue scanning.
+
+Running `devices discover` also refreshes **existing registrations** matched by
+serial or MAC, never by their address or name. It saves the advertised name,
+model, firmware, vendor/module information, addresses, and the successful scan's
+start time as `last_seen`. Missing fields and devices absent from a scan are
+retained; older scans cannot overwrite newer discovery observations.
+
+Fresh non-link-local addresses update the saved connection host. If only a
+link-local address is advertised, the saved non-link-local host (including a DNS
+name) stays primary and the fresh address is saved as `link_local_host`.
+Fallbacks are stored, not automatically retried. User aliases, credentials,
+ports, protocols, and security settings remain unchanged. **Address refresh
+trusts unauthenticated local discovery announcements**, so use it only on a
+trusted network; matching an advertised serial/MAC is not proof of identity.
+Discovery does not use saved credentials or log in to validate these updates.
+
+`devices list` includes the saved discovered name and link-local fallback;
+unaliased devices use their discovered name in the picker. Its JSON output adds
+`name` and `link_local_host`; discovery JSON may also include `link_local_host`
+when both address types are advertised. Refresh notices go to stderr.
+
 `devices alias`, `list`, `credentials`, and `remove` are
 local operations; removal does not delete a device or remote account.
 Registration authenticates and discovers a real serial number. Re-registering

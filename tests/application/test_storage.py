@@ -1,20 +1,23 @@
 """Test registry validation, compatibility, safe writes, and concurrent updates."""
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict
+from contextlib import contextmanager
+from dataclasses import asdict, replace
+from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
 import runpy
 import threading
 import tomllib
 import traceback
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
 import tomli_w
 
 from axis.application import storage
+from axis.application.records import DiscoverySnapshot
 from axis.application.storage import (
     ConnectionSettings,
     DeviceRecord,
@@ -22,6 +25,9 @@ from axis.application.storage import (
     StorageError,
     default_config_path,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture
@@ -46,6 +52,226 @@ def write_config(registry: DeviceRegistry, data: dict[str, Any]) -> None:
 def raw_config(registry: DeviceRegistry) -> dict[str, Any]:
     """Read raw TOML to verify unknown fields survive."""
     return tomllib.loads(registry.path.read_text())
+
+
+def test_discovery_refresh_updates_known_devices_and_preserves_local_settings(
+    registry: DeviceRegistry,
+) -> None:
+    """Fresh addresses and metadata replace old observations, never credentials or aliases."""
+    record = device("00408C112233", "my speaker")
+    record.config.host = "169.254.2.1"
+    record.config.port = 8443
+    record.config.web_proto = "https"
+    record.config.verify_ssl = True
+    registry.upsert(record)
+    data = raw_config(registry)
+    data["theme"] = "dark"
+    data["devices"][record.serial]["config"]["future"] = "keep"
+    write_config(registry, data)
+    original_config = data["devices"][record.serial]["config"].copy()
+    first_seen = datetime(2026, 1, 1, tzinfo=UTC)
+    row = {
+        "host": "192.0.2.42",
+        "link_local_host": "169.254.2.42",
+        "name": "New device name",
+        "model": "New model",
+        "macaddress": "00:40:8c:11:22:33",
+        "firmware": "new firmware",
+        "module": "hardware",
+        "vendor": "Axis",
+    }
+    assert registry.refresh_discovery([row], first_seen) == [record.serial]
+    saved = registry.resolve(record.serial)
+    assert saved.alias == "my speaker"
+    assert saved.model == "New model"
+    assert saved.discovery == DiscoverySnapshot(last_seen=first_seen, **row)
+    assert raw_config(registry)["devices"][record.serial]["config"] == (
+        original_config | {"host": "192.0.2.42"}
+    )
+    assert raw_config(registry)["theme"] == "dark"
+    stale = registry.resolve(record.serial)
+    second_seen = first_seen + timedelta(seconds=5)
+    assert registry.refresh_discovery(
+        [{"host": "169.254.2.99", "macaddress": "00-40-8C-11-22-33", "name": "Fresh"}],
+        second_seen,
+    ) == [record.serial]
+    current = registry.resolve(record.serial)
+    assert current.config.host == "192.0.2.42"
+    assert current.discovery is not None
+    assert current.discovery.host == "169.254.2.99"
+    assert current.discovery.link_local_host == "169.254.2.99"
+    assert current.discovery.name == "Fresh"
+    assert current.discovery.firmware == "new firmware"
+    assert current.discovery.last_seen == second_seen
+    assert current.model == "New model"
+    before = registry.path.read_bytes()
+    assert registry.refresh_discovery([row], first_seen) == []
+    assert registry.path.read_bytes() == before
+    registry.upsert(stale)
+    assert registry.resolve(record.serial).discovery == current.discovery
+    updated = replace(
+        current.discovery, name="Newest", last_seen=second_seen + timedelta(seconds=1)
+    )
+    stale.discovery = updated
+    registry.upsert(stale)
+    assert registry.resolve(record.serial).discovery == updated
+
+
+@pytest.mark.parametrize(
+    ("saved_host", "expected"),
+    [
+        ("169.254.2.1", "169.254.2.99"),
+        ("camera.local", "camera.local"),
+        ("2001:db8::1", "2001:db8::1"),
+    ],
+)
+def test_link_local_discovery_preserves_non_link_local_primary(
+    registry: DeviceRegistry, saved_host: str, expected: str
+) -> None:
+    """Save link-local fallbacks without replacing non-link-local addresses or DNS names."""
+    record = device()
+    record.config.host = saved_host
+    registry.upsert(record)
+    registry.refresh_discovery(
+        [{"serial": "SERIAL", "host": "169.254.2.99", "name": "Fresh"}],
+        datetime.now(UTC),
+    )
+    saved = registry.resolve("SERIAL")
+    assert saved.config.host == expected
+    assert saved.discovery is not None
+    assert saved.discovery.link_local_host == "169.254.2.99"
+
+
+def test_duplicate_announcements_prefer_non_link_local_data(
+    registry: DeviceRegistry,
+) -> None:
+    """Multiple announcements for one identity merge metadata without losing a LAN primary."""
+    registry.upsert(device("00408C112233"))
+    rows = [
+        {
+            "macaddress": "00408C112233",
+            "host": "169.254.2.1",
+            "name": "Link local",
+            "firmware": "fresh",
+        },
+        {"macaddress": "00408C112233", "host": "192.0.2.1", "name": "LAN"},
+    ]
+    assert registry.refresh_discovery(rows, datetime.now(UTC)) == ["00408C112233"]
+    saved = registry.resolve("00408C112233")
+    assert saved.discovery is not None
+    assert saved.config.host == "192.0.2.1"
+    assert saved.discovery.name == "LAN"
+    assert saved.discovery.firmware == "fresh"
+    assert saved.discovery.link_local_host == "169.254.2.1"
+
+
+def test_discovery_does_not_register_or_match_addresses_and_aliases(
+    registry: DeviceRegistry,
+) -> None:
+    """Unknown announcements neither create config files nor retarget a host/alias match."""
+    rows = [{"host": "192.0.2.1", "name": "front", "macaddress": "00408C112233"}]
+    with pytest.raises(StorageError, match="timezone-aware"):
+        registry.refresh_discovery([], datetime(2026, 1, 1))
+    assert registry.refresh_discovery(rows, datetime.now(UTC)) == []
+    assert not registry.path.parent.exists()
+    record = device("00408C445566", "front")
+    record.config.host = rows[0]["host"]
+    registry.upsert(record)
+    before = registry.path.read_bytes()
+    assert registry.refresh_discovery(rows, datetime.now(UTC)) == []
+    assert registry.path.read_bytes() == before
+
+
+def test_conflicting_discovery_identities_fail_atomically(
+    registry: DeviceRegistry,
+) -> None:
+    """A serial and MAC resolving to different records cannot silently choose a target."""
+    registry.upsert(device("ONE"))
+    registry.upsert(device("00408C112233"))
+    before = registry.path.read_bytes()
+    with pytest.raises(StorageError, match="multiple saved devices"):
+        registry.refresh_discovery(
+            [{"serial": "ONE", "macaddress": "00408C112233", "host": "192.0.2.1"}],
+            datetime.now(UTC),
+        )
+    assert registry.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("remove", [False, True])
+def test_discovery_reloads_changes_made_before_lock(
+    registry: DeviceRegistry, remove: bool
+) -> None:
+    """Refresh uses the latest credentials/alias and never recreates a concurrently removed record."""
+    registry.upsert(device())
+    other = DeviceRegistry(registry.path)
+    original_lock = registry._locked
+
+    @contextmanager
+    def changed_registry() -> Iterator[None]:
+        if remove:
+            other.remove("SERIAL")
+        else:
+            other.update_alias("SERIAL", "new alias")
+            other.update_credentials("SERIAL", "new user", "new password")
+        with original_lock():
+            yield
+
+    with patch.object(registry, "_locked", new=changed_registry):
+        updated = registry.refresh_discovery(
+            [{"serial": "SERIAL", "host": "192.0.2.1"}], datetime.now(UTC)
+        )
+    assert updated == ([] if remove else ["SERIAL"])
+    if remove:
+        assert registry.load() == {}
+    else:
+        saved = registry.resolve("SERIAL")
+        assert saved.alias == "new alias"
+        assert saved.config.username == "new user"
+        assert saved.config.password == "new password"
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("last_seen", None),
+        ("last_seen", datetime(2026, 1, 1)),
+        ("name", 5),
+        ("host", "invalid address"),
+        ("link_local_host", "192.0.2.1"),
+        ("link_local_host", "invalid address"),
+    ],
+)
+def test_invalid_discovery_metadata_is_explicit(name: str, value: object) -> None:
+    """Invalid metadata cannot be persisted as a success-shaped fallback."""
+    fields: dict[str, Any] = {"last_seen": datetime.now(UTC), "host": "192.0.2.1"}
+    fields[name] = value
+    with pytest.raises(StorageError):
+        DiscoverySnapshot(**fields)
+
+
+def test_discovery_snapshot_roundtrips_and_does_not_change_review_target(
+    registry: DeviceRegistry,
+) -> None:
+    """Cached observations are immutable, credential-free, and not connection identity."""
+    snapshot = DiscoverySnapshot(
+        last_seen=datetime.now(UTC), host="192.0.2.1", name="Fresh"
+    )
+    record = device()
+    original = record.summary()
+    record.discovery = snapshot
+    registry.upsert(record)
+    saved = registry.resolve("SERIAL")
+    assert saved.discovery == snapshot
+    assert saved.summary().same_target(original)
+    registry.refresh_discovery(
+        [{"serial": "SERIAL", "host": "192.0.2.1", "name": "Newest"}],
+        datetime.now(UTC),
+    )
+    assert registry.resolve("SERIAL").model == record.model
+    saved.config.host = "192.0.2.2"
+    assert not saved.summary().same_target(original)
+    with pytest.raises(StorageError):
+        DeviceRecord("OTHER", device().config, discovery={})  # type: ignore[arg-type]
 
 
 def test_missing_config_has_no_side_effects(
@@ -138,6 +364,8 @@ def test_legacy_and_unknown_keys(registry: DeviceRegistry) -> None:
         {"devices": {"": {"config": asdict(device().config)}}},
         {"devices": {"SERIAL": {"config": asdict(device().config), "alias": 3}}},
         {"devices": {"SERIAL": {"config": asdict(device().config), "model": []}}},
+        {"devices": {"SERIAL": {"config": asdict(device().config), "discovery": {}}}},
+        {"devices": {"SERIAL": {"config": asdict(device().config), "discovery": []}}},
     ],
 )
 def test_invalid_structures_do_not_get_overwritten(
@@ -154,6 +382,20 @@ def test_invalid_structures_do_not_get_overwritten(
         with pytest.raises(StorageError):
             operation()
         assert registry.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("identifier", ["serial", "macaddress"])
+def test_invalid_discovery_identity_is_reported(
+    registry: DeviceRegistry, identifier: str
+) -> None:
+    """Malformed discovery identity values fail safely before any local update."""
+    registry.upsert(device())
+    row: dict[str, Any] = {"serial": "SERIAL", "host": "192.0.2.1"}
+    row[identifier] = None
+    before = registry.path.read_bytes()
+    with pytest.raises(StorageError, match="identifiers must be strings"):
+        registry.refresh_discovery([row], datetime.now(UTC))
+    assert registry.path.read_bytes() == before
 
 
 def test_corrupt_config_and_read_errors_are_safe(registry: DeviceRegistry) -> None:

@@ -113,6 +113,8 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
         _ = (zeroconf, service_type)
         if state_change in {ServiceStateChange.Added, ServiceStateChange.Updated}:
             discovered_names.add(name)
+        elif state_change == ServiceStateChange.Removed:
+            discovered_names.discard(name)
 
     try:
         async with AsyncExitStack() as resources:
@@ -130,7 +132,10 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
             seen_hosts: set[str] = set()
             for service_name in sorted(discovered_names):
                 info = AsyncServiceInfo(AXIS_SERVICE_TYPE, service_name)
-                if not await info.async_request(azc.zeroconf, timeout=1500):
+                if (
+                    not await info.async_request(azc.zeroconf, timeout=1500)
+                    or service_name not in discovered_names
+                ):
                     continue
                 macaddress = _extract_macaddress_property(info.properties)
                 if not macaddress or not is_axis_macaddress(macaddress):
@@ -141,6 +146,14 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
                 host = min(
                     addresses, key=lambda address: IPv4Address(address).is_link_local
                 )
+                link_local_host = next(
+                    (
+                        address
+                        for address in addresses
+                        if IPv4Address(address).is_link_local and address != host
+                    ),
+                    "",
+                )
                 if host in seen_hosts:
                     continue
                 seen_hosts.add(host)
@@ -149,6 +162,11 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
                         "host": host,
                         "name": _zeroconf_instance_name(service_name),
                         "macaddress": macaddress,
+                        **(
+                            {"link_local_host": link_local_host}
+                            if link_local_host
+                            else {}
+                        ),
                         **_extract_discovery_metadata(info.properties),
                     }
                 )

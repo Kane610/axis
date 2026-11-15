@@ -54,7 +54,12 @@ async def test_discovery_prefers_non_link_local_and_retains_fallbacks() -> None:
     ):
         results = await discovery.discover_axis_devices(0)
     assert results == [
-        {"host": host, "name": name, "macaddress": "00:40:8c:11:22:33"}
+        {
+            "host": host,
+            "name": name,
+            "macaddress": "00:40:8c:11:22:33",
+            **({"link_local_host": "169.254.1.1"} if name == "B-dual" else {}),
+        }
         for name, host in (
             ("B-dual", "192.0.2.40"),
             ("C-lan", "192.0.2.20"),
@@ -63,6 +68,52 @@ async def test_discovery_prefers_non_link_local_and_retains_fallbacks() -> None:
     ]
     browser.async_cancel.assert_awaited_once()
     zeroconf.async_close.assert_awaited_once()
+
+
+@pytest.mark.parametrize("during_request", [False, True])
+async def test_removed_announcements_do_not_replace_fresh_data(
+    during_request: bool,
+) -> None:
+    """A removed old name cannot hide a new name advertising the same device address."""
+    zeroconf = MagicMock(async_close=AsyncMock())
+    browser = MagicMock(async_cancel=AsyncMock())
+    callback: Callable[..., None] | None = None
+    old = f"A-old.{discovery.AXIS_SERVICE_TYPE}"
+    fresh = f"Z-fresh.{discovery.AXIS_SERVICE_TYPE}"
+
+    def announce(
+        zc: object, service_types: list[str], handlers: list[Callable[..., None]]
+    ) -> MagicMock:
+        nonlocal callback
+        callback = handlers[0]
+        callback(zc, service_types[0], old, discovery.ServiceStateChange.Added)
+        if not during_request:
+            callback(zc, service_types[0], old, discovery.ServiceStateChange.Removed)
+        callback(zc, service_types[0], fresh, discovery.ServiceStateChange.Updated)
+        return browser
+
+    def service_info(service_type: str, name: str) -> MagicMock:
+        def resolve(zc: object, timeout: int) -> bool:
+            if during_request and name == old:
+                assert callback is not None
+                callback(zc, service_type, old, discovery.ServiceStateChange.Removed)
+            return True
+
+        return MagicMock(
+            async_request=AsyncMock(side_effect=resolve),
+            properties={b"macaddress": b"00408C112233"},
+            parsed_addresses=MagicMock(return_value=["192.0.2.1"]),
+        )
+
+    with (
+        patch.object(discovery, "AsyncZeroconf", return_value=zeroconf),
+        patch.object(discovery, "AsyncServiceBrowser", side_effect=announce),
+        patch.object(discovery, "AsyncServiceInfo", side_effect=service_info),
+        patch.object(discovery.asyncio, "sleep", new=AsyncMock()),
+    ):
+        assert await discovery.discover_axis_devices(0) == [
+            {"name": "Z-fresh", "host": "192.0.2.1", "macaddress": "00408C112233"}
+        ]
 
 
 @pytest.mark.parametrize("duration", [-1.0, float("inf"), float("nan")])

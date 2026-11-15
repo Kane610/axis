@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import shlex
 from typing import TYPE_CHECKING
@@ -23,6 +24,11 @@ if TYPE_CHECKING:
 
     from axis.application.records import DeviceRecord
     from axis.cli.commands import Runtime
+
+
+def display_text(value: str) -> str:
+    """Escape control characters in device-provided text before showing it in a terminal."""
+    return value if value.isprintable() else json.dumps(value, ensure_ascii=True)
 
 
 def token_start(text: str) -> int:
@@ -138,9 +144,13 @@ def select_device(runtime: Runtime) -> bool:
         click.echo("No registered devices. Choose Manage saved devices to add one.")
         return False
     for index, record in enumerate(records, 1):
+        name = (
+            record.alias
+            or (record.discovery.name if record.discovery else "")
+            or "Axis device"
+        )
         click.echo(
-            f"  {index}. {record.alias or 'Axis device'} "
-            f"({record.serial}, {record.config.host})"
+            f"  {index}. {display_text(name)} ({record.serial}, {record.config.host})"
         )
     answer = (
         click.prompt("Device number (Enter or b returns; Ctrl-C cancels)", default="b")

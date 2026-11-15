@@ -194,7 +194,7 @@ Use these defining modules for new applications and third-party consumers:
 | Purpose | Import from | Supported entry points |
 |---------|-------------|------------------------|
 | Find devices on the local network | `axis.application.discovery` | `discover_axis_devices` |
-| Describe connections and read results | `axis.application.records` | `ConnectionSettings`, `DeviceRecord`, `DeviceSummary`, `HealthSnapshot` |
+| Describe connections and read results | `axis.application.records` | `ConnectionSettings`, `DeviceRecord`, `DeviceSummary`, `DiscoverySnapshot`, `HealthSnapshot` |
 | Save and select local registrations | `axis.application.storage` | `DeviceRegistry`, `default_config_path` |
 | Identify a device or read its information | `axis.application.operations` | `identify`, `read_health`, `list_apis`, `list_interfaces`, `read_interface`, `parameters`, `list_events`, `list_accounts` |
 | Receive live events | `axis.application.operations` | `listen` |
@@ -202,6 +202,17 @@ Use these defining modules for new applications and third-party consumers:
 | Execute an approved account change | `axis.application.operations` | `apply_account_change` |
 | Convert data for safe display/export | `axis.application.operations` | `normalize_payload` |
 | Handle application failures | `axis.application.errors` | `ErrorKind`, `OperationError`, `StorageError` |
+
+`discover_axis_devices` only returns network observations. Applications that
+choose to trust local announcements can explicitly pass those results and the
+scan's timezone-aware start time to `DeviceRegistry.refresh_discovery`.
+It atomically refreshes matching registrations without logging in or creating
+new registrations. It preserves aliases, credentials, connection policy,
+missing metadata, and newer observations; link-local-only results retain an
+existing non-link-local primary and save a fallback without retrying it.
+`DeviceRecord.discovery` and `DeviceSummary.discovery` expose the immutable,
+credential-free `DiscoverySnapshot`. Discovery-only changes do not invalidate
+an account-change review; changing the connection host does.
 
 For example:
 

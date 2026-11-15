@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from copy import copy
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 import errno
 import importlib.metadata
 import json
@@ -140,7 +141,7 @@ def render(payload: object, as_json: bool = False) -> None:
     columns = list(payload[0])
     rows = [
         [
-            value if value.isprintable() else json.dumps(value, ensure_ascii=True)
+            interactive.display_text(value)
             for key in columns
             for value in [str(row.get(key, ""))]
         ]
@@ -242,6 +243,10 @@ def devices_list(runtime: Runtime, as_json: bool) -> None:
                 "alias": record.alias,
                 "model": record.model,
                 "host": record.host,
+                "name": record.discovery.name if record.discovery else "",
+                "link_local_host": (
+                    record.discovery.link_local_host if record.discovery else ""
+                ),
             }
             for record in (
                 entry.summary() for entry in runtime.registry.load().values()
@@ -258,8 +263,20 @@ def devices_list(runtime: Runtime, as_json: bool) -> None:
 @json_option
 @click.pass_obj
 def discover(runtime: Runtime, seconds: float, as_json: bool) -> None:
-    """Discover devices on the local network without registering or authenticating."""
-    render(runtime.run(discover_axis_devices(scan_seconds=seconds)), as_json)
+    """Discover devices and refresh matching registrations without logging in.
+
+    Local announcements are trusted for address updates. User aliases,
+    credentials, and connection security settings remain unchanged.
+    """
+    started = datetime.now(UTC)
+    results = runtime.run(discover_axis_devices(scan_seconds=seconds))
+    updated = runtime.registry.refresh_discovery(results, started)
+    render(results, as_json)
+    if updated:
+        click.echo(
+            f"Refreshed {len(updated)} saved device(s); aliases and credentials preserved.",
+            err=True,
+        )
 
 
 @devices.command()

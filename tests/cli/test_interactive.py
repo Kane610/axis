@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,6 +13,7 @@ from prompt_toolkit.document import Document
 import pytest
 
 from axis.application import operations
+from axis.application.records import DiscoverySnapshot
 from axis.cli import interactive
 from axis.cli.commands import Runtime, cli
 from axis.cli.storage import ConnectionSettings, DeviceRecord, StorageError
@@ -143,6 +145,24 @@ def test_select_device(runtime: Runtime, capsys: pytest.CaptureFixture[str]) -> 
     assert capsys.readouterr().out.count("SERIAL") == 1
     runtime.registry.remove("SERIAL")
     interactive.select_device(runtime)
+
+
+def test_device_picker_displays_discovered_names_safely(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Discovered names label unaliased devices without interpreting terminal controls."""
+    record = runtime.registry.resolve("SERIAL")
+    record.alias = ""
+    record.discovery = DiscoverySnapshot(
+        last_seen=datetime.now(UTC), host="192.0.2.1", name="Fresh \x1b[31mname"
+    )
+    runtime.registry.upsert(record)
+    with patch.object(click, "prompt", return_value="b"):
+        interactive.select_device(runtime)
+    output = capsys.readouterr().out
+    assert "Fresh" in output
+    assert "\\u001b" in output
+    assert "\x1b" not in output
 
 
 def test_guided_arguments_derive_from_parser(runtime: Runtime) -> None:

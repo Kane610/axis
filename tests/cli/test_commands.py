@@ -215,6 +215,45 @@ def test_discovery_is_explicit(runtime: Runtime) -> None:
     assert invoke(runtime, ["devices", "discover", "--seconds", "0"]).exit_code == 2
 
 
+def test_discovery_refresh_is_saved_and_visible_offline(runtime: Runtime) -> None:
+    """Scanning updates known devices and exposes fresh names/addresses without changing aliases."""
+    row = {
+        "serial": "SERIAL",
+        "host": "192.0.2.42",
+        "name": "Fresh name",
+        "macaddress": "00:40:8c:11:22:33*",
+        "model": "Fresh model",
+    }
+    with patch.object(
+        commands, "discover_axis_devices", new=AsyncMock(return_value=[row])
+    ):
+        result = invoke(runtime, ["devices", "discover", "--json"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout) == [row]
+    assert "Refreshed 1 saved device" in result.stderr
+    listed = json.loads(invoke(runtime, ["devices", "list", "--json"]).stdout)[0]
+    assert listed["host"] == "192.0.2.42"
+    assert listed["name"] == "Fresh name"
+    assert listed["model"] == "Fresh model"
+    assert listed["alias"] == "front door"
+    fallback = {
+        "host": "169.254.2.42",
+        "name": "Newer name",
+        "macaddress": "00408C112233",
+    }
+    with patch.object(
+        commands, "discover_axis_devices", new=AsyncMock(return_value=[fallback])
+    ):
+        assert invoke(runtime, ["devices", "discover"]).exit_code == 0
+    listed = json.loads(invoke(runtime, ["devices", "list", "--json"]).stdout)[0]
+    assert listed["host"] == "192.0.2.42"
+    assert listed["link_local_host"] == "169.254.2.42"
+    assert listed["name"] == "Newer name"
+    assert (
+        runtime.registry.resolve("SERIAL").config.password == "top-secret-test-password"
+    )
+
+
 def test_registration_and_credentials(runtime: Runtime, tmp_path: Path) -> None:
     """Registration retains transport settings and credentials never reach output."""
     password = tmp_path / "password"

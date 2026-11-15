@@ -1,10 +1,51 @@
 """Describe saved devices and read results without keeping HTTP connections open."""
 
-from dataclasses import dataclass, field, replace
-from datetime import datetime  # noqa: TC003 - public snapshots support runtime type introspection
+from dataclasses import dataclass, field, fields, replace
+from datetime import datetime
+from ipaddress import AddressValueError, IPv4Address
 from unicodedata import category
 
 from .errors import _fail
+
+
+def _validate_discovery_time(value: datetime) -> None:
+    """Reject missing or naive scan times before comparing saved observations."""
+    if not isinstance(value, datetime) or value.utcoffset() is None:
+        _fail("Discovery last_seen must be a timezone-aware datetime.")
+
+
+@dataclass(frozen=True)
+class DiscoverySnapshot:
+    """Keep the latest advertised identity, addresses, and scan time without credentials."""
+
+    host: str
+    last_seen: datetime
+    firmware: str = ""
+    link_local_host: str = ""
+    macaddress: str = ""
+    model: str = ""
+    module: str = ""
+    name: str = ""
+    vendor: str = ""
+
+    def __post_init__(self) -> None:
+        """Require a timezone-aware scan time, text metadata, and valid IPv4 addresses."""
+        _validate_discovery_time(self.last_seen)
+        if any(
+            not isinstance(getattr(self, item.name), str)
+            for item in fields(self)
+            if item.name != "last_seen"
+        ):
+            _fail("Discovery metadata must contain strings.")
+        try:
+            IPv4Address(self.host)
+            if (
+                self.link_local_host
+                and not IPv4Address(self.link_local_host).is_link_local
+            ):
+                _fail("Discovery fallback must be a link-local IPv4 address.")
+        except AddressValueError:
+            _fail("Discovery addresses must be valid IPv4 addresses.")
 
 
 def _has_unsafe_characters(identifier: str) -> bool:
@@ -24,10 +65,13 @@ class DeviceSummary:
     web_proto: str
     alias: str = ""
     model: str = ""
+    discovery: DiscoverySnapshot | None = None
 
     def same_target(self, other: DeviceSummary) -> bool:
-        """Compare the device and connection settings, ignoring alias and model labels."""
-        return replace(self, alias="", model="") == replace(other, alias="", model="")
+        """Compare connection targets, ignoring labels and cached discovery information."""
+        return replace(self, alias="", discovery=None, model="") == replace(
+            other, alias="", discovery=None, model=""
+        )
 
 
 @dataclass(frozen=True)
@@ -96,6 +140,7 @@ class DeviceRecord:
     config: ConnectionSettings
     alias: str = ""
     model: str = ""
+    discovery: DiscoverySnapshot | None = None
 
     def __post_init__(self) -> None:
         """Require a known serial, a safe alias, and valid connection settings."""
@@ -119,6 +164,10 @@ class DeviceRecord:
             )
         if not isinstance(self.model, str):
             _fail("Device model must be a string.")
+        if self.discovery is not None and not isinstance(
+            self.discovery, DiscoverySnapshot
+        ):
+            _fail("Device discovery must be DiscoverySnapshot.")
         if not isinstance(self.config, ConnectionSettings):
             _fail("Device config must be ConnectionSettings.")
         self.config.__post_init__()
@@ -134,5 +183,6 @@ class DeviceRecord:
             verify_ssl=self.config.verify_ssl,
             web_proto=self.config.web_proto,
             alias=self.alias,
+            discovery=self.discovery,
             model=self.model,
         )
