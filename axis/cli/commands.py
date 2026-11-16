@@ -615,51 +615,62 @@ def account_change(
     intent = operations.prepare_account_change(
         record, action, username, privilege, password_change=password_file is not None
     )
-    if runtime.guided:
-        change_password = action == "create" or (
-            action == "update"
-            and click.confirm("Change the password too?", default=False)
-        )
-        intent = replace(intent, password_change=change_password)
-        click.echo(
-            f"Review {action} on {interactive.display_text(record.serial)} "
-            f"({interactive.display_text(record.config.host)}). No change submitted."
-        )
-        render(intent.preview(), as_json)
-        if not click.confirm(
-            f"{action.capitalize()} account {username} on {record.serial} now?",
-            default=False,
-        ):
-            click.echo("Preview only; nothing was submitted.")
+    try:
+        if runtime.guided:
+            change_password = action == "create" or (
+                action == "update"
+                and click.confirm("Change the password too?", default=False)
+            )
+            intent = replace(intent, password_change=change_password)
+            click.echo(
+                f"Review {action} on {interactive.display_text(record.serial)} "
+                f"({interactive.display_text(record.config.host)}). No change submitted."
+            )
+            render(intent.preview(), as_json)
+            if not click.confirm(
+                f"{action.capitalize()} account {username} on {record.serial} now?",
+                default=False,
+            ):
+                click.echo("Preview only; nothing was submitted.")
+                return
+            password = secret(runtime, password_file) if change_password else None
+        elif not apply:
+            render(intent.preview(), as_json)
             return
-        password = secret(runtime, password_file) if change_password else None
-    elif not apply:
-        render(intent.preview(), as_json)
-        return
-    else:
-        if action == "delete":
-            confirm(runtime, yes, f"Delete account {username} on {record.serial}?")
-        change_password = action == "create" or (
-            action == "update"
-            and (
-                password_file is not None
-                or (
-                    runtime.interactive
-                    and click.confirm("Change the password too?", default=False)
+        else:
+            if action == "delete":
+                confirm(runtime, yes, f"Delete account {username} on {record.serial}?")
+            change_password = action == "create" or (
+                action == "update"
+                and (
+                    password_file is not None
+                    or (
+                        runtime.interactive
+                        and click.confirm("Change the password too?", default=False)
+                    )
                 )
             )
+            password = secret(runtime, password_file) if change_password else None
+            intent = replace(intent, password_change=change_password)
+    except (KeyboardInterrupt, click.Abort) as exc:
+        msg = "Cancelled before the account write; nothing was submitted."
+        raise interactive.CommandInterrupted(msg) from exc
+    try:
+        result = runtime.run(
+            operations.apply_account_change(
+                record,
+                intent,
+                password,
+                authorized=True,
+                confirmed=action == "delete",
+            )
         )
-        password = secret(runtime, password_file) if change_password else None
-        intent = replace(intent, password_change=change_password)
-    result = runtime.run(
-        operations.apply_account_change(
-            record,
-            intent,
-            password,
-            authorized=True,
-            confirmed=action == "delete",
+    except (KeyboardInterrupt, click.Abort) as exc:
+        msg = (
+            f"Account change on {record.serial} interrupted; its outcome may be unknown. "
+            "Read accounts before retrying. No write will be retried automatically."
         )
-    )
+        raise interactive.CommandInterrupted(msg) from exc
     render(result.payload(), as_json)
 
 
@@ -847,7 +858,7 @@ def main() -> None:
         exc.show()
         raise SystemExit(exc.exit_code) from exc
     except (KeyboardInterrupt, click.Abort) as exc:
-        click.echo("Interrupted.", err=True)
+        click.echo("Interrupted. No operation will be retried automatically.", err=True)
         raise SystemExit(130) from exc
     except BrokenPipeError as exc:
         raise SystemExit(0) from exc

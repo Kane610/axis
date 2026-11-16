@@ -307,6 +307,11 @@ names the account and target. Declining leaves the preview without submitting
 anything or reading a password. Hidden password entry, when needed, follows
 approval; cancelling it still submits nothing. Direct commands and the command
 prompt retain their explicit `--apply` contract.
+Interrupting approval or password entry reports that no account write was
+submitted. Once execution has been handed to the application, interruption
+conservatively reports that the outcome may be unknown and advises reading
+accounts before retrying. It does not claim rollback, and never retries a write
+automatically. Both interruption cases retain exit status 130 in direct use.
 
 ```bash
 axis accounts create viewer --device front-door

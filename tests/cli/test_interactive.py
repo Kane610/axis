@@ -519,7 +519,9 @@ def test_guided_account_arguments_do_not_authorize_early(runtime: Runtime) -> No
 
 
 @pytest.mark.parametrize("stage", ["approval", "password"])
-def test_cancel_guided_account_never_submits(runtime: Runtime, stage: str) -> None:
+def test_cancel_guided_account_never_submits(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str], stage: str
+) -> None:
     """Interrupting final approval or secret entry leaves the proposed change unapplied."""
     runtime.selected = "SERIAL"
     with (
@@ -537,6 +539,33 @@ def test_cancel_guided_account_never_submits(runtime: Runtime, stage: str) -> No
         )
     apply.assert_not_awaited()
     assert runtime.guided is False
+    assert "nothing was submitted" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("error", [KeyboardInterrupt, click.Abort])
+def test_interrupted_account_apply_reports_unknown_outcome(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str], error: type[BaseException]
+) -> None:
+    """Interruption after handing a write to the application never claims rollback or retries."""
+    runtime.selected = "SERIAL"
+    with (
+        patch.object(click, "confirm", return_value=True),
+        patch.object(commands, "secret", return_value="hidden"),
+        patch.object(
+            operations, "apply_account_change", new=AsyncMock(side_effect=error)
+        ) as apply,
+    ):
+        assert not interactive.execute(
+            runtime, cli, ["accounts", "create", "viewer"], guided=True
+        )
+    apply.assert_awaited_once()
+    output = capsys.readouterr()
+    assert "outcome may be unknown" in output.err
+    assert "Read accounts before retrying" in output.err
+    assert "SERIAL" in output.err
+    assert "nothing was submitted" not in output.err
+    assert "hidden" not in output.err
+    assert '"status": "applied"' not in output.out
 
 
 def test_discover_then_add_uses_numbered_host(

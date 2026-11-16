@@ -464,6 +464,39 @@ def test_account_options_are_action_specific(runtime: Runtime) -> None:
     )
 
 
+@pytest.mark.parametrize("stage", ["password", "write"])
+def test_direct_account_interruption_keeps_status_130(
+    runtime: Runtime, stage: str
+) -> None:
+    """Direct commands distinguish cancelled preparation from unknown write completion."""
+    runtime.interactive = True
+    with (
+        patch.object(
+            commands,
+            "secret",
+            side_effect=KeyboardInterrupt if stage == "password" else None,
+            return_value="hidden",
+        ),
+        patch.object(
+            operations,
+            "apply_account_change",
+            new=AsyncMock(side_effect=KeyboardInterrupt),
+        ) as apply,
+    ):
+        result = invoke(
+            runtime, ["accounts", "create", "viewer", "--device", "SERIAL", "--apply"]
+        )
+    assert result.exit_code == 130
+    if stage == "password":
+        apply.assert_not_awaited()
+        assert "nothing was submitted" in result.stderr
+    else:
+        apply.assert_awaited_once()
+        assert "outcome may be unknown" in result.stderr
+        assert "Read accounts before retrying" in result.stderr
+    assert "hidden" not in result.output
+
+
 def test_account_privilege_only_update(runtime: Runtime) -> None:
     """Changing privileges does not demand or overwrite an existing password."""
     with patch.object(operations, "change_account", new=AsyncMock()) as operation:
@@ -808,6 +841,10 @@ def test_api_read_orders_nested_keys_without_reordering_lists(runtime: Runtime) 
         (operations.OperationError("Device operation failed."), 1),
         (StorageError("Registry failed."), 1),
         (click.UsageError("Invalid command."), 2),
+        (
+            commands.interactive.CommandInterrupted("Account outcome may be unknown."),
+            130,
+        ),
         (KeyboardInterrupt(), 130),
         (click.Abort(), 130),
         (BrokenPipeError(), 0),

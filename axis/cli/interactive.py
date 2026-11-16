@@ -128,6 +128,12 @@ class CommandCompleter(Completer):
             )
 
 
+class CommandInterrupted(click.ClickException):
+    """Report a known interruption phase without losing the interrupted exit status."""
+
+    exit_code = 130
+
+
 def execute(
     runtime: Runtime, command: click.Group, args: list[str], *, guided: bool = False
 ) -> bool:
@@ -147,7 +153,10 @@ def execute(
     except (StorageError, operations.OperationError) as exc:
         click.echo(f"Error: {exc}", err=True)
     except KeyboardInterrupt, click.Abort:
-        click.echo("Cancelled; returning to navigation.", err=True)
+        click.echo(
+            "Interrupted; returning to navigation. No operation will be retried automatically.",
+            err=True,
+        )
     finally:
         runtime.guided = previous_guided
     return False
