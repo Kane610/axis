@@ -29,6 +29,11 @@ CI checks lockfile consistency before installing dependencies and uses `--locked
 for dependency installation and checks. A stale or missing committed lockfile
 therefore fails CI even when local hooks are not installed or are bypassed.
 
+Dependabot uses the `uv` ecosystem so dependency update PRs refresh both
+`pyproject.toml` and `uv.lock`. The `pip` ecosystem does not maintain `uv.lock`.
+For an existing PR that only changes `pyproject.toml`, run `uv lock` on its
+branch and include the updated lockfile before rerunning CI.
+
 ## Running checks
 
 Always run the full suite before opening a pull request:
