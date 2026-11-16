@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D101,TC003
+# ruff: noqa: D101,TC003
+
+"""Hold the earlier menu CLI's settings, helpers, and selected device."""
 
 from __future__ import annotations
 

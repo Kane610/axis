@@ -1,4 +1,4 @@
-"""Event service and action service APIs available in Axis network device."""
+"""List the event types and sources an Axis device supports through its event service."""
 
 from typing import TYPE_CHECKING
 
@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 
 
 class EventInstanceHandler(ApiHandler[EventInstance]):
-    """Event instances for Axis devices."""
+    """Read event definitions and derive the events expected when a stream starts."""
 
     async def _api_request(self) -> dict[str, EventInstance]:
-        """Get default data of API discovery."""
+        """Read device event definitions for this handler's cached data."""
         return await self.get_event_instances()
 
     async def get_event_instances(self) -> dict[str, EventInstance]:
@@ -31,9 +31,9 @@ class EventInstanceHandler(ApiHandler[EventInstance]):
     ) -> dict[str, list[Event]]:
         """Return expected startup events grouped by topic.
 
-        Event instances are the protocol-agnostic bootstrap source for startup
-        predeclaration. Returned events are synthesized from schema data and represent
-        expected event identity/state (operation=Initialized), not live stream updates.
+        Build these events from the device's event definitions, not from live
+        stream updates. They describe expected sources and initial states
+        (operation=Initialized), regardless of the streaming transport.
         """
         grouped: dict[str, list[Event]] = {}
         for item in self.values():

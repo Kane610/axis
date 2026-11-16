@@ -31,6 +31,10 @@ dependencies    = [
 ]
 
 [project.optional-dependencies]
+cli = [
+    "click>=8.2,<9",
+    "prompt-toolkit>=3.0.50,<4",
+]
 requirements = [
     "aiohttp==3.14.5",
     "orjson==3.13.0",
@@ -58,8 +62,7 @@ requirements-dev = [
 "Forum" = "https://community.home-assistant.io/t/axis-camera-component/"
 
 [project.scripts]
-axis = "axis.__main__:main"
-axis-cli = "axis.cli.main:main"
+axis = "axis.cli.entrypoint:main"
 
 [tool.coverage.report]
 fail_under = 100

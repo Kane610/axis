@@ -7,33 +7,33 @@ from .param_cgi import ParamItem
 
 
 class PropertyApiHttpParamT(TypedDict):
-    """Represent an API HTTP object."""
+    """HTTP API administrative path and version from the Properties group."""
 
     AdminPath: str
     Version: int
 
 
 class PropertyApiMetadataParamT(TypedDict):
-    """Represent an API Metadata object."""
+    """Metadata API availability and version from the Properties group."""
 
     Metadata: str
     Version: str
 
 
 class PropertyApiPtzPresetsParamT(TypedDict):
-    """Represent a PTZ preset object."""
+    """PTZ preset API version reported by the Properties group."""
 
     Version: NotRequired[str]
 
 
 class PropertyApiPtzParamT(TypedDict):
-    """Represent an API PTZ object."""
+    """PTZ-related API versions reported by the Properties group."""
 
     Presets: PropertyApiPtzPresetsParamT
 
 
 class PropertyApiParamT(TypedDict):
-    """Represent an API object."""
+    """HTTP, metadata, and optional PTZ API properties."""
 
     HTTP: PropertyApiHttpParamT
     Metadata: PropertyApiMetadataParamT
@@ -41,13 +41,13 @@ class PropertyApiParamT(TypedDict):
 
 
 class PropertyEmbeddedDevelopmentRuleEngineParamT(TypedDict):
-    """Represent an embedded development rule engine object."""
+    """Rule-engine capabilities reported under EmbeddedDevelopment."""
 
     MultiConfiguration: bool
 
 
 class PropertyEmbeddedDevelopmentParamT(TypedDict):
-    """Represent an embedded development object."""
+    """Embedded-development API version, cache sizes, and rule-engine settings."""
 
     CacheSize: int
     DefaultCacheSize: int
@@ -57,7 +57,7 @@ class PropertyEmbeddedDevelopmentParamT(TypedDict):
 
 
 class PropertyFirmwareParamT(TypedDict):
-    """Represent a firmware object."""
+    """Firmware build date, build number, and version from the Properties group."""
 
     BuildDate: str
     BuildNumber: str
@@ -65,7 +65,7 @@ class PropertyFirmwareParamT(TypedDict):
 
 
 class PropertyImageParamT(TypedDict):
-    """Represent an image object."""
+    """Image format, views, resolution, rotation, and display capabilities."""
 
     Format: NotRequired[str]
     NbrOfViews: int
@@ -75,14 +75,14 @@ class PropertyImageParamT(TypedDict):
 
 
 class PropertyLightControlParamT(TypedDict):
-    """Represent a light control object."""
+    """Light-control availability and API capability flags."""
 
     LightControl2: NotRequired[bool]
     LightControlAvailable: bool
 
 
 class PropertyPtzParamT(TypedDict):
-    """Represent a PTZ object."""
+    """PTZ control and driver-management capability flags."""
 
     DigitalPTZ: bool
     DriverManagement: bool
@@ -93,7 +93,7 @@ class PropertyPtzParamT(TypedDict):
 
 
 class PropertySystemParamT(TypedDict):
-    """Represent a system object."""
+    """Hardware and system identity fields from the Properties group."""
 
     Architecture: str
     HardwareID: str
@@ -104,13 +104,13 @@ class PropertySystemParamT(TypedDict):
 
 
 class PropertyVirtualInputParamT(TypedDict):
-    """Represent a virtual input object."""
+    """Whether the device supports virtual input ports."""
 
     VirtualInput: bool
 
 
 class PropertyParamT(TypedDict):
-    """Represent a property object."""
+    """The API, firmware, system, and optional device features in Properties."""
 
     API: PropertyApiParamT
     EmbeddedDevelopment: NotRequired[PropertyEmbeddedDevelopmentParamT]
@@ -124,28 +124,28 @@ class PropertyParamT(TypedDict):
 
 @dataclass(frozen=True)
 class PropertyParam(ParamItem):
-    """Property parameters."""
+    """Normalized API versions and device capabilities from param.cgi Properties."""
 
     api_http_version: int
     """HTTP API version."""
 
     api_metadata: str
-    """Support metadata API."""
+    """Whether the device advertises metadata API support."""
 
     api_metadata_version: str
     """Metadata API version."""
 
     api_ptz_presets_version: bool | str
-    """Preset index for device home position at start-up.
+    """PTZ preset API version, or False when no version is reported.
 
-    As of version 2.00 of the PTZ preset API Properties.API.PTZ.Presets.Version=2.00
-    adding, updating and removing presets using param.cgi is no longer supported.
+    From version 2.00, presets can no longer be added, updated, or removed with
+    param.cgi.
     """
 
     embedded_development: str
-    """VAPIX® Application API is supported.
+    """Version of the embedded-development API, or "0.0" when unavailable.
 
-    Application list.cgi supported if => 1.20.
+    Application list.cgi is supported from version 1.20.
     """
 
     firmware_build_date: str
@@ -158,10 +158,10 @@ class PropertyParam(ParamItem):
     """Firmware version."""
 
     image_format: str
-    """Supported image formats."""
+    """Image formats supported by the device."""
 
     image_number_of_views: int
-    """Amount of supported view areas."""
+    """Number of image views the device supports."""
 
     image_resolution: str
     """Supported image resolutions."""
@@ -170,23 +170,23 @@ class PropertyParam(ParamItem):
     """Supported image rotations."""
 
     light_control: bool
-    """Support light control."""
+    """Whether the device advertises Light Control API support."""
 
     ptz: bool
-    """Support PTZ control."""
+    """Whether the device supports PTZ control."""
 
     digital_ptz: bool
-    """Support digital PTZ control."""
+    """Whether the device supports digital PTZ."""
 
     system_serial_number: str
     """Device serial number."""
 
     virtual_input: bool
-    """Support virtual input ports."""
+    """Whether the device supports virtual input ports."""
 
     @classmethod
     def decode(cls, data: PropertyParamT) -> Self:
-        """Decode dictionary to class object."""
+        """Convert the Properties group into normalized version and capability fields."""
         return cls(
             id="properties",
             api_http_version=data["API"]["HTTP"]["Version"],

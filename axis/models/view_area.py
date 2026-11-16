@@ -1,4 +1,4 @@
-"""View area API data model."""
+"""Models for VAPIX view areas, cropped views within a camera's video image."""
 
 from dataclasses import dataclass
 from typing import NotRequired, Self, TypedDict
@@ -11,14 +11,14 @@ API_VERSION = "1.0"
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by the View Area API."""
 
     code: int
     message: str
 
 
 class GeometryT(TypedDict):
-    """Represent a geometry object."""
+    """Rectangular view-area position and size in API image coordinates."""
 
     horizontalOffset: int
     horizontalSize: int
@@ -27,14 +27,14 @@ class GeometryT(TypedDict):
 
 
 class SizeT(TypedDict):
-    """Represent a size object."""
+    """Horizontal and vertical image dimensions reported by the API."""
 
     horizontal: int
     vertical: int
 
 
 class ViewAreaT(TypedDict):
-    """View area representation."""
+    """One view area's source, camera, editability, and optional geometry limits."""
 
     id: int
     source: int
@@ -48,13 +48,13 @@ class ViewAreaT(TypedDict):
 
 
 class ListViewAreasDataT(TypedDict):
-    """List of view areas data."""
+    """View areas returned by the list method."""
 
     viewAreas: list[ViewAreaT]
 
 
 class ListViewAreasResponseT(TypedDict):
-    """List view areas response."""
+    """JSON envelope returned by the list method."""
 
     apiVersion: str
     context: str
@@ -64,13 +64,13 @@ class ListViewAreasResponseT(TypedDict):
 
 
 class ApiVersionsT(TypedDict):
-    """List of supported API versions."""
+    """View Area API versions supported by the device."""
 
     apiVersions: list[str]
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """Get supported versions response."""
+    """JSON envelope returned by getSupportedVersions."""
 
     apiVersion: str
     context: str
@@ -91,7 +91,7 @@ general_error_codes = {
 
 @dataclass
 class Geometry:
-    """Represent a geometry object."""
+    """Rectangular view-area offset and dimensions."""
 
     horizontal_offset: int
     horizontal_size: int
@@ -100,7 +100,7 @@ class Geometry:
 
     @classmethod
     def from_dict(cls, data: GeometryT) -> Geometry:
-        """Create geometry object from dict."""
+        """Convert API geometry fields to normalized attribute names."""
         return Geometry(
             horizontal_offset=data["horizontalOffset"],
             horizontal_size=data["horizontalSize"],
@@ -111,20 +111,20 @@ class Geometry:
 
 @dataclass
 class Size:
-    """Represent a size object."""
+    """Horizontal and vertical dimensions of a view area."""
 
     horizontal: int
     vertical: int
 
     @classmethod
     def from_dict(cls, item: SizeT) -> Size:
-        """Create size object from dict."""
+        """Convert API size fields into a Size model."""
         return Size(horizontal=item["horizontal"], vertical=item["vertical"])
 
 
 @dataclass(frozen=True)
 class ViewArea(ApiItem):
-    """View area object."""
+    """A cropped camera view and the geometry the device allows it to use."""
 
     camera: int
     source: int
@@ -140,16 +140,16 @@ class ViewArea(ApiItem):
 
     @classmethod
     def decode(cls, data: ViewAreaT) -> Self:
-        """Decode dict to class object."""
+        """Convert one API view-area entry into a model."""
 
         def create_geometry(item: GeometryT | None) -> Geometry | None:
-            """Create geometry object."""
+            """Convert optional rectangle data, preserving an absent geometry."""
             if item is None:
                 return None
             return Geometry.from_dict(item)
 
         def create_size(item: SizeT | None) -> Size | None:
-            """Create size object."""
+            """Convert optional dimensions, preserving an absent size."""
             if item is None:
                 return None
             return Size.from_dict(item)
@@ -169,7 +169,7 @@ class ViewArea(ApiItem):
 
 @dataclass
 class ListViewAreasResponse(ApiResponse[dict[str, ViewArea]]):
-    """Response object for list view areas response."""
+    """Available view areas indexed by their IDs."""
 
     api_version: str
     context: str
@@ -179,7 +179,7 @@ class ListViewAreasResponse(ApiResponse[dict[str, ViewArea]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse the response and index decoded view areas by ID."""
         data: ListViewAreasResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -191,7 +191,7 @@ class ListViewAreasResponse(ApiResponse[dict[str, ViewArea]]):
 
 @dataclass
 class ListViewAreasRequest(ApiRequest[ListViewAreasResponse]):
-    """Request object for listing view areas."""
+    """Request the view areas available on the device."""
 
     method = "post"
     path = "/axis-cgi/viewarea/info.cgi"
@@ -204,7 +204,7 @@ class ListViewAreasRequest(ApiRequest[ListViewAreasResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a list request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -216,7 +216,7 @@ class ListViewAreasRequest(ApiRequest[ListViewAreasResponse]):
 
 @dataclass
 class SetGeometryRequest(ApiRequest[ListViewAreasResponse]):
-    """Request object for setting geometry of a view area."""
+    """Set the rectangular crop geometry for one view area."""
 
     method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
@@ -232,7 +232,7 @@ class SetGeometryRequest(ApiRequest[ListViewAreasResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the target view-area ID and rectangle as a setGeometry request."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -255,7 +255,7 @@ class SetGeometryRequest(ApiRequest[ListViewAreasResponse]):
 
 @dataclass
 class ResetGeometryRequest(ApiRequest[ListViewAreasResponse]):
-    """Request object for resetting geometry of a view area."""
+    """Restore a view area to its default geometry."""
 
     method = "post"
     path = "/axis-cgi/viewarea/configure.cgi"
@@ -270,7 +270,7 @@ class ResetGeometryRequest(ApiRequest[ListViewAreasResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode the target view-area ID as a resetGeometry request."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -283,7 +283,7 @@ class ResetGeometryRequest(ApiRequest[ListViewAreasResponse]):
 
 @dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
-    """Response object for supported versions."""
+    """View Area API versions supported by the device."""
 
     api_version: str
     context: str
@@ -293,7 +293,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare response data."""
+        """Parse the supported-version list from the response envelope."""
         data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -305,7 +305,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 @dataclass
 class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
-    """Request object for listing supported API versions."""
+    """Request the View Area info API versions supported by the device."""
 
     method = "post"
     path = "/axis-cgi/viewarea/info.cgi"
@@ -317,7 +317,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getSupportedVersions request as JSON."""
         return orjson.dumps(
             {
                 "context": self.context,
@@ -328,6 +328,6 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
 @dataclass
 class GetSupportedConfigVersionsRequest(GetSupportedVersionsRequest):
-    """Request object for listing supported API versions."""
+    """Request the View Area configuration API versions supported by the device."""
 
     path = "/axis-cgi/viewarea/configure.cgi"

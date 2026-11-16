@@ -1,4 +1,4 @@
-"""Test Axis Temperature Control API."""
+"""Test temperature status parsing and typed access to sensors and actuators."""
 
 from typing import TYPE_CHECKING
 
@@ -38,7 +38,7 @@ Fan.F0.TimeUntilStop=0
 
 @pytest.fixture
 async def temperature_control(axis_device: AxisDevice) -> TemperatureControlHandler:
-    """Return the temperature_control handler."""
+    """Return the handler with API discovery set to version 1.0."""
     axis_device.vapix.api_discovery._items = {
         api.id: api
         for api in [
@@ -73,7 +73,7 @@ async def test_update(
     mock_temperature_request,
     temperature_control: TemperatureControlHandler,
 ) -> None:
-    """Test update method for statusall endpoint."""
+    """Load sensor, heater, and fan status from the statusall response."""
     route = mock_temperature_request(STATUS_ALL_RESPONSE)
 
     await temperature_control.update()
@@ -108,7 +108,7 @@ async def test_get_status_all_unknown_and_partial_data(
     mock_temperature_request,
     temperature_control: TemperatureControlHandler,
 ) -> None:
-    """Test parser behavior for unknown states and malformed numbers."""
+    """Use safe fallbacks for unknown states and invalid numeric readings."""
     route = mock_temperature_request(
         """Heater.H1.Status=Running[X]
 Heater.H1.TimeUntilStop=bad
@@ -142,7 +142,7 @@ async def test_grouped_accessors(
     mock_temperature_request,
     temperature_control: TemperatureControlHandler,
 ) -> None:
-    """Test grouped typed accessors for sensors, heaters and fans."""
+    """Group parsed records by sensor, heater, and fan type."""
     mock_temperature_request(STATUS_ALL_RESPONSE)
 
     await temperature_control.update()
@@ -164,7 +164,7 @@ async def test_item_accessors(
     mock_temperature_request,
     temperature_control: TemperatureControlHandler,
 ) -> None:
-    """Test single-item typed accessors for sensors, heaters and fans."""
+    """Return matching typed records and None for missing or mismatched IDs."""
     mock_temperature_request(STATUS_ALL_RESPONSE)
 
     await temperature_control.update()
@@ -186,7 +186,7 @@ async def test_running_actuator_accessors(
     mock_temperature_request,
     temperature_control: TemperatureControlHandler,
 ) -> None:
-    """Test convenience accessors for currently running heaters, fans and actuators."""
+    """Expose only running heaters and fans through the running-actuator accessors."""
     mock_temperature_request(
         """Sensor.S0.Name=Main
 Heater.H0.Status=Running[85%]
@@ -214,7 +214,7 @@ Fan.F1.Status=Stopped
 
 
 def test_parse_status_none_and_unknown_fallback() -> None:
-    """Test _parse_status edge cases: None input and unrecognised status string."""
+    """Map missing or unrecognized actuator status text to UNKNOWN."""
     status, intensity = _parse_status(None)
     assert status == TemperatureDeviceStatus.UNKNOWN
     assert intensity is None
@@ -225,14 +225,14 @@ def test_parse_status_none_and_unknown_fallback() -> None:
 
 
 def test_temperature_device_status_missing() -> None:
-    """Test TemperatureDeviceStatus._missing_ returns UNKNOWN for unknown values."""
+    """Map unrecognized temperature status values to UNKNOWN."""
     assert (
         TemperatureDeviceStatus("completely_unknown") == TemperatureDeviceStatus.UNKNOWN
     )
 
 
 def test_parse_statusall_entries_skips_malformed_lines() -> None:
-    """Test _parse_statusall_entries ignores lines that don't match the expected format."""
+    """Skip malformed and unknown status lines while retaining valid sensor readings."""
     payload = (
         "\n"  # empty line → continue (line 149)
         "no_equals_sign\n"  # no '=' → continue (line 149)

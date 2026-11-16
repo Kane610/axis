@@ -12,11 +12,7 @@ from .api import ApiRequest, ApiResponse, BytesResponse
 
 
 class PtzMove(enum.StrEnum):
-    """Supported PTZ moves.
-
-    Absolute:Moves the image 25 % of the image field width in the specified direction.
-    Relative: Moves the device approx. 50-90 degrees in the specified direction.
-    """
+    """Discrete movement commands accepted by the PTZ control endpoint."""
 
     HOME = "home"
     """Moves the image to the home position."""
@@ -93,7 +89,7 @@ class PtzQuery(enum.StrEnum):
 
 @dataclass
 class PtzControlRequest(ApiRequest[ApiResponse[bytes]]):
-    """Control pan, tilt and zoom behavior of a PTZ unit."""
+    """Build a PTZ CGI request for movement, lens, preset, or image controls."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
@@ -134,11 +130,7 @@ class PtzControlRequest(ApiRequest[ApiResponse[bytes]]):
     which is product-specific.
     """
     move: PtzMove | None = None
-    """Supported PTZ moves.
-
-    Absolute:Moves the image 25 % of the image field width in the specified direction.
-    Relative: Moves the device approx. 50-90 degrees in the specified direction.
-    """
+    """Predefined direction, home, or stop command."""
     pan: float | None = None
     """-180.0 ... 180.0 Pans the device to the specified absolute coordinates."""
 
@@ -239,7 +231,7 @@ class PtzControlRequest(ApiRequest[ApiResponse[bytes]]):
     go_to_device_preset: int | None = None
     """Bypasses the presetpos interface.
 
-    Tells the device togo directly to the preset position number
+    Tells the device to go directly to the preset position number
     <preset pos> stored in the device,
     where the <preset pos> is a device-specific preset position number.
     This may also be a device-specific special function.
@@ -261,7 +253,7 @@ class PtzControlRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def data(self) -> dict[str, str] | None:
-        """Request data."""
+        """Return supplied PTZ commands as CGI parameters, clamped to API ranges."""
         data = {}
         if self.camera:
             data["camera"] = str(self.camera)
@@ -339,7 +331,7 @@ class PtzControlRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class PtzCommandRequest(ApiRequest[ApiResponse[bytes]]):
-    """Retrieve available PTZ commands."""
+    """Ask the PTZ driver which commands it supports."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
@@ -348,13 +340,13 @@ class PtzCommandRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request data."""
+        """Select the PTZ driver's command-information response."""
         return {"info": "1"}
 
 
 @dataclass
 class DeviceDriverRequest(ApiRequest[ApiResponse[bytes]]):
-    """Retrieve name of the device driver."""
+    """Ask the PTZ driver to identify itself."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
@@ -363,13 +355,13 @@ class DeviceDriverRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request data."""
+        """Select the PTZ driver's identification response."""
         return {"whoami": "1"}
 
 
 @dataclass
 class QueryRequest(ApiRequest[ApiResponse[bytes]]):
-    """Retrieve current status."""
+    """Request PTZ limits, mode, position, presets, or speed."""
 
     method = "post"
     path = "/axis-cgi/com/ptz.cgi"
@@ -380,5 +372,5 @@ class QueryRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request data."""
+        """Select the requested PTZ query."""
         return {"query": self.query}

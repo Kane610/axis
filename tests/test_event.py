@@ -1,4 +1,4 @@
-"""Test Axis event class.
+"""Test event decoding, topic handling, and event-data extraction.
 
 pytest --cov-report term-missing --cov=axis.models.event tests/test_event.py
 """
@@ -448,7 +448,7 @@ def test_decode_from_dict_resolves_topic_suffix_without_warning(caplog) -> None:
 
 
 def test_traverse_non_dict_data():
-    """Test traverse function with non-dict data returns empty dict."""
+    """Return an empty result when the traversal root is not a dictionary."""
     # Passing non-dict should return empty dict
     result = traverse(None, ("key",))
     assert result == {}
@@ -461,7 +461,7 @@ def test_traverse_non_dict_data():
 
 
 def test_extract_name_value_empty_list():
-    """Test extract_name_value with empty SimpleItem list."""
+    """Return empty name and value when no SimpleItem entries are present."""
     # Empty list should return empty strings
     data = {"SimpleItem": []}
     name, value = extract_name_value(data)
@@ -470,7 +470,7 @@ def test_extract_name_value_empty_list():
 
 
 def test_extract_name_value_with_prefer():
-    """Test extract_name_value with prefer parameter finds matching item."""
+    """Choose the preferred SimpleItem, or fall back to the first item if absent."""
     # Test with prefer parameter that matches an item
     data = {
         "SimpleItem": [

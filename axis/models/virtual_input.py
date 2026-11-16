@@ -67,7 +67,7 @@ class VirtualInputResponse(ApiResponse[bool]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Decode response, raise ResponseError if the device reports an error."""
+        """Parse the XML result or raise ResponseError for an invalid or failed call."""
         try:
             data: dict[str, VirtualInputResponseT] = xmltodict.parse(
                 bytes_data,
@@ -106,7 +106,7 @@ class VirtualInputResponse(ApiResponse[bool]):
 
 @dataclass
 class ActivateVirtualInputRequest(ApiRequest[VirtualInputResponse]):
-    """Request object for activating a virtual input port."""
+    """Activate a numbered virtual input port to trigger device action rules."""
 
     method = "get"
     path = "/axis-cgi/virtualinput/activate.cgi"
@@ -117,13 +117,13 @@ class ActivateVirtualInputRequest(ApiRequest[VirtualInputResponse]):
 
     @property
     def params(self) -> dict[str, str]:
-        """Request query parameters."""
+        """Return the schema version and virtual-input port number."""
         return {"schemaversion": SCHEMA_VERSION, "port": str(self.port)}
 
 
 @dataclass
 class DeactivateVirtualInputRequest(ApiRequest[VirtualInputResponse]):
-    """Request object for deactivating a virtual input port."""
+    """Deactivate a numbered virtual input port."""
 
     method = "get"
     path = "/axis-cgi/virtualinput/deactivate.cgi"
@@ -134,5 +134,5 @@ class DeactivateVirtualInputRequest(ApiRequest[VirtualInputResponse]):
 
     @property
     def params(self) -> dict[str, str]:
-        """Request query parameters."""
+        """Return the schema version and virtual-input port number."""
         return {"schemaversion": SCHEMA_VERSION, "port": str(self.port)}

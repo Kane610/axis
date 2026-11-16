@@ -1,4 +1,4 @@
-"""Test Axis Basic Device Info API.
+"""Test device identity parsing and version discovery through Basic Device Info.
 
 pytest --cov-report term-missing --cov=axis.basic_device_info tests/test_basic_device_info.py
 """
@@ -21,7 +21,7 @@ from tests.conftest import (
 
 @pytest.fixture
 def basic_device_info(axis_device):
-    """Return the basic-device-info handler with api discovery primed."""
+    """Return the handler with API discovery set to version 1.0."""
     axis_device.vapix.api_discovery = api_discovery_mock = MagicMock()
     api_discovery_mock.get().version = "1.0"
     return axis_device.vapix.basic_device_info
@@ -60,7 +60,7 @@ def mock_get_supported_versions_request(mock_api_request):
 
 
 async def test_get_all_properties(mock_get_all_properties_request, basic_device_info):
-    """Test get all properties api."""
+    """Decode identity, firmware, hardware, and product fields from the response."""
     route = mock_get_all_properties_request(GET_ALL_PROPERTIES_RESPONSE)
 
     await basic_device_info.update()
@@ -92,7 +92,7 @@ async def test_get_supported_versions(
     mock_get_supported_versions_request,
     basic_device_info,
 ):
-    """Test get supported versions api."""
+    """Return versions advertised by the Basic Device Info endpoint."""
     route = mock_get_supported_versions_request(
         {
             "apiVersion": "1.1",

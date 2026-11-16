@@ -1,4 +1,4 @@
-"""Axis Vapix user management user class."""
+"""Models for listing and changing local accounts through VAPIX pwdgrp.cgi."""
 
 from dataclasses import dataclass
 import enum
@@ -24,7 +24,7 @@ class SecondaryGroup(enum.StrEnum):
 
 
 class UserGroupsT(TypedDict):
-    """Groups user belongs to."""
+    """Username and access-group membership flags returned by pwdgrp.cgi."""
 
     user: str
     admin: bool
@@ -35,7 +35,7 @@ class UserGroupsT(TypedDict):
 
 @dataclass(frozen=True)
 class User(ApiItem):
-    """Represents a user and the groups it belongs to."""
+    """Local account name and its admin, operator, viewer, and PTZ rights."""
 
     admin: bool
     operator: bool
@@ -49,7 +49,7 @@ class User(ApiItem):
 
     @property
     def privileges(self) -> SecondaryGroup:
-        """Return highest privileged role supported."""
+        """Return the account's highest role, including PTZ access when present."""
         if self.admin:
             return SecondaryGroup.ADMIN_PTZ if self.ptz else SecondaryGroup.ADMIN
         if self.operator:
@@ -60,7 +60,7 @@ class User(ApiItem):
 
     @classmethod
     def decode(cls, data: UserGroupsT) -> Self:
-        """Create object from dict."""
+        """Convert one username and its group flags into a user model."""
         return cls(
             id=data["user"],
             admin=data["admin"],
@@ -72,11 +72,11 @@ class User(ApiItem):
 
 @dataclass
 class GetUsersResponse(ApiResponse[dict[str, User]]):
-    """Response object for listing ports."""
+    """Local users indexed by username, with their access-group membership."""
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse pwdgrp.cgi group assignments into one model per username."""
         if "=" not in (string_data := bytes_data.decode()):
             return cls(data={})
 
@@ -106,7 +106,7 @@ class GetUsersResponse(ApiResponse[dict[str, User]]):
 
 @dataclass
 class GetUsersRequest(ApiRequest[GetUsersResponse]):
-    """Request object for listing users."""
+    """Request the local account names grouped by access role."""
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
@@ -115,13 +115,13 @@ class GetUsersRequest(ApiRequest[GetUsersResponse]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request data."""
+        """Return the pwdgrp.cgi action that lists account groups."""
         return {"action": "get"}
 
 
 @dataclass
 class CreateUserRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for creating a user."""
+    """Add a local account with the selected secondary group and optional comment."""
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
@@ -135,7 +135,7 @@ class CreateUserRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request data."""
+        """Return pwdgrp.cgi fields for creating this account."""
         data = {
             "action": "add",
             "user": self.user,
@@ -152,7 +152,7 @@ class CreateUserRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class ModifyUserRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for modifying a user."""
+    """Change a local account's password, access group, or comment."""
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
@@ -166,7 +166,7 @@ class ModifyUserRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request data."""
+        """Return only the account fields supplied for modification."""
         data = {"action": "update", "user": self.user}
 
         if self.pwd is not None:
@@ -183,7 +183,7 @@ class ModifyUserRequest(ApiRequest[ApiResponse[bytes]]):
 
 @dataclass
 class DeleteUserRequest(ApiRequest[ApiResponse[bytes]]):
-    """Request object for deleting a user."""
+    """Remove a local account by username."""
 
     method = "post"
     path = "/axis-cgi/pwdgrp.cgi"
@@ -194,5 +194,5 @@ class DeleteUserRequest(ApiRequest[ApiResponse[bytes]]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request data."""
+        """Return the pwdgrp.cgi action and username for account removal."""
         return {"action": "remove", "user": self.user}

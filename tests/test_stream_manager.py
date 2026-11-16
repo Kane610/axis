@@ -1,4 +1,4 @@
-"""Test stream manager class.
+"""Test stream URL construction, transport selection, and stream lifecycle.
 
 pytest --cov-report term-missing --cov=axis.stream_manager tests/test_stream_manager.py
 """
@@ -27,18 +27,18 @@ def test_stream_transport_protocol_contract() -> None:
 
 @pytest.fixture
 def stream_manager(axis_device) -> StreamManager:
-    """Return the StreamManager mock object."""
+    """Return the stream manager attached to a standard mocked device."""
     return axis_device.stream
 
 
 @pytest.fixture
 def stream_manager_companion(axis_companion_device) -> StreamManager:
-    """Return the StreamManager mock object."""
+    """Return the stream manager attached to a companion mocked device."""
     return axis_companion_device.stream
 
 
 async def test_stream_url(stream_manager):
-    """Verify stream url."""
+    """Build the RTSP URL with event streaming disabled or enabled."""
     assert stream_manager.video_query == 0
     assert stream_manager.audio_query == 0
     assert stream_manager.event_query == "off"
@@ -56,7 +56,7 @@ async def test_stream_url(stream_manager):
 
 
 async def test_stream_url_companion(stream_manager_companion):
-    """Verify stream url."""
+    """Include the companion-device parameter in the RTSP URL."""
     assert stream_manager_companion.video_query == 0
     assert stream_manager_companion.audio_query == 0
     assert stream_manager_companion.event_query == "off"
@@ -74,7 +74,7 @@ async def test_stream_url_companion(stream_manager_companion):
 
 
 async def test_websocket_url(stream_manager):
-    """Verify websocket URL."""
+    """Build the WebSocket event-stream URL for the configured device."""
     assert (
         stream_manager.websocket_url
         == f"ws://{HOST}:80/vapix/ws-data-stream?sources=events"
@@ -132,7 +132,7 @@ async def test_start_uses_websocket_when_supported(
 @patch("axis.stream_manager.RTSPClient")
 @patch("axis.stream_manager.WebSocketClient")
 async def test_initialize_stream(websocket_client, rtsp_client, stream_manager):
-    """Test stream commands."""
+    """Start and stop RTSP streams and forward data and state callbacks."""
     rtsp_client.return_value.start = AsyncMock()
     # Stream does not exist
     assert not stream_manager.stream  # Stream does not exist

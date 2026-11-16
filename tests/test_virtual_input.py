@@ -1,4 +1,4 @@
-"""Test Axis virtual input API."""
+"""Test virtual-input support detection, activation, and response validation."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ root.Properties.System.SerialNumber=ACCC12345678
 
 @pytest.fixture
 def virtual_input(axis_device: AxisDevice) -> VirtualInputHandler:
-    """Return the virtual input handler."""
+    """Return the virtual-input handler attached to the mocked device."""
     return axis_device.vapix.virtual_input
 
 

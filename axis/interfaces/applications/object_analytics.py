@@ -1,7 +1,4 @@
-"""Object Analytics API.
-
-AXIS Object Analytics.
-"""
+"""Read the Object Analytics application's configuration through its VAPIX API."""
 
 from ...models.applications.application import ApplicationName
 from ...models.applications.object_analytics import (
@@ -12,7 +9,7 @@ from .application_handler import ApplicationHandler
 
 
 class ObjectAnalyticsHandler(ApplicationHandler[Configuration]):
-    """Object analytics handler for Axis devices."""
+    """Read Object Analytics settings from an Axis device."""
 
     app_name = ApplicationName.OBJECT_ANALYTICS
 

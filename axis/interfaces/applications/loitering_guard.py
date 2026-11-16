@@ -13,11 +13,11 @@ from .application_handler import ApplicationHandler
 
 
 class LoiteringGuardHandler(ApplicationHandler[Configuration]):
-    """Loitering guard handler for Axis devices."""
+    """Read the Loitering Guard application's configuration from an Axis device."""
 
     app_name = ApplicationName.LOITERING_GUARD
 
     async def get_configuration(self) -> Configuration:
-        """Get configuration of VMD4 application."""
+        """Read the Loitering Guard application's configuration."""
         response = await self.vapix.api_request(GetConfigurationRequest())
         return response.data

@@ -1,4 +1,4 @@
-"""Contract tests for shared HTTP mocking fixtures in conftest.py."""
+"""Test how shared HTTP mock fixtures register routes and check requests."""
 
 import importlib
 import inspect
@@ -108,7 +108,7 @@ def _iter_api_request_classes() -> list[type[ApiRequest]]:
 
 
 class TestHttpRouteMock:
-    """Validate the single-device http_route_mock fixture contract."""
+    """Test route registration and server binding for one device."""
 
     async def test_returns_http_route_mock_instance(self, http_route_mock):
         """http_route_mock returns an HttpRouteMock."""
@@ -145,7 +145,7 @@ class TestHttpRouteMock:
 
 
 class TestHttpRouteMockFactory:
-    """Validate the multi-device http_route_mock_factory fixture contract."""
+    """Test route registration and server binding for multiple devices."""
 
     async def test_single_device_binding(
         self, http_route_mock_factory, axis_device: AxisDevice
@@ -262,7 +262,7 @@ async def test_route_data_match_accepts_expected_body(http_route_mock, axis_devi
 
 
 class TestMockApiRequestFixture:
-    """Validate the request-class-driven route registration fixture contract."""
+    """Test route registration from API request models."""
 
     async def test_registers_json_response(self, mock_api_request, http_route_mock):
         """JSON request content type maps to route.respond(json=...)."""

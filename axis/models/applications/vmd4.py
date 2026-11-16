@@ -1,4 +1,4 @@
-"""VMD4 API."""
+"""Models for the VMD4 application's camera and motion-profile configuration."""
 
 from dataclasses import dataclass
 from typing import Any, NotRequired, Self, TypedDict
@@ -11,7 +11,7 @@ API_VERSION = "1.2"
 
 
 class CameraConfigurationDataT(TypedDict):
-    """Camera configuration data from response."""
+    """Camera active state and image rotation in a VMD4 response."""
 
     active: bool
     id: int
@@ -19,7 +19,7 @@ class CameraConfigurationDataT(TypedDict):
 
 
 class ProfileConfigurationDataT(TypedDict):
-    """Profile configuration data from response."""
+    """VMD4 motion profile fields as returned by the control API."""
 
     camera: int
     filters: list[dict[str, Any]]
@@ -31,7 +31,7 @@ class ProfileConfigurationDataT(TypedDict):
 
 
 class ConfigurationDataT(TypedDict):
-    """Configuration data from response."""
+    """Camera, profile, and revision data in a VMD4 response."""
 
     cameras: list[CameraConfigurationDataT]
     profiles: list[ProfileConfigurationDataT]
@@ -39,7 +39,7 @@ class ConfigurationDataT(TypedDict):
 
 
 class GetConfigurationResponseT(TypedDict):
-    """Get configuration response."""
+    """JSON envelope returned by getConfiguration."""
 
     apiVersion: str
     context: str
@@ -50,16 +50,16 @@ class GetConfigurationResponseT(TypedDict):
 
 @dataclass(frozen=True)
 class ProfileConfiguration(ApiItem):
-    """Profile configuration."""
+    """VMD4 motion profile with its camera, filters, triggers, and PTZ presets."""
 
     camera: int
     """Camera ID."""
 
     filters: list[dict[str, Any]]
-    """Array of exclude filters."""
+    """Filters that exclude detections from this profile."""
 
     name: str
-    """Nice name of profile."""
+    """Display name assigned to the profile."""
 
     presets: list[int]
     """For mechanical PTZ cameras, each profile can be connected to one preset.
@@ -70,11 +70,11 @@ class ProfileConfiguration(ApiItem):
     """
 
     triggers: list[dict[str, Any]]
-    """Array of triggers."""
+    """Motion-detection trigger regions and settings configured for this profile."""
 
     @classmethod
     def decode(cls, data: ProfileConfigurationDataT) -> Self:
-        """Decode dict to class object."""
+        """Convert one VMD4 profile payload to a model."""
         return cls(
             id=str(data["uid"]),
             camera=data["camera"],
@@ -87,19 +87,19 @@ class ProfileConfiguration(ApiItem):
 
 @dataclass(frozen=True)
 class Configuration(ApiItem):
-    """VMD4 configuration."""
+    """Current VMD4 camera and profile configuration."""
 
     cameras: list[CameraConfigurationDataT]
-    """Cameras."""
+    """Camera settings returned by the VMD4 control API."""
 
     profiles: dict[str, ProfileConfiguration]
-    """Profiles"""
+    """Profiles indexed by their device-assigned identifiers."""
 
     configuration_status: int
 
     @classmethod
     def decode(cls, data: ConfigurationDataT) -> Self:
-        """Decode dict to class object."""
+        """Convert the response configuration into cameras and indexed profiles."""
         return cls(
             id="vmd4",
             cameras=data["cameras"],
@@ -110,7 +110,7 @@ class Configuration(ApiItem):
 
 @dataclass
 class GetConfigurationResponse(ApiResponse[Configuration]):
-    """Response object for VMD4 configuration."""
+    """VMD4 configuration returned by getConfiguration."""
 
     api_version: str
     context: str
@@ -118,7 +118,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare VMD4 configuration response data."""
+        """Parse the JSON envelope and decode its VMD4 configuration."""
         data: GetConfigurationResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -130,7 +130,7 @@ class GetConfigurationResponse(ApiResponse[Configuration]):
 
 @dataclass
 class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
-    """Request object for listing VMD4 configuration."""
+    """Request the current VMD4 camera and profile configuration."""
 
     method = "post"
     path = "/local/vmd/control.cgi"
@@ -142,7 +142,7 @@ class GetConfigurationRequest(ApiRequest[GetConfigurationResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getConfiguration request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

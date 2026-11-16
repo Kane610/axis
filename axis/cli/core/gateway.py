@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D101,D102
+# ruff: noqa: D101,D102
+
+"""Run earlier menu commands with a temporary device connection and terminal errors."""
 
 from __future__ import annotations
 

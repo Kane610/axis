@@ -1,4 +1,4 @@
-"""Test AxisDevice main class.
+"""Test AxisDevice construction and event subscription setup.
 
 pytest --cov-report term-missing --cov=axis.device tests/test_device.py
 """
@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 
 def test_device(axis_device):
-    """Validate Axis device class."""
+    """Provide configuration, VAPIX, stream, and an empty event manager."""
     assert axis_device.config
     assert axis_device.vapix
     assert axis_device.stream

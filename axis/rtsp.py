@@ -1,4 +1,4 @@
-"""Python library to enable Axis devices to integrate with Home Assistant."""
+"""Receive Axis event metadata using RTSP control and RTP data connections."""
 
 # PYTHON RTSP INSPIRATION
 # https://github.com/timohoeting/python-mjpeg-over-rtsp-client/blob/master/rtsp_client.py
@@ -22,7 +22,7 @@ RTSP_PORT = 554
 
 
 class Signal(enum.StrEnum):
-    """What is the content of the callback."""
+    """Tell stream subscribers when data arrives or the connection starts or fails."""
 
     DATA = "data"
     FAILED = "failed"
@@ -43,7 +43,7 @@ RTP_HEADER_SIZE = 12
 
 
 class RTSPClient(asyncio.Protocol):
-    """RTSP transport, session handling, message generation."""
+    """Negotiate an RTSP session and receive its event metadata over RTP."""
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class RTSPClient(asyncio.Protocol):
         password: str,
         callback: Callable[[Signal], None],
     ) -> None:
-        """RTSP."""
+        """Prepare RTSP session settings and bind a port for incoming RTP data."""
         self.loop = asyncio.get_running_loop()
         self.callback = callback
 
@@ -102,11 +102,11 @@ class RTSPClient(asyncio.Protocol):
 
     @property
     def data(self) -> bytes:
-        """Return latest RTP payload."""
+        """Return the next queued RTP payload."""
         return self.rtp.data
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        """Connect to device is successful.
+        """Begin RTSP negotiation when the TCP connection is established.
 
         Start configuring RTSP session.
         Schedule time out handle in case device doesn't respond.
@@ -116,7 +116,7 @@ class RTSPClient(asyncio.Protocol):
         self.time_out_handle = self.loop.call_later(TIME_OUT_LIMIT, self.time_out)
 
     def data_received(self, data: bytes) -> None:
-        """Got response on RTSP session.
+        """Process device responses received over the RTSP TCP connection.
 
         Buffer TCP chunks until a complete RTSP message is available.
         """
@@ -208,19 +208,14 @@ class RTSPClient(asyncio.Protocol):
 
 
 class RTPClient:
-    """Data connection to device.
-
-    When data is received send a signal on callback to whoever is interested.
-    """
+    """Receive RTP event data over UDP and notify a callback when a payload is ready."""
 
     def __init__(
         self, loop: Any, callback: Callable[[Signal], None] | None = None
     ) -> None:
-        """Configure and bind socket.
+        """Bind a UDP port before negotiating where the device should send RTP data.
 
-        We need to bind the port for RTSP before setting up the endpoint
-        since it will block until a connection has been set up and
-        the port is needed for setting up the RTSP session.
+        The RTSP setup request needs this port number before streaming starts.
         """
         self.loop = loop
         self.client = self.UDPClient(callback)
@@ -234,20 +229,20 @@ class RTPClient:
         await self.loop.create_datagram_endpoint(lambda: self.client, sock=self.sock)
 
     def stop(self) -> None:
-        """Close transport from receiving any more packages."""
+        """Stop receiving packets through the active UDP transport."""
         if self.client.transport:
             self.client.transport.close()
 
     @property
     def data(self) -> bytes:
-        """Refer to most recently received data."""
+        """Return the next queued RTP payload, or empty bytes if none is available."""
         try:
             return self.client.data.popleft()
         except IndexError:
             return b""
 
     class UDPClient:
-        """Datagram recepient for device data."""
+        """Validate incoming RTP packets and combine fragments into complete payloads."""
 
         def __init__(self, callback: Callable[[Signal], None] | None) -> None:
             """Signal events to subscriber using callback."""
@@ -265,11 +260,11 @@ class RTPClient:
             self.transport = transport
 
         def connection_lost(self, exc: Exception | None) -> None:
-            """Signal retry if RTSP session fails to get a response."""
+            """Log when the UDP receiver stops listening."""
             _LOGGER.debug("Stream recepient offline")
 
         def datagram_received(self, data: bytes, addr: Any) -> None:
-            """Signals when new data is available."""
+            """Queue RTP payload data and notify the callback when all fragments arrive."""
             if self.callback:
                 if len(data) < RTP_HEADER_SIZE or data[0] >> 6 != 2:
                     return
@@ -462,7 +457,7 @@ class RTSPSession:
             )
 
     def generate_digest(self, uri: str | None = None) -> str:
-        """RFC 2617."""
+        """Build an MD5 Digest header for the session's current RTSP method (RFC 2617)."""
         request_uri = uri or self.url
         _ha1 = f"{self.username}:{self.realm}:{self.password}"
         ha1 = md5(_ha1.encode("UTF-8")).hexdigest()
@@ -481,7 +476,7 @@ class RTSPSession:
         return digest_auth
 
     def generate_basic(self) -> str:
-        """RFC 2617."""
+        """Build and cache a Basic authentication header for RTSP requests (RFC 2617)."""
         if not self._basic_auth:
             creds = f"{self.username}:{self.password}"
             self._basic_auth = "Basic "
@@ -518,7 +513,7 @@ class RTSPMethods:
         return message
 
     def keep_alive(self) -> str:
-        """Keep-Alive messages doesn't need authentication."""
+        """Build an OPTIONS keep-alive request without an authentication header."""
         return self.options(False)
 
     def options(self, authenticate: bool = True) -> str:
@@ -532,7 +527,7 @@ class RTSPMethods:
         return message
 
     def describe(self) -> str:
-        """Request description of what services RTSP server make available."""
+        """Build a request for the stream's SDP description."""
         message = f"DESCRIBE {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
@@ -552,7 +547,7 @@ class RTSPMethods:
         return message
 
     def play(self) -> str:
-        """RTSP session is ready to send data."""
+        """Build a request for the device to start sending the negotiated stream."""
         message = f"PLAY {self.session.url} RTSP/1.0\r\n"
         message += self.sequence
         message += self.authentication
@@ -573,7 +568,7 @@ class RTSPMethods:
 
     @property
     def sequence(self) -> str:
-        """Generate sequence string."""
+        """Build the CSeq header for the next RTSP request."""
         sequence = self.session.sequence
         if (
             self.session.method in {"KEEP-ALIVE", "TEARDOWN"}
@@ -584,7 +579,7 @@ class RTSPMethods:
 
     @property
     def authentication(self) -> str:
-        """Generate authentication string."""
+        """Build an Authorization header using the authentication negotiated with the device."""
         if self.session.digest:
             uri = (
                 self.session.control_url
@@ -605,12 +600,12 @@ class RTSPMethods:
 
     @property
     def session_id(self) -> str:
-        """Generate session string."""
+        """Build a Session header if the device has assigned a session ID."""
         if self.session.session_id:
             return f"Session: {self.session.session_id}\r\n"
         return ""
 
     @property
     def transport(self) -> str:
-        """Generate transport string."""
+        """Build a Transport header specifying the local RTP and RTCP ports."""
         return f"Transport: RTP/AVP;unicast;client_port={self.session.rtp_port}-{self.session.rtcp_port}\r\n"

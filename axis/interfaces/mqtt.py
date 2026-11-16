@@ -1,4 +1,4 @@
-"""MQTT Client api."""
+"""Configure the device's MQTT connection and choose which events it publishes."""
 
 from typing import Any
 
@@ -22,7 +22,7 @@ DEFAULT_TOPICS = ["//."]
 
 
 class MqttClientHandler(ApiHandler[Any]):
-    """MQTT Client for Axis devices."""
+    """Read and configure the Axis device's MQTT client through VAPIX."""
 
     api_id = ApiId.MQTT_CLIENT
     default_api_version = API_VERSION
@@ -65,7 +65,7 @@ class MqttClientHandler(ApiHandler[Any]):
     async def configure_event_publication(
         self, topics: list[str] = DEFAULT_TOPICS
     ) -> None:
-        """Configure MQTT Client event publication."""
+        """Choose event topics for the device to publish through MQTT; default to all topics."""
         event_filters = EventFilter.from_list(
             [{"topicFilter": topic} for topic in topics]
         )

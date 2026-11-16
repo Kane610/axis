@@ -18,13 +18,13 @@ API_VERSION = "1.0"
 
 @dataclass
 class RebootResponse(ApiResponse[None]):
-    """Response from rebooting the device."""
+    """Successful reboot result; the API does not return a response payload."""
 
     data: None
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Decode response, raise ResponseError if the device reports an error."""
+        """Validate the JSON result and raise ResponseError for a device error."""
         msg = "Invalid firmware management response"
         try:
             data: Any = orjson.loads(bytes_data)
@@ -42,7 +42,7 @@ class RebootResponse(ApiResponse[None]):
 
 @dataclass
 class RebootRequest(ApiRequest[RebootResponse]):
-    """Request object for rebooting the device."""
+    """Ask the Firmware Management API to reboot the device."""
 
     method = "post"
     path = "/axis-cgi/firmwaremanagement.cgi"
@@ -54,7 +54,7 @@ class RebootRequest(ApiRequest[RebootResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a reboot request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,

@@ -1,4 +1,4 @@
-"""Test Axis stream profile parameter management."""
+"""Test parsing named stream profiles and their video-encoding parameters."""
 
 from typing import TYPE_CHECKING
 
@@ -23,7 +23,7 @@ root.StreamProfile.S1.Parameters=videocodec=h265"""
 def stream_profile_handler(
     axis_device: AxisDevice,
 ) -> StreamProfileParameterHandler:
-    """Return the param cgi mock object."""
+    """Return the stream-profile handler attached to the mocked device."""
     return axis_device.vapix.params.stream_profile_handler
 
 
@@ -31,7 +31,7 @@ async def test_stream_profile_handler(
     aiohttp_mock_server,
     stream_profile_handler: StreamProfileParameterHandler,
 ):
-    """Verify that update properties works."""
+    """Parse profile limits, names, descriptions, and codec parameters."""
     await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=STREAM_PROFILE_RESPONSE.encode("iso-8859-1"),

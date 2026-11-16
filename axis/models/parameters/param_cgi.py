@@ -1,4 +1,4 @@
-"""Axis Vapix parameter management."""
+"""Models and parsers for reading hierarchical device settings through param.cgi."""
 
 from dataclasses import dataclass
 import enum
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
         encoding: str
 
     def detect(byte_str: bytes | bytearray) -> _DetectResultType:
-        """Typed interface for chardet detect method."""
+        """Describe the character-encoding result returned by cchardet.detect."""
         ...
 else:
     from cchardet import detect
@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ParameterGroup(enum.StrEnum):
-    """Parameter groups."""
+    """Top-level param.cgi groups that can be requested by name."""
 
     AUDIO = "Audio"
     AUDIOSOURCE = "AudioSource"
@@ -57,20 +57,20 @@ class ParameterGroup(enum.StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> ParameterGroup:
-        """Set default enum member if an unknown value is provided."""
+        """Return UNKNOWN when the requested parameter group is not recognized."""
         LOGGER.warning("Unsupported parameter group %s", value)
         return ParameterGroup.UNKNOWN
 
 
 def params_to_dict(params: str) -> dict[str, Any]:
-    """Convert parameters from string to dictionary.
+    """Parse dotted param.cgi assignments into nested dictionaries.
 
     From "root.IOPort.I1.Output.Active=closed"
     To {'root': {'IOPort': {'I1': {'Output': {'Active': 'closed'}}}}}
     """
 
     def convert(value: str) -> bool | int | str:
-        """Convert value to Python type."""
+        """Convert recognized boolean and integer text while keeping other values."""
         if value in ("true", "false", "yes", "no"):  # Boolean values
             return value in ("true", "yes")
         if value.lstrip("-").isnumeric():  # Positive/negative values
@@ -78,7 +78,7 @@ def params_to_dict(params: str) -> dict[str, Any]:
         return value
 
     def populate(store: dict[str, Any], keys: str, v: bool | int | str) -> None:
-        """Populate store with new keys and value.
+        """Create nested dictionaries for a dotted key and assign its value.
 
         populate({}, "root.IOPort.I1.Output.Active", "closed")
         {'root': {'IOPort': {'I1': {'Output': {'Active': 'closed'}}}}}
@@ -95,17 +95,17 @@ def params_to_dict(params: str) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class ParamItem(ApiItem):
-    """Parameter item."""
+    """Base for typed models decoded from param.cgi parameter groups."""
 
     @classmethod
     def decode_to_dict(cls, data: list[Any]) -> dict[str, Self]:
-        """Create objects from dict."""
+        """Decode a single ungrouped parameter payload and index it as item 0."""
         return {"0": cls.decode(data[0])}
 
 
 @dataclass
 class ParamResponse(ApiResponse[dict[str, Any]]):
-    """Response object for listing parameters."""
+    """Nested parameter groups decoded from a param.cgi response."""
 
     data: dict[str, Any]
 
@@ -120,7 +120,7 @@ class ParamResponse(ApiResponse[dict[str, Any]]):
 
 @dataclass
 class ParamRequest(ApiRequest[ParamResponse]):
-    """Request object for listing parameters."""
+    """Request all param.cgi settings or one named top-level group."""
 
     method = "post"
     path = "/axis-cgi/param.cgi"
@@ -131,7 +131,7 @@ class ParamRequest(ApiRequest[ParamResponse]):
 
     @property
     def data(self) -> dict[str, str]:
-        """Request query parameters."""
+        """Return the list action and optional fully qualified parameter group."""
         query = {"action": "list"}
         if self.group:
             query["group"] = f"root.{self.group}"

@@ -1,4 +1,4 @@
-"""Event fixtures."""
+"""XML samples for event-stream and event-instance parsing tests."""
 
 FIRST_MESSAGE = b'<?xml version="1.0" encoding="UTF-8"?>\n<tt:MetadataStream xmlns:tt="http://www.onvif.org/ver10/schema">\n</tt:MetadataStream>\n'
 

@@ -1,4 +1,4 @@
-"""Test Axis user management."""
+"""Test account listing and mutations through the Axis pwdgrp.cgi endpoint."""
 
 from typing import TYPE_CHECKING
 import urllib
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def users(axis_device) -> Users:
-    """Return the api_discovery mock object."""
+    """Return the account handler attached to the mocked device."""
     return axis_device.vapix.users
 
 
@@ -44,7 +44,7 @@ def mock_pwdgrp_request(mock_api_request):
 
 
 def test_user_class_privileges() -> None:
-    """Test privilege case that shouldn't be able to arise."""
+    """Decode an account with no recognized privilege as UNKNOWN."""
     bad_user = User.decode(
         {"user": "u", "admin": False, "operator": False, "viewer": False, "ptz": False}
     )
@@ -59,7 +59,7 @@ def test_user_class_privileges() -> None:
 
 
 async def test_users(mock_pwdgrp_request, users):
-    """Verify that you can list users."""
+    """Parse users with viewer, operator, administrator, and PTZ combinations."""
     mock_pwdgrp_request(text=GET_USERS_RESPONSE)
     await users.update()
 
@@ -107,7 +107,7 @@ async def test_users(mock_pwdgrp_request, users):
 
 
 async def test_users_new_response(mock_pwdgrp_request, users):
-    """Verify that you can list users."""
+    """Parse a CRLF-delimited account response with comma-separated group members."""
     response = b'admin="root,axisconnect"\r\noperator="root,axisconnect"\r\nviewer="root,axisconnect"\r\nptz="root,axisconnect"\r\ndigusers="root,axisconnect"\r\n'
     mock_pwdgrp_request(content=response)
     await users.update()
@@ -121,7 +121,7 @@ async def test_users_new_response(mock_pwdgrp_request, users):
 
 
 async def test_create(mock_pwdgrp_request, users):
-    """Verify that you can create users."""
+    """Encode account creation fields, including an optional comment."""
     route = mock_pwdgrp_request(text="")
 
     await users.create("joe", pwd="abcd", sgrp=SecondaryGroup.ADMIN)
@@ -162,7 +162,7 @@ async def test_create(mock_pwdgrp_request, users):
 
 
 async def test_modify(mock_pwdgrp_request, users):
-    """Verify that you can modify users."""
+    """Encode password, privilege, and comment changes as separate or combined updates."""
     route = mock_pwdgrp_request(text="")
 
     await users.modify("joe", pwd="abcd")
@@ -218,7 +218,7 @@ async def test_modify(mock_pwdgrp_request, users):
 
 
 async def test_delete(mock_pwdgrp_request, users):
-    """Verify that you can delete users."""
+    """Send a remove request for the selected account."""
     route = mock_pwdgrp_request(text="")
 
     await users.delete("joe")
@@ -239,7 +239,7 @@ async def test_equals_in_value(mock_pwdgrp_request, users):
 
 
 async def test_no_equals_in_value(mock_pwdgrp_request, users):
-    """Verify that values containing `=` are parsed correctly."""
+    """Handle a response with no account fields without raising."""
     mock_pwdgrp_request(text="")
     await users.update()
 

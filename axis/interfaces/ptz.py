@@ -23,16 +23,16 @@ class PtzControl(ApiHandler[PtzParam]):
     """Configure and control the PTZ functionality."""
 
     async def _api_request(self) -> dict[str, PtzParam]:
-        """Get API data method defined by subclass."""
+        """Refresh PTZ settings through the parameter handler."""
         return await self.get_ptz()
 
     async def get_ptz(self) -> dict[str, PtzParam]:
-        """Retrieve privilege rights for current user."""
+        """Refresh and return the device's pan, tilt, and zoom settings."""
         await self.vapix.params.ptz_handler.update()
         return self.process_ptz()
 
     def process_ptz(self) -> dict[str, PtzParam]:
-        """Process ports."""
+        """Return a copy of the parameter handler's cached PTZ data."""
         return dict(self.vapix.params.ptz_handler.items())
 
     async def control(
@@ -111,7 +111,7 @@ class PtzControl(ApiHandler[PtzParam]):
         )
 
     async def query(self, query: PtzQuery) -> bytes:
-        """Retrieve current status."""
+        """Query the selected PTZ status and return the device's raw response."""
         response = await self.vapix.api_request(QueryRequest(query))
         return response.data
 

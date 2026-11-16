@@ -1,4 +1,4 @@
-"""Axis Vapix parameter management."""
+"""Read device configuration through VAPIX param.cgi and distribute parameter-group updates."""
 
 from typing import TYPE_CHECKING, Any
 
@@ -20,12 +20,12 @@ if TYPE_CHECKING:
 
 
 class Params(ApiHandler[Any]):
-    """Represents all parameters of param.cgi."""
+    """Cache raw parameter groups and update handlers that decode each group."""
 
     api_id = ApiId.PARAM_CGI
 
     def __init__(self, vapix: Vapix) -> None:
-        """Initialize parameter classes."""
+        """Create handlers for product, image, port, firmware, PTZ, and stream settings."""
         super().__init__(vapix)
 
         self.brand_handler = BrandParameterHandler(self)

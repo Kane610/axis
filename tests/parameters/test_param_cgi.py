@@ -1,4 +1,4 @@
-"""Test Axis parameter management."""
+"""Test parameter-group normalization, requests, and subscriber notifications."""
 
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def param_handler(axis_device: AxisDevice) -> Params:
-    """Return the param cgi mock object."""
+    """Return the parameter collection attached to the mocked device."""
     return axis_device.vapix.params
 
 
@@ -41,7 +41,7 @@ async def test_param_handler_request_signalling(param_handler: Params):
 
 
 async def test_param_handler(aiohttp_mock_server, param_handler: Params):
-    """Verify that you can list parameters."""
+    """Load parameter groups and initialize each group-specific handler."""
     await aiohttp_mock_server(
         "/axis-cgi/param.cgi",
         response=PARAM_RESPONSE.encode("iso-8859-1"),

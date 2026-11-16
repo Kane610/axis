@@ -1,4 +1,4 @@
-"""VMD4 API."""
+"""Read Axis Video Motion Detection 4 (VMD4) configuration through its application API."""
 
 from ...models.applications.application import ApplicationName
 from ...models.applications.vmd4 import (
@@ -9,7 +9,7 @@ from .application_handler import ApplicationHandler
 
 
 class Vmd4Handler(ApplicationHandler[Configuration]):
-    """VMD4 handler for Axis devices."""
+    """Read Video Motion Detection 4 settings from an Axis device."""
 
     app_name = ApplicationName.VMD4
 

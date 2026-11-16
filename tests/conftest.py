@@ -1,4 +1,4 @@
-"""Setup common test helpers."""
+"""Shared fixtures for device tests and mock HTTP servers."""
 
 from __future__ import annotations
 
@@ -127,19 +127,12 @@ class MockApiRequestAssertions:
 def api_request_fixture(
     http_route_mock: HttpRouteMock,
 ) -> Callable[..., Route]:
-    """Register a route mock from an ApiRequest class.
+    """Register an HTTP mock route for an ApiRequest class.
 
-    Contract:
-      - Supported methods: GET, POST
-      - Supported content types: application/json, text/plain, text/xml
-      - Explicit response specs can mock request classes outside the direct
-        content-type mapping without adding special-case fixture logic.
-            - Prefer this fixture for model-backed ApiRequest tests.
-            - Fall back to http_route_mock for route-level side effects, multi-route
-                setup, or transport-level behavior that is not naturally tied to a
-                single ApiRequest class.
-      - For advanced behavior (side effects, header assertions, body matching),
-        use http_route_mock directly.
+    The fixture supports GET and POST requests with JSON, plain-text, or XML
+    content types. Pass an explicit response spec for other content types.
+    Use it for tests focused on one request model. Use ``http_route_mock`` for
+    multiple routes, custom side effects, or transport-level behavior.
     """
     supported_methods = {
         "GET": http_route_mock.get,
@@ -263,10 +256,9 @@ def bind_mock_api_request(
     mock_api_request: Callable[..., Route],
     api_request: type[ApiRequest],
 ) -> Callable[..., Route]:
-    """Return a partial-like helper bound to a specific ApiRequest class.
+    """Return a helper that registers responses for one ApiRequest class.
 
-    This keeps per-module fixtures thin while preserving explicit fixture names
-    close to the tests that use them.
+    This lets each test module expose a small, clearly named request fixture.
     """
 
     def _bound(
@@ -286,90 +278,83 @@ def bind_mock_api_request(
 
 
 class TcpServerProtocol(asyncio.Protocol):
-    """Simple socket server that responds with preset responses."""
+    """TCP test server that records requests and sends queued responses."""
 
     def __init__(self) -> None:
-        """Initialize TCP protocol server."""
+        """Create an empty response queue and request notification event."""
         self._response_queue: deque[str] = deque()
         self.requests: list[str] = []
         self.next_request_received = asyncio.Event()
 
     def register_response(self, response: str) -> None:
-        """Take a single response as an argument and queue it."""
+        """Queue one response for the next client request."""
         self._response_queue.append(response)
 
     def register_responses(self, responses: list[str]) -> None:
-        """Take a list of responses as an argument and queue them."""
+        """Queue responses in the order they should be sent."""
         self._response_queue.extend(responses)
 
     def connection_made(self, transport) -> None:
-        """Successful connection."""
+        """Save the transport when a client connects."""
         peername = transport.get_extra_info("peername")
         LOGGER.info("Server connection from %s", peername)
         self.transport = transport
 
     def data_received(self, data: bytes) -> None:
-        """Received a request from a client.
-
-        If test is waiting on next request to be received it can now continue.
-        """
+        """Record received request data and notify any waiting test."""
         message = data.decode()
         self.requests.append(message)
         LOGGER.info("Server received: %s", repr(message))
         self.next_request_received.set()
 
     def send_response(self, response: str) -> None:
-        """Send response to client.
-
-        Clear event so test can wait on next request to be received.
-        """
+        """Send a response and clear the request notification event."""
         LOGGER.info("Server response: %s", repr(response))
         self.transport.write(response.encode())
         self.next_request_received.clear()
 
     def step_response(self) -> None:
-        """Send next response in queue."""
+        """Send and remove the next queued response."""
         response = self._response_queue.popleft()
         self.send_response(response)
 
     @property
     def last_request(self) -> str:
-        """Return last request."""
+        """Return the most recently received request."""
         return self.requests[-1]
 
     def stop(self) -> None:
-        """Stop server."""
+        """Close the client transport."""
         self.transport.close()
 
 
 @pytest.fixture
 def aiohttp_mock_server(aiohttp_server):
-    """Consolidated mock server factory eliminating boilerplate app/router setup.
+    """Start an HTTP mock server with optional request capture and device binding.
 
-    Supports single/multiple routes, request capture, automatic device port binding.
-    Consolidates 53+ instances of web.Application() boilerplate across test suite.
+    A single route can use a handler or a fixed response. Multiple routes can be
+    supplied as a mapping. Passing a device updates its configured port to match
+    the server. Route specifications may also define a method and response.
 
-    Usage examples:
-
-    # Simple single route with request capture:
+    Example with a handler:
     server, requests = await aiohttp_mock_server(
         "/api/endpoint",
         handler=async_handler_func
     )
 
-    # Multiple routes:
+    Example with multiple routes:
     server, requests = await aiohttp_mock_server(
         {"/path1": async_handler1, "/path2": async_handler2}
     )
 
-    # With automatic device config binding (accepts AxisDevice or Vapix):
+    Example with automatic device port binding:
     server, requests = await aiohttp_mock_server(
         "/api/method",
         handler=async_handler_func,
         device=axis_device,  # auto-sets device.config.port
     )
 
-    # Response specs (replaces manual handler definition):
+    Example with response specifications:
     server, requests = await aiohttp_mock_server(
         {
             "/api/list": {"method": "POST", "response": {"data": []}},
@@ -391,28 +376,29 @@ def aiohttp_mock_server(aiohttp_server):
         capture_payload: bool = False,
         capture_body: bool = False,
     ):
-        """Create consolidated mock server with route specs and optional request capture.
+        """Start the server and optionally record requests and their bodies.
 
         Args:
-            routes: single path str or dict of {path: spec_dict or callable}
-            handler: callable handler (if routes is string path)
-            method: HTTP method for single route (default POST)
-            response: response data for auto-handler (JSON dict, text str, or bytes)
-            status: HTTP status code
-            headers: response headers
-            device: optional AxisDevice or Vapix to auto-bind server.port
-            capture_requests: if True, return captured requests list
-            capture_payload: if True, capture request body/JSON (eliminates manual payload reading)
-            capture_body: if True, capture raw request bytes as "body"
+            routes: One path or a mapping of paths to handlers or response specs.
+            handler: Handler to use when ``routes`` is a single path.
+            method: Method to use for a single route (defaults to POST).
+            response: Fixed JSON, text, or byte response for the route.
+            status: HTTP status code for the response.
+            headers: Headers to include in the response.
+            device: Device whose configured port should match the mock server.
+            capture_requests: Whether to return a list of received requests.
+            capture_payload: Whether to capture parsed request payloads.
+            capture_body: Whether to capture raw request bytes.
 
         Returns:
-            (server, requests_list) or (server, None) if capture_requests=False
+            The running server and captured requests, or ``None`` for requests
+            when capture is disabled.
 
         """
         requests: list[dict[str, object]] | None = [] if capture_requests else None
 
         def make_auto_handler(resp_data, resp_status, resp_headers):
-            """Create handler from response spec (eliminates manual handler code)."""
+            """Build a handler that returns the configured response."""
 
             async def _auto_handler(request: web.Request) -> web.Response:
                 if requests is not None:
@@ -534,13 +520,13 @@ async def http_route_mock(
 
 @pytest.fixture
 async def rtsp_server() -> TcpServerProtocol:
-    """Return the RTSP server."""
+    """Start a local TCP server that sends queued RTSP responses."""
     loop = asyncio.get_running_loop()
     mock_server = TcpServerProtocol()
     server = await loop.create_server(lambda: mock_server, HOST, RTSP_PORT)
 
     async def run_server():
-        """Run server until transport is closed."""
+        """Serve RTSP requests until the test closes the server."""
         async with server:
             await server.serve_forever()
 

@@ -1,4 +1,4 @@
-"""Direct-import tests for axis.cli.main Phase 3+4 helpers.
+"""Test event and account helpers plus device operations in axis.cli.main.
 
 Covers event-instance listing, account management confirm/validate helpers,
 and operations that orchestrate device calls via mocked AxisDevice.

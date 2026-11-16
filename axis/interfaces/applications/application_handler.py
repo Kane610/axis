@@ -1,4 +1,4 @@
-"""API handler for applications."""
+"""Share support checks and configuration loading for device analytics applications."""
 
 from abc import abstractmethod
 
@@ -8,7 +8,7 @@ from ..api_handler import ApiHandler, HandlerGroup
 
 
 class ApplicationHandler[ApiItemT: ApiItem](ApiHandler[ApiItemT]):
-    """Generic application handler."""
+    """Load an application's configuration when it is installed and running."""
 
     app_name: ApplicationName
     handler_groups = (HandlerGroup.APPLICATION,)
@@ -22,15 +22,15 @@ class ApplicationHandler[ApiItemT: ApiItem](ApiHandler[ApiItemT]):
 
     @property
     def listed_in_applications(self) -> bool:
-        """Is app name listed among applications."""
+        """Check cached application data for this application's running state."""
         if app := self.vapix.applications.get(self.app_name):
             return app.status == ApplicationStatus.RUNNING
         return False
 
     async def _api_request(self) -> dict[str, ApiItemT]:
-        """Get default configuration."""
+        """Read application configuration and store it under item ID 0."""
         return {"0": await self.get_configuration()}
 
     @abstractmethod
     async def get_configuration(self) -> ApiItemT:
-        """Get default configuration."""
+        """Read application configuration; subclasses implement the feature's request."""

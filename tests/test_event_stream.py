@@ -1,4 +1,4 @@
-"""Test Axis event stream.
+"""Test event stream initialization, decoding, subscriptions, and filtering.
 
 pytest --cov-report term-missing --cov=axis.event_stream tests/test_event_stream.py
 """
@@ -48,14 +48,14 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def event_manager(axis_device: AxisDevice) -> EventManager:
-    """Return mocked event manager."""
+    """Enable and return the event manager attached to the mocked device."""
     axis_device.enable_events()
     return axis_device.event
 
 
 @pytest.fixture
 def subscriber(event_manager: EventManager) -> Mock:
-    """Return mocked event manager."""
+    """Subscribe a mock callback to all events from the test event manager."""
     callback = Mock()
     event_manager.subscribe(callback)
     return callback
@@ -502,7 +502,7 @@ def test_subscription(event_manager: EventManager) -> None:
 
 
 async def test_event_manager_unsubscribe_twice(event_manager: EventManager):
-    """Test calling unsubscribe twice does not raise exception."""
+    """Allow repeated unsubscribe calls and cleanup after a subscription was removed."""
     callback = Mock()
 
     unsub = event_manager.subscribe(callback)
@@ -518,7 +518,7 @@ async def test_event_manager_unsubscribe_twice(event_manager: EventManager):
 
 
 async def test_event_manager_blacklisted_topic(event_manager: EventManager):
-    """Test that blacklisted topics are filtered and don't trigger callbacks."""
+    """Do not notify subscribers about blacklisted timer-topic events."""
     callback = Mock()
     event_manager.subscribe(callback)
 

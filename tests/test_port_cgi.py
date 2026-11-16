@@ -1,4 +1,4 @@
-"""Test Axis parameter management.
+"""Test parsing of legacy I/O port parameters and open/close control requests.
 
 pytest --cov-report term-missing --cov=axis.port_cgi tests/test_port_cgi.py
 """
@@ -43,7 +43,7 @@ def mock_port_action_request(mock_api_request):
 
 
 async def test_ports(mock_param_request, mock_port_action_request, axis_device) -> None:
-    """Test that different types of ports work."""
+    """Parse input and output ports and send their expected open and close actions."""
     param_route = mock_param_request(
         content="""root.Input.NbrOfInputs=3
 root.IOPort.I0.Direction=input
@@ -118,7 +118,7 @@ root.Output.NbrOfOutputs=1
 async def test_no_ports(
     mock_param_request, mock_port_action_request, axis_device
 ) -> None:
-    """Test that no ports also work."""
+    """Initialize with an empty parameter response and expose no ports."""
     param_route = mock_param_request(
         content="".encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
@@ -143,5 +143,5 @@ async def test_no_ports(
     ],
 )
 def test_enums(enum, input, output) -> None:
-    """Validate enum values."""
+    """Normalize supported port action and direction values, including unknowns."""
     assert enum(input) == output

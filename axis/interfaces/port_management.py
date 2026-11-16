@@ -19,18 +19,18 @@ from .api_handler import ApiHandler, HandlerGroup
 
 
 class IoPortManagement(ApiHandler[Port]):
-    """I/O port management for Axis devices."""
+    """Read I/O port settings and change port configuration or output states."""
 
     api_id = ApiId.IO_PORT_MANAGEMENT
     default_api_version = API_VERSION
     handler_groups = (HandlerGroup.API_DISCOVERY,)
 
     async def _api_request(self) -> dict[str, Port]:
-        """Get default data of I/O port management."""
+        """Read I/O port settings for this handler's cached data."""
         return await self.get_ports()
 
     async def get_ports(self) -> dict[str, Port]:
-        """List ports."""
+        """Read the device's I/O ports and their configuration."""
         response = await self.vapix.api_request(
             GetPortsRequest(api_version=self.api_version)
         )
@@ -41,15 +41,9 @@ class IoPortManagement(ApiHandler[Port]):
     ) -> None:
         """Configure one or more ports.
 
-        Some of the available options are:
-        * Setting a nice name that can be used in the user interface.
-        * Configuring the states and what constitutes a normal
-            and triggered state respectively.
-            This will make triggers activate in either open or closed circuits.
-        The reason the change is treated as a nice name is because it doesn't
-          affect the underlying behavior of the port.
-        Devices with configurable ports can change the direction
-          to either input or output.
+        Options include display names, normal and triggered states, and,
+        on supported devices, changing a port between input and output.
+        Display-name changes do not alter the port's electrical behavior.
         """
         await self.vapix.api_request(
             SetPortsRequest(ports, api_version=self.api_version)

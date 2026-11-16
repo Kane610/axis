@@ -1,4 +1,6 @@
-# ruff: noqa: D100,D101,D102
+# ruff: noqa: D101,D102
+
+"""Describe commands, safety flags, and results for the earlier menu CLI."""
 
 from __future__ import annotations
 

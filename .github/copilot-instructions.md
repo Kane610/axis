@@ -14,6 +14,23 @@
 
 ## Architecture
 
+- Read the authoritative separation-of-concerns and ownership contract in
+  `CONTRIBUTING.md` before adding or moving functionality. Keep this instruction
+  concise; update that guide instead of duplicating its architecture rules here.
+- Follow that guide's "Supported Python APIs and import paths" section. Use
+  supported defining modules for new consumers; do not treat CLI internals,
+  incidental imports, or compatibility re-exports as new public APIs. Preserve
+  existing core imports and require compatibility review for public-contract changes.
+- Keep one repository/distribution with Python subpackages. The device library
+  must remain directly usable by Home Assistant and other integrations without
+  application registries or optional presentation dependencies.
+- Shared workflows, records, persistence, and discovery belong in
+  `axis/application/`; terminal parsing, prompts, completion, and rendering stay
+  in `axis/cli/`. Core code must not import applications/presentation, and
+  application code must not import CLI/GUI dependencies.
+- Do not restructure `axis/models/`, `axis/interfaces/`, or `axis/vapix/` as part
+  of application separation. A future capability layer or model regrouping
+  requires a separate proposal.
 - Keep boundaries clear:
 	- `axis/interfaces/` contains API handlers and transport-facing logic.
 	- `axis/models/` contains request/response models, enums, and parsing helpers.
@@ -22,6 +39,11 @@
 - Prefer boundary normalization for incoming values (for example, enum coercion and defaults in model constructors/post-init).
 
 ## Conventions
+- Write purpose-first, human-readable descriptions throughout the repository.
+  Follow `CONTRIBUTING.md`'s "Writing descriptions readers can use" section:
+  explain the feature and actual behavior, not architecture jargon or copied
+  names. Distinguish local/cached data, network reads, previews, and writes where
+  relevant; do not promise behavior the code does not provide.
 - For every new model or interface file, add a brief, informative module-level docstring at the top of the file. Summarize the file's purpose and, for VAPIX-related code, reference the relevant VAPIX API or feature. Use the official VAPIX library documentation as a source for the summary when possible.
 
 - Prefer minimal, targeted changes that preserve existing behavior unless the task explicitly requires a behavior change.

@@ -1,4 +1,4 @@
-"""Test Vapix network API main class.
+"""Test VAPIX handler registration, initialization, and request behavior.
 
 pytest --cov-report term-missing --cov=axis.vapix tests/test_vapix.py
 """
@@ -97,13 +97,13 @@ async def http_route_mock(
 
 @pytest.fixture
 def vapix(axis_device: AxisDevice) -> Vapix:
-    """Return the vapix object."""
+    """Return the VAPIX client attached to the mocked device."""
     return axis_device.vapix
 
 
 @pytest.fixture
 def vapix_companion_device(axis_companion_device: AxisDevice) -> Vapix:
-    """Return the vapix object."""
+    """Return the companion device's VAPIX client."""
     return axis_companion_device.vapix
 
 
@@ -125,7 +125,7 @@ def mock_vapix_request(mock_api_request):
 
 
 def test_vapix_not_initialized(vapix: Vapix) -> None:
-    """Test Vapix class without initialising any data."""
+    """Expose empty handler collections and default identity values before startup."""
     assert dict(vapix.basic_device_info.items()) == {}
     assert list(vapix.basic_device_info.keys()) == []
     assert list(vapix.basic_device_info.values()) == []
@@ -283,7 +283,7 @@ async def test_inspect_interfaces_returns_structured_truth(vapix: Vapix) -> None
 
 
 async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
-    """Verify that you can initialize all APIs."""
+    """Initialize discovery, fallback, and application handlers in startup order."""
     mock_vapix_request(
         ListApisRequest,
         json=_api_discovery_with_temperature(),
@@ -365,7 +365,7 @@ async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):
 
 
 async def test_initialize_api_discovery(mock_vapix_request, vapix: Vapix):
-    """Verify that you can initialize API Discovery and that devicelist parameters."""
+    """Initialize handlers advertised by API discovery and expose device metadata."""
     mock_vapix_request(
         ListApisRequest,
         json=_api_discovery_with_temperature(),
@@ -502,7 +502,7 @@ async def test_api_request_decodes_using_request_response_type(
 
 
 async def test_initialize_api_discovery_unauthorized(http_route_mock, vapix: Vapix):
-    """Test initialize api discovery doesnt break due to exception."""
+    """Keep the VAPIX client usable when discovery-backed handlers return unauthorized."""
     http_route_mock.post("/axis-cgi/apidiscovery.cgi").respond(
         json=API_DISCOVERY_RESPONSE,
     )
@@ -529,7 +529,7 @@ async def test_initialize_api_discovery_unauthorized(http_route_mock, vapix: Vap
 
 
 async def test_initialize_api_discovery_unsupported(http_route_mock, vapix: Vapix):
-    """Test initialize api discovery doesnt break due to exception."""
+    """Continue initialization when the API discovery endpoint is unavailable."""
     http_route_mock.post("/axis-cgi/apidiscovery.cgi").side_effect = PathNotFound
 
     await vapix.initialize_api_discovery()
@@ -538,7 +538,7 @@ async def test_initialize_api_discovery_unsupported(http_route_mock, vapix: Vapi
 
 
 async def test_initialize_param_cgi(http_route_mock, mock_vapix_request, vapix: Vapix):
-    """Verify that you can list parameters."""
+    """Load parameter groups and initialize supported fallback handlers."""
     param_route = mock_vapix_request(
         ParamRequest,
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
@@ -621,7 +621,7 @@ async def test_initialize_param_cgi_for_companion_device(
     mock_vapix_request,
     vapix_companion_device: Vapix,
 ):
-    """Verify that you can list parameters."""
+    """Load companion parameters with the required Axis-Orig-Sw request flag."""
     param_route = mock_vapix_request(
         ParamRequest,
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
@@ -721,7 +721,7 @@ async def test_initialize_detects_companion_device(
 
 
 async def test_initialize_params_no_data(http_route_mock, vapix: Vapix):
-    """Verify that you can list parameters."""
+    """Probe parameter groups without loading their response data."""
     param_route = http_route_mock.post("/axis-cgi/param.cgi").respond(
         content="".encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
@@ -774,7 +774,7 @@ async def test_initialize_applications(http_route_mock, vapix: Vapix):
 async def test_initialize_applications_unauthorized(
     http_route_mock, vapix: Vapix, code
 ):
-    """Verify initialize applications doesnt break on too low credentials."""
+    """Leave application handlers empty when the account cannot list applications."""
     http_route_mock.post("/axis-cgi/param.cgi").respond(
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
@@ -791,7 +791,7 @@ async def test_initialize_applications_unauthorized(
 
 
 async def test_initialize_applications_not_running(http_route_mock, vapix: Vapix):
-    """Verify you can list and retrieve descriptions of applications."""
+    """Do not initialize application-specific handlers when every app is stopped."""
     http_route_mock.post("/axis-cgi/param.cgi").respond(
         content=PARAM_CGI_RESPONSE.encode("iso-8859-1"),
         headers={"Content-Type": "text/plain; charset=iso-8859-1"},
@@ -817,7 +817,7 @@ async def test_initialize_applications_not_running(http_route_mock, vapix: Vapix
 
 
 async def test_initialize_event_instances(http_route_mock, vapix: Vapix):
-    """Verify you can list and retrieve descriptions of applications."""
+    """Load the available event-instance definitions from the SOAP endpoint."""
     http_route_mock.post("/vapix/services").respond(
         text=EVENT_INSTANCES,
         headers={"Content-Type": "application/soap+xml; charset=utf-8"},
@@ -849,14 +849,14 @@ async def test_applications_dont_load_without_params(http_route_mock, vapix: Vap
 async def test_initialize_users_fails_due_to_low_credentials(
     http_route_mock, vapix: Vapix
 ):
-    """Verify that you can list parameters."""
+    """Leave the user collection empty when listing accounts is unauthorized."""
     http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(401)
     await vapix.initialize_users()
     assert len(vapix.users.values()) == 0
 
 
 async def test_load_user_groups(http_route_mock, vapix: Vapix):
-    """Verify that you can load user groups."""
+    """Load administrator privileges from the user-group endpoint."""
     http_route_mock.get("/axis-cgi/usergroup.cgi").respond(
         text="root\nroot admin operator ptz viewer\n",
         headers={"Content-Type": "text/plain"},
@@ -875,7 +875,7 @@ async def test_load_user_groups(http_route_mock, vapix: Vapix):
 
 
 async def test_load_user_groups_from_pwdgrpcgi(http_route_mock, vapix: Vapix):
-    """Verify that you can load user groups from pwdgrp.cgi."""
+    """Infer account privileges from pwdgrp.cgi without requesting user groups."""
     http_route_mock.post("/axis-cgi/pwdgrp.cgi").respond(
         text="""users=
 viewer="root"
@@ -942,7 +942,7 @@ async def test_request_raises(http_route_mock, vapix: Vapix, code, error):
     "side_effect", [SimulateTimeout, SimulateConnectionError, SimulateRequestError]
 )
 async def test_request_side_effects(http_route_mock, vapix: Vapix, side_effect):
-    """Test request side effects."""
+    """Convert timeout and connection failures into RequestError."""
     http_route_mock.get("").side_effect = side_effect
 
     with pytest.raises(RequestError):

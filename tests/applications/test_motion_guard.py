@@ -1,4 +1,4 @@
-"""Test Axis Motion Guard API.
+"""Test reading profile configuration from the Axis Motion Guard API.
 
 pytest --cov-report term-missing --cov=axis.applications.motion_guard tests/applications/test_motion_guard.py
 """
@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def motion_guard(axis_device) -> MotionGuardHandler:
-    """Return the motion guard mock object."""
+    """Return the Motion Guard handler attached to the mocked device."""
     return axis_device.vapix.motion_guard
 
 
 async def test_get_empty_configuration(
     aiohttp_mock_server, motion_guard: MotionGuardHandler
 ):
-    """Test empty get_configuration."""
+    """An empty profile list is accepted and sends the expected configuration request."""
     _server, requests = await aiohttp_mock_server(
         "/local/motionguard/control.cgi",
         response=GET_CONFIGURATION_EMPTY_RESPONSE,
@@ -43,7 +43,7 @@ async def test_get_empty_configuration(
 
 
 async def test_get_configuration(aiohttp_mock_server, motion_guard: MotionGuardHandler):
-    """Test get_configuration."""
+    """A returned profile preserves its configured filters and triggers."""
     await aiohttp_mock_server(
         "/local/motionguard/control.cgi",
         response=GET_CONFIGURATION_RESPONSE,

@@ -1,0 +1,603 @@
+"""Guide users through Axis commands with menus and suggestions from the CLI definitions."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import re
+import shlex
+from typing import TYPE_CHECKING
+
+import click
+from click.shell_completion import ZshComplete, split_arg_string
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.history import DummyHistory
+
+from axis.application import operations
+from axis.application.errors import StorageError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
+    from prompt_toolkit.completion import CompleteEvent
+    from prompt_toolkit.document import Document
+
+    from axis.application.records import DeviceRecord
+    from axis.cli.commands import Runtime
+
+
+def display_text(value: str) -> str:
+    """Escape control characters in device-provided text before showing it in a terminal."""
+    return value if value.isprintable() else json.dumps(value, ensure_ascii=True)
+
+
+def natural_key(value: str) -> tuple[tuple[str, int], ...]:
+    """Sort names case-insensitively, comparing embedded numbers as numbers."""
+    parts = (
+        ("", int(part)) if part.isdecimal() else (part.casefold(), -1)
+        for part in re.split(r"(\d+)", value)
+    )
+    return (*parts, (value, -1))
+
+
+def token_start(text: str) -> int:
+    """Find the current shell token while respecting quotes and escaped spaces."""
+    start = 0
+    quote = ""
+    escaped = False
+    for index, character in enumerate(text):
+        if escaped:
+            escaped = False
+        elif character == "\\" and quote != "'":
+            escaped = True
+        elif quote:
+            if character == quote:
+                quote = ""
+        elif character in ("'", '"'):
+            quote = character
+        elif character.isspace():
+            start = index + 1
+    return start
+
+
+class CommandCompleter(Completer):
+    """Suggest commands, options, and saved devices without making device requests."""
+
+    def __init__(self, command: click.Group, runtime: Runtime) -> None:
+        """Use the CLI's command definitions and the chosen device configuration file."""
+        self.command = command
+        self.runtime = runtime
+
+    def get_completions(
+        self, document: Document, complete_event: CompleteEvent
+    ) -> Iterable[Completion]:
+        """Suggest matching command words and values without running a command."""
+        text = document.text_before_cursor
+        start = token_start(text)
+        args = split_arg_string(text[:start])
+        if args and args[0] == "axis":
+            args = args[1:]
+        incomplete_tokens = split_arg_string(text[start:])
+        incomplete = incomplete_tokens[0] if incomplete_tokens else ""
+        completion = ZshComplete(self.command, {}, "axis", "_AXIS_COMPLETE")
+        items = completion.get_completions(
+            ["--config", str(self.runtime.config_path), *args], incomplete
+        )
+        for item in items:
+            if item.type in ("file", "dir"):
+                path = Path(incomplete).expanduser()
+                parent = path if incomplete.endswith("/") else path.parent
+                prefix = "" if incomplete.endswith("/") else path.name
+                try:
+                    paths = sorted(parent.iterdir())
+                except OSError:
+                    click.echo(
+                        "Path completion unavailable: directory is unreadable.",
+                        err=True,
+                    )
+                    continue
+                for candidate in paths:
+                    if candidate.name.startswith(prefix):
+                        value = str(candidate)
+                        if candidate.is_dir():
+                            value += "/"
+                        yield Completion(
+                            shlex.quote(value), start_position=start - len(text)
+                        )
+                continue
+            replacement = shlex.quote(item.value)
+            end = document.find_next_word_ending(
+                include_current_position=True, WORD=True
+            )
+            suffix = (
+                document.text_after_cursor[:end]
+                if document.text_after_cursor
+                and not document.text_after_cursor[0].isspace()
+                else ""
+            )
+            if suffix:
+                if not replacement.endswith(suffix):
+                    continue
+                replacement = replacement[: -len(suffix)]
+            yield Completion(
+                replacement,
+                start_position=start - len(text),
+                display=item.value,
+                display_meta=item.help or "",
+            )
+
+
+class CommandInterrupted(click.ClickException):
+    """Report a known interruption phase without losing the interrupted exit status."""
+
+    exit_code = 130
+
+
+def execute(
+    runtime: Runtime, command: click.Group, args: list[str], *, guided: bool = False
+) -> bool:
+    """Run a CLI command and show errors without closing the interactive session."""
+    previous_guided = runtime.guided
+    runtime.guided = guided
+    try:
+        result = command.main(
+            args=["--config", str(runtime.config_path), *args],
+            prog_name="axis",
+            obj=runtime,
+            standalone_mode=False,
+        )
+        return not isinstance(result, int) or result == 0
+    except click.ClickException as exc:
+        exc.show()
+    except (StorageError, operations.OperationError) as exc:
+        click.echo(f"Error: {exc}", err=True)
+    except KeyboardInterrupt, click.Abort:
+        click.echo(
+            "Interrupted; returning to navigation. No operation will be retried automatically.",
+            err=True,
+        )
+    finally:
+        runtime.guided = previous_guided
+    return False
+
+
+def select_device(runtime: Runtime) -> bool:
+    """Choose a saved device offline, returning false when selection is cancelled."""
+    records = list(runtime.registry.load().values())
+    if not records:
+        click.echo("No registered devices. Choose Manage saved devices to add one.")
+        return False
+    for index, record in enumerate(records, 1):
+        name = (
+            record.alias
+            or (record.discovery.name if record.discovery else "")
+            or "Axis device"
+        )
+        click.echo(
+            f"  {index}. {display_text(name)} ({record.serial}, {record.config.host})"
+        )
+    answer = (
+        click.prompt("Device number (Enter or b returns; Ctrl-C cancels)", default="b")
+        .strip()
+        .lower()
+    )
+    if answer == "b":
+        return False
+    if not answer.isdigit() or not 1 <= int(answer) <= len(records):
+        msg = "Choose a device number from the list."
+        raise click.UsageError(msg)
+    runtime.selected = records[int(answer) - 1].serial
+    return True
+
+
+def _interface_choices(
+    runtime: Runtime, record: DeviceRecord, *, refresh: bool = False
+) -> list[dict[str, object]]:
+    """Keep only the last checked target's choices; perform network checks on explicit refresh."""
+    target = record.summary()
+    if runtime.interface_target is None or not runtime.interface_target.same_target(
+        target
+    ):
+        runtime.interface_target = target
+        runtime.interface_choices = []
+    if refresh:
+        runtime.interface_choices = []
+        click.echo(
+            "Checking interfaces on this device (live, read-only network requests)."
+        )
+        runtime.interface_choices = runtime.run(operations.list_interfaces(record))
+    elif runtime.interface_choices:
+        click.echo(
+            "Interfaces from the previous check in this session; r refreshes them."
+        )
+    return runtime.interface_choices
+
+
+def select_interface(
+    interfaces: list[dict[str, object]],
+    *,
+    refresh: Callable[[], list[dict[str, object]]] | None = None,
+) -> str | None:
+    """Choose a handler by stable number or name, with search, manual entry, and cancellation."""
+    entries = list(
+        enumerate(sorted(interfaces, key=lambda row: natural_key(str(row["name"]))), 1)
+    )
+    search = ""
+    while True:
+        if not entries:
+            click.echo(
+                "No checked interfaces. Use m to enter a name or r to check this device."
+            )
+        visible = [
+            entry for entry in entries if search in str(entry[1]["name"]).casefold()
+        ]
+        if not visible:
+            click.echo("No matching interfaces. Enter / to clear the search.")
+        for index, interface in visible:
+            status = (
+                "advertised"
+                if interface.get("listed")
+                else "responded to probe"
+                if interface.get("probe_succeeded")
+                else "not confirmed"
+            )
+            click.echo(
+                f"  {index}. {display_text(str(interface['name']))}  |  {status}"
+            )
+        answer = click.prompt(
+            "Interface number or listed name; /search filters; m enters a name manually; r checks live "
+            "(Enter/b returns)",
+            default="b",
+        ).strip()
+        if answer in {"", "b"}:
+            return None
+        if answer.startswith("/"):
+            search = answer[1:].casefold()
+            continue
+        if answer == "m":
+            return str(click.prompt("Handler name (example: basic_device_info)"))
+        if answer == "r" and refresh is not None:
+            try:
+                interfaces = refresh()
+            except operations.OperationError as exc:
+                click.echo(
+                    f"Interface check failed: {exc} Use m for manual entry or r to retry.",
+                    err=True,
+                )
+                interfaces = []
+            entries = list(
+                enumerate(
+                    sorted(interfaces, key=lambda row: natural_key(str(row["name"]))), 1
+                )
+            )
+            search = ""
+            continue
+        for index, interface in visible:
+            if (
+                answer == str(index)
+                or answer.casefold() == str(interface["name"]).casefold()
+            ):
+                return str(interface["name"])
+        click.echo("Choose a listed number or name, /search, m, r, or b.", err=True)
+
+
+def _choose_interface(runtime: Runtime, record: DeviceRecord) -> str | None:
+    """Offer prior session choices, manual entry, or an explicit live refresh."""
+    return select_interface(
+        _interface_choices(runtime, record),
+        refresh=lambda: _interface_choices(runtime, record, refresh=True),
+    )
+
+
+def select_discovered_host(
+    devices: list[dict[str, str]], parameter: click.Option
+) -> str | None:
+    """Reuse a scan address by number, or explicitly enter a different host."""
+    click.echo(
+        "Devices from the last discovery in this session "
+        "(unauthenticated announcements; addresses are not rechecked here)."
+    )
+    while True:
+        for index, device in enumerate(devices, 1):
+            name = device.get("name") or device.get("model") or "Axis device"
+            click.echo(
+                f"  {index}. {display_text(name)}  |  {display_text(device['host'])}"
+            )
+        click.echo("  m. Enter a hostname or IP manually")
+        answer = (
+            click.prompt(
+                "Discovered device number (Enter/b returns; m enters a host manually)",
+                default="b",
+            )
+            .strip()
+            .lower()
+        )
+        if answer in {"", "b"}:
+            return None
+        if answer == "m":
+            return str(
+                click.prompt(parameter.help or "Hostname or IP", type=parameter.type)
+            )
+        if answer.isdecimal() and 1 <= int(answer) <= len(devices):
+            return devices[int(answer) - 1]["host"]
+        click.echo("Choose a discovered device number, m, or b.", err=True)
+
+
+def guided_arguments(
+    runtime: Runtime, command: click.Command, *, choose_device: bool = False
+) -> list[str]:
+    """Choose a device before collecting other inputs from the canonical command definitions."""
+    args: list[str] = []
+    click.echo("Ctrl-C cancels this command and returns to the menu.")
+    if (
+        any(
+            isinstance(parameter, click.Option) and parameter.name == "device"
+            for parameter in command.params
+        )
+        and (choose_device or runtime.selected is None)
+        and not select_device(runtime)
+    ):
+        raise click.Abort
+    with command.make_context(
+        command.name or "axis", [], resilient_parsing=True
+    ) as context:
+        defaults = context.params
+    customize_connection: bool | None = None
+    for parameter in command.params:
+        if isinstance(parameter, click.Option):
+            default_path = {
+                ("doctor", "selected_check"): "doctor",
+                ("discover", "seconds"): "devices discover",
+                ("listen", "stream_mode"): "events listen",
+            }.get((command.name or "", parameter.name or ""))
+            if default_path is not None:
+                click.echo(
+                    f"Using {parameter.opts[0]}={defaults.get(parameter.name or '')}. "
+                    f"To customize, use the command prompt: "
+                    f"{default_path} {parameter.opts[0]} VALUE"
+                )
+                continue
+            if command.name == "add" and parameter.name in {
+                "port",
+                "proto",
+                "verify_ssl",
+                "auth",
+                "companion",
+            }:
+                if customize_connection is None:
+                    click.echo(
+                        f"Connection defaults: protocol={defaults['proto']}, "
+                        f"port={defaults['port']} (protocol default), "
+                        f"verify HTTPS certificates={defaults['verify_ssl']}, "
+                        f"authentication={defaults['auth']}, companion={defaults['companion']}."
+                    )
+                    customize_connection = click.confirm(
+                        "Customize advanced connection settings?", default=False
+                    )
+                if not customize_connection:
+                    continue
+        if isinstance(parameter, (click.Argument, click.Option)) and isinstance(
+            parameter.type, click.Choice
+        ):
+            click.echo(f"Allowed values: {', '.join(map(str, parameter.type.choices))}")
+        if isinstance(parameter, click.Argument):
+            if parameter.name == "interface":
+                value = _choose_interface(runtime, runtime.device(None))
+                if value is None:
+                    raise click.Abort
+            elif parameter.name == "name" and command.name == "alias":
+                value = click.prompt(
+                    "New local alias (example: front-door; empty clears it)",
+                    default="",
+                    type=parameter.type,
+                )
+            else:
+                label = (
+                    "Remote account login name (example: viewer)"
+                    if parameter.name == "username"
+                    else (parameter.name or "Value").replace("_", " ").capitalize()
+                )
+                value = click.prompt(label, type=parameter.type)
+            args.append(str(value))
+            continue
+        if not isinstance(parameter, click.Option):
+            continue
+        if parameter.name in ("as_json", "yes", "password_file", "apply"):
+            continue
+        if parameter.name == "device":
+            continue
+        if (
+            parameter.name == "host"
+            and command.name == "add"
+            and runtime.discovered_devices
+        ):
+            value = select_discovered_host(runtime.discovered_devices, parameter)
+            if value is None:
+                raise click.Abort
+            args.extend([parameter.opts[0], value])
+            continue
+        if parameter.is_flag:
+            if click.confirm(
+                parameter.help or parameter.opts[0],
+                default=bool(defaults.get(parameter.name or "")),
+            ):
+                args.append(parameter.opts[0])
+            elif parameter.secondary_opts:
+                args.append(parameter.secondary_opts[0])
+            continue
+        default = defaults.get(parameter.name or "")
+        if not parameter.required and default is None:
+            click.echo("Optional: Enter skips this field.")
+            value = click.prompt(
+                parameter.help or parameter.name or "Value", default=""
+            )
+            if value == "":
+                continue
+        else:
+            value = click.prompt(
+                parameter.help or parameter.name or "Value",
+                default=default,
+                type=parameter.type,
+                show_default=True,
+            )
+        if value != "":
+            args.extend([parameter.opts[0], str(value)])
+    return args
+
+
+def command_prompt(runtime: Runtime, command: click.Group) -> None:
+    """Suggest commands as users type and let them correct mistakes without saving history."""
+    session: PromptSession[str] = PromptSession(
+        completer=CommandCompleter(command, runtime),
+        complete_while_typing=True,
+        history=DummyHistory(),
+    )
+    click.echo(
+        "Enter commands with or without 'axis'. /back, Ctrl-C, or Ctrl-D returns."
+    )
+    click.echo("Tab shows suggestions. Command history is disabled for secret safety.")
+    retry = ""
+    while True:
+        try:
+            text = session.prompt(
+                f"axis[{runtime.selected or 'no device'}]> ", default=retry
+            )
+        except EOFError, KeyboardInterrupt:
+            return
+        if text.strip() == "/back":
+            return
+        if not text.strip():
+            continue
+        try:
+            args = shlex.split(text)
+        except ValueError:
+            click.echo(
+                "Incomplete quoting. Correct the command; nothing was executed.",
+                err=True,
+            )
+            retry = text
+            continue
+        retry = ""
+        if args and args[0] == "axis":
+            args = args[1:]
+        execute(runtime, command, args or ["--help"])
+
+
+def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> None:
+    """Let the user select a library handler and read it through the CLI command parser."""
+    click.echo("Enter returns from the interface list; Ctrl-C cancels browsing.")
+    while (name := _choose_interface(runtime, record)) is not None:
+        path = click.prompt(
+            "Nested value (example: 0.name; Enter shows all data)", default=""
+        )
+        args = ["api", "read", name, "--device", record.serial]
+        if path:
+            args.extend(["--path", path])
+        execute(runtime, command, args)
+
+
+def _command_paths(
+    command: click.Command, path: list[str]
+) -> dict[click.Command, list[str]]:
+    """Find canonical command paths even when menus display commands in other groups."""
+    paths = {command: path}
+    if isinstance(command, click.Group):
+        for name, entry in command.commands.items():
+            paths.update(_command_paths(entry, [*path, name]))
+    return paths
+
+
+def launch(runtime: Runtime, command: click.Group) -> None:
+    """Separate saved-device management from operations on a chosen device."""
+    paths = _command_paths(command, [])
+    device_menu = click.Group(
+        help="Choose a saved device, then read data, listen to events, or manage accounts."
+    )
+    tools_menu = click.Group(
+        help="Check the local installation or set up shell completion."
+    )
+    home = click.Group(commands={"Use a device": device_menu})
+    for name, entry in command.commands.items():
+        if name == "devices":
+            home.commands["Manage saved devices"] = entry
+        elif name in {"doctor", "completion"}:
+            tools_menu.commands[name] = entry
+        elif name == "device" and isinstance(entry, click.Group):
+            device_menu.commands.update(entry.commands)
+        else:
+            device_menu.commands[name] = entry
+    home.commands["Setup & diagnostics"] = tools_menu
+    labels = {
+        "health": "Health",
+        "api": "APIs",
+        "params": "Parameters",
+        "events": "Events",
+        "accounts": "Accounts",
+    }
+    stack: list[tuple[click.Group, list[str]]] = [(home, [])]
+    while True:
+        group, path = stack[-1]
+        click.echo(f"\nAxis / {' / '.join(path) or 'home'}")
+        click.echo(f"Device: {runtime.selected or 'none selected'}")
+        entries = list(group.commands.items())
+        names = [labels.get(name, name) for name, _ in entries]
+        width = max((len(name) for name in names), default=0)
+        for index, (name, entry) in enumerate(entries, 1):
+            click.echo(
+                f"  {index}. {labels.get(name, name):<{width}}  |  "
+                f"{entry.get_short_help_str(limit=1000)}"
+            )
+        using_device = len(stack) > 1 and stack[1][0] is device_menu
+        if using_device:
+            click.echo("  s. Change device")
+        click.echo(
+            "  c. Command prompt   b. Back   e. Exit"
+            if len(stack) > 1
+            else "  c. Command prompt   e. Exit   Enter stays here"
+        )
+        choosing_menu = True
+        try:
+            answer = (
+                click.prompt(
+                    "Select",
+                    default="b" if len(stack) > 1 else "",
+                    show_default=len(stack) > 1,
+                )
+                .strip()
+                .lower()
+            )
+            choosing_menu = False
+            if answer == "e":
+                return
+            if answer == "b" or not answer:
+                if len(stack) > 1:
+                    stack.pop()
+                continue
+            if answer == "s" and using_device:
+                select_device(runtime)
+                continue
+            if answer == "c":
+                command_prompt(runtime, command)
+                continue
+            if not answer.isdigit() or not 1 <= int(answer) <= len(entries):
+                click.echo("Choose a listed number or shortcut.", err=True)
+                continue
+            name, entry = entries[int(answer) - 1]
+            if isinstance(entry, click.Group):
+                if entry is device_menu and not select_device(runtime):
+                    continue
+                stack.append((entry, [*path, labels.get(name, name)]))
+                continue
+            args = guided_arguments(runtime, entry, choose_device=not using_device)
+            execute(runtime, command, [*paths[entry], *args], guided=True)
+        except (StorageError, operations.OperationError) as exc:
+            click.echo(f"Error: {exc}", err=True)
+        except click.ClickException as exc:
+            exc.show()
+        except KeyboardInterrupt, click.Abort, EOFError:
+            if len(stack) == 1 and choosing_menu:
+                return
+            click.echo("Cancelled; returning to the menu.", err=True)
+            if choosing_menu:
+                stack.pop()

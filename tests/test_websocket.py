@@ -1,4 +1,4 @@
-"""Test websocket event client.
+"""Test WebSocket connection, event decoding, failure handling, and cleanup.
 
 pytest --cov-report term-missing --cov=axis.websocket tests/test_websocket.py
 """

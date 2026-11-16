@@ -1,4 +1,4 @@
-"""API Discovery api item."""
+"""Models for the VAPIX API Discovery endpoint and its API catalog."""
 
 from dataclasses import dataclass
 import enum
@@ -92,7 +92,7 @@ class ApiId(enum.StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> ApiId:
-        """Set default enum member if an unknown value is provided."""
+        """Return UNKNOWN for an API identifier not defined by this package."""
         LOGGER.info("Unsupported API discovery ID '%s'", value)
         return ApiId.UNKNOWN
 
@@ -110,20 +110,20 @@ class ApiStatus(enum.StrEnum):
 
     @classmethod
     def _missing_(cls, value: object) -> ApiStatus:
-        """Set default enum member if an unknown value is provided."""
+        """Return UNKNOWN for a status value not recognized by this package."""
         LOGGER.debug("Unsupported API discovery status '%s'", value)
         return ApiStatus.UNKNOWN
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by an API Discovery request."""
 
     code: int
     message: str
 
 
 class ApiDescriptionT(TypedDict):
-    """API description representation."""
+    """One API's identifier, display name, version, status, and documentation link."""
 
     docLink: str
     id: str
@@ -133,13 +133,13 @@ class ApiDescriptionT(TypedDict):
 
 
 class ListApisDataT(TypedDict):
-    """List of API description data."""
+    """The API descriptions returned by the getApiList method."""
 
     apiList: list[ApiDescriptionT]
 
 
 class ListApisResponseT(TypedDict):
-    """ListApis response."""
+    """JSON envelope returned by the getApiList method."""
 
     apiVersion: str
     context: str
@@ -149,13 +149,13 @@ class ListApisResponseT(TypedDict):
 
 
 class ApiVersionsT(TypedDict):
-    """List of supported API versions."""
+    """API versions supported by the device."""
 
     apiVersions: list[str]
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """ListApis response."""
+    """JSON envelope returned by the getSupportedVersions method."""
 
     apiVersion: str
     context: str
@@ -177,7 +177,7 @@ error_codes = {
 
 @dataclass(frozen=True)
 class Api(ApiItem):
-    """API Discovery item."""
+    """One VAPIX API advertised by the device."""
 
     name: str
     status: ApiStatus
@@ -185,12 +185,12 @@ class Api(ApiItem):
 
     @property
     def api_id(self) -> ApiId:
-        """ID of API."""
+        """Return the API identifier as a known or UNKNOWN enum value."""
         return ApiId(self.id)
 
     @classmethod
     def decode(cls, data: ApiDescriptionT) -> Self:
-        """Decode dict to class object."""
+        """Convert an API Discovery catalog entry to an Api."""
         return cls(
             id=data["id"],
             name=data["name"],
@@ -201,7 +201,7 @@ class Api(ApiItem):
 
 @dataclass
 class GetAllApisResponse(ApiResponse[dict[str, Api]]):
-    """Response object for basic device info."""
+    """API catalog returned by the getApiList method."""
 
     api_version: str
     context: str
@@ -211,7 +211,7 @@ class GetAllApisResponse(ApiResponse[dict[str, Api]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the catalog response and index APIs by their identifiers."""
         data: ListApisResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -223,7 +223,7 @@ class GetAllApisResponse(ApiResponse[dict[str, Api]]):
 
 @dataclass
 class ListApisRequest(ApiRequest[GetAllApisResponse]):
-    """Request object for listing API descriptions."""
+    """Request the device's VAPIX API catalog."""
 
     method = "post"
     path = "/axis-cgi/apidiscovery.cgi"
@@ -237,7 +237,7 @@ class ListApisRequest(ApiRequest[GetAllApisResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getApiList request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -249,7 +249,7 @@ class ListApisRequest(ApiRequest[GetAllApisResponse]):
 
 @dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
-    """Response object for supported versions."""
+    """API versions supported by API Discovery."""
 
     api_version: str
     context: str
@@ -259,7 +259,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the supported-version list from the response envelope."""
         data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -271,7 +271,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 @dataclass
 class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
-    """Request object for listing supported API versions."""
+    """Request the API versions supported by API Discovery."""
 
     method = "post"
     path = "/axis-cgi/apidiscovery.cgi"
@@ -284,7 +284,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getSupportedVersions request as JSON."""
         return orjson.dumps(
             {
                 "context": self.context,

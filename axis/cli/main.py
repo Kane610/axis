@@ -1,7 +1,7 @@
-"""Axis CLI composition root and compatibility exports.
+"""Keep the earlier menu-based CLI and its imports available to existing callers.
 
-This module serves as the explicit bootstrap and import surface for the
-plugin-pack based CLI architecture.
+The supported ``axis`` executable uses commands.py instead. This module retains
+the older menu setup and helper names, rather than defining the current commands.
 """
 
 # ruff: noqa: RUF022,TC003
@@ -104,7 +104,7 @@ def _configure_logging(debug_enabled: bool) -> None:
 
 
 def compose_builtin_packs(registry: CommandRegistry, router: CliRouter) -> None:
-    """Register built-in CLI packs explicitly from a single composition root."""
+    """Register the earlier menu's device, API, event, account, and navigation commands."""
     devices_pack.register(registry, router)
     api_pack.register(registry, router)
     events_pack.register(registry, router)
@@ -113,7 +113,7 @@ def compose_builtin_packs(registry: CommandRegistry, router: CliRouter) -> None:
 
 
 def build_cli_runtime(config_path: Path) -> CliContext:
-    """Create shared runtime context for the CLI process."""
+    """Build the earlier menu's registry, router, and device connection helper."""
     registry = CommandRegistry()
     router = CliRouter()
     compose_builtin_packs(registry, router)
@@ -126,7 +126,7 @@ def build_cli_runtime(config_path: Path) -> CliContext:
 
 
 def main(*, debug: bool | None = None) -> None:
-    """Run the interactive device registry CLI."""
+    """Run the earlier interactive device registry menu."""
     debug_enabled = _debug_enabled_from_env() if debug is None else debug
     _configure_logging(debug_enabled)
 
@@ -205,5 +205,6 @@ __all__ = [
 
 
 if __name__ == "__main__":
-    args = _parse_args()
-    main(debug=args.debug)
+    from axis.cli.entrypoint import main as run_cli
+
+    run_cli()

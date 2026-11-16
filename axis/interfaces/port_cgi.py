@@ -16,7 +16,7 @@ PROPERTY = "Properties.API.HTTP.Version=3"
 
 
 class Ports(ApiHandler[IOPortParam]):
-    """Represents all ports of io/port.cgi."""
+    """Read digital I/O port settings and control outputs through io/port.cgi."""
 
     @property
     def listed_in_parameters(self) -> bool:
@@ -24,20 +24,20 @@ class Ports(ApiHandler[IOPortParam]):
         return self.vapix.params.io_port_handler.listed_in_parameters
 
     async def _api_request(self) -> dict[str, IOPortParam]:
-        """Get API data method defined by subclass."""
+        """Refresh I/O port settings through the parameter handler."""
         return await self.get_ports()
 
     async def get_ports(self) -> dict[str, IOPortParam]:
-        """Retrieve privilege rights for current user."""
+        """Refresh and return the device's digital I/O port settings."""
         await self.vapix.params.io_port_handler.update()
         return self.process_ports()
 
     def load_ports(self) -> None:
-        """Load ports into class."""
+        """Copy already loaded I/O port parameters into this handler's cached data."""
         self._items.update(self.process_ports())
 
     def process_ports(self) -> dict[str, IOPortParam]:
-        """Process ports from I/O port handler."""
+        """Return a copy of the parameter handler's cached I/O port data."""
         return dict(self.vapix.params.io_port_handler.items())
 
     async def action(self, id: str, action: PortAction) -> None:
@@ -47,9 +47,9 @@ class Ports(ApiHandler[IOPortParam]):
         await self.vapix.api_request(PortActionRequest(id, action))
 
     async def open(self, id: str) -> None:
-        """Open port."""
+        """Set an output port to its low state."""
         await self.action(id, PortAction.LOW)
 
     async def close(self, id: str) -> None:
-        """Close port."""
+        """Set an output port to its high state."""
         await self.action(id, PortAction.HIGH)

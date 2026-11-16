@@ -1,4 +1,4 @@
-"""Test Axis Applications API.
+"""Test parsing installed applications from the Axis applications API.
 
 pytest --cov-report term-missing --cov=axis.applications.applications tests/applications/test_applications.py
 """
@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def applications(axis_device) -> ApplicationsHandler:
-    """Return the applications mock object."""
+    """Return the applications handler attached to the mocked device."""
     return axis_device.vapix.applications
 
 
 async def test_update_no_application(
     aiohttp_mock_server, applications: ApplicationsHandler
 ):
-    """Test update applicatios call."""
+    """An empty application list initializes the handler without adding entries."""
     _server, requests = await aiohttp_mock_server(
         "/axis-cgi/applications/list.cgi",
         response=LIST_APPLICATION_EMPTY_RESPONSE,
@@ -39,7 +39,7 @@ async def test_update_no_application(
 async def test_update_single_application(
     aiohttp_mock_server, applications: ApplicationsHandler
 ):
-    """Test update applications call."""
+    """A single application response populates every exposed application field."""
     await aiohttp_mock_server(
         "/axis-cgi/applications/list.cgi",
         response=LIST_APPLICATION_RESPONSE,
@@ -71,7 +71,7 @@ async def test_update_single_application(
 async def test_update_multiple_applications(
     aiohttp_mock_server, applications: ApplicationsHandler
 ):
-    """Test update applicatios call."""
+    """A multi-application response preserves each application's metadata and status."""
     await aiohttp_mock_server(
         "/axis-cgi/applications/list.cgi",
         response=LIST_APPLICATIONS_RESPONSE,
@@ -188,7 +188,7 @@ async def test_update_multiple_applications(
 async def test_responses_with_with_limitations(
     aiohttp_mock_server, applications: ApplicationsHandler
 ):
-    """Test update applications call."""
+    """Application responses with optional fields can be parsed without errors."""
     await aiohttp_mock_server(
         "/axis-cgi/applications/list.cgi",
         response=Q1615_MKII_9_80_LIST_APPLICATIONS_RESPONSE,

@@ -6,6 +6,7 @@ This guide helps you get the most out of Copilot when contributing to the Axis l
 
 - **Architecture:** [README.md](README.md) — Phase-based handler initialization
 - **Conventions:** [CONTRIBUTING.md](CONTRIBUTING.md) — Coding patterns, tests, fixtures
+- **Descriptions:** [Writing descriptions readers can use](CONTRIBUTING.md#writing-descriptions-readers-can-use) — Explain purpose and actual behavior in plain language
 - **Project rules:** [.github/copilot-instructions.md](.github/copilot-instructions.md) — Build, test, git workflow
 - **Request templates:** [.github/copilot-instructions.md](.github/copilot-instructions.md#how-to-ask-copilot-for-high-quality-work) — High-quality ask structure
 - **Review agents:** [.github/agents/](.github/agents/) — Code review and validation

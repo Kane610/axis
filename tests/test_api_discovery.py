@@ -1,4 +1,4 @@
-"""Test Axis API Discovery API.
+"""Test API discovery requests, returned API records, and unknown enum values.
 
 pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discovery.py
 """
@@ -14,17 +14,17 @@ from axis.models.api_discovery import (
 
 
 async def test_api_id_enum():
-    """Verify API ID of unsupported type."""
+    """Unknown API identifiers normalize to the UNKNOWN member."""
     assert ApiId("unsupported") is ApiId.UNKNOWN
 
 
 async def test_api_status_enum():
-    """Verify API status of unsupported type."""
+    """Unknown API statuses normalize to the UNKNOWN member."""
     assert ApiStatus("unsupported") is ApiStatus.UNKNOWN
 
 
 async def test_get_api_list(mock_api_request, axis_device):
-    """Test get_api_list call."""
+    """Fetch and decode the device API list, including an unknown returned status."""
     route = mock_api_request(ListApisRequest, GET_API_LIST_RESPONSE)
     api_discovery = axis_device.vapix.api_discovery
     assert api_discovery.supported
@@ -51,7 +51,7 @@ async def test_get_api_list(mock_api_request, axis_device):
 
 
 async def test_get_supported_versions(mock_api_request, axis_device):
-    """Test get_supported_versions."""
+    """Request and return the API versions supported by API discovery."""
     route = mock_api_request(
         GetSupportedVersionsRequest, GET_SUPPORTED_VERSIONS_RESPONSE
     )

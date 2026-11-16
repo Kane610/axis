@@ -1,4 +1,4 @@
-"""Basic device information description."""
+"""Models for product identity and supported versions from Basic Device Information."""
 
 from dataclasses import dataclass
 from typing import NotRequired, Self, TypedDict
@@ -11,14 +11,14 @@ API_VERSION = "1.1"
 
 
 class ErrorDataT(TypedDict):
-    """Error data in response."""
+    """Error code and message returned by the Basic Device Information API."""
 
     code: int
     message: str
 
 
 class DeviceInformationDescriptionT(TypedDict):
-    """API description representation."""
+    """Product, firmware, hardware, and system fields returned by the API."""
 
     Architecture: str
     Brand: str
@@ -37,13 +37,13 @@ class DeviceInformationDescriptionT(TypedDict):
 
 
 class PropertiesDataT(TypedDict):
-    """List of API description data."""
+    """Device property list in a getAllProperties response."""
 
     propertyList: DeviceInformationDescriptionT
 
 
 class GetAllPropertiesResponseT(TypedDict):
-    """ListApis response."""
+    """JSON envelope returned by getAllProperties."""
 
     apiVersion: str
     context: str
@@ -53,13 +53,13 @@ class GetAllPropertiesResponseT(TypedDict):
 
 
 class ApiVersionsT(TypedDict):
-    """List of supported API versions."""
+    """Versions of the Basic Device Information API supported by the device."""
 
     apiVersions: list[str]
 
 
 class GetSupportedVersionsResponseT(TypedDict):
-    """ListApis response."""
+    """JSON envelope returned by getSupportedVersions."""
 
     apiVersion: str
     context: str
@@ -82,7 +82,7 @@ error_codes = {
 
 @dataclass(frozen=True)
 class DeviceInformation(ApiItem):
-    """API Discovery item."""
+    """Normalized product, firmware, hardware, and system identity."""
 
     architecture: str
     brand: str
@@ -101,7 +101,7 @@ class DeviceInformation(ApiItem):
 
     @classmethod
     def decode(cls, data: DeviceInformationDescriptionT) -> Self:
-        """Decode dict to class object."""
+        """Convert the API's property names to the device information model."""
         return cls(
             id="0",
             architecture=data["Architecture"],
@@ -123,7 +123,7 @@ class DeviceInformation(ApiItem):
 
 @dataclass
 class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
-    """Response object for basic device info."""
+    """Device identity fields returned by getAllProperties."""
 
     api_version: str
     context: str
@@ -133,7 +133,7 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the JSON envelope and decode its device property list."""
         data: GetAllPropertiesResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -145,7 +145,7 @@ class GetAllPropertiesResponse(ApiResponse[DeviceInformation]):
 
 @dataclass
 class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesResponse]):
-    """Request object for basic device info."""
+    """Request product and firmware properties from the device."""
 
     method = "post"
     path = "/axis-cgi/basicdeviceinfo.cgi"
@@ -159,7 +159,7 @@ class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getAllProperties request as JSON."""
         return orjson.dumps(
             {
                 "apiVersion": self.api_version,
@@ -171,7 +171,7 @@ class GetAllPropertiesRequest(ApiRequest[GetAllPropertiesResponse]):
 
 @dataclass
 class GetSupportedVersionsResponse(ApiResponse[list[str]]):
-    """Response object for supported versions."""
+    """Basic Device Information API versions supported by the device."""
 
     api_version: str
     context: str
@@ -181,7 +181,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
     @classmethod
     def decode(cls, bytes_data: bytes) -> Self:
-        """Prepare API description dictionary."""
+        """Parse the supported-version list from the response envelope."""
         data: GetSupportedVersionsResponseT = orjson.loads(bytes_data)
         return cls(
             api_version=data["apiVersion"],
@@ -193,7 +193,7 @@ class GetSupportedVersionsResponse(ApiResponse[list[str]]):
 
 @dataclass
 class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
-    """Request object for listing supported API versions."""
+    """Request the Basic Device Information API versions supported by the device."""
 
     method = "post"
     path = "/axis-cgi/basicdeviceinfo.cgi"
@@ -206,7 +206,7 @@ class GetSupportedVersionsRequest(ApiRequest[GetSupportedVersionsResponse]):
 
     @property
     def content(self) -> bytes:
-        """Initialize request data."""
+        """Encode a getSupportedVersions request as JSON."""
         return orjson.dumps(
             {
                 "context": self.context,
