@@ -76,6 +76,7 @@ class Runtime:
     selected: str | None = None
     runner: asyncio.Runner = field(default_factory=asyncio.Runner)
     discovered_devices: list[dict[str, str]] = field(default_factory=list)
+    guided: bool = False
 
     @property
     def registry(self) -> DeviceRegistry:
@@ -610,23 +611,42 @@ def account_change(
     intent = operations.prepare_account_change(
         record, action, username, privilege, password_change=password_file is not None
     )
-    if not apply:
+    if runtime.guided:
+        change_password = action == "create" or (
+            action == "update"
+            and click.confirm("Change the password too?", default=False)
+        )
+        intent = replace(intent, password_change=change_password)
+        click.echo(
+            f"Review {action} on {interactive.display_text(record.serial)} "
+            f"({interactive.display_text(record.config.host)}). No change submitted."
+        )
+        render(intent.preview(), as_json)
+        if not click.confirm(
+            f"{action.capitalize()} account {username} on {record.serial} now?",
+            default=False,
+        ):
+            click.echo("Preview only; nothing was submitted.")
+            return
+        password = secret(runtime, password_file) if change_password else None
+    elif not apply:
         render(intent.preview(), as_json)
         return
-    if action == "delete":
-        confirm(runtime, yes, f"Delete account {username} on {record.serial}?")
-    change_password = action == "create" or (
-        action == "update"
-        and (
-            password_file is not None
-            or (
-                runtime.interactive
-                and click.confirm("Change the password too?", default=False)
+    else:
+        if action == "delete":
+            confirm(runtime, yes, f"Delete account {username} on {record.serial}?")
+        change_password = action == "create" or (
+            action == "update"
+            and (
+                password_file is not None
+                or (
+                    runtime.interactive
+                    and click.confirm("Change the password too?", default=False)
+                )
             )
         )
-    )
-    password = secret(runtime, password_file) if change_password else None
-    intent = replace(intent, password_change=change_password)
+        password = secret(runtime, password_file) if change_password else None
+        intent = replace(intent, password_change=change_password)
     result = runtime.run(
         operations.apply_account_change(
             record,

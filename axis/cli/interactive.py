@@ -128,8 +128,12 @@ class CommandCompleter(Completer):
             )
 
 
-def execute(runtime: Runtime, command: click.Group, args: list[str]) -> bool:
+def execute(
+    runtime: Runtime, command: click.Group, args: list[str], *, guided: bool = False
+) -> bool:
     """Run a CLI command and show errors without closing the interactive session."""
+    previous_guided = runtime.guided
+    runtime.guided = guided
     try:
         result = command.main(
             args=["--config", str(runtime.config_path), *args],
@@ -144,6 +148,8 @@ def execute(runtime: Runtime, command: click.Group, args: list[str]) -> bool:
         click.echo(f"Error: {exc}", err=True)
     except KeyboardInterrupt, click.Abort:
         click.echo("Cancelled; returning to navigation.", err=True)
+    finally:
+        runtime.guided = previous_guided
     return False
 
 
@@ -313,7 +319,7 @@ def guided_arguments(
             continue
         if not isinstance(parameter, click.Option):
             continue
-        if parameter.name in ("as_json", "yes", "password_file"):
+        if parameter.name in ("as_json", "yes", "password_file", "apply"):
             continue
         if parameter.name == "device":
             continue
@@ -501,7 +507,7 @@ def launch(runtime: Runtime, command: click.Group) -> None:
                 stack.append((entry, [*path, labels.get(name, name)]))
                 continue
             args = guided_arguments(runtime, entry, choose_device=not using_device)
-            execute(runtime, command, [*paths[entry], *args])
+            execute(runtime, command, [*paths[entry], *args], guided=True)
         except (StorageError, operations.OperationError) as exc:
             click.echo(f"Error: {exc}", err=True)
         except click.ClickException as exc:

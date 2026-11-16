@@ -278,7 +278,7 @@ their containing storage. The CLI does not display those secrets.
 
 ### Safe account changes and output
 
-Remote account writes require `--apply`. Without it, commands validate and
+Direct remote account writes require `--apply`. Without it, commands validate and
 preview the intended change without contacting the device or reading a
 password. Updates require an explicit `--privilege` so a password change cannot
 silently downgrade an administrator. Account deletion additionally requires
@@ -286,6 +286,14 @@ interactive confirmation or `--yes` in scripts.
 Applied account changes now also verify that the connected serial matches the
 registered target before writing. A mismatch fails rather than changing another
 device at a reused address.
+
+Guided account changes collect the account, privilege, and password-change intent
+before showing a credential-free preview with the device serial and host.
+Only a final, default-No confirmation authorizes the write; deletion explicitly
+names the account and target. Declining leaves the preview without submitting
+anything or reading a password. Hidden password entry, when needed, follows
+approval; cancelling it still submits nothing. Direct commands and the command
+prompt retain their explicit `--apply` contract.
 
 ```bash
 axis accounts create viewer --device front-door

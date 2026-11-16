@@ -186,7 +186,7 @@ def test_guided_arguments_derive_from_parser(runtime: Runtime) -> None:
         patch.object(click, "confirm", return_value=True),
     ):
         args = interactive.guided_arguments(runtime, command)
-    assert args == ["value", "--apply", "--path", "path", "--choice", "viewer"]
+    assert args == ["value", "--path", "path", "--choice", "viewer"]
     assert runtime.selected == "SERIAL"
     with (
         patch.object(click, "prompt", side_effect=["value", "", "path", "viewer"]),
@@ -297,6 +297,86 @@ def test_guided_alias_can_clear_name(runtime: Runtime) -> None:
     with patch.object(click, "prompt", side_effect=["2", "4", "1", "", "b", "e"]):
         interactive.launch(runtime, cli)
     assert runtime.registry.resolve("SERIAL").alias == ""
+
+
+@pytest.mark.parametrize("action", ["create", "update", "delete"])
+@pytest.mark.parametrize("approve", [False, True])
+def test_guided_account_review_precedes_authorization(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str], action: str, approve: bool
+) -> None:
+    """Review includes all non-secret intent before approval; declining never reads a secret."""
+    runtime.selected = "SERIAL"
+    arguments = ["accounts", action, "viewer"]
+    if action != "delete":
+        arguments.extend(["--privilege", "operator"])
+
+    def authorize(message: str, *, default: bool) -> bool:
+        if message == "Change the password too?":
+            return True
+        output = capsys.readouterr().out
+        assert '"status": "preview"' in output
+        assert '"device": "SERIAL"' in output
+        assert f'"action": "{action}"' in output
+        if action != "delete":
+            assert '"privilege": "operator"' in output
+            assert '"password_change": true' in output
+        assert "SERIAL" in message
+        assert "viewer" in message
+        assert default is False
+        return approve
+
+    with (
+        patch.object(click, "confirm", side_effect=authorize),
+        patch.object(commands, "secret", return_value="hidden") as secret,
+        patch.object(
+            operations,
+            "apply_account_change",
+            new=AsyncMock(
+                side_effect=lambda record, intent, password, **kwargs: (
+                    operations.AccountChangeResult(intent)
+                )
+            ),
+        ) as apply,
+    ):
+        assert interactive.execute(runtime, cli, arguments, guided=True)
+    assert apply.await_count == int(approve)
+    assert secret.call_count == int(approve and action != "delete")
+    assert runtime.guided is False
+
+
+def test_guided_account_arguments_do_not_authorize_early(runtime: Runtime) -> None:
+    """Collecting account details never asks for apply before the preview exists."""
+    runtime.selected = "SERIAL"
+    with (
+        patch.object(click, "prompt", side_effect=["viewer", "operator"]),
+        patch.object(click, "confirm") as confirm,
+    ):
+        args = interactive.guided_arguments(
+            runtime, cli.commands["accounts"].commands["update"]
+        )
+    assert args == ["viewer", "--privilege", "operator"]
+    confirm.assert_not_called()
+
+
+@pytest.mark.parametrize("stage", ["approval", "password"])
+def test_cancel_guided_account_never_submits(runtime: Runtime, stage: str) -> None:
+    """Interrupting final approval or secret entry leaves the proposed change unapplied."""
+    runtime.selected = "SERIAL"
+    with (
+        patch.object(
+            click,
+            "confirm",
+            side_effect=KeyboardInterrupt if stage == "approval" else None,
+            return_value=True,
+        ),
+        patch.object(commands, "secret", side_effect=KeyboardInterrupt),
+        patch.object(operations, "apply_account_change", new=AsyncMock()) as apply,
+    ):
+        assert not interactive.execute(
+            runtime, cli, ["accounts", "create", "viewer"], guided=True
+        )
+    apply.assert_not_awaited()
+    assert runtime.guided is False
 
 
 def test_discover_then_add_uses_numbered_host(
@@ -543,7 +623,7 @@ def test_launcher_selects_before_device_operations(
     output = capsys.readouterr().out
     assert output.index("front door (SERIAL, camera)") < output.index("Health")
     assert runtime.selected == "SERIAL"
-    execute.assert_called_once_with(runtime, cli, ["device", "health"])
+    execute.assert_called_once_with(runtime, cli, ["device", "health"], guided=True)
 
 
 def test_menu_names_and_descriptions_are_visually_separate(
@@ -648,7 +728,7 @@ def test_launcher_cancelled_field_returns_to_its_menu(
     assert "Ctrl-C cancels this command" in output
     assert "Cancelled; returning to the menu." in captured.err
     assert output.count("Axis / Manage saved devices") == 3
-    execute.assert_called_once_with(runtime, cli, ["devices", "list"])
+    execute.assert_called_once_with(runtime, cli, ["devices", "list"], guided=True)
 
 
 @pytest.mark.parametrize("error", [KeyboardInterrupt, EOFError, click.Abort])
