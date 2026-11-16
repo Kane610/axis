@@ -317,9 +317,105 @@ def test_guided_choices_explain_allowed_values(
     runtime: Runtime, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Finite choices are shown before prompting, not left for users to guess."""
-    with patch.object(click, "prompt", return_value="config"):
-        interactive.guided_arguments(runtime, cli.commands["doctor"])
-    assert "all, installation, path, config, completion" in capsys.readouterr().out
+    with patch.object(click, "prompt", return_value="https"):
+        interactive.guided_arguments(
+            runtime,
+            click.Command(
+                "test",
+                params=[
+                    click.Option(["--proto"], type=click.Choice(["http", "https"]))
+                ],
+            ),
+        )
+    assert "http, https" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("path", "expected", "option"),
+    [
+        (["doctor"], [], "--check"),
+        (["devices", "discover"], [], "--seconds"),
+        (["events", "listen"], [], "--stream-mode"),
+    ],
+)
+def test_guided_defaults_avoid_redundant_questions(
+    runtime: Runtime,
+    capsys: pytest.CaptureFixture[str],
+    path: list[str],
+    expected: list[str],
+    option: str,
+) -> None:
+    """Routine diagnostics, scans, and transport defaults need no repeated approval."""
+    runtime.selected = "SERIAL"
+    command = cli
+    for name in path:
+        command = command.commands[name]
+    with (
+        patch.object(click, "prompt", return_value="") as prompt,
+        patch.object(click, "confirm") as confirm,
+    ):
+        assert interactive.guided_arguments(runtime, command) == expected
+    assert prompt.call_count == int(path == ["events", "listen"])
+    confirm.assert_not_called()
+    assert option in capsys.readouterr().out
+
+
+def test_guided_registration_defaults_skip_advanced_settings(runtime: Runtime) -> None:
+    """Normal registration asks only essential inputs and retains certificate verification."""
+    with (
+        patch.object(
+            click, "prompt", side_effect=["camera.local", "root", "", "hidden"]
+        ) as prompt,
+        patch.object(click, "confirm", return_value=False) as confirm,
+        patch.object(
+            operations,
+            "identify",
+            new=AsyncMock(side_effect=lambda settings: DeviceRecord("NEW", settings)),
+        ) as identify,
+    ):
+        args = interactive.guided_arguments(
+            runtime, cli.commands["devices"].commands["add"]
+        )
+        assert interactive.execute(runtime, cli, ["devices", "add", *args], guided=True)
+    assert args == ["--host", "camera.local", "--username", "root"]
+    assert prompt.call_count == 4
+    confirm.assert_called_once_with(
+        "Customize advanced connection settings?", default=False
+    )
+    settings = identify.call_args.args[0]
+    assert settings.verify_ssl is True
+    assert settings.port == 0
+    assert settings.auth_scheme == "auto"
+    assert settings.is_companion is False
+
+
+def test_guided_registration_can_customize_connection(runtime: Runtime) -> None:
+    """Advanced settings preserve explicit protocol, port, auth, companion and TLS choices."""
+    with (
+        patch.object(
+            click,
+            "prompt",
+            side_effect=["camera.local", "root", "", 8443, "https", "digest"],
+        ),
+        patch.object(click, "confirm", side_effect=[True, False, True]),
+    ):
+        args = interactive.guided_arguments(
+            runtime, cli.commands["devices"].commands["add"]
+        )
+    assert args == [
+        "--host",
+        "camera.local",
+        "--username",
+        "root",
+        "--port",
+        "8443",
+        "--proto",
+        "https",
+        "--no-verify-ssl",
+        "--auth",
+        "digest",
+        "--companion",
+    ]
 
 
 def test_interface_search_keeps_original_numbers(
@@ -468,15 +564,12 @@ def test_discover_then_add_uses_numbered_host(
                 "2",
                 "root",
                 "",
-                0,
-                "http",
-                "auto",
                 "new-hidden-value",
                 "b",
                 "e",
             ],
         ) as prompt,
-        patch.object(click, "confirm", side_effect=[True, False]),
+        patch.object(click, "confirm", return_value=False),
         patch.object(
             operations,
             "identify",

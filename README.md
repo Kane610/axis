@@ -210,6 +210,14 @@ Choose a number or name, use `/text` to filter without renumbering (`/` clears),
 or `m` to enter a handler name manually. Enter or `b` cancels selection.
 Other guided inputs show allowed values or explain their purpose with examples;
 optional fields explicitly say how to skip them. An empty alias clears it.
+Doctor runs all checks, discovery scans for the default five seconds, and event
+listening uses automatic transport without asking users to reconfirm those
+defaults. The launcher prints the option and command path for customization
+through its command prompt. Event listening still offers an optional topic.
+Registration collects host, login name, and optional alias, then offers one
+default-No advanced-settings step for port, protocol, certificate verification,
+authentication, and companion mode. Skipping it preserves the canonical defaults,
+including HTTPS certificate verification; disabling verification remains explicit.
 
 ### Devices and direct commands
 

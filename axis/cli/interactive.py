@@ -334,7 +334,40 @@ def guided_arguments(
         command.name or "axis", [], resilient_parsing=True
     ) as context:
         defaults = context.params
+    customize_connection: bool | None = None
     for parameter in command.params:
+        if isinstance(parameter, click.Option):
+            default_path = {
+                ("doctor", "selected_check"): "doctor",
+                ("discover", "seconds"): "devices discover",
+                ("listen", "stream_mode"): "events listen",
+            }.get((command.name or "", parameter.name or ""))
+            if default_path is not None:
+                click.echo(
+                    f"Using {parameter.opts[0]}={defaults.get(parameter.name or '')}. "
+                    f"To customize, use the command prompt: "
+                    f"{default_path} {parameter.opts[0]} VALUE"
+                )
+                continue
+            if command.name == "add" and parameter.name in {
+                "port",
+                "proto",
+                "verify_ssl",
+                "auth",
+                "companion",
+            }:
+                if customize_connection is None:
+                    click.echo(
+                        f"Connection defaults: protocol={defaults['proto']}, "
+                        f"port={defaults['port']} (protocol default), "
+                        f"verify HTTPS certificates={defaults['verify_ssl']}, "
+                        f"authentication={defaults['auth']}, companion={defaults['companion']}."
+                    )
+                    customize_connection = click.confirm(
+                        "Customize advanced connection settings?", default=False
+                    )
+                if not customize_connection:
+                    continue
         if isinstance(parameter, (click.Argument, click.Option)) and isinstance(
             parameter.type, click.Choice
         ):
