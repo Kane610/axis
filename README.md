@@ -200,7 +200,12 @@ prompt it exits. Bare groups show help. `api browse` is terminal-only; scripts u
 API and interface lists use case-insensitive alphabetical order, with embedded
 numbers sorted numerically. Human-readable reads sort dictionary keys the same
 way, including API Discovery results; list order and `--path` indices stay intact.
-Guided **read** and **browse** show the same numbered, live-checked handler list.
+Guided **read** and **browse** share numbered handler choices from the previous
+check for the same target in this session, labelled as previously checked.
+Use `r` for an explicit live check or refresh, or `m` to enter a known handler
+without discovery. Failed or empty checks still allow manual entry and retry.
+Switching devices or changing the connection target clears the choices; no
+interface checks run automatically before a read.
 Choose a number or name, use `/text` to filter without renumbering (`/` clears),
 or `m` to enter a handler name manually. Enter or `b` cancels selection.
 Other guided inputs show allowed values or explain their purpose with examples;

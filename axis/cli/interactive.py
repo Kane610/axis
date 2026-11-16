@@ -18,7 +18,7 @@ from axis.application import operations
 from axis.application.errors import StorageError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
     from prompt_toolkit.completion import CompleteEvent
     from prompt_toolkit.document import Document
@@ -183,23 +183,43 @@ def select_device(runtime: Runtime) -> bool:
 
 
 def _interface_choices(
-    runtime: Runtime, record: DeviceRecord
+    runtime: Runtime, record: DeviceRecord, *, refresh: bool = False
 ) -> list[dict[str, object]]:
-    """Check the selected device's handlers before offering live read choices."""
-    click.echo("Checking interfaces on this device (live, read-only network requests).")
-    return runtime.run(operations.list_interfaces(record))
+    """Keep only the last checked target's choices; perform network checks on explicit refresh."""
+    target = record.summary()
+    if runtime.interface_target is None or not runtime.interface_target.same_target(
+        target
+    ):
+        runtime.interface_target = target
+        runtime.interface_choices = []
+    if refresh:
+        runtime.interface_choices = []
+        click.echo(
+            "Checking interfaces on this device (live, read-only network requests)."
+        )
+        runtime.interface_choices = runtime.run(operations.list_interfaces(record))
+    elif runtime.interface_choices:
+        click.echo(
+            "Interfaces from the previous check in this session; r refreshes them."
+        )
+    return runtime.interface_choices
 
 
-def select_interface(interfaces: list[dict[str, object]]) -> str | None:
+def select_interface(
+    interfaces: list[dict[str, object]],
+    *,
+    refresh: Callable[[], list[dict[str, object]]] | None = None,
+) -> str | None:
     """Choose a handler by stable number or name, with search, manual entry, and cancellation."""
     entries = list(
         enumerate(sorted(interfaces, key=lambda row: natural_key(str(row["name"]))), 1)
     )
-    if not entries:
-        click.echo("No interfaces available.")
-        return None
     search = ""
     while True:
+        if not entries:
+            click.echo(
+                "No checked interfaces. Use m to enter a name or r to check this device."
+            )
         visible = [
             entry for entry in entries if search in str(entry[1]["name"]).casefold()
         ]
@@ -217,7 +237,7 @@ def select_interface(interfaces: list[dict[str, object]]) -> str | None:
                 f"  {index}. {display_text(str(interface['name']))}  |  {status}"
             )
         answer = click.prompt(
-            "Interface number or listed name; /search filters; m enters a name manually "
+            "Interface number or listed name; /search filters; m enters a name manually; r checks live "
             "(Enter/b returns)",
             default="b",
         ).strip()
@@ -228,13 +248,37 @@ def select_interface(interfaces: list[dict[str, object]]) -> str | None:
             continue
         if answer == "m":
             return str(click.prompt("Handler name (example: basic_device_info)"))
+        if answer == "r" and refresh is not None:
+            try:
+                interfaces = refresh()
+            except operations.OperationError as exc:
+                click.echo(
+                    f"Interface check failed: {exc} Use m for manual entry or r to retry.",
+                    err=True,
+                )
+                interfaces = []
+            entries = list(
+                enumerate(
+                    sorted(interfaces, key=lambda row: natural_key(str(row["name"]))), 1
+                )
+            )
+            search = ""
+            continue
         for index, interface in visible:
             if (
                 answer == str(index)
                 or answer.casefold() == str(interface["name"]).casefold()
             ):
                 return str(interface["name"])
-        click.echo("Choose a listed number or name, /search, m, or b.", err=True)
+        click.echo("Choose a listed number or name, /search, m, r, or b.", err=True)
+
+
+def _choose_interface(runtime: Runtime, record: DeviceRecord) -> str | None:
+    """Offer prior session choices, manual entry, or an explicit live refresh."""
+    return select_interface(
+        _interface_choices(runtime, record),
+        refresh=lambda: _interface_choices(runtime, record, refresh=True),
+    )
 
 
 def select_discovered_host(
@@ -297,9 +341,7 @@ def guided_arguments(
             click.echo(f"Allowed values: {', '.join(map(str, parameter.type.choices))}")
         if isinstance(parameter, click.Argument):
             if parameter.name == "interface":
-                value = select_interface(
-                    _interface_choices(runtime, runtime.device(None))
-                )
+                value = _choose_interface(runtime, runtime.device(None))
                 if value is None:
                     raise click.Abort
             elif parameter.name == "name" and command.name == "alias":
@@ -402,9 +444,8 @@ def command_prompt(runtime: Runtime, command: click.Group) -> None:
 
 def browse_api(runtime: Runtime, record: DeviceRecord, command: click.Group) -> None:
     """Let the user select a library handler and read it through the CLI command parser."""
-    interfaces = _interface_choices(runtime, record)
     click.echo("Enter returns from the interface list; Ctrl-C cancels browsing.")
-    while (name := select_interface(interfaces)) is not None:
+    while (name := _choose_interface(runtime, record)) is not None:
         path = click.prompt(
             "Nested value (example: 0.name; Enter shows all data)", default=""
         )

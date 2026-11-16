@@ -32,6 +32,8 @@ from axis.cli import interactive
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
+    from axis.application.records import DeviceSummary
+
 
 class _CliFormatter(logging.Formatter):
     """Explain unavailable discovery interfaces without hiding unexpected tracebacks."""
@@ -77,6 +79,8 @@ class Runtime:
     runner: asyncio.Runner = field(default_factory=asyncio.Runner)
     discovered_devices: list[dict[str, str]] = field(default_factory=list)
     guided: bool = False
+    interface_target: DeviceSummary | None = None
+    interface_choices: list[dict[str, object]] = field(default_factory=list)
 
     @property
     def registry(self) -> DeviceRegistry:

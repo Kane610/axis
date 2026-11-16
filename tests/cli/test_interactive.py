@@ -223,7 +223,7 @@ def test_guided_read_offers_live_numbered_interfaces(
                 return_value=[{"name": "zoo"}, {"name": "basic_device_info"}]
             ),
         ) as lookup,
-        patch.object(click, "prompt", side_effect=["1", ""]) as prompt,
+        patch.object(click, "prompt", side_effect=["r", "1", ""]) as prompt,
     ):
         args = interactive.guided_arguments(runtime, command)
     assert args == ["basic_device_info"]
@@ -232,7 +232,7 @@ def test_guided_read_offers_live_numbered_interfaces(
     output = capsys.readouterr().out
     assert "live" in output
     assert "basic_device_info" in output
-    assert "0.name" in prompt.call_args_list[1].args[0]
+    assert "0.name" in prompt.call_args_list[2].args[0]
 
 
 def test_guided_read_cancel_stops_before_path(runtime: Runtime) -> None:
@@ -247,6 +247,70 @@ def test_guided_read_cancel_stops_before_path(runtime: Runtime) -> None:
     ):
         interactive.guided_arguments(runtime, cli.commands["api"].commands["read"])
     assert prompt.call_count == 1
+
+
+def test_guided_read_manual_entry_needs_no_discovery(runtime: Runtime) -> None:
+    """Known handlers remain accessible without any discovery requests."""
+    runtime.selected = "SERIAL"
+    with (
+        patch.object(operations, "list_interfaces", new=AsyncMock()) as lookup,
+        patch.object(click, "prompt", side_effect=["m", "api_discovery", ""]),
+    ):
+        args = interactive.guided_arguments(
+            runtime, cli.commands["api"].commands["read"]
+        )
+    assert args == ["api_discovery"]
+    lookup.assert_not_awaited()
+
+
+def test_interface_refresh_failure_keeps_manual_entry(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A failed live check is explicit but never traps the user outside manual reading."""
+    runtime.selected = "SERIAL"
+    with (
+        patch.object(
+            operations,
+            "list_interfaces",
+            new=AsyncMock(side_effect=operations.OperationError("Device unavailable.")),
+        ),
+        patch.object(click, "prompt", side_effect=["r", "m", "api_discovery", ""]),
+    ):
+        assert interactive.guided_arguments(
+            runtime, cli.commands["api"].commands["read"]
+        ) == ["api_discovery"]
+    assert "Device unavailable." in capsys.readouterr().err
+
+
+def test_interface_choices_reused_only_for_same_target(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Session choices avoid repeated probes but never cross devices or changed hosts."""
+    runtime.selected = "SERIAL"
+    command = cli.commands["api"].commands["read"]
+    with (
+        patch.object(
+            operations, "list_interfaces", new=AsyncMock(return_value=[{"name": "api"}])
+        ) as lookup,
+        patch.object(
+            click, "prompt", side_effect=["r", "1", "", "1", "", "r", "1", ""]
+        ),
+    ):
+        interactive.guided_arguments(runtime, command)
+        interactive.guided_arguments(runtime, command)
+        interactive.guided_arguments(runtime, command)
+    assert lookup.await_count == 2
+    assert "previous check" in capsys.readouterr().out
+    for serial, host in [("SECOND", "other"), ("SERIAL", "changed")]:
+        record = DeviceRecord(serial, ConnectionSettings(host, "root", "secret"))
+        runtime.registry.upsert(record)
+        runtime.selected = serial
+        with (
+            patch.object(click, "prompt", return_value="b"),
+            pytest.raises(click.Abort),
+        ):
+            interactive.guided_arguments(runtime, command)
+        assert runtime.interface_choices == []
 
 
 def test_guided_choices_explain_allowed_values(
@@ -537,7 +601,9 @@ def test_api_browse_dispatches_canonical_read(runtime: Runtime) -> None:
             "list_interfaces",
             new=AsyncMock(return_value=[{"name": "api10"}, {"name": "api2"}]),
         ),
-        patch.object(click, "prompt", side_effect=["bad", "1", "0.name", "1", "", "b"]),
+        patch.object(
+            click, "prompt", side_effect=["r", "bad", "1", "0.name", "1", "", "b"]
+        ),
         patch.object(interactive, "execute") as execute,
     ):
         interactive.browse_api(runtime, record, cli)
@@ -557,7 +623,10 @@ def test_api_browse_dispatches_canonical_read(runtime: Runtime) -> None:
         "--device",
         "SERIAL",
     ]
-    with patch.object(operations, "list_interfaces", new=AsyncMock(return_value=[])):
+    with (
+        patch.object(operations, "list_interfaces", new=AsyncMock(return_value=[])),
+        patch.object(click, "prompt", side_effect=["r", "b"]),
+    ):
         interactive.browse_api(runtime, record, cli)
 
 
