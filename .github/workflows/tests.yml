@@ -7,6 +7,33 @@ on:
     branches: [master]
 
 jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - name: Install locked frontend dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install test browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Lint and check frontend formatting
+        run: pnpm lint && pnpm format:check
+      - name: Run frontend unit tests
+        run: pnpm test
+      - name: Build, type-check and browser-test frontend
+        run: pnpm test:e2e
+      - name: Verify packaged frontend is up to date
+        run: git diff --exit-code -- ../axis/web/static/
+
   checks:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest

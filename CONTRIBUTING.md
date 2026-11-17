@@ -78,6 +78,13 @@ behavior, and isolated Zsh startup/completion. It downloads runtime
 dependencies and needs network access. It does not change personal shell or
 device configuration. CI runs the same check independently.
 
+For frontend work, use Node.js 24 and the pnpm version pinned in
+`web/package.json`. Run the [frontend checks](README.md#local-web-interface)
+before opening a pull request. Commit `web/pnpm-lock.yaml` and the regenerated
+`axis/web/static/app.js` when they change. Do not edit the generated bundle
+directly. ESLint, Prettier, TypeScript, Vitest, and Playwright run in the
+independent **Frontend** CI job.
+
 Async fixtures use function-scoped event loops, configured explicitly in
 `pyproject.toml`. Keep warnings treated as errors rather than suppressing
 pytest-asyncio configuration warnings.
@@ -132,7 +139,7 @@ confirmation policies.
 The dependency direction is:
 
 ```text
-CLI / future graphical adapter
+CLI / web presentation adapter
               |
     axis.application services
               |
@@ -157,7 +164,11 @@ application services without optional CLI dependencies.
 | Save devices in TOML, coordinate writers, and replace completed files | `axis/application/storage.py` |
 | Network discovery without prompts or registration | `axis/application/discovery.py` |
 | CLI arguments, completion, secret input, confirmation, rendering | `axis/cli/` |
-| Future screen navigation, loading state, pending edits | Graphical presentation adapter |
+| Local web server, WebSocket API, packaged frontend | `axis/web/` |
+| Web screen navigation and loading state | `web/src/app.ts` |
+| Typed web commands, responses, and WebSocket lifecycle | `web/src/data/` |
+| Reusable Lit presentation and Web Awesome-based Axis controls | `web/src/components/` |
+| Semantic theme tokens and shared presentation styles | `web/src/resources/` |
 
 Do not put every dataclass in `axis/models/`. Device protocol models remain
 separate from saved device registrations, proposed account changes, and screen

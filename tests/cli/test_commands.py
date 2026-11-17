@@ -23,6 +23,7 @@ from axis.cli.storage import (
     DeviceRegistry,
     StorageError,
 )
+from axis.web import server as web_server
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -122,6 +123,7 @@ def invoke(runtime: Runtime, args: list[str]) -> Result:
         ["accounts", "update"],
         ["accounts", "delete"],
         ["doctor"],
+        ["web"],
         ["completion", "zsh"],
     ],
 )
@@ -139,6 +141,32 @@ def test_bare_invocation_and_groups(runtime: Runtime) -> None:
     assert "terminal" in result.output
     result = invoke(runtime, ["api"])
     assert "Commands:" in result.output
+
+
+@pytest.mark.parametrize("port", [None, "8766"])
+def test_web_uses_shared_launcher(runtime: Runtime, port: str | None) -> None:
+    """CLI web launch uses the chosen registry and port."""
+    config = runtime.config_path.parent / "other.toml"
+    args = ["--config", str(config), "web"]
+    if port is not None:
+        args.extend(["--port", port])
+    with patch.object(web_server, "run_server") as launch:
+        result = invoke(runtime, args)
+    assert result.exit_code == 0, result.output
+    launch.assert_called_once_with(config, int(port) if port else 8765)
+
+
+def test_web_invalid_port_and_startup_failure(runtime: Runtime) -> None:
+    """Invalid or busy ports report actionable errors rather than crashing."""
+    with patch.object(web_server, "run_server") as launch:
+        result = invoke(runtime, ["web", "--port", "0"])
+    assert result.exit_code == 2
+    launch.assert_not_called()
+    with patch.object(web_server, "run_server", side_effect=OSError):
+        result = invoke(runtime, ["web"])
+    assert result.exit_code == 1
+    assert "Cannot start the local web server" in result.output
+    assert "--port" in result.output
 
 
 def test_launcher_and_debug(runtime: Runtime, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1,0 +1,2 @@
+# Preserve significant template-literal whitespace in the generated bundle.
+axis/web/static/app.js linguist-generated=true -whitespace

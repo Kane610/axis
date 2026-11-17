@@ -350,6 +350,7 @@ def guided_arguments(
                 ("doctor", "selected_check"): "doctor",
                 ("discover", "seconds"): "devices discover",
                 ("listen", "stream_mode"): "events listen",
+                ("web", "port"): "web",
             }.get((command.name or "", parameter.name or ""))
             if default_path is not None:
                 click.echo(
@@ -523,11 +524,15 @@ def launch(runtime: Runtime, command: click.Group) -> None:
             home.commands["Manage saved devices"] = entry
         elif name in {"doctor", "completion"}:
             tools_menu.commands[name] = entry
+        elif name == "web":
+            continue
         elif name == "device" and isinstance(entry, click.Group):
             device_menu.commands.update(entry.commands)
         else:
             device_menu.commands[name] = entry
     home.commands["Setup & diagnostics"] = tools_menu
+    if "web" in command.commands:
+        home.commands["Open web interface"] = command.commands["web"]
     labels = {
         "health": "Health",
         "api": "APIs",
