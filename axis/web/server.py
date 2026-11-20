@@ -13,6 +13,7 @@ import webbrowser
 from aiohttp import WSMsgType, web
 
 from axis.application import operations
+from axis.application.discovery import discover_axis_devices
 from axis.application.errors import ErrorKind, OperationError, StorageError
 from axis.application.storage import DeviceRegistry
 
@@ -33,6 +34,8 @@ async def _execute(registry: DeviceRegistry, message: dict[str, Any]) -> object:
             operations.normalize_payload(record.summary())
             for record in registry.load().values()
         ]
+    if command == "devices/discover":
+        return await discover_axis_devices()
     identifier = message.get("device")
     if (
         not isinstance(command, str)
@@ -67,6 +70,7 @@ async def _respond(
     message: dict[str, Any],
 ) -> None:
     request_id = message["id"]
+    is_discovery = message.get("type") == "devices/discover"
     try:
         async with asyncio.timeout(COMMAND_TIMEOUT):
             result = await _execute(registry, message)
@@ -74,7 +78,9 @@ async def _respond(
         response = {"id": request_id, "error": {"code": "storage", "message": str(err)}}
     except OperationError as err:
         error_message = str(err)
-        if err.kind == ErrorKind.CONNECTION:
+        if is_discovery:
+            error_message = "Device discovery failed. Check this computer's local network access and try again."
+        elif err.kind == ErrorKind.CONNECTION:
             error_message = (
                 "Cannot reach the device. Check that it is powered on, that this "
                 "computer can reach its network, and that its saved address and port are correct."
@@ -98,7 +104,11 @@ async def _respond(
             "id": request_id,
             "error": {
                 "code": "timeout",
-                "message": "The device did not respond in time. Check its connection and try again.",
+                "message": (
+                    "Device discovery timed out. Try again."
+                    if is_discovery
+                    else "The device did not respond in time. Check its connection and try again."
+                ),
             },
         }
     except Exception:  # noqa: BLE001 - prevent transport exceptions exposing secrets

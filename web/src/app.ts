@@ -1,6 +1,7 @@
 import { LitElement, css, html, nothing } from "lit";
 import { AxisConnection, type ConnectionStatus } from "./data/connection";
 import {
+  discoverDevices,
   fetchApis,
   fetchDevices,
   fetchHealth,
@@ -15,11 +16,13 @@ import "./components/axis-button";
 import "./components/axis-card";
 import "./components/axis-device-health";
 import "./components/axis-device-list";
+import type { DiscoveryState } from "./components/axis-device-list";
 
 class AxisApp extends LitElement {
   static properties = {
     status: { state: true },
     devices: { state: true },
+    discovery: { state: true },
     selected: { state: true },
     health: { state: true },
     interfaces: { state: true },
@@ -55,6 +58,7 @@ class AxisApp extends LitElement {
 
   private status = "Connecting";
   private devices: Device[] = [];
+  private discovery: DiscoveryState | null = null;
   private selected = "";
   private health: Health | null = null;
   private interfaces: DeviceInterface[] = [];
@@ -112,6 +116,7 @@ class AxisApp extends LitElement {
     }
     ++this.operation;
     ++this.refreshId;
+    this.discovery = null;
     this.health = null;
     this.interfaces = [];
     this.data = null;
@@ -137,6 +142,21 @@ class AxisApp extends LitElement {
       }
     } catch (error) {
       if (this.refreshId === refreshId) this.error = (error as Error).message;
+    }
+  }
+
+  private async scanLocalNetwork(): Promise<void> {
+    if (this.status !== "Connected" || this.discovery?.status === "scanning")
+      return;
+    const scan = { status: "scanning" } as const;
+    this.discovery = scan;
+    try {
+      const devices = await discoverDevices(this.connection);
+      if (this.discovery === scan)
+        this.discovery = { status: "complete", devices };
+    } catch (error) {
+      if (this.discovery === scan)
+        this.discovery = { status: "error", message: (error as Error).message };
     }
   }
 
@@ -190,9 +210,11 @@ class AxisApp extends LitElement {
         <div class="panels">
           <axis-device-list
             .devices=${this.devices}
+            .discovery=${this.discovery}
             .selected=${this.selected}
             .connected=${connected}
             @axis-refresh=${this.refreshDevices}
+            @axis-scan=${this.scanLocalNetwork}
             @axis-select=${(event: CustomEvent<string>) => this.selectDevice(event.detail)}
           >
           </axis-device-list>

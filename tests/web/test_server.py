@@ -129,6 +129,59 @@ async def test_list_returns_only_safe_json(
     await socket.close()
 
 
+async def test_discovery_is_explicit_and_does_not_update_registry(
+    client: TestClient,
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    wire_results: dict[str, object],
+) -> None:
+    """Return announced devices without changing the saved device configuration."""
+    discover = AsyncMock(return_value=wire_results["devices/discover"])
+    monkeypatch.setattr(server, "discover_axis_devices", discover)
+    before = registry.load()
+    socket = await connect(client)
+    assert await command(socket, type="devices/list") == {
+        "id": 1,
+        "result": wire_results["devices/list"],
+    }
+    discover.assert_not_awaited()
+    assert await command(socket, type="devices/discover") == {
+        "id": 1,
+        "result": wire_results["devices/discover"],
+    }
+    discover.assert_awaited_once_with()
+    assert registry.load() == before
+    await socket.close()
+
+
+@pytest.mark.parametrize(
+    ("failure", "code", "message"),
+    [
+        (
+            OperationError("Unusable interface.", kind=ErrorKind.CONNECTION),
+            "connection",
+            "Device discovery failed. Check this computer's local network access and try again.",
+        ),
+        (TimeoutError(), "timeout", "Device discovery timed out. Try again."),
+    ],
+)
+async def test_discovery_errors(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+    code: str,
+    message: str,
+) -> None:
+    """Report scan failures without suggesting edits to a saved device."""
+    monkeypatch.setattr(server, "discover_axis_devices", AsyncMock(side_effect=failure))
+    socket = await connect(client)
+    assert await command(socket, type="devices/discover") == {
+        "id": 1,
+        "error": {"code": code, "message": message},
+    }
+    await socket.close()
+
+
 async def test_health_and_api_reads(
     client: TestClient,
     registry: DeviceRegistry,

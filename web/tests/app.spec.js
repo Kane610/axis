@@ -86,6 +86,125 @@ async function select(page, name, requests, count) {
   await expect.poll(() => requests.length).toBe(count);
 }
 
+test("scans only on request and shows distinct discovered tiles in the saved device list", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  const scan = page.getByRole("button", { name: "Scan local network" });
+  expect(requests).toHaveLength(0);
+
+  await scan.click();
+  await expect(scan).toBeDisabled();
+  await expect(page.getByText("Scanning the local network…")).toBeVisible();
+  await expect
+    .poll(() => requests.map(({ type }) => type))
+    .toEqual(["devices/discover"]);
+  await respond(page, requests[0], [
+    {
+      name: "<b>Entrance camera</b>",
+      host: "192.0.2.2",
+      macaddress: "00:40:8c:01:02:03",
+      model: "Test camera",
+    },
+  ]);
+  await expect(page.getByText("New devices found: 1")).toBeVisible();
+  const list = page.getByRole("list", { name: "Devices", exact: true });
+  const saved = list.getByRole("button", { name: /Camera A/ });
+  const discovered = list
+    .getByRole("listitem")
+    .filter({ hasText: "<b>Entrance camera</b>" });
+  await expect(discovered).toBeVisible();
+  await expect(discovered).toContainText(
+    "192.0.2.2) — 00:40:8c:01:02:03 — Test camera",
+  );
+  await expect(discovered).toContainText("Discovered");
+  await expect(discovered.getByRole("button")).toHaveCount(0);
+  await expect(saved).toBeEnabled();
+  const savedOutline = await saved.evaluate(
+    (button) => getComputedStyle(button).borderTopColor,
+  );
+  await expect(discovered).toHaveCSS("border-top-style", "solid");
+  await expect(discovered).not.toHaveCSS("border-top-color", savedOutline);
+  await expect(scan).toBeEnabled();
+});
+
+test("keeps saved tiles when discovery reports the same devices", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page, [
+    { ...devices[0], host: "192.0.2.2" },
+    { ...devices[1], serial: "ACCC8E010203" },
+    {
+      ...devices[1],
+      alias: "Camera C",
+      serial: "OTHER",
+      discovery: { macaddress: "B8-A4-4F-01-02-03*" },
+    },
+  ]);
+  const scan = page.getByRole("button", { name: "Scan local network" });
+  const savedAnnouncements = [
+    {
+      name: "Saved by serial",
+      host: "192.0.2.3",
+      serial: "A",
+      macaddress: "00:40:8c:01:02:03",
+    },
+    {
+      name: "Saved with MAC as serial",
+      host: "192.0.2.4",
+      macaddress: "ac:cc:8e:01:02:03",
+    },
+    {
+      name: "Saved with previous discovery metadata",
+      host: "192.0.2.5",
+      macaddress: "b8:a4:4f:01:02:03",
+    },
+  ];
+
+  await scan.click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], [
+    ...savedAnnouncements,
+    {
+      name: "Different camera at a saved address",
+      host: "192.0.2.2",
+      macaddress: "00:40:8c:01:02:04",
+    },
+  ]);
+  const list = page.getByRole("list", { name: "Devices", exact: true });
+  await expect(list.getByRole("listitem")).toHaveCount(4);
+  await expect(list.getByRole("button")).toHaveCount(3);
+  await expect(page.getByText("New devices found: 1")).toBeVisible();
+  await expect(list).toContainText("Different camera at a saved address");
+
+  await scan.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], savedAnnouncements);
+  await expect(
+    page.getByText("All discovered devices are already saved."),
+  ).toBeVisible();
+  await expect(list.getByRole("listitem")).toHaveCount(3);
+});
+
+test("reports a failed scan and can retry with no results", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  const scan = page.getByRole("button", { name: "Scan local network" });
+  await scan.click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], undefined, {
+    code: "operation",
+    message: "Device discovery failed.",
+  });
+  await expect(page.getByRole("alert")).toHaveText("Device discovery failed.");
+  await scan.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], []);
+  await expect(page.getByText("No Axis devices found.")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
 for (const outcome of ["success", "error"]) {
   test(`ignores obsolete health ${outcome} after selecting A, B, A`, async ({
     page,

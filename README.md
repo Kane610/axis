@@ -80,9 +80,10 @@ remain future work.
 
 ## Local web interface
 
-The read-only web interface lists saved devices, reads their health, and browses
-device APIs and interfaces. Add devices with the CLI first. Run it with Python
-3.14 or newer. After release, install it with:
+The read-only web interface discovers devices on the local network, lists saved
+devices, reads their health, and browses device APIs and interfaces. To save a
+device for health and API reads, add it with the CLI. Run the web interface with
+Python 3.14 or newer. After release, install it with:
 
 ```bash
 uv tool install --python 3.14 'axis[cli]'
@@ -109,6 +110,16 @@ shown in the saved list are not a live health check; refresh health to contact
 the device. The list shows a saved alias, discovered name, or model when
 available, falling back to the serial number. A reported serial mismatch is
 displayed as a warning.
+
+In the **Devices** card, choose **Scan local network** to look for Axis devices
+advertising over mDNS on the IPv4 network of the computer running the server.
+New devices appear alongside saved devices with a different outline and a
+**Discovered** label. Results that match a saved serial number or MAC address
+do not get a second tile. Announcements are unverified and cannot be selected
+for device reads. The scan does not log in, register devices, or update saved
+records.
+An empty scan does not mean there are no devices on the network.
+
 Live reads can take up to 60 seconds. If a device cannot be reached, check its
 saved address and port and network access from the computer running the server,
 then use **Refresh health** to retry.

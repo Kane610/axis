@@ -12,6 +12,18 @@ export type Discovery = {
   vendor: string;
 };
 
+export type DiscoveredDevice = {
+  firmware?: string;
+  host: string;
+  link_local_host?: string;
+  macaddress: string;
+  model?: string;
+  module?: string;
+  name: string;
+  serial?: string;
+  vendor?: string;
+};
+
 export type Device = {
   alias: string;
   discovery: Discovery | null;
@@ -54,6 +66,9 @@ export type DeviceInterface = {
 
 export const fetchDevices = (connection: AxisConnection) =>
   connection.callWS("devices/list", {});
+
+export const discoverDevices = (connection: AxisConnection) =>
+  connection.callWS("devices/discover", {});
 
 export const fetchHealth = (connection: AxisConnection, device: string) =>
   connection.callWS("device/health", { device });
