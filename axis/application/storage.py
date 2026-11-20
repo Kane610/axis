@@ -347,6 +347,29 @@ class DeviceRegistry:
             self._write(data)
             return record
 
+    def update_settings(
+        self, original: DeviceRecord, config: ConnectionSettings, alias: str
+    ) -> DeviceRecord:
+        """Save validated settings only if the alias and connection still match."""
+        with self._locked():
+            data = self._read()
+            record = _records(data).get(original.serial)
+            if (
+                record is None
+                or record.config != original.config
+                or record.alias != original.alias
+            ):
+                _fail("Saved settings changed. Reopen Settings and try again.")
+            record.config = config
+            record.alias = alias
+            record.__post_init__()
+            entry = data["devices"][record.serial]
+            entry["config"].update(asdict(config))
+            entry["alias"] = alias
+            _records(data)
+            self._write(data)
+            return record
+
     def remove(self, identifier: str) -> DeviceRecord:
         """Remove an exact serial or alias and return its validated record."""
         with self._locked():

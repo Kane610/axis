@@ -129,6 +129,101 @@ async def test_list_returns_only_safe_json(
     await socket.close()
 
 
+async def test_settings_only_change_the_alias_without_contacting_device(
+    client: TestClient, registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep passwords server-side and save alias changes without a live read."""
+    original = registry.resolve("SERIAL")
+    identify = AsyncMock()
+    monkeypatch.setattr(server.operations, "identify", identify)
+    socket = await connect(client)
+    invalid = await command(socket, type="device/settings", device="")
+    assert invalid["error"]["code"] == "invalid_request"
+    response = await command(socket, type="device/settings", device="SERIAL")
+    assert response["result"]["username"] == original.config.username
+    assert "private-password" not in str(response)
+    args = {
+        "type": "device/configure",
+        "device": "SERIAL",
+        "host": original.config.host,
+        "port": original.config.port,
+        "username": original.config.username,
+        "password": "",
+        "web_proto": original.config.web_proto,
+        "verify_ssl": original.config.verify_ssl,
+    }
+    assert (await command(socket, **args, alias=None))["error"][
+        "code"
+    ] == "invalid_request"
+    result = (await command(socket, **args, alias="  Lobby  "))["result"]
+    assert result["device"]["alias"] == "Lobby"
+    assert not result["connection_changed"]
+    original.alias = "Lobby"
+    assert registry.resolve("SERIAL") == original
+    result = (await command(socket, **args, alias="SERIAL"))["result"]
+    assert result["device"]["alias"] == ""
+    identify.assert_not_awaited()
+    await socket.close()
+
+
+async def test_connection_settings_require_verified_identity(
+    client: TestClient, registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Never reuse the saved password at a new address or commit an unverified change."""
+    original = registry.resolve("SERIAL")
+    args = {
+        "type": "device/configure",
+        "device": "SERIAL",
+        "alias": "Lobby",
+        "host": "192.0.2.10",
+        "port": 8443,
+        "username": "operator",
+        "password": "replacement",
+        "web_proto": "https",
+        "verify_ssl": True,
+    }
+    socket = await connect(client)
+    identify = AsyncMock()
+    monkeypatch.setattr(server.operations, "identify", identify)
+    for overrides in ({"password": ""}, {"host": "user@camera.local"}):
+        response = await command(socket, **(args | overrides))
+        assert response["error"]["code"] == "validation"
+    identify.assert_not_awaited()
+
+    identify.return_value = DeviceRecord("OTHER", original.config)
+    assert (await command(socket, **args))["error"]["code"] == "conflict"
+    assert registry.resolve("SERIAL") == original
+
+    identify.side_effect = OperationError("Unreachable.", kind=ErrorKind.CONNECTION)
+    response = await command(socket, **args)
+    assert response["error"]["code"] == "connection"
+    assert "protocol" in response["error"]["message"]
+    assert registry.resolve("SERIAL") == original
+
+    async def concurrent_update(config: ConnectionSettings) -> DeviceRecord:
+        registry.update_alias("SERIAL", "Updated elsewhere")
+        return DeviceRecord("SERIAL", config)
+
+    identify.side_effect = concurrent_update
+    assert (await command(socket, **args))["error"]["code"] == "storage"
+    assert registry.resolve("SERIAL").config == original.config
+
+    identify.side_effect = None
+    identify.return_value = original
+    response = await command(socket, **args)
+    assert response["result"]["connection_changed"]
+    assert "replacement" not in str(response)
+    assert registry.resolve("SERIAL").config == ConnectionSettings(
+        "192.0.2.10",
+        "operator",
+        "replacement",
+        port=8443,
+        web_proto="https",
+        verify_ssl=True,
+    )
+    await socket.close()
+
+
 async def test_discovery_is_explicit_and_does_not_update_registry(
     client: TestClient,
     registry: DeviceRegistry,
@@ -182,11 +277,18 @@ async def test_discovery_errors(
     await socket.close()
 
 
+@pytest.mark.parametrize(
+    ("options", "port", "proto"),
+    [({}, 0, "https"), ({"port": 8080, "web_proto": "http"}, 8080, "http")],
+)
 async def test_save_authenticates_discovered_target_without_overwriting(
     client: TestClient,
     registry: DeviceRegistry,
     monkeypatch: pytest.MonkeyPatch,
     wire_results: dict[str, object],
+    options: dict[str, object],
+    port: int,
+    proto: str,
 ) -> None:
     """Require the current socket's scan and use live identity, not advertised serial."""
     monkeypatch.setattr(
@@ -207,6 +309,7 @@ async def test_save_authenticates_discovered_target_without_overwriting(
         "password": "device-test-password",
         "alias": "Entrance",
         "verify_ssl": False,
+        **options,
     }
     socket = await connect(client)
     assert (await command(socket, **args))["error"]["code"] == "validation"
@@ -217,6 +320,14 @@ async def test_save_authenticates_discovered_target_without_overwriting(
     assert (await command(socket, **(args | {"verify_ssl": "false"})))["error"][
         "code"
     ] == "invalid_request"
+    for invalid_connection, code in (
+        ({"port": True}, "invalid_request"),
+        ({"port": 65536}, "storage"),
+        ({"web_proto": "ftp"}, "storage"),
+        ({"web_proto": None}, "invalid_request"),
+    ):
+        response = await command(socket, **(args | invalid_connection))
+        assert response["error"]["code"] == code
     login.assert_not_awaited()
 
     assert await command(socket, **args) == {"id": 1, "result": "LIVE-SERIAL"}
@@ -226,14 +337,64 @@ async def test_save_authenticates_discovered_target_without_overwriting(
     assert record.discovery is not None
     assert record.discovery.macaddress == "00:40:8c:01:02:03"
     assert record.config == ConnectionSettings(
-        "192.0.2.2", "root", "device-test-password", web_proto="https"
+        "192.0.2.2", "root", "device-test-password", port=port, web_proto=proto
     )
+    login.assert_awaited_once_with(record.config)
     assert (await command(socket, **(args | {"password": "replacement"})))["error"] == {
         "code": "storage",
         "message": "This device is already saved.",
     }
     assert registry.resolve("LIVE-SERIAL") == record
     assert "device-test-password" not in str(await command(socket, type="devices/list"))
+    await socket.close()
+
+
+async def test_connection_checks_do_not_save(
+    client: TestClient,
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    wire_results: dict[str, object],
+) -> None:
+    """Test discovered and saved connections using the same guards as saving."""
+    monkeypatch.setattr(
+        server,
+        "discover_axis_devices",
+        AsyncMock(return_value=wire_results["devices/discover"]),
+    )
+    before = registry.load()
+    original = before["SERIAL"]
+    config = original.config
+    identify = AsyncMock(return_value=original)
+    monkeypatch.setattr(server.operations, "identify", identify)
+    socket = await connect(client)
+    args = {
+        "host": config.host,
+        "port": config.port,
+        "username": config.username,
+        "password": "",
+        "web_proto": config.web_proto,
+        "verify_ssl": config.verify_ssl,
+    }
+    saved = args | {"type": "device/test-connection", "device": original.serial}
+    response = await command(socket, **(saved | {"port": "443"}))
+    assert response["error"]["code"] == "invalid_request"
+    response = await command(socket, **(saved | {"host": "192.0.2.2"}))
+    assert response["error"]["code"] == "validation"
+    discovered = args | {
+        "type": "devices/test-connection",
+        "host": "192.0.2.2",
+        "password": "test-password",
+    }
+    assert (await command(socket, **discovered))["error"]["code"] == "validation"
+    identify.assert_not_awaited()
+
+    assert await command(socket, **saved) == {"id": 1, "result": "SERIAL"}
+    identify.assert_awaited_once_with(config)
+    identify.return_value = DeviceRecord("OTHER", config)
+    assert (await command(socket, **saved))["error"]["code"] == "conflict"
+    await command(socket, type="devices/discover")
+    assert await command(socket, **discovered) == {"id": 1, "result": "OTHER"}
+    assert registry.load() == before
     await socket.close()
 
 
@@ -268,7 +429,7 @@ async def test_save_failure_does_not_change_registry(
         verify_ssl=True,
     )
     assert result["error"]["code"] == "connection"
-    assert "HTTPS" in result["error"]["message"]
+    assert "port, protocol" in result["error"]["message"]
     assert list(registry.load()) == ["SERIAL"]
     await socket.close()
 

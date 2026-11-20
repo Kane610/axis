@@ -1,7 +1,10 @@
 import type {
+  ConfiguredDevice,
   Device,
   DeviceApi,
+  DeviceConnection,
   DeviceInterface,
+  DeviceSettings,
   DiscoveredDevice,
   Health,
   SaveDevice,
@@ -14,6 +17,16 @@ type Commands = {
     result: DiscoveredDevice[];
   };
   "devices/save": { args: SaveDevice; result: string };
+  "devices/test-connection": { args: DeviceConnection; result: string };
+  "device/test-connection": {
+    args: DeviceConnection & { device: string };
+    result: string;
+  };
+  "device/settings": { args: { device: string }; result: DeviceSettings };
+  "device/configure": {
+    args: SaveDevice & { device: string };
+    result: ConfiguredDevice;
+  };
   "device/health": { args: { device: string }; result: Health };
   "device/apis": { args: { device: string }; result: DeviceApi[] };
   "device/interfaces": { args: { device: string }; result: DeviceInterface[] };

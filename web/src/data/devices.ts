@@ -24,13 +24,19 @@ export type DiscoveredDevice = {
   vendor?: string;
 };
 
-export type SaveDevice = {
+export type DeviceConnection = {
   host: string;
   username: string;
   password: string;
-  alias: string;
+  port: number;
+  web_proto: string;
   verify_ssl: boolean;
 };
+
+export type SaveDevice = DeviceConnection & { alias: string };
+
+export type DeviceSettings = { device: Device; username: string };
+export type ConfiguredDevice = { device: Device; connection_changed: boolean };
 
 export type Device = {
   alias: string;
@@ -80,6 +86,17 @@ export const discoverDevices = (connection: AxisConnection) =>
 
 export const saveDevice = (connection: AxisConnection, settings: SaveDevice) =>
   connection.callWS("devices/save", settings);
+
+export const fetchDeviceSettings = (
+  connection: AxisConnection,
+  device: string,
+) => connection.callWS("device/settings", { device });
+
+export const configureDevice = (
+  connection: AxisConnection,
+  device: string,
+  settings: SaveDevice,
+) => connection.callWS("device/configure", { device, ...settings });
 
 export const fetchHealth = (connection: AxisConnection, device: string) =>
   connection.callWS("device/health", { device });

@@ -1,10 +1,12 @@
 """Serve a local web interface for discovering, saving, and reading Axis devices."""
 
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime
 from importlib.resources import files
 import json
 import logging
+import re
 import secrets
 import sys
 from threading import Thread
@@ -16,7 +18,7 @@ from aiohttp import WSMsgType, web
 from axis.application import operations
 from axis.application.discovery import discover_axis_devices
 from axis.application.errors import ErrorKind, OperationError, StorageError
-from axis.application.records import ConnectionSettings, DiscoverySnapshot
+from axis.application.records import ConnectionSettings, DeviceRecord, DiscoverySnapshot
 from axis.application.storage import DeviceRegistry
 
 if TYPE_CHECKING:
@@ -29,7 +31,88 @@ MAX_PENDING = 8
 COMMAND_TIMEOUT = 60
 
 
-async def _save_discovered(
+async def _configure_saved(registry: DeviceRegistry, message: dict[str, Any]) -> object:
+    identifier = message.get("device")
+    if not isinstance(identifier, str) or not identifier:
+        raise ValueError
+    original = registry.resolve(identifier)
+    if message["type"] == "device/settings":
+        return {
+            "device": operations.normalize_payload(original.summary()),
+            "username": original.config.username,
+        }
+
+    host = message.get("host")
+    port = message.get("port")
+    username = message.get("username")
+    password = message.get("password")
+    proto = message.get("web_proto")
+    verify_ssl = message.get("verify_ssl")
+    if (
+        not isinstance(host, str)
+        or not isinstance(username, str)
+        or not isinstance(password, str)
+        or not isinstance(proto, str)
+        or type(port) is not int
+        or type(verify_ssl) is not bool
+    ):
+        raise ValueError
+    config = replace(
+        original.config,
+        host=host.strip(),
+        port=port,
+        username=username.strip(),
+        password=password or original.config.password,
+        web_proto=proto,
+        verify_ssl=verify_ssl,
+    )
+    if message["type"] == "device/test-connection":
+        await _verify_settings(original, config, password)
+        return original.serial
+
+    alias = message.get("alias")
+    if not isinstance(alias, str):
+        raise ValueError
+    alias = alias.strip()
+    default_name = (
+        (original.discovery.name.strip() if original.discovery else "")
+        or original.model.strip()
+        or original.serial
+    )
+    if alias == default_name:
+        alias = ""
+    replace(original, alias=alias, config=config)
+    changed = config != original.config
+    if changed:
+        await _verify_settings(original, config, password)
+    record = registry.update_settings(original, config, alias)
+    return {
+        "device": operations.normalize_payload(record.summary()),
+        "connection_changed": changed,
+    }
+
+
+async def _verify_settings(
+    original: DeviceRecord, config: ConnectionSettings, password: str
+) -> None:
+    if not re.fullmatch(r"[a-zA-Z0-9._-]+|\[[0-9a-fA-F:.]+\]", config.host):
+        msg = "Enter a hostname or IP address without a scheme, port, or path."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    previous = original.config
+    if not password and (
+        (config.host, config.port, config.web_proto)
+        != (previous.host, previous.port, previous.web_proto)
+        or (previous.verify_ssl and not config.verify_ssl)
+    ):
+        msg = "Re-enter the device password to change its address, port, protocol, or relax certificate verification."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    identified = await operations.identify(config)
+    if identified.serial != original.serial:
+        msg = "The new settings reached a different device. Your saved settings were not changed."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+
+
+async def _connect_discovered(
     registry: DeviceRegistry,
     message: dict[str, Any],
     discovered: dict[str, DiscoverySnapshot],
@@ -37,8 +120,11 @@ async def _save_discovered(
     host = message.get("host")
     username = message.get("username")
     password = message.get("password")
-    alias = message.get("alias")
+    testing = message["type"] == "devices/test-connection"
+    alias = "" if testing else message.get("alias")
     verify_ssl = message.get("verify_ssl")
+    port = message.get("port", 0)
+    proto = message.get("web_proto", "https")
     if (
         not isinstance(host, str)
         or not isinstance(username, str)
@@ -46,21 +132,26 @@ async def _save_discovered(
         or not password
         or not isinstance(alias, str)
         or type(verify_ssl) is not bool
+        or type(port) is not int
+        or not isinstance(proto, str)
     ):
         raise ValueError
     snapshot = discovered.get(host)
     if snapshot is None:
-        msg = "Scan the local network and select a device before saving."
+        msg = "Scan the local network and select a device first."
         raise OperationError(msg, kind=ErrorKind.VALIDATION)
     record = await operations.identify(
         ConnectionSettings(
             host=snapshot.host,
             username=username.strip(),
             password=password,
-            web_proto="https",
+            port=port,
+            web_proto=proto,
             verify_ssl=verify_ssl,
         )
     )
+    if testing:
+        return record.serial
     record.alias = alias.strip()
     record.discovery = snapshot
     registry.upsert(record, create_only=True)
@@ -94,8 +185,10 @@ async def _execute(
         discovered.clear()
         discovered.update(snapshots)
         return results
-    if command == "devices/save":
-        return await _save_discovered(registry, message, discovered)
+    if command in ("devices/save", "devices/test-connection"):
+        return await _connect_discovered(registry, message, discovered)
+    if command in ("device/settings", "device/configure", "device/test-connection"):
+        return await _configure_saved(registry, message)
     return await _read_saved(registry, command, message)
 
 
@@ -147,8 +240,17 @@ async def _respond(
         error_message = str(err)
         if is_discovery:
             error_message = "Device discovery failed. Check this computer's local network access and try again."
-        elif message.get("type") == "devices/save" and err.kind == ErrorKind.CONNECTION:
-            error_message = "Cannot reach the device over HTTPS. Check the discovered address and certificate settings."
+        elif (
+            message.get("type")
+            in (
+                "devices/save",
+                "device/configure",
+                "devices/test-connection",
+                "device/test-connection",
+            )
+            and err.kind == ErrorKind.CONNECTION
+        ):
+            error_message = "Cannot reach the device. Check the address, port, protocol, and certificate settings."
         elif err.kind == ErrorKind.CONNECTION:
             error_message = (
                 "Cannot reach the device. Check that it is powered on, that this "

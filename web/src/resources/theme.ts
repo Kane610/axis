@@ -11,6 +11,7 @@ const theme = css`
     --axis-color-primary: light-dark(#005e9e, #8bcbff);
     --axis-color-on-primary: light-dark(#ffffff, #072c48);
     --axis-color-danger: light-dark(#a00000, #ffb4ab);
+    --axis-color-success: light-dark(#006b3c, #85d9a8);
     --axis-color-warning: light-dark(#805000, #ffd08a);
     --axis-font-family: system-ui, sans-serif;
     --axis-font-size: 1rem;
@@ -51,6 +52,12 @@ const theme = css`
     --wa-color-brand-border-normal: var(--axis-color-primary);
     --wa-color-brand-border-quiet: var(--axis-color-border);
     --wa-color-brand-border-loud: var(--axis-color-primary);
+    --wa-color-success-fill-quiet: var(--axis-color-surface-muted);
+    --wa-color-success-on-quiet: var(--axis-color-success);
+    --wa-color-success-border-loud: var(--axis-color-success);
+    --wa-color-danger-fill-quiet: var(--axis-color-surface-muted);
+    --wa-color-danger-on-quiet: var(--axis-color-danger);
+    --wa-color-danger-border-loud: var(--axis-color-danger);
     --wa-color-mix-hover: var(--axis-color-border) 20%;
     --wa-color-mix-active: var(--axis-color-border) 30%;
     --wa-focus-ring: var(--axis-focus-ring);
