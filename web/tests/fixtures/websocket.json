@@ -22,6 +22,14 @@
       "web_proto": "http"
     }
   ],
+  "devices/discover": [
+    {
+      "host": "192.0.2.2",
+      "macaddress": "00:40:8c:01:02:03",
+      "model": "Test camera",
+      "name": "Entrance camera"
+    }
+  ],
   "device/health": {
     "firmware_version": "12",
     "model": "M1",

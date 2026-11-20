@@ -1,6 +1,7 @@
-"""Serve a read-only local web interface for Axis devices."""
+"""Serve a local web interface for discovering, saving, and reading Axis devices."""
 
 import asyncio
+from datetime import UTC, datetime
 from importlib.resources import files
 import json
 import logging
@@ -13,7 +14,9 @@ import webbrowser
 from aiohttp import WSMsgType, web
 
 from axis.application import operations
+from axis.application.discovery import discover_axis_devices
 from axis.application.errors import ErrorKind, OperationError, StorageError
+from axis.application.records import ConnectionSettings, DiscoverySnapshot
 from axis.application.storage import DeviceRegistry
 
 if TYPE_CHECKING:
@@ -26,13 +29,79 @@ MAX_PENDING = 8
 COMMAND_TIMEOUT = 60
 
 
-async def _execute(registry: DeviceRegistry, message: dict[str, Any]) -> object:
+async def _save_discovered(
+    registry: DeviceRegistry,
+    message: dict[str, Any],
+    discovered: dict[str, DiscoverySnapshot],
+) -> str:
+    host = message.get("host")
+    username = message.get("username")
+    password = message.get("password")
+    alias = message.get("alias")
+    verify_ssl = message.get("verify_ssl")
+    if (
+        not isinstance(host, str)
+        or not isinstance(username, str)
+        or not isinstance(password, str)
+        or not password
+        or not isinstance(alias, str)
+        or type(verify_ssl) is not bool
+    ):
+        raise ValueError
+    snapshot = discovered.get(host)
+    if snapshot is None:
+        msg = "Scan the local network and select a device before saving."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    record = await operations.identify(
+        ConnectionSettings(
+            host=snapshot.host,
+            username=username.strip(),
+            password=password,
+            web_proto="https",
+            verify_ssl=verify_ssl,
+        )
+    )
+    record.alias = alias.strip()
+    record.discovery = snapshot
+    registry.upsert(record, create_only=True)
+    return record.serial
+
+
+async def _execute(
+    registry: DeviceRegistry,
+    message: dict[str, Any],
+    discovered: dict[str, DiscoverySnapshot],
+) -> object:
     command = message.get("type")
     if command == "devices/list":
         return [
             operations.normalize_payload(record.summary())
             for record in registry.load().values()
         ]
+    if command == "devices/discover":
+        discovered.clear()
+        started = datetime.now(UTC)
+        results = await discover_axis_devices()
+        snapshots = {
+            entry["host"]: DiscoverySnapshot(
+                host=entry["host"],
+                last_seen=started,
+                macaddress=entry["macaddress"],
+                name=entry["name"],
+            )
+            for entry in results
+        }
+        discovered.clear()
+        discovered.update(snapshots)
+        return results
+    if command == "devices/save":
+        return await _save_discovered(registry, message, discovered)
+    return await _read_saved(registry, command, message)
+
+
+async def _read_saved(
+    registry: DeviceRegistry, command: object, message: dict[str, Any]
+) -> object:
     identifier = message.get("device")
     if (
         not isinstance(command, str)
@@ -65,16 +134,22 @@ async def _respond(
     socket: web.WebSocketResponse,
     registry: DeviceRegistry,
     message: dict[str, Any],
+    discovered: dict[str, DiscoverySnapshot],
 ) -> None:
     request_id = message["id"]
+    is_discovery = message.get("type") == "devices/discover"
     try:
         async with asyncio.timeout(COMMAND_TIMEOUT):
-            result = await _execute(registry, message)
+            result = await _execute(registry, message, discovered)
     except StorageError as err:
         response = {"id": request_id, "error": {"code": "storage", "message": str(err)}}
     except OperationError as err:
         error_message = str(err)
-        if err.kind == ErrorKind.CONNECTION:
+        if is_discovery:
+            error_message = "Device discovery failed. Check this computer's local network access and try again."
+        elif message.get("type") == "devices/save" and err.kind == ErrorKind.CONNECTION:
+            error_message = "Cannot reach the device over HTTPS. Check the discovered address and certificate settings."
+        elif err.kind == ErrorKind.CONNECTION:
             error_message = (
                 "Cannot reach the device. Check that it is powered on, that this "
                 "computer can reach its network, and that its saved address and port are correct."
@@ -98,7 +173,11 @@ async def _respond(
             "id": request_id,
             "error": {
                 "code": "timeout",
-                "message": "The device did not respond in time. Check its connection and try again.",
+                "message": (
+                    "Device discovery timed out. Try again."
+                    if is_discovery
+                    else "The device did not respond in time. Check its connection and try again."
+                ),
             },
         }
     except Exception:  # noqa: BLE001 - prevent transport exceptions exposing secrets
@@ -117,7 +196,7 @@ async def _respond(
 
 
 def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Application:
-    """Create a loopback-only read-only web application."""
+    """Create a loopback-only web application."""
     app = web.Application(client_max_size=MAX_MESSAGE_SIZE)
     authority = f"127.0.0.1:{port}"
     origin = f"http://{authority}"
@@ -137,7 +216,7 @@ def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Applicati
         response.headers["Content-Security-Policy"] = (
             f"default-src 'self'; connect-src 'self' ws://{authority}; "
             "style-src 'self' 'unsafe-inline'; object-src 'none'; "
-            "base-uri 'none'; frame-ancestors 'none'"
+            "base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
         )
         return response
 
@@ -162,6 +241,7 @@ def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Applicati
         await socket.prepare(request)
         sockets.add(socket)
         pending: dict[int, asyncio.Task[None]] = {}
+        discovered: dict[str, DiscoverySnapshot] = {}
 
         def forget(task: asyncio.Task[None]) -> None:
             pending.pop(int(task.get_name()), None)
@@ -210,7 +290,8 @@ def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Applicati
                     )
                     continue
                 task = asyncio.create_task(
-                    _respond(socket, registry, message), name=str(message["id"])
+                    _respond(socket, registry, message, discovered),
+                    name=str(message["id"]),
                 )
                 pending[message["id"]] = task
                 task.add_done_callback(forget)

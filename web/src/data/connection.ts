@@ -1,7 +1,19 @@
-import type { Device, DeviceApi, DeviceInterface, Health } from "./devices";
+import type {
+  Device,
+  DeviceApi,
+  DeviceInterface,
+  DiscoveredDevice,
+  Health,
+  SaveDevice,
+} from "./devices";
 
 type Commands = {
   "devices/list": { args: Record<string, never>; result: Device[] };
+  "devices/discover": {
+    args: Record<string, never>;
+    result: DiscoveredDevice[];
+  };
+  "devices/save": { args: SaveDevice; result: string };
   "device/health": { args: { device: string }; result: Health };
   "device/apis": { args: { device: string }; result: DeviceApi[] };
   "device/interfaces": { args: { device: string }; result: DeviceInterface[] };

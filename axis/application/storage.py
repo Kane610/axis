@@ -210,7 +210,13 @@ class DeviceRegistry:
         except OSError, ValueError, TypeError:
             _fail("Cannot save config; check directory permissions and retry.")
 
-    def upsert(self, record: DeviceRecord, *, preserve_alias: bool = False) -> None:
+    def upsert(
+        self,
+        record: DeviceRecord,
+        *,
+        preserve_alias: bool = False,
+        create_only: bool = False,
+    ) -> None:
         """Save a complete device record while keeping unrecognized configuration fields.
 
         Connection/alias updates are last-writer-wins, including stale records.
@@ -218,11 +224,14 @@ class DeviceRegistry:
         Use update_credentials for a credentials-only read-modify-write.
         With preserve_alias, keep the latest stored alias (empty for new
         records) and reflect it on record after the write succeeds.
+        With create_only, reject an already registered serial.
         """
         record.__post_init__()
         with self._locked():
             data = self._read()
             saved = _records(data).get(record.serial)
+            if create_only and saved is not None:
+                _fail("This device is already saved.")
             devices = data.setdefault("devices", {})
             entry = devices.setdefault(record.serial, {})
             alias = entry.get("alias", "") if preserve_alias else record.alias

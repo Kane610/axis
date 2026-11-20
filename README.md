@@ -80,9 +80,9 @@ remain future work.
 
 ## Local web interface
 
-The read-only web interface lists saved devices, reads their health, and browses
-device APIs and interfaces. Add devices with the CLI first. Run it with Python
-3.14 or newer. After release, install it with:
+The local web interface discovers and saves devices, reads device health, and
+browses device APIs and interfaces. Run it with Python 3.14 or newer. After
+release, install it with:
 
 ```bash
 uv tool install --python 3.14 'axis[cli]'
@@ -104,14 +104,46 @@ not intended for remote or multi-user access. Use `axis web --port 8766` to choo
 another port.
 The local registry stores device credentials as plaintext in owner-only files.
 
-The web application uses a WebSocket for its read-only commands. Device details
-shown in the saved list are not a live health check; refresh health to contact
-the device. The list shows a saved alias, discovered name, or model when
-available, falling back to the serial number. A reported serial mismatch is
-displayed as a warning.
+The web application uses an authenticated local WebSocket. Device details
+shown in the saved list are not a live health check; open a saved device to
+contact it. Saved and discovered devices appear in a single vertical list,
+with an address and MAC address when available. Discovered rows also show the
+advertised model when available. Saved rows use an alias, discovered name, or
+model as their label, falling back to the serial number, but never append a
+separate model field. A reported serial mismatch is displayed as a warning.
+
+In the **Devices** card, choose **Scan local network** to look for Axis devices
+advertising over mDNS on the IPv4 network of the computer running the server.
+The button shows the scan progress and result. Its dashed outline stays still
+when reduced motion is enabled. During a rescan, previous results stay visible
+but cannot be selected until the scan finishes.
+New devices appear alongside saved devices with a different outline and a
+**Discovered** label. Results that match a saved serial number or MAC address
+do not get a second tile. Discovery announcements are unverified. A scan does
+not log in, register devices, or update saved records.
+An empty scan does not mean there are no devices on the network.
+
+Select a discovered device to enter its credentials and an optional alias,
+then click **Save device**. Selecting a saved device opens its health and API
+details. The saved-device modal opens on **Health**. Use **APIs** or
+**Interfaces** below the device name to switch views; individual interface
+buttons are inside **Interfaces**. While the modal is open, switching back to
+a view or interface reuses its last successful result. Select the active button
+again to refresh it. A moving dashed outline marks the button while it loads
+without moving the existing content. The modal starts at the top of the
+**Devices** box and scrolls independently. Use **Close** or **Esc** to return
+to the list.
+
+When saving a device, the server connects over HTTPS, reads the device's
+serial number, and adds a local registration without replacing an existing one.
+**Allow a self-signed certificate** is selected by default for factory devices.
+This skips certificate verification, so verify the address and use it only on a
+trusted network. Clear the option if the device has a trusted certificate. Use
+the CLI for manual addresses or other connection settings.
+
 Live reads can take up to 60 seconds. If a device cannot be reached, check its
 saved address and port and network access from the computer running the server,
-then use **Refresh health** to retry.
+then select **Health** again to retry or refresh the health view.
 
 The frontend follows Home Assistant's TypeScript/Lit web-component approach,
 using its Web Awesome fork for Axis controls, semantic CSS tokens, and automatic
@@ -244,7 +276,7 @@ Bare `axis` opens guided navigation on a terminal:
   always ask for a device first, before other inputs, even if another device
   was previously selected.
 - **Setup & diagnostics** provides Doctor and shell completion.
-- **Open web interface** starts the local read-only web server and opens
+- **Open web interface** starts the local web server and opens
   the default browser. Ctrl-C stops it and returns to navigation.
 
 Choose a menu item by number, or open the suggested command prompt with `c`.
