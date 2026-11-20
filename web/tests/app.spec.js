@@ -80,6 +80,8 @@ function health(product) {
 }
 
 async function select(page, name, requests, count) {
+  if (await page.getByRole("dialog").isVisible())
+    await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: `Camera ${name}`, exact: false })
     .click();
@@ -172,9 +174,7 @@ test("saves a discovered device over HTTPS and selects the saved tile", async ({
   await page
     .getByRole("button", { name: /Entrance camera.*Discovered/ })
     .click();
-  await expect(
-    page.getByRole("heading", { name: "Save device" }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Save device" })).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: /self-signed/ }),
   ).toBeChecked();
@@ -218,11 +218,13 @@ test("saves a discovered device over HTTPS and selects the saved tile", async ({
     0,
   );
   await expect(page.getByRole("button", { name: /Discovered/ })).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: /^Entrance \(/, pressed: true }),
-  ).toBeEnabled();
+  await expect(page.getByRole("dialog", { name: "Entrance" })).toBeVisible();
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3]).toMatchObject({ type: "device/health", device: "NEW" });
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /^Entrance \(/ }),
+  ).toBeEnabled();
 });
 
 test("keeps saved tiles when discovery reports the same devices", async ({
@@ -418,12 +420,13 @@ test("keeps the newest health when an older response arrives last", async ({
   await expect(page.getByText("Obsolete", { exact: true })).toHaveCount(0);
 });
 
-test("ignores an outstanding read when refreshing removes the selected device", async ({
+test("ignores an outstanding read after dismissal and a list refresh", async ({
   page,
 }) => {
   const savedDevices = [...devices];
   const { requests } = await openApp(page, savedDevices);
   await select(page, "A", requests, 1);
+  await page.keyboard.press("Escape");
   savedDevices.length = 0;
   await page.getByRole("button", { name: "Refresh list" }).click();
   await expect(
@@ -449,10 +452,12 @@ for (const state of ["connected", "denied", "disconnected"]) {
     if (state !== "connected") {
       sockets[0].close({ code: state === "denied" ? 1008 : 1001 });
       await expect(
-        page.getByText(
-          state === "denied" ? "Access denied" : "Disconnected; reconnecting",
-          { exact: true },
-        ),
+        page
+          .getByRole("dialog")
+          .getByText(
+            state === "denied" ? "Access denied" : "Disconnected; reconnecting",
+            { exact: true },
+          ),
       ).toBeVisible();
     }
     await page.evaluate(() => {
@@ -484,9 +489,12 @@ test("keyboard selection and typed API commands work through the component bound
   await camera.focus();
   await camera.press("Enter");
   await expect.poll(() => requests.length).toBe(1);
-  await expect(
-    page.getByRole("button", { name: "Camera A", exact: false, pressed: true }),
-  ).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  await expect(dialog).toBeVisible();
+  const close = dialog.getByRole("button", { name: "Close" });
+  await expect(close).toBeFocused();
+  await camera.evaluate((button) => button.focus());
+  await expect(close).toBeFocused();
   await expect(
     page.getByRole("button", { name: "Refresh health" }),
   ).toBeDisabled();
@@ -519,6 +527,39 @@ test("keyboard selection and typed API commands work through the component bound
   });
   await respond(page, requests[3], { model: "AXIS test camera" });
   await expect(page.locator("pre")).toContainText("AXIS test camera");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(camera).toBeFocused();
+});
+
+test("keeps device details scrollable without extending the list page", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 480 });
+  const { requests } = await openApp(page);
+  const pageHeight = () =>
+    page.evaluate(() => document.documentElement.scrollHeight);
+  const closedHeight = await pageHeight();
+
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  const bounds = await dialog.boundingBox();
+  expect(bounds.width).toBeGreaterThan(350);
+  expect(bounds.height).toBeLessThan(480);
+  expect(await pageHeight()).toBe(closedHeight);
+  const content = dialog.locator(".dialog-content");
+  await expect
+    .poll(() =>
+      content.evaluate(
+        (element) => element.scrollHeight - element.clientHeight,
+      ),
+    )
+    .toBeGreaterThan(0);
+  await content.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeInViewport();
 });
 
 for (const serial of ["A", "B"]) {

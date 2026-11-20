@@ -14,6 +14,7 @@ import {
   type DiscoveredDevice,
   type Health,
 } from "./data/devices";
+import { deviceName } from "./device-name";
 import { contentStyles } from "./resources/theme";
 import "./components/axis-button";
 import "./components/axis-card";
@@ -55,6 +56,44 @@ class AxisApp extends LitElement {
       .panels {
         display: grid;
         gap: var(--axis-space-4);
+      }
+      dialog {
+        box-sizing: border-box;
+        inline-size: min(
+          var(--axis-content-width),
+          calc(100% - var(--axis-space-4))
+        );
+        max-inline-size: none;
+        max-block-size: calc(100dvh - var(--axis-space-4));
+        padding: 0;
+        border: var(--axis-border-width) solid var(--axis-color-border);
+        border-radius: var(--axis-radius-card);
+        background: var(--axis-color-background);
+        color: var(--axis-color-text);
+        overflow: hidden;
+      }
+      dialog[open] {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+      dialog::backdrop {
+        background: rgb(0 0 0 / 55%);
+      }
+      .dialog-header {
+        flex-wrap: nowrap;
+        align-items: start;
+        padding: var(--axis-space-4);
+        border-block-end: var(--axis-border-width) solid
+          var(--axis-color-border);
+      }
+      .dialog-header h2 {
+        margin: 0;
+        min-inline-size: 0;
+      }
+      .dialog-content {
+        overflow: auto;
+        overscroll-behavior: contain;
+        padding: var(--axis-space-4);
       }
       .error {
         color: var(--axis-color-danger);
@@ -142,6 +181,28 @@ class AxisApp extends LitElement {
     window.removeEventListener("hashchange", this.openAccessLink);
     this.connection.disconnect();
     super.disconnectedCallback();
+  }
+
+  protected updated(): void {
+    const dialog = this.renderRoot.querySelector("dialog");
+    if (!dialog) return;
+    const hasView = this.registration !== null || this.selected !== "";
+    if (hasView && !dialog.open) dialog.showModal();
+    else if (!hasView && dialog.open) {
+      dialog.close();
+      if (!this.shadowRoot?.activeElement)
+        this.renderRoot.querySelector("h1")?.focus();
+    }
+  }
+
+  private dismissDevice(event?: Event): void {
+    event?.preventDefault();
+    if (this.saving) return;
+    ++this.operation;
+    this.registration = null;
+    this.selected = "";
+    this.loading = false;
+    this.error = "";
   }
 
   private connectionChanged(status: ConnectionStatus): void {
@@ -262,7 +323,6 @@ class AxisApp extends LitElement {
       target.host,
       html`
         <axis-card>
-          <h2>Save device</h2>
           <p class="registration-target">
             Connect over HTTPS to ${target.name || target.host}
             ${target.name ? `(${target.host})` : ""}.
@@ -293,12 +353,7 @@ class AxisApp extends LitElement {
               </p>
               <div class="actions">
                 <button type="submit">Save device</button>
-                <button
-                  type="button"
-                  @click=${() => {
-                    this.registration = null;
-                  }}
-                >
+                <button type="button" @click=${this.dismissDevice}>
                   Cancel
                 </button>
               </div>
@@ -353,28 +408,54 @@ class AxisApp extends LitElement {
   protected render() {
     const device = this.devices.find((item) => item.serial === this.selected);
     const connected = this.status === "Connected";
+    const hasView = this.registration !== null || this.selected !== "";
+    const error = this.error
+      ? html`<p class="error" role="alert">${this.error}</p>`
+      : nothing;
     return html`
       <main>
         <header>
-          <h1>Axis devices</h1>
-          <span role="status">${this.status}</span>
-        </header>
-        ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
-        <div class="panels">
-          <axis-device-list
-            .devices=${this.devices}
-            .discovery=${this.discovery}
-            .selected=${this.selected}
-            .connected=${connected && !this.saving}
-            @axis-refresh=${this.refreshDevices}
-            @axis-scan=${this.scanLocalNetwork}
-            @axis-select=${(event: CustomEvent<string>) => {
-              this.registration = null;
-              void this.selectDevice(event.detail);
-            }}
-            @axis-register=${(event: CustomEvent<DiscoveredDevice>) => this.openRegistration(event.detail)}
+          <h1 tabindex="-1">Axis devices</h1>
+          <span role="status" ?hidden=${hasView && !connected}
+            >${this.status}</span
           >
-          </axis-device-list>
+        </header>
+        ${hasView ? nothing : error}
+        <axis-device-list
+          .devices=${this.devices}
+          .discovery=${this.discovery}
+          .selected=${this.selected}
+          .connected=${connected && !this.saving}
+          @axis-refresh=${this.refreshDevices}
+          @axis-scan=${this.scanLocalNetwork}
+          @axis-select=${(event: CustomEvent<string>) => {
+            this.registration = null;
+            void this.selectDevice(event.detail);
+          }}
+          @axis-register=${(event: CustomEvent<DiscoveredDevice>) => this.openRegistration(event.detail)}
+        >
+        </axis-device-list>
+      </main>
+      <dialog
+        aria-labelledby="device-dialog-title"
+        @cancel=${this.dismissDevice}
+      >
+        <header class="dialog-header">
+          <h2 id="device-dialog-title">
+            ${this.registration ? "Save device" : device ? deviceName(device) : "Device details"}
+          </h2>
+          <button
+            type="button"
+            autofocus
+            ?disabled=${this.saving}
+            @click=${this.dismissDevice}
+          >
+            Close
+          </button>
+        </header>
+        <div class="panels dialog-content">
+          ${!connected && hasView ? html`<span role="status">${this.status}</span>` : nothing}
+          ${hasView ? error : nothing}
           ${this.registration ? this.renderRegistration(this.registration) : nothing}
           ${
             device
@@ -388,7 +469,7 @@ class AxisApp extends LitElement {
                   >
                   </axis-device-health>
                   <axis-card>
-                    <h2>APIs and interfaces</h2>
+                    <h3>APIs and interfaces</h3>
                     <div class="actions">
                       <axis-button
                         ?disabled=${this.loading || !connected}
@@ -424,7 +505,7 @@ class AxisApp extends LitElement {
               : nothing
           }
         </div>
-      </main>
+      </dialog>
     `;
   }
 }

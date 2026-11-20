@@ -1,6 +1,5 @@
 import { LitElement, html, nothing } from "lit";
 import type { Device, Health } from "../data/devices";
-import { deviceName } from "../device-name";
 import { contentStyles } from "../resources/theme";
 import "./axis-button";
 import "./axis-card";
@@ -25,7 +24,7 @@ export class AxisDeviceHealth extends LitElement {
     const matches = this.health?.serial === this.device.serial;
     return html`
       <axis-card>
-        <h2>${deviceName(this.device)}</h2>
+        <h3>Device health</h3>
         <axis-button
           ?disabled=${this.loading || !this.connected}
           @click=${() => this.dispatchEvent(new Event("axis-refresh"))}

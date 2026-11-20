@@ -124,7 +124,11 @@ not log in, register devices, or update saved records.
 An empty scan does not mean there are no devices on the network.
 
 Select a discovered device to enter its credentials and an optional alias,
-then click **Save device**. The server connects over HTTPS, reads the device's
+then click **Save device**. Selecting a saved device opens its health and API
+details. Both views open in a modal over the device list; use **Close** or
+**Esc** to return to the list.
+
+When saving a device, the server connects over HTTPS, reads the device's
 serial number, and adds a local registration without replacing an existing one.
 **Allow a self-signed certificate** is selected by default for factory devices.
 This skips certificate verification, so verify the address and use it only on a
