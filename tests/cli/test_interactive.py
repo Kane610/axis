@@ -17,6 +17,7 @@ from axis.application.records import DiscoverySnapshot
 from axis.cli import commands, interactive
 from axis.cli.commands import Runtime, cli
 from axis.cli.storage import ConnectionSettings, DeviceRecord, StorageError
+from axis.web import server as web_server
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -800,6 +801,25 @@ def test_launcher_navigation_and_shared_execution(runtime: Runtime) -> None:
             ["completion", "zsh"],
         )
     ]
+
+
+def test_launcher_web_needs_no_device_and_returns_to_menu(
+    runtime: Runtime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The home menu opens the browser server without a device picker or port prompt."""
+    runtime.registry.remove("SERIAL")
+    with (
+        patch.object(click, "prompt", side_effect=["4", "e"]) as prompt,
+        patch.object(web_server, "run_server") as launch,
+        patch.object(interactive, "select_device") as select,
+    ):
+        interactive.launch(runtime, cli)
+    launch.assert_called_once_with(runtime.config_path, 8765)
+    select.assert_not_called()
+    assert prompt.call_count == 2
+    output = capsys.readouterr().out
+    assert "Open web interface" in output
+    assert output.count("Axis / home") == 2
 
 
 def test_launcher_selects_before_device_operations(

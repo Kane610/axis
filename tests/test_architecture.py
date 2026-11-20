@@ -49,7 +49,7 @@ def test_library_and_application_dependency_direction() -> None:
     violations: dict[str, set[str]] = {}
     for path in (ROOT / "axis").rglob("*.py"):
         relative = path.relative_to(ROOT)
-        if relative.parts[1] == "cli" or relative == Path("axis/__main__.py"):
+        if relative.parts[1] in {"cli", "web"} or relative == Path("axis/__main__.py"):
             continue
         application = relative.parts[1] == "application"
         prefixes = PRESENTATION if application else (*PRESENTATION, "axis.application")
@@ -82,6 +82,15 @@ def helper():
         "axis.application",
         PRESENTATION,
     )
+
+
+def test_web_does_not_depend_on_cli() -> None:
+    """Web presentation uses shared services rather than terminal code."""
+    for path in (ROOT / "axis" / "web").rglob("*.py"):
+        package = ".".join(path.relative_to(ROOT).parts[:-1])
+        assert not _forbidden(
+            path.read_text(), package, ("axis.cli", "click", "prompt_toolkit")
+        )
 
 
 def test_existing_cli_imports_reexport_shared_implementations(tmp_path: Path) -> None:

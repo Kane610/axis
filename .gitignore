@@ -105,3 +105,6 @@ venv.bak/
 .mypy_cache/
 
 .vscode
+web/node_modules/
+web/test-results/
+web/playwright-report/

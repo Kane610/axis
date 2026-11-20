@@ -1,0 +1,30 @@
+{
+  "name": "axis-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/app.ts --bundle --format=esm --minify --outfile=../axis/web/static/app.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:e2e": "pnpm build && playwright test"
+  },
+  "dependencies": {
+    "@home-assistant/webawesome": "3.14.0-ha.2",
+    "lit": "^3.3.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "^1.65.1",
+    "esbuild": "^0.28.2",
+    "eslint": "10.15.0",
+    "globals": "17.14.0",
+    "prettier": "3.10.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.0"
+  }
+}

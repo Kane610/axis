@@ -1,0 +1,77 @@
+{
+  "devices/list": [
+    {
+      "alias": "Front",
+      "discovery": {
+        "firmware": "",
+        "host": "192.0.2.1",
+        "last_seen": "2026-01-01T00:00:00+00:00",
+        "link_local_host": "",
+        "macaddress": "",
+        "model": "",
+        "module": "",
+        "name": "",
+        "vendor": ""
+      },
+      "host": "camera.local",
+      "is_companion": false,
+      "model": "",
+      "port": 0,
+      "serial": "SERIAL",
+      "verify_ssl": false,
+      "web_proto": "http"
+    }
+  ],
+  "device/health": {
+    "firmware_version": "12",
+    "model": "M1",
+    "observed_at": "2026-01-01T00:00:00+00:00",
+    "product": "Camera",
+    "serial": "OTHER",
+    "target": {
+      "alias": "Front",
+      "discovery": {
+        "firmware": "",
+        "host": "192.0.2.1",
+        "last_seen": "2026-01-01T00:00:00+00:00",
+        "link_local_host": "",
+        "macaddress": "",
+        "model": "",
+        "module": "",
+        "name": "",
+        "vendor": ""
+      },
+      "host": "camera.local",
+      "is_companion": false,
+      "model": "",
+      "port": 0,
+      "serial": "SERIAL",
+      "verify_ssl": false,
+      "web_proto": "http"
+    }
+  },
+  "device/apis": [
+    {
+      "id": "light-control",
+      "name": "Light control",
+      "status": "official",
+      "version": "1.0"
+    }
+  ],
+  "device/interfaces": [
+    {
+      "api_id": "light-control",
+      "api_version": "1.0",
+      "initialized": true,
+      "items": 1,
+      "listed": true,
+      "name": "light_control",
+      "probe_attempted": false,
+      "probe_succeeded": false,
+      "supported": true
+    }
+  ],
+  "device/read": {
+    "state": "on"
+  }
+}

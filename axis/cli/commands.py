@@ -250,6 +250,26 @@ def cli(ctx: click.Context, config: Path | None, debug: bool) -> None:
         interactive.launch(runtime, cli)
 
 
+@cli.command("web")
+@click.option(
+    "--port",
+    type=click.IntRange(1, 65535),
+    default=8765,
+    show_default=True,
+    help="Local web server port.",
+)
+@click.pass_obj
+def web_interface(runtime: Runtime, port: int) -> None:
+    """Open the local web interface in your browser; Ctrl-C stops the server."""
+    from axis.web.server import run_server  # noqa: PLC0415 - load web presentation only when requested
+
+    try:
+        run_server(runtime.config_path, port)
+    except OSError as exc:
+        msg = "Cannot start the local web server. Check the port or choose another with --port."
+        raise click.ClickException(msg) from exc
+
+
 @cli.group()
 def devices() -> None:
     """Manage locally registered devices; discovery is an explicit network action."""

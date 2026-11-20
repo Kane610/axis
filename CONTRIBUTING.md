@@ -36,6 +36,17 @@ branch and include the updated lockfile before rerunning CI.
 
 ## Running checks
 
+To run the required Python, frontend, and packaging checks together after
+setting up both toolchains and installing Chromium, run:
+
+```bash
+sh scripts/check.sh
+```
+
+This rebuilds the packaged frontend bundle; include any intended bundle
+changes in your PR. CI additionally compares the rebuilt bundle to the
+committed version and runs ty as an advisory check.
+
 Always run the full suite before opening a pull request:
 
 ```bash
@@ -77,6 +88,21 @@ single canonical executable, help for every command path, non-terminal
 behavior, and isolated Zsh startup/completion. It downloads runtime
 dependencies and needs network access. It does not change personal shell or
 device configuration. CI runs the same check independently.
+
+For frontend work, use Node.js 24 and the pnpm version pinned in
+`web/package.json`. Run the [frontend checks](README.md#local-web-interface)
+before opening a pull request. Commit `web/pnpm-lock.yaml` and the regenerated
+`axis/web/static/app.js` when they change. Do not edit the generated bundle
+directly. ESLint, Prettier, TypeScript, Vitest, and Playwright run in the
+independent **Frontend** CI job.
+
+pnpm waits at least three days after a dependency version is published and
+rejects downgrades in package trust evidence. Keep these policies enabled when
+updating the lockfile. Only esbuild is allowed to run a dependency install script.
+
+If you change a WebSocket command or response, update the shared
+[wire examples](web/tests/fixtures/websocket.json). Python compares them with
+actual server replies, and TypeScript checks them against the client result types.
 
 Async fixtures use function-scoped event loops, configured explicitly in
 `pyproject.toml`. Keep warnings treated as errors rather than suppressing
@@ -132,7 +158,7 @@ confirmation policies.
 The dependency direction is:
 
 ```text
-CLI / future graphical adapter
+CLI / web presentation adapter
               |
     axis.application services
               |
@@ -157,7 +183,11 @@ application services without optional CLI dependencies.
 | Save devices in TOML, coordinate writers, and replace completed files | `axis/application/storage.py` |
 | Network discovery without prompts or registration | `axis/application/discovery.py` |
 | CLI arguments, completion, secret input, confirmation, rendering | `axis/cli/` |
-| Future screen navigation, loading state, pending edits | Graphical presentation adapter |
+| Local web server, WebSocket API, packaged frontend | `axis/web/` |
+| Web screen navigation and loading state | `web/src/app.ts` |
+| Typed web commands, responses, and WebSocket lifecycle | `web/src/data/` |
+| Reusable Lit presentation and Web Awesome-based Axis controls | `web/src/components/` |
+| Semantic theme tokens and shared presentation styles | `web/src/resources/` |
 
 Do not put every dataclass in `axis/models/`. Device protocol models remain
 separate from saved device registrations, proposed account changes, and screen

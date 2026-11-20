@@ -10,22 +10,22 @@ Home Assistant and other integrations can continue using `AxisDevice`,
 configuration, handlers, models, events, and transport directly. Their public
 imports and handler initialization phases are unchanged.
 
-`axis.application` provides functions shared by the CLI and future applications:
+`axis.application` provides functions shared by the CLI and web application:
 find devices, save their connection settings, read device information, and manage
 accounts. Applications may use these functions or use the device library directly.
 The shared functions do not display menus or manage screen selection, and work
 without Click, prompt_toolkit, a terminal, or the `cli` extra.
 
 The CLI supplies terminal commands, prompts, and output around these functions.
-A future graphical application can call the same async functions while managing
-its own screens and event loop; it should not execute CLI commands or reuse
-terminal prompts. The device library does not import application or UI code.
+The web application calls the same async functions while managing its own
+screens and event loop; it does not execute CLI commands or reuse terminal
+prompts. The device library does not import application or UI code.
 Shared application functions do not import CLI or graphical UI code.
 
 The authoritative [contributor and agent architecture contract](CONTRIBUTING.md#shared-applications-and-separation-of-concerns)
 describes placement, public APIs, state ownership, dependencies, compatibility,
 and safety. Device protocol models remain separate from application records and
-future screen state. This separation does not regroup models/interfaces/VAPIX
+screen state. This separation does not regroup models/interfaces/VAPIX
 or introduce a new device-capability layer.
 
 See [supported Python APIs and import paths](CONTRIBUTING.md#supported-python-apis-and-import-paths)
@@ -77,6 +77,72 @@ fails. Saving device settings uses a local file and blocks until the update is
 complete. Writes use POSIX file locks; credentials are stored as plaintext in
 owner-only files, not encrypted. GUI-specific and cross-platform storage choices
 remain future work.
+
+## Local web interface
+
+The read-only web interface lists saved devices, reads their health, and browses
+device APIs and interfaces. Add devices with the CLI first. Run it with Python
+3.14 or newer. After release, install it with:
+
+```bash
+uv tool install --python 3.14 'axis[cli]'
+axis web
+```
+
+For this checkout, use `uv run axis web` after development setup, or choose
+**Open web interface** from the `uv run axis` home menu. Both automatically open
+the browser. The CLI's `--config` option selects the device registry:
+`uv run axis --config PATH web --port 8766`. Ctrl-C stops the server and
+returns to the menu when launched there.
+
+The server opens your default browser and prints a private URL to use if it
+cannot open the browser. Stop the server with Ctrl-C. The link contains an
+access token; do not share it. A new token is generated on each
+start. Opening a new private link in an existing tab reconnects it with the new
+token without requiring a reload. The server binds to IPv4 loopback only; it is
+not intended for remote or multi-user access. Use `axis web --port 8766` to choose
+another port.
+The local registry stores device credentials as plaintext in owner-only files.
+
+The web application uses a WebSocket for its read-only commands. Device details
+shown in the saved list are not a live health check; refresh health to contact
+the device. The list shows a saved alias, discovered name, or model when
+available, falling back to the serial number. A reported serial mismatch is
+displayed as a warning.
+Live reads can take up to 60 seconds. If a device cannot be reached, check its
+saved address and port and network access from the computer running the server,
+then use **Refresh health** to retry.
+
+The frontend follows Home Assistant's TypeScript/Lit web-component approach,
+using its Web Awesome fork for Axis controls, semantic CSS tokens, and automatic
+light/dark styling based on your system preference. Typed WebSocket/data modules
+are separate from presentation components. The app remains independent of Home
+Assistant; no Home Assistant instance is needed.
+
+The frontend is prebuilt for installation. Node.js and pnpm are development-only
+tools, not requirements for running `axis web`. For frontend development, install
+Node.js 24 and the pnpm version pinned in [web/package.json](web/package.json),
+then run:
+
+```bash
+pnpm --dir web install --frozen-lockfile
+pnpm --dir web exec playwright install chromium
+pnpm --dir web lint
+pnpm --dir web format:check
+pnpm --dir web test
+pnpm --dir web test:e2e
+```
+
+`test` runs Vitest unit tests. `test:e2e` rebuilds and type-checks the frontend,
+then tests the packaged application in a headless browser with mocked device
+responses; no real device is required. To only rebuild, use `pnpm --dir web build`.
+Commit the updated assets and `web/pnpm-lock.yaml` alongside frontend changes.
+The **Frontend** CI check installs locked dependencies, runs ESLint and Prettier,
+builds and tests the frontend, and rejects stale packaged assets.
+The PyPI source archive includes `web/` sources and tooling configuration for
+rebuilding; the wheel ships the compiled browser assets, not the frontend
+development tree. To run both Python and frontend checks from a checkout, see
+[Running checks](CONTRIBUTING.md#running-checks).
 
 ## Development setup
 
@@ -164,6 +230,7 @@ axis params show
 axis events list|listen
 axis accounts list|create|update|delete
 axis doctor
+axis web
 axis completion zsh
 ```
 
@@ -177,6 +244,8 @@ Bare `axis` opens guided navigation on a terminal:
   always ask for a device first, before other inputs, even if another device
   was previously selected.
 - **Setup & diagnostics** provides Doctor and shell completion.
+- **Open web interface** starts the local read-only web server and opens
+  the default browser. Ctrl-C stops it and returns to navigation.
 
 Choose a menu item by number, or open the suggested command prompt with `c`.
 Menu names and descriptions are separated by a visible ` | `, without relying

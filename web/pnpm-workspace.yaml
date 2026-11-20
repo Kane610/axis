@@ -1,0 +1,5 @@
+minimumReleaseAge: 4320 # Three days, in minutes.
+trustPolicy: no-downgrade
+
+allowBuilds:
+  esbuild: true

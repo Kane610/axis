@@ -10,7 +10,9 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 from tempfile import TemporaryDirectory
+from zipfile import ZipFile
 
 
 def run(
@@ -28,6 +30,41 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
+def verify_web_artifacts(sdist: Path, wheel: Path) -> None:
+    """Check that the sdist is rebuildable and the wheel ships the browser assets."""
+    assets = {"axis/web/static/app.js", "axis/web/static/index.html"}
+    sources = {
+        "web/package.json",
+        "web/pnpm-lock.yaml",
+        "web/pnpm-workspace.yaml",
+        "web/tsconfig.json",
+        "web/src/app.ts",
+        "web/tests/fixtures/websocket.json",
+    }
+    with tarfile.open(sdist) as archive:
+        contents = {entry.name.partition("/")[2] for entry in archive}
+    require(
+        assets | sources <= contents,
+        f"Missing web files in source distribution: {sorted((assets | sources) - contents)}",
+    )
+    require(
+        not any(path.startswith("web/node_modules/") for path in contents),
+        "Source distribution includes installed frontend dependencies.",
+    )
+    with ZipFile(wheel) as archive:
+        contents = set(archive.namelist())
+    require(
+        assets <= contents, f"Missing web assets in wheel: {sorted(assets - contents)}"
+    )
+    require(
+        not any(path.startswith("web/") for path in contents),
+        "Wheel includes frontend development files.",
+    )
+    sys.stdout.write(
+        "Web packaging passed: frontend sources in sdist, browser assets in wheel.\n"
+    )
+
+
 def verify() -> None:
     """Install a built wheel into temporary environments and test it without personal config."""
     repository = Path(__file__).resolve().parents[1]
@@ -39,6 +76,7 @@ def verify() -> None:
         env.pop("PYTHONPATH", None)
         run(["uv", "build", "--out-dir", str(root / "dist")], repository, env)
         wheel = next((root / "dist").glob("*.whl"))
+        verify_web_artifacts(next((root / "dist").glob("*.tar.gz")), wheel)
         for profile in ("base", "cli"):
             environment = root / profile
             run(["uv", "venv", "--python", sys.executable, str(environment)], root, env)
