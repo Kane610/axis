@@ -90,12 +90,16 @@ test("scans only on request and shows distinct discovered tiles in the saved dev
   page,
 }) => {
   const { requests } = await openApp(page);
-  const scan = page.getByRole("button", { name: "Scan local network" });
+  const scan = page.getByRole("button", {
+    name: /^Scan (local network|again)/,
+  });
   expect(requests).toHaveLength(0);
 
   await scan.click();
-  await expect(scan).toBeDisabled();
-  await expect(page.getByText("Scanning the local network…")).toBeVisible();
+  const scanning = page.getByRole("button", { name: "Scanning…" });
+  await expect(scanning).toBeDisabled();
+  await expect(scanning).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect
     .poll(() => requests.map(({ type }) => type))
     .toEqual(["devices/discover"]);
@@ -107,7 +111,7 @@ test("scans only on request and shows distinct discovered tiles in the saved dev
       model: "Test camera",
     },
   ]);
-  await expect(page.getByText("New devices found: 1")).toBeVisible();
+  await expect(scan).toHaveAccessibleName("Scan again · 1 new");
   const list = page.getByRole("list", { name: "Devices", exact: true });
   const saved = list.getByRole("button", { name: /Camera A/ });
   const discovered = list
@@ -214,7 +218,9 @@ test("keeps saved tiles when discovery reports the same devices", async ({
       discovery: { macaddress: "B8-A4-4F-01-02-03*" },
     },
   ]);
-  const scan = page.getByRole("button", { name: "Scan local network" });
+  const scan = page.getByRole("button", {
+    name: /^Scan (local network|again)/,
+  });
   const savedAnnouncements = [
     {
       name: "Saved by serial",
@@ -249,15 +255,22 @@ test("keeps saved tiles when discovery reports the same devices", async ({
   await expect(list.getByRole("button", { name: /^Camera [ABC]/ })).toHaveCount(
     3,
   );
-  await expect(page.getByText("New devices found: 1")).toBeVisible();
+  await expect(scan).toHaveAccessibleName("Scan again · 1 new");
   await expect(list).toContainText("Different camera at a saved address");
 
   await scan.click();
   await expect.poll(() => requests.length).toBe(2);
+  const previousResult = list.getByRole("button", {
+    name: /Different camera at a saved address/,
+  });
+  await expect(previousResult).toBeVisible();
+  await expect(previousResult).toBeDisabled();
+  await expect(list.getByRole("button", { name: /Camera A/ })).toBeEnabled();
   await respond(page, requests[1], savedAnnouncements);
-  await expect(
-    page.getByText("All discovered devices are already saved."),
-  ).toBeVisible();
+  await expect(scan).toHaveAccessibleName("Scan again · No new devices");
+  await expect(page.locator(".scan-status")).toHaveText(
+    "All discovered devices are already saved.",
+  );
   await expect(list.getByRole("listitem")).toHaveCount(3);
 });
 
@@ -272,12 +285,37 @@ test("reports a failed scan and can retry with no results", async ({
     code: "operation",
     message: "Device discovery failed.",
   });
-  await expect(page.getByRole("alert")).toHaveText("Device discovery failed.");
-  await scan.click();
+  const retry = page.getByRole("button", { name: "Retry scan · Scan failed" });
+  await expect(retry).toHaveAccessibleDescription("Device discovery failed.");
+  await expect(page.getByText("Device discovery failed.")).not.toBeInViewport();
+  await retry.click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], []);
-  await expect(page.getByText("No Axis devices found.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Scan again · No new devices" }),
+  ).toBeEnabled();
   await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("moves the scan outline unless reduced motion is enabled", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const { requests } = await openApp(page);
+  await page.getByRole("button", { name: "Scan local network" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  const outline = page.locator(".scan-outline rect");
+  await expect(outline).toBeInViewport();
+  await expect(outline).toHaveCSS("stroke-dasharray", "3px, 2px");
+  const readOffset = () =>
+    outline.evaluate((rect) => getComputedStyle(rect).strokeDashoffset);
+  const offset = await readOffset();
+  await expect.poll(readOffset).not.toBe(offset);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(outline).toHaveCSS("animation-name", "none");
+  await expect(outline).toHaveCSS("stroke-dasharray", "3px, 2px");
+  await respond(page, requests[0], []);
+  await expect(outline).toHaveCount(0);
 });
 
 for (const outcome of ["success", "error"]) {

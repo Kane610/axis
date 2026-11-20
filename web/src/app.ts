@@ -201,7 +201,11 @@ class AxisApp extends LitElement {
     )
       return;
     this.registration = null;
-    const scan = { status: "scanning" } as const;
+    const scan = {
+      status: "scanning",
+      devices:
+        this.discovery?.status === "complete" ? this.discovery.devices : [],
+    } as const;
     this.discovery = scan;
     try {
       const devices = await discoverDevices(this.connection);

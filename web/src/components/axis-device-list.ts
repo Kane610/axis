@@ -6,7 +6,7 @@ import "./axis-button";
 import "./axis-card";
 
 export type DiscoveryState =
-  | { status: "scanning" }
+  | { status: "scanning"; devices: DiscoveredDevice[] }
   | { status: "complete"; devices: DiscoveredDevice[] }
   | { status: "error"; message: string };
 
@@ -60,8 +60,52 @@ export class AxisDeviceList extends LitElement {
       .discovered::part(base) {
         border-color: var(--axis-color-warning);
       }
-      .error {
-        color: var(--axis-color-danger);
+      .scan-control {
+        position: relative;
+        display: inline-flex;
+      }
+      .scan-control .scanning::part(base) {
+        border-color: transparent;
+      }
+      .scan-control .failed::part(base) {
+        border-color: var(--axis-color-danger);
+      }
+      .scan-outline {
+        position: absolute;
+        inset: 0;
+        inline-size: 100%;
+        block-size: 100%;
+        pointer-events: none;
+      }
+      .scan-outline rect {
+        x: 1px;
+        y: 1px;
+        width: calc(100% - 2px);
+        height: calc(100% - 2px);
+        rx: var(--axis-radius-control);
+        fill: none;
+        stroke: var(--axis-color-primary);
+        stroke-width: 2px;
+        stroke-dasharray: 3 2;
+        animation: scan-dashes 650ms linear infinite;
+      }
+      @keyframes scan-dashes {
+        to {
+          stroke-dashoffset: -5;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .scan-outline rect {
+          animation: none;
+        }
+      }
+      .scan-status {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
     `,
   ];
@@ -74,10 +118,28 @@ export class AxisDeviceList extends LitElement {
   protected render() {
     const discovery = this.discovery;
     const announcements =
-      discovery?.status === "complete" ? discovery.devices : [];
+      discovery && discovery.status !== "error" ? discovery.devices : [];
     const discovered = announcements.filter(
       (device) => !isSavedDevice(device, this.devices),
     );
+    const scanning = discovery?.status === "scanning";
+    const failed = discovery?.status === "error";
+    const scanLabel = scanning
+      ? "Scanning…"
+      : failed
+        ? "Retry scan · Scan failed"
+        : discovery?.status === "complete"
+          ? `Scan again · ${discovered.length ? `${discovered.length} new` : "No new devices"}`
+          : "Scan local network";
+    const scanStatus = failed
+      ? discovery.message
+      : discovery?.status === "complete" && !discovered.length
+        ? announcements.length
+          ? "All discovered devices are already saved."
+          : "No Axis devices found."
+        : discovery
+          ? scanLabel
+          : "";
     return html`
       <axis-card>
         <h2>Devices</h2>
@@ -91,26 +153,28 @@ export class AxisDeviceList extends LitElement {
             @click=${() => this.dispatchEvent(new Event("axis-refresh"))}
             >Refresh list</axis-button
           >
-          <axis-button
-            ?disabled=${!this.connected || discovery?.status === "scanning"}
-            @click=${() => this.dispatchEvent(new Event("axis-scan"))}
-            >Scan local network</axis-button
-          >
-        </div>
-        <div role="status">
-          ${
-            discovery?.status === "scanning"
-              ? "Scanning the local network…"
-              : discovery?.status === "complete"
-                ? announcements.length === 0
-                  ? "No Axis devices found."
-                  : discovered.length === 0
-                    ? "All discovered devices are already saved."
-                    : `New devices found: ${discovered.length}`
+          <span class="scan-control">
+            <axis-button
+              class=${scanning ? "scanning" : failed ? "failed" : ""}
+              ?disabled=${!this.connected}
+              aria-disabled=${scanning ? "true" : "false"}
+              title=${failed ? discovery.message : ""}
+              @click=${() => {
+                if (this.connected && !scanning)
+                  this.dispatchEvent(new Event("axis-scan"));
+              }}
+              >${scanLabel}</axis-button
+            >
+            ${
+              scanning
+                ? html`<svg class="scan-outline" aria-hidden="true">
+                    <rect pathLength="100"></rect>
+                  </svg>`
                 : nothing
-          }
+            }
+            <span class="scan-status" role="status">${scanStatus}</span>
+          </span>
         </div>
-        ${discovery?.status === "error" ? html`<p class="error" role="alert">${discovery.message}</p>` : nothing}
         ${this.devices.length === 0 ? html`<p>No saved devices. Scan the local network to find devices to save.</p>` : ""}
         ${
           this.devices.length || discovered.length
@@ -136,7 +200,7 @@ export class AxisDeviceList extends LitElement {
                       <li>
                         <axis-button
                           class="discovered"
-                          ?disabled=${!this.connected}
+                          ?disabled=${!this.connected || scanning}
                           @click=${() => this.dispatchEvent(new CustomEvent("axis-register", { detail: device }))}
                         >
                           ${device.name || device.host}

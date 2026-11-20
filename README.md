@@ -112,6 +112,9 @@ displayed as a warning.
 
 In the **Devices** card, choose **Scan local network** to look for Axis devices
 advertising over mDNS on the IPv4 network of the computer running the server.
+The button shows the scan progress and result. Its dashed outline stays still
+when reduced motion is enabled. During a rescan, previous results stay visible
+but cannot be selected until the scan finishes.
 New devices appear alongside saved devices with a different outline and a
 **Discovered** label. Results that match a saved serial number or MAC address
 do not get a second tile. Discovery announcements are unverified. A scan does
