@@ -326,7 +326,7 @@ test("moves the scan outline unless reduced motion is enabled", async ({
   const { requests } = await openApp(page);
   await page.getByRole("button", { name: "Scan local network" }).click();
   await expect.poll(() => requests.length).toBe(1);
-  const outline = page.locator(".scan-outline rect");
+  const outline = page.locator(".scan-control .busy-outline rect");
   await expect(outline).toBeInViewport();
   await expect(outline).toHaveCSS("stroke-dasharray", "3px, 2px");
   const readOffset = () =>
@@ -359,15 +359,15 @@ for (const outcome of ["success", "error"]) {
     );
     await respond(page, requests[1], { serial: "B", product: "Wrong device" });
     await expect(
-      page.getByText("Contacting the device.", { exact: false }),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Health", exact: true }),
+    ).toHaveAttribute("aria-busy", "true");
     await expect(page.getByText("Obsolete", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);
 
     await respond(page, requests[2], health("Current"));
     await expect(page.getByText("Current", { exact: true })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Refresh health" }),
+      page.getByRole("button", { name: "Health", exact: true }),
     ).toBeEnabled();
   });
 }
@@ -379,7 +379,7 @@ for (const outcome of ["success", "error"]) {
     const { requests } = await openApp(page);
     await select(page, "A", requests, 1);
     await respond(page, requests[0], health("Initial"));
-    await page.getByRole("button", { name: "Check interfaces" }).click();
+    await page.getByRole("button", { name: "Interfaces", exact: true }).click();
     await expect.poll(() => requests.length).toBe(2);
     await select(page, "B", requests, 3);
     await select(page, "A", requests, 4);
@@ -395,8 +395,8 @@ for (const outcome of ["success", "error"]) {
         : undefined,
     );
     await expect(
-      page.getByText("Contacting the device.", { exact: false }),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Health", exact: true }),
+    ).toHaveAttribute("aria-busy", "true");
     await expect(page.getByRole("button", { name: "Obsolete" })).toHaveCount(0);
     await expect(page.locator("pre")).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);
@@ -437,9 +437,7 @@ test("ignores an outstanding read after dismissal and a list refresh", async ({
     message: "Obsolete error",
   });
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(
-    page.getByText("Contacting the device.", { exact: false }),
-  ).toHaveCount(0);
+  await expect(page.locator("axis-button[busy]")).toHaveCount(0);
 });
 
 for (const state of ["connected", "denied", "disconnected"]) {
@@ -492,23 +490,30 @@ test("keyboard selection and typed API commands work through the component bound
   const dialog = page.getByRole("dialog", { name: "Camera A" });
   await expect(dialog).toBeVisible();
   const close = dialog.getByRole("button", { name: "Close" });
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  await expect(
+    views.getByRole("button", { name: "Health", pressed: true }),
+  ).toBeVisible();
   await expect(close).toBeFocused();
   await camera.evaluate((button) => button.focus());
   await expect(close).toBeFocused();
   await expect(
-    page.getByRole("button", { name: "Refresh health" }),
-  ).toBeDisabled();
+    dialog.getByRole("button", { name: "Refresh health" }),
+  ).toHaveCount(0);
   await respond(page, requests[0], health("Camera"));
 
-  await page.getByRole("button", { name: "List APIs" }).click();
+  await views.getByRole("button", { name: "APIs", exact: true }).click();
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1]).toMatchObject({ type: "device/apis", device: "A" });
+  await expect(
+    dialog.getByRole("heading", { name: "Device health" }),
+  ).toHaveCount(0);
   await respond(page, requests[1], [
     { id: "basic-device-info", version: "1.0" },
   ]);
   await expect(page.locator("pre")).toContainText("basic-device-info");
 
-  await page.getByRole("button", { name: "Check interfaces" }).click();
+  await views.getByRole("button", { name: "Interfaces", exact: true }).click();
   await expect.poll(() => requests.length).toBe(3);
   expect(requests[2]).toMatchObject({ type: "device/interfaces", device: "A" });
   await respond(page, requests[2], [
@@ -518,6 +523,10 @@ test("keyboard selection and typed API commands work through the component bound
   await expect(
     page.getByRole("button", { name: "unavailable" }),
   ).toBeDisabled();
+  await expect(views.getByRole("button")).toHaveCount(3);
+  await expect(dialog.locator("pre")).not.toContainText(
+    '"id": "basic-device-info"',
+  );
   await page.getByRole("button", { name: "basic_device_info" }).click();
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3]).toMatchObject({
@@ -532,6 +541,123 @@ test("keyboard selection and typed API commands work through the component bound
   await expect(camera).toBeFocused();
 });
 
+test("switches modal views while a request is pending without showing stale results", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  await views.getByRole("button", { name: "APIs", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "current-api" }]);
+  await respond(page, requests[0], health("Obsolete health"));
+  await expect(dialog.locator("pre")).toContainText("current-api");
+  await expect(dialog.getByText("Obsolete health")).toHaveCount(0);
+  await views.getByRole("button", { name: "Health", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], health("Current health"));
+  await expect(dialog.getByText("Current health")).toBeVisible();
+  await expect(dialog.locator("pre")).toHaveCount(0);
+  const healthButton = views.getByRole("button", {
+    name: "Health",
+    exact: true,
+    pressed: true,
+  });
+  const currentHealth = dialog.getByText("Current health");
+  const before = await currentHealth.boundingBox();
+  await healthButton.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await expect(healthButton).toHaveAttribute("aria-busy", "true");
+  const outline = views.locator(".busy-outline rect");
+  await expect(outline).toBeInViewport();
+  await expect(outline).toHaveCSS("animation-name", "busy-dashes");
+  await expect(dialog.getByText(/Contacting the device/)).toHaveCount(0);
+  await expect(currentHealth).toBeVisible();
+  expect((await currentHealth.boundingBox()).y).toBeCloseTo(before.y);
+  expect(requests[3]).toMatchObject({ type: "device/health", device: "A" });
+  await respond(page, requests[3], health("Refreshed health"));
+  await expect(dialog.getByText("Refreshed health")).toBeVisible();
+  await expect(outline).toHaveCount(0);
+});
+
+test("reuses loaded views and interface results until the active button is clicked again", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Cached health"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  const healthView = views.getByRole("button", { name: "Health", exact: true });
+  const apis = views.getByRole("button", { name: "APIs", exact: true });
+  const interfaces = views.getByRole("button", {
+    name: "Interfaces",
+    exact: true,
+  });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "cached-api" }]);
+  await interfaces.click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    { name: "basic_device_info", supported: true },
+    { name: "light_control", supported: true },
+  ]);
+  const info = dialog.getByRole("button", {
+    name: "basic_device_info",
+    exact: true,
+  });
+  const light = dialog.getByRole("button", {
+    name: "light_control",
+    exact: true,
+  });
+  const result = dialog.locator("pre");
+  await info.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], { model: "Cached model" });
+  await light.click();
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], null);
+  await expect(result).toHaveText("null");
+
+  await healthView.click();
+  await expect(dialog.getByText("Cached health")).toBeVisible();
+  await apis.click();
+  await expect(result).toContainText("cached-api");
+  await interfaces.click();
+  await expect(light).toHaveAttribute("aria-pressed", "true");
+  await expect(result).toHaveText("null");
+  await info.click();
+  await expect(result).toContainText("Cached model");
+  expect(requests).toHaveLength(5);
+
+  await info.click();
+  await expect.poll(() => requests.length).toBe(6);
+  await expect(info).toHaveAttribute("aria-busy", "true");
+  await expect(interfaces).not.toHaveAttribute("aria-busy", "true");
+  await expect(result).toContainText("Cached model");
+  expect(requests[5]).toMatchObject({
+    type: "device/read",
+    name: "basic_device_info",
+  });
+  await respond(page, requests[5], { model: "Refreshed model" });
+  await expect(result).toContainText("Refreshed model");
+  await interfaces.click();
+  await expect.poll(() => requests.length).toBe(7);
+  await expect(interfaces).toHaveAttribute("aria-busy", "true");
+  await expect(result).toContainText("Refreshed model");
+  expect(requests[6]).toMatchObject({ type: "device/interfaces" });
+  await respond(page, requests[6], []);
+  await expect(result).toHaveText("[]");
+  await expect(info).toHaveCount(0);
+  await apis.click();
+  await expect(result).toContainText("cached-api");
+  await interfaces.click();
+  await expect(result).toHaveText("[]");
+  expect(requests).toHaveLength(7);
+});
+
 test("keeps device details scrollable without extending the list page", async ({
   page,
 }) => {
@@ -542,8 +668,21 @@ test("keeps device details scrollable without extending the list page", async ({
   const closedHeight = await pageHeight();
 
   await select(page, "A", requests, 1);
-  await respond(page, requests[0], health("Camera"));
   const dialog = page.getByRole("dialog", { name: "Camera A" });
+  const devicesBox = page.locator("axis-device-list");
+  const expectAligned = async () => {
+    const dialogTop = await dialog.evaluate(
+      (element) => element.getBoundingClientRect().top,
+    );
+    const devicesTop = await devicesBox.evaluate(
+      (element) => element.getBoundingClientRect().top + window.scrollY,
+    );
+    expect(dialogTop).toBeCloseTo(devicesTop);
+  };
+  await expectAligned();
+  await respond(page, requests[0], health("Camera"));
+  await expect(dialog.getByText("Camera", { exact: true })).toBeVisible();
+  await expectAligned();
   const bounds = await dialog.boundingBox();
   expect(bounds.width).toBeGreaterThan(350);
   expect(bounds.height).toBeLessThan(480);
@@ -560,6 +699,8 @@ test("keeps device details scrollable without extending the list page", async ({
     element.scrollTop = element.scrollHeight;
   });
   await expect(dialog.getByRole("button", { name: "Close" })).toBeInViewport();
+  await page.setViewportSize({ width: 900, height: 720 });
+  await expectAligned();
 });
 
 for (const serial of ["A", "B"]) {

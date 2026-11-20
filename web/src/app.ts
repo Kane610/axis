@@ -10,6 +10,7 @@ import {
   readInterface,
   saveDevice,
   type Device,
+  type DeviceApi,
   type DeviceInterface,
   type DiscoveredDevice,
   type Health,
@@ -22,15 +23,25 @@ import "./components/axis-device-health";
 import "./components/axis-device-list";
 import type { DiscoveryState } from "./components/axis-device-list";
 
+const DEVICE_VIEWS = ["Health", "APIs", "Interfaces"] as const;
+type DeviceView = (typeof DEVICE_VIEWS)[number];
+
+type DeviceViewData = {
+  health?: Health;
+  apis?: DeviceApi[];
+  interfaces?: DeviceInterface[];
+  interfaceResults?: ReadonlyMap<string, unknown>;
+};
+
 class AxisApp extends LitElement {
   static properties = {
     status: { state: true },
     devices: { state: true },
     discovery: { state: true },
     selected: { state: true },
-    health: { state: true },
-    interfaces: { state: true },
-    data: { state: true },
+    deviceView: { state: true },
+    viewData: { state: true },
+    selectedInterface: { state: true },
     error: { state: true },
     loading: { state: true },
     registration: { state: true },
@@ -64,7 +75,11 @@ class AxisApp extends LitElement {
           calc(100% - var(--axis-space-4))
         );
         max-inline-size: none;
-        max-block-size: calc(100dvh - var(--axis-space-4));
+        inset-block: var(--axis-dialog-top) auto;
+        margin-block: 0;
+        max-block-size: calc(
+          100dvh - var(--axis-dialog-top) - var(--axis-space-2)
+        );
         padding: 0;
         border: var(--axis-border-width) solid var(--axis-color-border);
         border-radius: var(--axis-radius-card);
@@ -80,11 +95,13 @@ class AxisApp extends LitElement {
         background: rgb(0 0 0 / 55%);
       }
       .dialog-header {
-        flex-wrap: nowrap;
-        align-items: start;
         padding: var(--axis-space-4);
         border-block-end: var(--axis-border-width) solid
           var(--axis-color-border);
+      }
+      .dialog-heading {
+        flex-wrap: nowrap;
+        align-items: start;
       }
       .dialog-header h2 {
         margin: 0;
@@ -141,11 +158,11 @@ class AxisApp extends LitElement {
   private devices: Device[] = [];
   private discovery: DiscoveryState | null = null;
   private selected = "";
-  private health: Health | null = null;
-  private interfaces: DeviceInterface[] = [];
-  private data: unknown = null;
+  private deviceView: DeviceView = "Health";
+  private viewData: DeviceViewData = {};
+  private selectedInterface: string | null = null;
   private error = "";
-  private loading = false;
+  private loading: "view" | "interface" | null = null;
   private registration: DiscoveredDevice | null = null;
   private saving = false;
   private saveError = "";
@@ -158,6 +175,7 @@ class AxisApp extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener("hashchange", this.openAccessLink);
+    window.addEventListener("resize", this.alignDeviceDialog);
     this.openAccessLink();
   }
 
@@ -179,16 +197,28 @@ class AxisApp extends LitElement {
 
   disconnectedCallback(): void {
     window.removeEventListener("hashchange", this.openAccessLink);
+    window.removeEventListener("resize", this.alignDeviceDialog);
     this.connection.disconnect();
     super.disconnectedCallback();
   }
+
+  private alignDeviceDialog = (): void => {
+    const dialog = this.renderRoot.querySelector("dialog");
+    const list = this.renderRoot.querySelector("axis-device-list");
+    if (dialog && list) {
+      const top = list.getBoundingClientRect().top + window.scrollY;
+      dialog.style.setProperty("--axis-dialog-top", `${top}px`);
+    }
+  };
 
   protected updated(): void {
     const dialog = this.renderRoot.querySelector("dialog");
     if (!dialog) return;
     const hasView = this.registration !== null || this.selected !== "";
-    if (hasView && !dialog.open) dialog.showModal();
-    else if (!hasView && dialog.open) {
+    if (hasView) {
+      this.alignDeviceDialog();
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) {
       dialog.close();
       if (!this.shadowRoot?.activeElement)
         this.renderRoot.querySelector("h1")?.focus();
@@ -201,7 +231,9 @@ class AxisApp extends LitElement {
     ++this.operation;
     this.registration = null;
     this.selected = "";
-    this.loading = false;
+    this.viewData = {};
+    this.selectedInterface = null;
+    this.loading = null;
     this.error = "";
   }
 
@@ -226,10 +258,9 @@ class AxisApp extends LitElement {
     this.registration = null;
     this.saving = false;
     this.saveError = "";
-    this.health = null;
-    this.interfaces = [];
-    this.data = null;
-    this.loading = false;
+    this.viewData = {};
+    this.selectedInterface = null;
+    this.loading = null;
   }
 
   private async refreshDevices(): Promise<void> {
@@ -243,11 +274,13 @@ class AxisApp extends LitElement {
         this.selected &&
         this.devices.some((device) => device.serial === this.selected)
       ) {
-        await this.selectDevice(this.selected);
+        await this.showDeviceView(this.selected, this.deviceView);
       } else {
         ++this.operation;
         this.selected = "";
-        this.loading = false;
+        this.viewData = {};
+        this.selectedInterface = null;
+        this.loading = null;
       }
     } catch (error) {
       if (this.refreshId === refreshId) this.error = (error as Error).message;
@@ -309,6 +342,7 @@ class AxisApp extends LitElement {
       this.registration = null;
       this.saving = false;
       this.selected = serial;
+      this.deviceView = "Health";
       await this.refreshDevices();
     } catch (error) {
       if (this.registration === target)
@@ -368,41 +402,134 @@ class AxisApp extends LitElement {
     );
   }
 
-  private async selectDevice(serial: string): Promise<void> {
-    const operation = ++this.operation;
-    this.selected = serial;
-    this.health = null;
-    this.interfaces = [];
-    this.data = null;
-    this.error = "";
-    this.loading = true;
-    try {
-      const health = await fetchHealth(this.connection, serial);
-      if (this.operation === operation) this.health = health;
-    } catch (error) {
-      if (this.operation === operation) this.error = (error as Error).message;
-    } finally {
-      if (this.operation === operation) this.loading = false;
+  private async showDeviceView(
+    serial: string,
+    view: DeviceView,
+    refresh = false,
+  ): Promise<void> {
+    if (this.deviceView !== view) {
+      const content = this.renderRoot.querySelector(".dialog-content");
+      if (content) content.scrollTop = 0;
     }
+    this.selected = serial;
+    this.deviceView = view;
+    if (
+      !refresh &&
+      ((view === "Health" && this.viewData.health) ||
+        (view === "APIs" && this.viewData.apis) ||
+        (view === "Interfaces" && this.viewData.interfaces))
+    ) {
+      this.useCachedView();
+      return;
+    }
+    if (view === "Health") {
+      return this.browse(
+        () => fetchHealth(this.connection, serial),
+        (health) => {
+          this.viewData = { ...this.viewData, health };
+        },
+      );
+    }
+    if (view === "APIs")
+      return this.browse(
+        () => fetchApis(this.connection, serial),
+        (apis) => {
+          this.viewData = { ...this.viewData, apis };
+        },
+      );
+    return this.browse(
+      () => fetchInterfaces(this.connection, serial),
+      (interfaces) => {
+        this.viewData = { ...this.viewData, interfaces };
+        if (refresh) this.selectedInterface = null;
+      },
+    );
+  }
+
+  private async showInterface(serial: string, name: string): Promise<void> {
+    const refresh = this.selectedInterface === name;
+    this.selectedInterface = name;
+    if (!refresh && this.viewData.interfaceResults?.has(name)) {
+      this.useCachedView();
+      return;
+    }
+    return this.browse(
+      () => readInterface(this.connection, serial, name),
+      (result) => {
+        const interfaceResults = new Map(this.viewData.interfaceResults);
+        interfaceResults.set(name, result);
+        this.viewData = { ...this.viewData, interfaceResults };
+      },
+      "interface",
+    );
+  }
+
+  private useCachedView(): void {
+    ++this.operation;
+    this.loading = null;
+    this.error = "";
   }
 
   private async browse<T>(
     load: () => Promise<T>,
-    apply?: (result: T) => void,
+    apply: (result: T) => void,
+    target: "view" | "interface" = "view",
   ): Promise<void> {
     const operation = ++this.operation;
-    this.loading = true;
+    this.loading = target;
     this.error = "";
     try {
       const result = await load();
       if (this.operation !== operation) return;
-      apply?.(result);
-      this.data = result;
+      apply(result);
     } catch (error) {
       if (this.operation === operation) this.error = (error as Error).message;
     } finally {
-      if (this.operation === operation) this.loading = false;
+      if (this.operation === operation) this.loading = null;
     }
+  }
+
+  private renderSavedView(device: Device, connected: boolean) {
+    if (this.deviceView === "Health") {
+      return html`
+        <axis-device-health
+          .device=${device}
+          .health=${this.viewData.health ?? null}
+          .loading=${this.loading === "view"}
+        ></axis-device-health>
+      `;
+    }
+    const { apis, interfaces, interfaceResults } = this.viewData;
+    const data =
+      this.deviceView === "APIs"
+        ? apis
+        : this.selectedInterface === null
+          ? interfaces
+          : interfaceResults?.get(this.selectedInterface);
+    return html`
+      <axis-card>
+        <h3>${this.deviceView}</h3>
+        ${
+          this.deviceView === "Interfaces" && interfaces?.length
+            ? html`<div class="actions">
+                ${interfaces.map(
+                  (item) => html`
+                    <axis-button
+                      .pressed=${this.selectedInterface === item.name}
+                      .busy=${this.loading === "interface" && this.selectedInterface === item.name}
+                      ?disabled=${!connected || !item.supported}
+                      @click=${() => this.showInterface(device.serial, item.name)}
+                    >
+                      ${item.name}
+                    </axis-button>
+                  `,
+                )}
+              </div>`
+            : nothing
+        }
+        ${data !== undefined ? html`<pre>${JSON.stringify(data, null, 2)}</pre>` : nothing}
+      </axis-card>
+    `;
   }
 
   protected render() {
@@ -430,7 +557,7 @@ class AxisApp extends LitElement {
           @axis-scan=${this.scanLocalNetwork}
           @axis-select=${(event: CustomEvent<string>) => {
             this.registration = null;
-            void this.selectDevice(event.detail);
+            void this.showDeviceView(event.detail, "Health");
           }}
           @axis-register=${(event: CustomEvent<DiscoveredDevice>) => this.openRegistration(event.detail)}
         >
@@ -440,70 +567,44 @@ class AxisApp extends LitElement {
         aria-labelledby="device-dialog-title"
         @cancel=${this.dismissDevice}
       >
-        <header class="dialog-header">
-          <h2 id="device-dialog-title">
-            ${this.registration ? "Save device" : device ? deviceName(device) : "Device details"}
-          </h2>
-          <button
-            type="button"
-            autofocus
-            ?disabled=${this.saving}
-            @click=${this.dismissDevice}
-          >
-            Close
-          </button>
-        </header>
+        <div class="dialog-header">
+          <header class="dialog-heading">
+            <h2 id="device-dialog-title">
+              ${this.registration ? "Save device" : device ? deviceName(device) : "Device details"}
+            </h2>
+            <button
+              type="button"
+              autofocus
+              ?disabled=${this.saving}
+              @click=${this.dismissDevice}
+            >
+              Close
+            </button>
+          </header>
+          ${
+            device
+              ? html`<nav class="actions" aria-label="Device views">
+                  ${DEVICE_VIEWS.map(
+                    (view) => html`
+                      <axis-button
+                        variant=${this.deviceView === view ? "brand" : "neutral"}
+                        .pressed=${this.deviceView === view}
+                        .busy=${this.loading === "view" && this.deviceView === view}
+                        ?disabled=${!connected}
+                        @click=${() => this.showDeviceView(device.serial, view, this.deviceView === view)}
+                        >${view}</axis-button
+                      >
+                    `,
+                  )}
+                </nav>`
+              : nothing
+          }
+        </div>
         <div class="panels dialog-content">
           ${!connected && hasView ? html`<span role="status">${this.status}</span>` : nothing}
           ${hasView ? error : nothing}
           ${this.registration ? this.renderRegistration(this.registration) : nothing}
-          ${
-            device
-              ? html`
-                  <axis-device-health
-                    .device=${device}
-                    .health=${this.health}
-                    .connected=${connected}
-                    .loading=${this.loading}
-                    @axis-refresh=${() => this.selectDevice(device.serial)}
-                  >
-                  </axis-device-health>
-                  <axis-card>
-                    <h3>APIs and interfaces</h3>
-                    <div class="actions">
-                      <axis-button
-                        ?disabled=${this.loading || !connected}
-                        @click=${() => this.browse(() => fetchApis(this.connection, device.serial))}
-                        >List APIs</axis-button
-                      >
-                      <axis-button
-                        ?disabled=${this.loading || !connected}
-                        @click=${() =>
-                          this.browse(
-                            () =>
-                              fetchInterfaces(this.connection, device.serial),
-                            (interfaces) => {
-                              this.interfaces = interfaces;
-                            },
-                          )}
-                        >Check interfaces</axis-button
-                      >
-                      ${this.interfaces.map(
-                        (item) => html`
-                          <axis-button
-                            ?disabled=${this.loading || !connected || !item.supported}
-                            @click=${() => this.browse(() => readInterface(this.connection, device.serial, item.name))}
-                          >
-                            ${item.name}
-                          </axis-button>
-                        `,
-                      )}
-                    </div>
-                    ${this.data !== null ? html`<pre>${JSON.stringify(this.data, null, 2)}</pre>` : nothing}
-                  </axis-card>
-                `
-              : nothing
-          }
+          ${device ? this.renderSavedView(device, connected) : nothing}
         </div>
       </dialog>
     `;

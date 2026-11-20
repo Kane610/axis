@@ -1,7 +1,6 @@
 import { LitElement, html, nothing } from "lit";
 import type { Device, Health } from "../data/devices";
 import { contentStyles } from "../resources/theme";
-import "./axis-button";
 import "./axis-card";
 
 export class AxisDeviceHealth extends LitElement {
@@ -9,7 +8,6 @@ export class AxisDeviceHealth extends LitElement {
     device: { attribute: false },
     health: { attribute: false },
     loading: { type: Boolean },
-    connected: { type: Boolean },
   };
 
   static styles = contentStyles;
@@ -17,7 +15,6 @@ export class AxisDeviceHealth extends LitElement {
   device: Device | null = null;
   health: Health | null = null;
   loading = false;
-  connected = false;
 
   protected render() {
     if (!this.device) return nothing;
@@ -25,13 +22,7 @@ export class AxisDeviceHealth extends LitElement {
     return html`
       <axis-card>
         <h3>Device health</h3>
-        <axis-button
-          ?disabled=${this.loading || !this.connected}
-          @click=${() => this.dispatchEvent(new Event("axis-refresh"))}
-          >Refresh health</axis-button
-        >
-        ${this.loading ? html`<p role="status">Contacting the device. This may take up to 60 seconds.</p>` : nothing}
-        ${!this.loading && !this.health ? html`<p>No live health data available. Check the connection and use Refresh health to try again.</p>` : nothing}
+        ${!this.loading && !this.health ? html`<p>No live health data available. Check the connection and select Health again to retry.</p>` : nothing}
         ${
           this.health
             ? html`

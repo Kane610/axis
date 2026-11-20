@@ -105,8 +105,8 @@ another port.
 The local registry stores device credentials as plaintext in owner-only files.
 
 The web application uses an authenticated local WebSocket. Device details
-shown in the saved list are not a live health check; refresh health to contact
-the device. Saved and discovered devices appear in a single vertical list,
+shown in the saved list are not a live health check; open a saved device to
+contact it. Saved and discovered devices appear in a single vertical list,
 with an address and MAC address when available. Discovered rows also show the
 advertised model when available. Saved rows use an alias, discovered name, or
 model as their label, falling back to the serial number, but never append a
@@ -125,8 +125,14 @@ An empty scan does not mean there are no devices on the network.
 
 Select a discovered device to enter its credentials and an optional alias,
 then click **Save device**. Selecting a saved device opens its health and API
-details. Both views open in a modal over the device list; use **Close** or
-**Esc** to return to the list.
+details. The saved-device modal opens on **Health**. Use **APIs** or
+**Interfaces** below the device name to switch views; individual interface
+buttons are inside **Interfaces**. While the modal is open, switching back to
+a view or interface reuses its last successful result. Select the active button
+again to refresh it. A moving dashed outline marks the button while it loads
+without moving the existing content. The modal starts at the top of the
+**Devices** box and scrolls independently. Use **Close** or **Esc** to return
+to the list.
 
 When saving a device, the server connects over HTTPS, reads the device's
 serial number, and adds a local registration without replacing an existing one.
@@ -137,7 +143,7 @@ the CLI for manual addresses or other connection settings.
 
 Live reads can take up to 60 seconds. If a device cannot be reached, check its
 saved address and port and network access from the computer running the server,
-then use **Refresh health** to retry.
+then select **Health** again to retry or refresh the health view.
 
 The frontend follows Home Assistant's TypeScript/Lit web-component approach,
 using its Web Awesome fork for Axis controls, semantic CSS tokens, and automatic

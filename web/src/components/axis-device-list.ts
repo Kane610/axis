@@ -78,40 +78,8 @@ export class AxisDeviceList extends LitElement {
         position: relative;
         display: inline-flex;
       }
-      .scan-control .scanning::part(base) {
-        border-color: transparent;
-      }
       .scan-control .failed::part(base) {
         border-color: var(--axis-color-danger);
-      }
-      .scan-outline {
-        position: absolute;
-        inset: 0;
-        inline-size: 100%;
-        block-size: 100%;
-        pointer-events: none;
-      }
-      .scan-outline rect {
-        x: 1px;
-        y: 1px;
-        width: calc(100% - 2px);
-        height: calc(100% - 2px);
-        rx: var(--axis-radius-control);
-        fill: none;
-        stroke: var(--axis-color-primary);
-        stroke-width: 2px;
-        stroke-dasharray: 3 2;
-        animation: scan-dashes 650ms linear infinite;
-      }
-      @keyframes scan-dashes {
-        to {
-          stroke-dashoffset: -5;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .scan-outline rect {
-          animation: none;
-        }
       }
       .scan-status {
         position: absolute;
@@ -169,7 +137,8 @@ export class AxisDeviceList extends LitElement {
           >
           <span class="scan-control">
             <axis-button
-              class=${scanning ? "scanning" : failed ? "failed" : ""}
+              class=${failed ? "failed" : ""}
+              .busy=${scanning}
               ?disabled=${!this.connected}
               aria-disabled=${scanning ? "true" : "false"}
               title=${failed ? discovery.message : ""}
@@ -179,13 +148,6 @@ export class AxisDeviceList extends LitElement {
               }}
               >${scanLabel}</axis-button
             >
-            ${
-              scanning
-                ? html`<svg class="scan-outline" aria-hidden="true">
-                    <rect pathLength="100"></rect>
-                  </svg>`
-                : nothing
-            }
             <span class="scan-status" role="status">${scanStatus}</span>
           </span>
         </div>
