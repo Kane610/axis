@@ -4,6 +4,7 @@ import type {
   DeviceInterface,
   DiscoveredDevice,
   Health,
+  SaveDevice,
 } from "./devices";
 
 type Commands = {
@@ -12,6 +13,7 @@ type Commands = {
     args: Record<string, never>;
     result: DiscoveredDevice[];
   };
+  "devices/save": { args: SaveDevice; result: string };
   "device/health": { args: { device: string }; result: Health };
   "device/apis": { args: { device: string }; result: DeviceApi[] };
   "device/interfaces": { args: { device: string }; result: DeviceInterface[] };

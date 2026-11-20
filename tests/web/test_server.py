@@ -182,6 +182,97 @@ async def test_discovery_errors(
     await socket.close()
 
 
+async def test_save_authenticates_discovered_target_without_overwriting(
+    client: TestClient,
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    wire_results: dict[str, object],
+) -> None:
+    """Require the current socket's scan and use live identity, not advertised serial."""
+    monkeypatch.setattr(
+        server,
+        "discover_axis_devices",
+        AsyncMock(return_value=wire_results["devices/discover"]),
+    )
+
+    async def identify(settings: ConnectionSettings) -> DeviceRecord:
+        return DeviceRecord("LIVE-SERIAL", settings, model="Live model")
+
+    login = AsyncMock(side_effect=identify)
+    monkeypatch.setattr(server.operations, "identify", login)
+    args = {
+        "type": "devices/save",
+        "host": "192.0.2.2",
+        "username": "root",
+        "password": "device-test-password",
+        "alias": "Entrance",
+        "verify_ssl": False,
+    }
+    socket = await connect(client)
+    assert (await command(socket, **args))["error"]["code"] == "validation"
+    await command(socket, type="devices/discover")
+    other_socket = await connect(client)
+    assert (await command(other_socket, **args))["error"]["code"] == "validation"
+    await other_socket.close()
+    assert (await command(socket, **(args | {"verify_ssl": "false"})))["error"][
+        "code"
+    ] == "invalid_request"
+    login.assert_not_awaited()
+
+    assert await command(socket, **args) == {"id": 1, "result": "LIVE-SERIAL"}
+    record = registry.resolve("LIVE-SERIAL")
+    assert record.alias == "Entrance"
+    assert record.model == "Live model"
+    assert record.discovery is not None
+    assert record.discovery.macaddress == "00:40:8c:01:02:03"
+    assert record.config == ConnectionSettings(
+        "192.0.2.2", "root", "device-test-password", web_proto="https"
+    )
+    assert (await command(socket, **(args | {"password": "replacement"})))["error"] == {
+        "code": "storage",
+        "message": "This device is already saved.",
+    }
+    assert registry.resolve("LIVE-SERIAL") == record
+    assert "device-test-password" not in str(await command(socket, type="devices/list"))
+    await socket.close()
+
+
+async def test_save_failure_does_not_change_registry(
+    client: TestClient,
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    wire_results: dict[str, object],
+) -> None:
+    """An HTTPS failure leaves the device unsaved and informs the user."""
+    monkeypatch.setattr(
+        server,
+        "discover_axis_devices",
+        AsyncMock(return_value=wire_results["devices/discover"]),
+    )
+    monkeypatch.setattr(
+        server.operations,
+        "identify",
+        AsyncMock(
+            side_effect=OperationError("Unavailable.", kind=ErrorKind.CONNECTION)
+        ),
+    )
+    socket = await connect(client)
+    await command(socket, type="devices/discover")
+    result = await command(
+        socket,
+        type="devices/save",
+        host="192.0.2.2",
+        username="root",
+        password="device-test-password",
+        alias="",
+        verify_ssl=True,
+    )
+    assert result["error"]["code"] == "connection"
+    assert "HTTPS" in result["error"]["message"]
+    assert list(registry.load()) == ["SERIAL"]
+    await socket.close()
+
+
 async def test_health_and_api_reads(
     client: TestClient,
     registry: DeviceRegistry,
@@ -438,7 +529,7 @@ async def test_response_lost_during_send(registry: DeviceRegistry) -> None:
     socket = MagicMock(
         closed=False, send_json=AsyncMock(side_effect=ConnectionResetError)
     )
-    await server._respond(socket, registry, {"id": 1, "type": "devices/list"})
+    await server._respond(socket, registry, {"id": 1, "type": "devices/list"}, {})
     socket.send_json.assert_awaited_once()
 
 

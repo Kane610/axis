@@ -55,13 +55,10 @@ export class AxisDeviceList extends LitElement {
         max-inline-size: 100%;
       }
       .discovered {
-        box-sizing: border-box;
-        min-block-size: var(--axis-control-height);
-        padding: var(--axis-space-2) var(--axis-space-3);
-        border: var(--axis-border-width) solid var(--axis-color-warning);
-        border-radius: var(--axis-radius-control);
-        font-weight: var(--axis-font-weight-medium);
-        overflow-wrap: anywhere;
+        --wa-color-neutral-border-quiet: var(--axis-color-warning);
+      }
+      .discovered::part(base) {
+        border-color: var(--axis-color-warning);
       }
       .error {
         color: var(--axis-color-danger);
@@ -86,7 +83,7 @@ export class AxisDeviceList extends LitElement {
         <h2>Devices</h2>
         <p>
           Saved details are not a live health check. Discovered devices are
-          unverified; use the Axis CLI to save them.
+          unverified; select one to save it.
         </p>
         <div class="actions">
           <axis-button
@@ -114,7 +111,7 @@ export class AxisDeviceList extends LitElement {
           }
         </div>
         ${discovery?.status === "error" ? html`<p class="error" role="alert">${discovery.message}</p>` : nothing}
-        ${this.devices.length === 0 ? html`<p>No saved devices. Add one using the Axis CLI.</p>` : ""}
+        ${this.devices.length === 0 ? html`<p>No saved devices. Scan the local network to find devices to save.</p>` : ""}
         ${
           this.devices.length || discovered.length
             ? html`
@@ -136,11 +133,17 @@ export class AxisDeviceList extends LitElement {
                   )}
                   ${discovered.map(
                     (device) => html`
-                      <li class="discovered">
-                        ${device.name || device.host}
-                        ${device.name ? html` (${device.host})` : nothing} —
-                        ${device.macaddress}${device.model ? ` — ${device.model}` : ""}
-                        <span class="warning">· Discovered</span>
+                      <li>
+                        <axis-button
+                          class="discovered"
+                          ?disabled=${!this.connected}
+                          @click=${() => this.dispatchEvent(new CustomEvent("axis-register", { detail: device }))}
+                        >
+                          ${device.name || device.host}
+                          ${device.name ? html` (${device.host})` : nothing} —
+                          ${device.macaddress}${device.model ? ` — ${device.model}` : ""}
+                          <span class="warning">· Discovered</span>
+                        </axis-button>
                       </li>
                     `,
                   )}

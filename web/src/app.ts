@@ -1,4 +1,5 @@
 import { LitElement, css, html, nothing } from "lit";
+import { keyed } from "lit/directives/keyed.js";
 import { AxisConnection, type ConnectionStatus } from "./data/connection";
 import {
   discoverDevices,
@@ -7,8 +8,10 @@ import {
   fetchHealth,
   fetchInterfaces,
   readInterface,
+  saveDevice,
   type Device,
   type DeviceInterface,
+  type DiscoveredDevice,
   type Health,
 } from "./data/devices";
 import { contentStyles } from "./resources/theme";
@@ -29,6 +32,9 @@ class AxisApp extends LitElement {
     data: { state: true },
     error: { state: true },
     loading: { state: true },
+    registration: { state: true },
+    saving: { state: true },
+    saveError: { state: true },
   };
 
   static styles = [
@@ -53,6 +59,42 @@ class AxisApp extends LitElement {
       .error {
         color: var(--axis-color-danger);
       }
+      fieldset {
+        display: grid;
+        gap: var(--axis-space-3);
+        border: 0;
+        padding: 0;
+        margin: 0;
+        min-inline-size: 0;
+      }
+      label {
+        display: grid;
+        gap: var(--axis-space-1);
+        max-inline-size: 28rem;
+      }
+      .certificate {
+        display: block;
+      }
+      input,
+      button {
+        font: inherit;
+        color: inherit;
+      }
+      input:not([type="checkbox"]),
+      button {
+        min-block-size: var(--axis-control-height);
+        padding-inline: var(--axis-space-3);
+        border: var(--axis-border-width) solid var(--axis-color-border);
+        border-radius: var(--axis-radius-control);
+        background: var(--axis-color-surface);
+      }
+      button[type="submit"] {
+        background: var(--axis-color-primary);
+        color: var(--axis-color-on-primary);
+      }
+      .registration-target {
+        overflow-wrap: anywhere;
+      }
     `,
   ];
 
@@ -65,6 +107,9 @@ class AxisApp extends LitElement {
   private data: unknown = null;
   private error = "";
   private loading = false;
+  private registration: DiscoveredDevice | null = null;
+  private saving = false;
+  private saveError = "";
   private operation = 0;
   private refreshId = 0;
   private readonly connection = new AxisConnection((status) =>
@@ -117,6 +162,9 @@ class AxisApp extends LitElement {
     ++this.operation;
     ++this.refreshId;
     this.discovery = null;
+    this.registration = null;
+    this.saving = false;
+    this.saveError = "";
     this.health = null;
     this.interfaces = [];
     this.data = null;
@@ -146,8 +194,13 @@ class AxisApp extends LitElement {
   }
 
   private async scanLocalNetwork(): Promise<void> {
-    if (this.status !== "Connected" || this.discovery?.status === "scanning")
+    if (
+      this.status !== "Connected" ||
+      this.saving ||
+      this.discovery?.status === "scanning"
+    )
       return;
+    this.registration = null;
     const scan = { status: "scanning" } as const;
     this.discovery = scan;
     try {
@@ -158,6 +211,102 @@ class AxisApp extends LitElement {
       if (this.discovery === scan)
         this.discovery = { status: "error", message: (error as Error).message };
     }
+  }
+
+  private openRegistration(device: DiscoveredDevice): void {
+    this.registration = device;
+    this.saveError = "";
+    this.selected = "";
+    ++this.operation;
+  }
+
+  private async submitRegistration(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const target = this.registration;
+    if (!(form instanceof HTMLFormElement) || !target || this.saving) return;
+    const values = new FormData(form);
+    const password = form.querySelector<HTMLInputElement>(
+      'input[name="password"]',
+    );
+    if (password) password.value = "";
+    this.saving = true;
+    this.saveError = "";
+    try {
+      const serial = await saveDevice(this.connection, {
+        host: target.host,
+        username: String(values.get("username") ?? ""),
+        password: String(values.get("password") ?? ""),
+        alias: String(values.get("alias") ?? ""),
+        verify_ssl: !values.has("selfSigned"),
+      });
+      if (this.registration !== target) return;
+      this.registration = null;
+      this.saving = false;
+      this.selected = serial;
+      await this.refreshDevices();
+    } catch (error) {
+      if (this.registration === target)
+        this.saveError = (error as Error).message;
+    } finally {
+      if (this.registration === target) this.saving = false;
+    }
+  }
+
+  private renderRegistration(target: DiscoveredDevice) {
+    return keyed(
+      target.host,
+      html`
+        <axis-card>
+          <h2>Save device</h2>
+          <p class="registration-target">
+            Connect over HTTPS to ${target.name || target.host}
+            ${target.name ? `(${target.host})` : ""}.
+          </p>
+          <form method="post" @submit=${this.submitRegistration}>
+            <fieldset ?disabled=${this.saving}>
+              <label
+                >Username
+                <input name="username" autocomplete="username" required
+              /></label>
+              <label
+                >Password
+                <input
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+              /></label>
+              <label>Alias (optional) <input name="alias" /></label>
+              <label class="certificate">
+                <input name="selfSigned" type="checkbox" checked />
+                Allow a self-signed certificate
+              </label>
+              <p class="warning">
+                Allowing self-signed certificates skips server identity
+                verification. Check the address and only continue if you trust
+                this device and network.
+              </p>
+              <div class="actions">
+                <button type="submit">Save device</button>
+                <button
+                  type="button"
+                  @click=${() => {
+                    this.registration = null;
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </fieldset>
+          </form>
+          <div role="status">
+            ${this.saving ? "Verifying and saving device…" : nothing}
+          </div>
+          ${this.saveError ? html`<p class="error" role="alert">${this.saveError}</p>` : nothing}
+        </axis-card>
+      `,
+    );
   }
 
   private async selectDevice(serial: string): Promise<void> {
@@ -212,12 +361,17 @@ class AxisApp extends LitElement {
             .devices=${this.devices}
             .discovery=${this.discovery}
             .selected=${this.selected}
-            .connected=${connected}
+            .connected=${connected && !this.saving}
             @axis-refresh=${this.refreshDevices}
             @axis-scan=${this.scanLocalNetwork}
-            @axis-select=${(event: CustomEvent<string>) => this.selectDevice(event.detail)}
+            @axis-select=${(event: CustomEvent<string>) => {
+              this.registration = null;
+              void this.selectDevice(event.detail);
+            }}
+            @axis-register=${(event: CustomEvent<DiscoveredDevice>) => this.openRegistration(event.detail)}
           >
           </axis-device-list>
+          ${this.registration ? this.renderRegistration(this.registration) : nothing}
           ${
             device
               ? html`

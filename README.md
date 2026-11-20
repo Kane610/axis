@@ -80,10 +80,9 @@ remain future work.
 
 ## Local web interface
 
-The read-only web interface discovers devices on the local network, lists saved
-devices, reads their health, and browses device APIs and interfaces. To save a
-device for health and API reads, add it with the CLI. Run the web interface with
-Python 3.14 or newer. After release, install it with:
+The local web interface discovers and saves devices, reads device health, and
+browses device APIs and interfaces. Run it with Python 3.14 or newer. After
+release, install it with:
 
 ```bash
 uv tool install --python 3.14 'axis[cli]'
@@ -105,7 +104,7 @@ not intended for remote or multi-user access. Use `axis web --port 8766` to choo
 another port.
 The local registry stores device credentials as plaintext in owner-only files.
 
-The web application uses a WebSocket for its read-only commands. Device details
+The web application uses an authenticated local WebSocket. Device details
 shown in the saved list are not a live health check; refresh health to contact
 the device. The list shows a saved alias, discovered name, or model when
 available, falling back to the serial number. A reported serial mismatch is
@@ -115,10 +114,17 @@ In the **Devices** card, choose **Scan local network** to look for Axis devices
 advertising over mDNS on the IPv4 network of the computer running the server.
 New devices appear alongside saved devices with a different outline and a
 **Discovered** label. Results that match a saved serial number or MAC address
-do not get a second tile. Announcements are unverified and cannot be selected
-for device reads. The scan does not log in, register devices, or update saved
-records.
+do not get a second tile. Discovery announcements are unverified. A scan does
+not log in, register devices, or update saved records.
 An empty scan does not mean there are no devices on the network.
+
+Select a discovered device to enter its credentials and an optional alias,
+then click **Save device**. The server connects over HTTPS, reads the device's
+serial number, and adds a local registration without replacing an existing one.
+**Allow a self-signed certificate** is selected by default for factory devices.
+This skips certificate verification, so verify the address and use it only on a
+trusted network. Clear the option if the device has a trusted certificate. Use
+the CLI for manual addresses or other connection settings.
 
 Live reads can take up to 60 seconds. If a device cannot be reached, check its
 saved address and port and network access from the computer running the server,
@@ -255,7 +261,7 @@ Bare `axis` opens guided navigation on a terminal:
   always ask for a device first, before other inputs, even if another device
   was previously selected.
 - **Setup & diagnostics** provides Doctor and shell completion.
-- **Open web interface** starts the local read-only web server and opens
+- **Open web interface** starts the local web server and opens
   the default browser. Ctrl-C stops it and returns to navigation.
 
 Choose a menu item by number, or open the suggested command prompt with `c`.

@@ -36,7 +36,7 @@ async function openApp(page, savedDevices = devices) {
       contentType: script ? "text/javascript" : "text/html",
       headers: {
         "Content-Security-Policy":
-          "default-src 'self'; connect-src 'self' ws://axis.test; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+          "default-src 'self'; connect-src 'self' ws://axis.test; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
       },
     });
   });
@@ -118,14 +118,87 @@ test("scans only on request and shows distinct discovered tiles in the saved dev
     "192.0.2.2) — 00:40:8c:01:02:03 — Test camera",
   );
   await expect(discovered).toContainText("Discovered");
-  await expect(discovered.getByRole("button")).toHaveCount(0);
+  const discoveredButton = discovered.getByRole("button");
+  await expect(discoveredButton).toBeEnabled();
   await expect(saved).toBeEnabled();
   const savedOutline = await saved.evaluate(
     (button) => getComputedStyle(button).borderTopColor,
   );
-  await expect(discovered).toHaveCSS("border-top-style", "solid");
-  await expect(discovered).not.toHaveCSS("border-top-color", savedOutline);
+  await expect(discoveredButton).toHaveCSS("border-top-style", "solid");
+  await expect(discoveredButton).not.toHaveCSS(
+    "border-top-color",
+    savedOutline,
+  );
   await expect(scan).toBeEnabled();
+});
+
+test("saves a discovered device over HTTPS and selects the saved tile", async ({
+  page,
+}) => {
+  const saved = [...devices];
+  const { requests } = await openApp(page, saved);
+  await page.getByRole("button", { name: "Scan local network" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  const found = {
+    name: "Entrance camera",
+    host: "192.0.2.2",
+    macaddress: "00:40:8c:01:02:03",
+  };
+  await respond(page, requests[0], [found]);
+  await page
+    .getByRole("button", { name: /Entrance camera.*Discovered/ })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Save device" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", { name: /self-signed/ }),
+  ).toBeChecked();
+  await page.getByLabel("Username").fill("root");
+  const password = page.getByLabel("Password");
+  await password.fill("dummy-test-password");
+  await page.getByLabel("Alias (optional)").fill("Entrance");
+  await page.getByRole("button", { name: "Save device" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    type: "devices/save",
+    host: found.host,
+    username: "root",
+    password: "dummy-test-password",
+    alias: "Entrance",
+    verify_ssl: false,
+  });
+  await expect(password).toHaveValue("");
+  await respond(page, requests[1], undefined, {
+    code: "authentication",
+    message: "Invalid device credentials.",
+  });
+  await expect(page.getByRole("alert")).toHaveText(
+    "Invalid device credentials.",
+  );
+  await page.getByRole("checkbox", { name: /self-signed/ }).uncheck();
+  await password.fill("new-dummy-password");
+  await page.getByRole("button", { name: "Save device" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({ type: "devices/save", verify_ssl: true });
+
+  saved.push({
+    ...devices[0],
+    alias: "Entrance",
+    host: found.host,
+    serial: "NEW",
+    discovery: { macaddress: found.macaddress },
+  });
+  await respond(page, requests[2], "NEW");
+  await expect(page.getByRole("heading", { name: "Save device" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("button", { name: /Discovered/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /^Entrance \(/, pressed: true }),
+  ).toBeEnabled();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({ type: "device/health", device: "NEW" });
 });
 
 test("keeps saved tiles when discovery reports the same devices", async ({
@@ -173,7 +246,9 @@ test("keeps saved tiles when discovery reports the same devices", async ({
   ]);
   const list = page.getByRole("list", { name: "Devices", exact: true });
   await expect(list.getByRole("listitem")).toHaveCount(4);
-  await expect(list.getByRole("button")).toHaveCount(3);
+  await expect(list.getByRole("button", { name: /^Camera [ABC]/ })).toHaveCount(
+    3,
+  );
   await expect(page.getByText("New devices found: 1")).toBeVisible();
   await expect(list).toContainText("Different camera at a saved address");
 
