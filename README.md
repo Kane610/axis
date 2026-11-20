@@ -106,9 +106,11 @@ The local registry stores device credentials as plaintext in owner-only files.
 
 The web application uses an authenticated local WebSocket. Device details
 shown in the saved list are not a live health check; refresh health to contact
-the device. The list shows a saved alias, discovered name, or model when
-available, falling back to the serial number. A reported serial mismatch is
-displayed as a warning.
+the device. Saved and discovered devices appear in a single vertical list,
+with an address and MAC address when available. Discovered rows also show the
+advertised model when available. Saved rows use an alias, discovered name, or
+model as their label, falling back to the serial number, but never append a
+separate model field. A reported serial mismatch is displayed as a warning.
 
 In the **Devices** card, choose **Scan local network** to look for Axis devices
 advertising over mDNS on the IPv4 network of the computer running the server.

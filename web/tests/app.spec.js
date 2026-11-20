@@ -89,7 +89,10 @@ async function select(page, name, requests, count) {
 test("scans only on request and shows distinct discovered tiles in the saved device list", async ({
   page,
 }) => {
-  const { requests } = await openApp(page);
+  const { requests } = await openApp(page, [
+    { ...devices[0], serial: "00408C010204", model: "Saved camera" },
+    { ...devices[1], alias: "Camera B M3115 Lobby", model: "AXIS M3115-LVE" },
+  ]);
   const scan = page.getByRole("button", {
     name: /^Scan (local network|again)/,
   });
@@ -125,6 +128,23 @@ test("scans only on request and shows distinct discovered tiles in the saved dev
   const discoveredButton = discovered.getByRole("button");
   await expect(discoveredButton).toBeEnabled();
   await expect(saved).toBeEnabled();
+  await expect(saved).toHaveAccessibleName(
+    "Camera A (camera-a) — 00:40:8c:01:02:04",
+  );
+  const secondSaved = list.getByRole("button", {
+    name: "Camera B M3115 Lobby (camera-b)",
+    exact: true,
+  });
+  await expect(secondSaved).toBeVisible();
+  const savedBox = await saved.boundingBox();
+  const secondSavedBox = await secondSaved.boundingBox();
+  const discoveredBox = await discoveredButton.boundingBox();
+  expect(secondSavedBox.y).toBeGreaterThanOrEqual(savedBox.y + savedBox.height);
+  expect(discoveredBox.y).toBeGreaterThanOrEqual(
+    secondSavedBox.y + secondSavedBox.height,
+  );
+  expect(discoveredBox.x).toBeCloseTo(savedBox.x);
+  expect(discoveredBox.width).toBeCloseTo(savedBox.width);
   const savedOutline = await saved.evaluate(
     (button) => getComputedStyle(button).borderTopColor,
   );

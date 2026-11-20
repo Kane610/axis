@@ -19,6 +19,12 @@ function macKey(value: string | undefined): string | undefined {
   return key && /^[0-9a-f]{12}$/.test(key) ? key : undefined;
 }
 
+function deviceLabel(name: string, host: string, mac?: string, model?: string) {
+  return [name ? `${name} (${host})` : host, mac, model]
+    .filter(Boolean)
+    .join(" — ");
+}
+
 function isSavedDevice(
   announcement: DiscoveredDevice,
   devices: Device[],
@@ -44,15 +50,23 @@ export class AxisDeviceList extends LitElement {
   static styles = [
     contentStyles,
     css`
-      ul {
+      .device-rows {
+        display: grid;
+        gap: var(--axis-space-2);
         list-style: none;
-        margin-block-end: 0;
+        margin-block: var(--axis-space-2) 0;
         padding: 0;
-        align-items: start;
       }
-      li {
+      .device-rows li {
         min-inline-size: 0;
-        max-inline-size: 100%;
+      }
+      .device-rows axis-button {
+        display: block;
+        inline-size: 100%;
+      }
+      .device-rows axis-button::part(base) {
+        justify-content: flex-start;
+        text-align: start;
       }
       .discovered {
         --wa-color-neutral-border-quiet: var(--axis-color-warning);
@@ -179,7 +193,7 @@ export class AxisDeviceList extends LitElement {
         ${
           this.devices.length || discovered.length
             ? html`
-                <ul class="actions" role="list" aria-label="Devices">
+                <ul class="device-rows" role="list" aria-label="Devices">
                   ${this.devices.map(
                     (device) => html`
                       <li>
@@ -190,7 +204,12 @@ export class AxisDeviceList extends LitElement {
                           ?disabled=${!this.connected}
                           @click=${() => this.dispatchEvent(new CustomEvent("axis-select", { detail: device.serial }))}
                         >
-                          ${deviceName(device)} (${device.host})
+                          ${deviceLabel(
+                            deviceName(device),
+                            device.host,
+                            device.discovery?.macaddress ||
+                              macKey(device.serial)?.match(/../g)?.join(":"),
+                          )}
                         </axis-button>
                       </li>
                     `,
@@ -203,9 +222,7 @@ export class AxisDeviceList extends LitElement {
                           ?disabled=${!this.connected || scanning}
                           @click=${() => this.dispatchEvent(new CustomEvent("axis-register", { detail: device }))}
                         >
-                          ${device.name || device.host}
-                          ${device.name ? html` (${device.host})` : nothing} —
-                          ${device.macaddress}${device.model ? ` — ${device.model}` : ""}
+                          ${deviceLabel(device.name, device.host, device.macaddress, device.model)}
                           <span class="warning">· Discovered</span>
                         </axis-button>
                       </li>
