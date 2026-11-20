@@ -173,5 +173,5 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zsh
       - name: Check dependency lockfile
         run: uv lock --check
-      - name: Verify isolated wheel installations
+      - name: Verify web packaging and isolated wheel installations
         run: uv run --locked python scripts/check_cli_install.py

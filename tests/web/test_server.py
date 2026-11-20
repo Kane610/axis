@@ -1,7 +1,10 @@
 """Exercise the local web protocol and its security boundaries."""
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+import json
+from pathlib import Path
 import socket
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
@@ -17,11 +20,12 @@ from axis.application.records import (
     HealthSnapshot,
 )
 from axis.application.storage import DeviceRegistry
+from axis.interfaces.vapix import InterfaceState
+from axis.models.api_discovery import Api, ApiStatus
 from axis.web import server
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
+    from collections.abc import AsyncIterator, Callable
     from typing import Any
 
     from aiohttp import ClientWebSocketResponse
@@ -30,6 +34,13 @@ if TYPE_CHECKING:
 HOST = "127.0.0.1:8765"
 HEADERS = {"Host": HOST, "Origin": f"http://{HOST}"}
 TOKEN = "test-token"
+
+
+@pytest.fixture(scope="module")
+def wire_results() -> dict[str, object]:
+    """Load the response examples shared with the TypeScript client tests."""
+    path = Path(__file__).resolve().parents[2] / "web/tests/fixtures/websocket.json"
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @pytest.fixture
@@ -106,21 +117,23 @@ async def test_websocket_requires_token(client: TestClient, token: str | None) -
     assert message.data == 1008
 
 
-async def test_list_returns_only_safe_json(client: TestClient) -> None:
+async def test_list_returns_only_safe_json(
+    client: TestClient, wire_results: dict[str, object]
+) -> None:
     """Device summaries serialize discovery timestamps and omit login credentials."""
     socket = await connect(client)
     response = await command(socket, type="devices/list")
-    assert response["result"][0]["serial"] == "SERIAL"
-    assert (
-        response["result"][0]["discovery"]["last_seen"] == "2026-01-01T00:00:00+00:00"
-    )
+    assert response == {"id": 1, "result": wire_results["devices/list"]}
     assert "private-password" not in str(response)
     assert "root" not in str(response)
     await socket.close()
 
 
 async def test_health_and_api_reads(
-    client: TestClient, registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+    client: TestClient,
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    wire_results: dict[str, object],
 ) -> None:
     """Dispatch read commands through the shared application operations."""
     snapshot = HealthSnapshot(
@@ -132,26 +145,48 @@ async def test_health_and_api_reads(
         target=registry.resolve("SERIAL").summary(),
     )
     health = AsyncMock(return_value=snapshot)
-    apis = AsyncMock(return_value=[{"id": "test"}])
-    interfaces = AsyncMock(return_value=[{"name": "light_control", "supported": True}])
+    device = MagicMock()
+    device.config.password = "private-password"
+    device.vapix.api_discovery.update = AsyncMock(return_value=True)
+    device.vapix.api_discovery.values.return_value = [
+        Api(
+            id="light-control",
+            name="Light control",
+            status=ApiStatus.OFFICIAL,
+            version="1.0",
+        )
+    ]
+    device.vapix.inspect_interfaces = AsyncMock(
+        return_value={
+            "light_control": InterfaceState(
+                name="light_control",
+                api_id="light-control",
+                api_version="1.0",
+                listed=True,
+                probe_attempted=False,
+                probe_succeeded=False,
+                supported=True,
+                initialized=True,
+                items=1,
+            )
+        }
+    )
+
+    @asynccontextmanager
+    async def open_device(_settings: ConnectionSettings) -> AsyncIterator[MagicMock]:
+        yield device
+
     read = AsyncMock(return_value={"state": "on"})
     monkeypatch.setattr(server.operations, "read_health", health)
-    monkeypatch.setattr(server.operations, "list_apis", apis)
-    monkeypatch.setattr(server.operations, "list_interfaces", interfaces)
+    monkeypatch.setattr(server.operations, "_device", open_device)
     monkeypatch.setattr(server.operations, "read_interface", read)
     socket = await connect(client)
-    result = await command(socket, type="device/health", device="SERIAL")
-    assert result["result"]["serial"] == "OTHER"
-    assert result["result"]["target"]["serial"] == "SERIAL"
-    assert (await command(socket, type="device/apis", device="SERIAL"))["result"] == [
-        {"id": "test"}
-    ]
-    assert (await command(socket, type="device/interfaces", device="SERIAL"))["result"][
-        0
-    ]["name"] == "light_control"
-    assert (
-        await command(socket, type="device/read", device="SERIAL", name="light_control")
-    )["result"] == {"state": "on"}
+    for kind in ("device/health", "device/apis", "device/interfaces", "device/read"):
+        args = {"name": "light_control"} if kind == "device/read" else {}
+        assert await command(socket, type=kind, device="SERIAL", **args) == {
+            "id": 1,
+            "result": wire_results[kind],
+        }
     health.assert_awaited_once()
     read.assert_awaited_once()
     await socket.close()

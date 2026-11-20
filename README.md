@@ -139,6 +139,10 @@ responses; no real device is required. To only rebuild, use `pnpm --dir web buil
 Commit the updated assets and `web/pnpm-lock.yaml` alongside frontend changes.
 The **Frontend** CI check installs locked dependencies, runs ESLint and Prettier,
 builds and tests the frontend, and rejects stale packaged assets.
+The PyPI source archive includes `web/` sources and tooling configuration for
+rebuilding; the wheel ships the compiled browser assets, not the frontend
+development tree. To run both Python and frontend checks from a checkout, see
+[Running checks](CONTRIBUTING.md#running-checks).
 
 ## Development setup
 

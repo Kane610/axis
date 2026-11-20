@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AxisConnection } from "../src/data/connection";
-import { fetchDevices, fetchHealth } from "../src/data/devices";
+import {
+  fetchApis,
+  fetchDevices,
+  fetchHealth,
+  fetchInterfaces,
+  readInterface,
+} from "../src/data/devices";
+import wireResults from "./fixtures/websocket.json";
 
 class MockSocket {
   static OPEN = 1;
@@ -96,6 +103,51 @@ test("rejects command errors without losing the connection", async () => {
   const devices = fetchDevices(connection);
   socket.message({ id: 2, result: [] });
   await expect(devices).resolves.toEqual([]);
+  connection.disconnect();
+});
+
+test("sends the read commands and accepts the shared server responses", async () => {
+  const { connection, socket } = connect();
+  socket.message({ type: "ready", version: 1 });
+
+  async function check<T>(
+    request: Promise<T>,
+    expected: Record<string, string>,
+    result: NoInfer<T>,
+  ) {
+    const sent = JSON.parse(socket.sent.at(-1)!);
+    expect(sent).toEqual({ id: expect.any(Number), ...expected });
+    socket.message({ id: sent.id, result });
+    await expect(request).resolves.toEqual(result);
+  }
+
+  const device = "SERIAL";
+  await check(
+    fetchDevices(connection),
+    { type: "devices/list" },
+    wireResults["devices/list"],
+  );
+  await check(
+    fetchHealth(connection, device),
+    { type: "device/health", device },
+    wireResults["device/health"],
+  );
+  await check(
+    fetchApis(connection, device),
+    { type: "device/apis", device },
+    wireResults["device/apis"],
+  );
+  await check(
+    fetchInterfaces(connection, device),
+    { type: "device/interfaces", device },
+    wireResults["device/interfaces"],
+  );
+  const name = "light_control";
+  await check(
+    readInterface(connection, device, name),
+    { type: "device/read", device, name },
+    wireResults["device/read"],
+  );
   connection.disconnect();
 });
 

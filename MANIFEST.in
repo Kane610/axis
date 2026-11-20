@@ -1,0 +1,3 @@
+include web/.prettierignore web/*.json web/*.yaml web/*.js web/*.ts
+recursive-include web/src *.ts
+recursive-include web/tests *.ts *.js *.json

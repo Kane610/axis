@@ -36,6 +36,17 @@ branch and include the updated lockfile before rerunning CI.
 
 ## Running checks
 
+To run the required Python, frontend, and packaging checks together after
+setting up both toolchains and installing Chromium, run:
+
+```bash
+sh scripts/check.sh
+```
+
+This rebuilds the packaged frontend bundle; include any intended bundle
+changes in your PR. CI additionally compares the rebuilt bundle to the
+committed version and runs ty as an advisory check.
+
 Always run the full suite before opening a pull request:
 
 ```bash
@@ -84,6 +95,14 @@ before opening a pull request. Commit `web/pnpm-lock.yaml` and the regenerated
 `axis/web/static/app.js` when they change. Do not edit the generated bundle
 directly. ESLint, Prettier, TypeScript, Vitest, and Playwright run in the
 independent **Frontend** CI job.
+
+pnpm waits at least three days after a dependency version is published and
+rejects downgrades in package trust evidence. Keep these policies enabled when
+updating the lockfile. Only esbuild is allowed to run a dependency install script.
+
+If you change a WebSocket command or response, update the shared
+[wire examples](web/tests/fixtures/websocket.json). Python compares them with
+actual server replies, and TypeScript checks them against the client result types.
 
 Async fixtures use function-scoped event loops, configured explicitly in
 `pyproject.toml`. Keep warnings treated as errors rather than suppressing
