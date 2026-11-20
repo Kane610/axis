@@ -24,11 +24,18 @@ import { contentStyles } from "./resources/theme";
 import "./components/axis-button";
 import "./components/axis-card";
 import "./components/axis-device-health";
-import "./components/axis-device-list";
-import type { DiscoveryState } from "./components/axis-device-list";
+import { macKey, type DiscoveryState } from "./components/axis-device-list";
 
 const DEVICE_VIEWS = ["Health", "APIs", "Interfaces"] as const;
 type DeviceView = (typeof DEVICE_VIEWS)[number];
+
+const CONNECTION_LABELS = {
+  connecting: "Connecting to Axis…",
+  connected: "Connected to Axis",
+  reconnecting: "Reconnecting to Axis…",
+  denied: "Access link rejected",
+  "link-required": "Access link required",
+} as const;
 
 const defaultPort = (protocol: string): number =>
   protocol === "https" ? 443 : 80;
@@ -98,6 +105,48 @@ class AxisApp extends LitElement {
         align-items: baseline;
         gap: var(--axis-space-4);
       }
+      .app-heading {
+        display: block;
+        margin-block-end: var(--axis-space-4);
+      }
+      .app-heading h1 {
+        margin-block-end: 0;
+      }
+      .connection-heading {
+        display: inline-block;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+      }
+      .connection-status {
+        display: block;
+        block-size: 3px;
+        margin-block-start: var(--axis-space-1);
+        border-radius: var(--axis-radius-control);
+        background-color: var(--axis-color-danger);
+      }
+      .connection-status[data-state="connected"] {
+        background-color: var(--axis-color-success);
+      }
+      .connection-status:is(
+        [data-state="connecting"],
+        [data-state="reconnecting"]
+      ) {
+        background-color: light-dark(#a94c00, #ffd08a);
+        animation: connection-pulse 1.6s ease-in-out infinite alternate;
+      }
+      @keyframes connection-pulse {
+        to {
+          opacity: 0.55;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .connection-status:is(
+          [data-state="connecting"],
+          [data-state="reconnecting"]
+        ) {
+          animation: none;
+        }
+      }
       .panels {
         display: grid;
         gap: var(--axis-space-4);
@@ -147,6 +196,15 @@ class AxisApp extends LitElement {
         flex-wrap: wrap;
         justify-content: flex-end;
         gap: var(--axis-space-2);
+      }
+      .device-views axis-button::part(base) {
+        border-color: transparent;
+        background: transparent;
+      }
+      .device-views axis-button.active::part(base) {
+        border-color: var(--axis-color-border);
+        background: var(--axis-color-surface-muted);
+        color: var(--axis-color-primary);
       }
       .settings-form input::placeholder {
         color: color-mix(
@@ -202,7 +260,8 @@ class AxisApp extends LitElement {
         border-radius: var(--axis-radius-control);
         background: var(--axis-color-surface);
       }
-      .form-status {
+      .form-status,
+      .connection-status [role="status"] {
         position: absolute;
         clip-path: inset(50%);
         inline-size: 1px;
@@ -213,7 +272,7 @@ class AxisApp extends LitElement {
     `,
   ];
 
-  private status = "Connecting";
+  private status: ConnectionStatus | "link-required" = "connecting";
   private devices: Device[] = [];
   private discovery: DiscoveryState | null = null;
   private selected = "";
@@ -237,6 +296,7 @@ class AxisApp extends LitElement {
   } | null = null;
   private operation = 0;
   private refreshId = 0;
+  private backdropPressed = false;
   private readonly portDrafts = new WeakMap<
     HTMLSelectElement,
     { protocol: string; ports: Map<string, string> }
@@ -261,7 +321,7 @@ class AxisApp extends LitElement {
     }
     if (!token) {
       this.connection.disconnect();
-      this.status = "Access link required";
+      this.status = "link-required";
       this.error = "Open the private URL printed when the server starts.";
       return;
     }
@@ -313,31 +373,34 @@ class AxisApp extends LitElement {
   }
 
   private connectionChanged(status: ConnectionStatus): void {
-    this.status = {
-      connecting: "Connecting",
-      connected: "Connected",
-      disconnected: "Disconnected; reconnecting",
-      denied: "Access denied",
-    }[status];
+    if (this.status === status && status === "reconnecting") return;
+    this.status = status;
     this.error =
       status === "denied"
         ? "Open the private URL printed by the running server."
         : "";
     if (status === "connected") {
       void this.refreshDevices();
+      void this.scanLocalNetwork();
       return;
     }
     ++this.operation;
     ++this.refreshId;
-    this.discovery = null;
+    if (this.discovery)
+      this.discovery = {
+        status: "interrupted",
+        devices: this.discovery.devices,
+      };
     this.registration = null;
     this.settings = null;
     this.connectionTest = null;
     this.settingsPending = false;
     this.saving = false;
     this.saveError = "";
-    this.viewData = {};
-    this.selectedInterface = null;
+    if (status !== "reconnecting") {
+      this.viewData = {};
+      this.selectedInterface = null;
+    }
     this.loading = null;
   }
 
@@ -367,25 +430,44 @@ class AxisApp extends LitElement {
 
   private async scanLocalNetwork(): Promise<void> {
     if (
-      this.status !== "Connected" ||
+      this.status !== "connected" ||
       this.saving ||
       this.discovery?.status === "scanning"
     )
       return;
     this.registration = null;
-    const scan = {
+    let scan = {
       status: "scanning",
-      devices:
-        this.discovery?.status === "complete" ? this.discovery.devices : [],
+      devices: this.discovery?.devices ?? [],
     } as const;
     this.discovery = scan;
     try {
-      const devices = await discoverDevices(this.connection);
-      if (this.discovery === scan)
-        this.discovery = { status: "complete", devices };
+      const devices = await discoverDevices(this.connection, (device) => {
+        if (this.discovery !== scan) return;
+        const byHost = new Map(scan.devices.map((item) => [item.host, item]));
+        byHost.set(device.host, device);
+        scan = { status: "scanning", devices: [...byHost.values()] };
+        this.discovery = scan;
+      });
+      if (this.discovery === scan) {
+        const final = new Map(devices.map((device) => [device.host, device]));
+        const ordered = scan.devices.flatMap(({ host }) => {
+          const device = final.get(host);
+          final.delete(host);
+          return device ? [device] : [];
+        });
+        this.discovery = {
+          status: "complete",
+          devices: [...ordered, ...final.values()],
+        };
+      }
     } catch (error) {
       if (this.discovery === scan)
-        this.discovery = { status: "error", message: (error as Error).message };
+        this.discovery = {
+          status: "error",
+          devices: scan.devices,
+          message: (error as Error).message,
+        };
     }
   }
 
@@ -397,6 +479,22 @@ class AxisApp extends LitElement {
     ++this.operation;
   }
 
+  private registrationBlock(target: DiscoveredDevice): string {
+    if (this.discovery?.status === "scanning")
+      return "Wait for discovery to finish before testing the connection.";
+    const mac = macKey(target.macaddress) ?? target.macaddress;
+    const confirmed =
+      this.discovery?.status === "complete" &&
+      this.discovery.devices.some(
+        (device) =>
+          device.host === target.host &&
+          (macKey(device.macaddress) ?? device.macaddress) === mac,
+      );
+    return confirmed
+      ? ""
+      : "This device was not confirmed. Close this form and run discovery again.";
+  }
+
   private async submitRegistration(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
@@ -404,6 +502,7 @@ class AxisApp extends LitElement {
     if (
       !(form instanceof HTMLFormElement) ||
       !target ||
+      this.registrationBlock(target) ||
       this.saving ||
       this.connectionTest?.pending
     )
@@ -441,16 +540,20 @@ class AxisApp extends LitElement {
   }
 
   private renderRegistration(target: DiscoveredDevice) {
+    const blocked = this.registrationBlock(target);
     return keyed(
       target.host,
       html`
         <axis-card>
           <h3>Save discovered device</h3>
           <p>
-            Enter the device credentials to read its identity and save it
-            locally.
+            ${
+              blocked && this.discovery?.status !== "scanning"
+                ? blocked
+                : "Enter the device credentials to read its identity and save it locally."
+            }
           </p>
-          ${this.renderSettingsForm(target)}
+          ${this.renderSettingsForm(target, blocked)}
         </axis-card>
       `,
     );
@@ -686,6 +789,7 @@ class AxisApp extends LitElement {
     const registration = this.registration;
     const saved = this.settings?.value?.device;
     if (!registration && !saved) return;
+    if (registration && this.registrationBlock(registration)) return;
     const draft = connectionDraft(new FormData(form), saved);
     const request = { pending: true };
     this.connectionTest = request;
@@ -781,7 +885,10 @@ class AxisApp extends LitElement {
     this.portDrafts.set(select, draft);
   }
 
-  private renderSettingsForm(target: DeviceSettings | DiscoveredDevice) {
+  private renderSettingsForm(
+    target: DeviceSettings | DiscoveredDevice,
+    blocked = "",
+  ) {
     const registering = !("device" in target);
     const pending = registering ? this.saving : this.settingsPending;
     const testing = this.connectionTest?.pending ?? false;
@@ -814,6 +921,7 @@ class AxisApp extends LitElement {
           if (
             !pending &&
             !testing &&
+            !blocked &&
             !mustTest &&
             event.currentTarget instanceof HTMLFormElement
           )
@@ -915,8 +1023,8 @@ class AxisApp extends LitElement {
             type="submit"
             variant=${saveError ? "danger" : "brand"}
             .busy=${pending}
-            ?disabled=${pending || testing || mustTest}
-            title=${saveError || (mustTest ? "Test the connection before saving." : "")}
+            ?disabled=${pending || testing || mustTest || Boolean(blocked)}
+            title=${blocked || saveError || (mustTest ? "Test the connection before saving." : "")}
           >
             ${saveLabel}
           </axis-button>
@@ -924,8 +1032,8 @@ class AxisApp extends LitElement {
             type="button"
             variant=${test?.failed ? "danger" : test?.draft ? "success" : "neutral"}
             .busy=${testing}
-            ?disabled=${pending || testing}
-            title=${test?.message ?? ""}
+            ?disabled=${pending || testing || Boolean(blocked)}
+            title=${blocked || test?.message || ""}
             @click=${this.testConnection}
           >
             Test connection
@@ -939,7 +1047,7 @@ class AxisApp extends LitElement {
           </axis-button>
         </div>
         <div class="form-status" role="status">
-          ${test?.draft ? test.message : ""}
+          ${blocked || (test?.draft ? test.message : "")}
         </div>
         <div class="form-status" role="alert">
           ${saveError || (test?.failed ? test.message : "")}
@@ -948,20 +1056,29 @@ class AxisApp extends LitElement {
     `;
   }
 
+  private renderConnectionStatus(label: string) {
+    return html`
+      <span class="connection-status" data-state=${this.status}>
+        <span role="status">${label}</span>
+      </span>
+    `;
+  }
+
   protected render() {
     const device = this.devices.find((item) => item.serial === this.selected);
-    const connected = this.status === "Connected";
+    const connected = this.status === "connected";
+    const status = CONNECTION_LABELS[this.status];
     const hasView = this.registration !== null || this.selected !== "";
     const error = this.error
       ? html`<p class="error" role="alert">${this.error}</p>`
       : nothing;
     return html`
       <main>
-        <header>
-          <h1 tabindex="-1">Axis devices</h1>
-          <span role="status" ?hidden=${hasView && !connected}
-            >${this.status}</span
-          >
+        <header class="app-heading">
+          <div class="connection-heading" title=${status}>
+            <h1 tabindex="-1">Axis devices</h1>
+            ${this.renderConnectionStatus(status)}
+          </div>
         </header>
         ${hasView ? nothing : error}
         <axis-device-list
@@ -969,7 +1086,6 @@ class AxisApp extends LitElement {
           .discovery=${this.discovery}
           .selected=${this.selected}
           .connected=${connected && !this.saving}
-          @axis-refresh=${this.refreshDevices}
           @axis-scan=${this.scanLocalNetwork}
           @axis-select=${(event: CustomEvent<string>) => {
             this.registration = null;
@@ -981,6 +1097,39 @@ class AxisApp extends LitElement {
       </main>
       <dialog
         aria-labelledby="device-dialog-title"
+        @pointerdown=${(event: PointerEvent) => {
+          const dialog = event.currentTarget;
+          this.backdropPressed = false;
+          if (event.target === dialog && dialog instanceof HTMLDialogElement) {
+            const rect = dialog.getBoundingClientRect();
+            this.backdropPressed =
+              event.clientX < rect.left ||
+              event.clientX >= rect.right ||
+              event.clientY < rect.top ||
+              event.clientY >= rect.bottom;
+          }
+        }}
+        @pointercancel=${() => {
+          this.backdropPressed = false;
+        }}
+        @click=${(event: MouseEvent) => {
+          const dialog = event.currentTarget;
+          if (
+            this.backdropPressed &&
+            event.target === dialog &&
+            dialog instanceof HTMLDialogElement
+          ) {
+            const rect = dialog.getBoundingClientRect();
+            if (
+              event.clientX < rect.left ||
+              event.clientX >= rect.right ||
+              event.clientY < rect.top ||
+              event.clientY >= rect.bottom
+            )
+              this.dismissDevice(event);
+          }
+          this.backdropPressed = false;
+        }}
         @cancel=${(event: Event) => {
           if (!this.settings) {
             this.dismissDevice(event);
@@ -1021,11 +1170,15 @@ class AxisApp extends LitElement {
           </header>
           ${
             device
-              ? html`<nav class="actions" aria-label="Device views">
+              ? html`<nav
+                  class="actions device-views"
+                  aria-label="Device views"
+                >
                   ${DEVICE_VIEWS.map(
                     (view) => html`
                       <axis-button
-                        variant=${this.deviceView === view ? "brand" : "neutral"}
+                        class=${!this.settings && this.deviceView === view ? "active" : ""}
+                        variant="neutral"
                         .pressed=${!this.settings && this.deviceView === view}
                         .busy=${this.loading === "view" && this.deviceView === view}
                         ?disabled=${!connected || this.settingsPending}
@@ -1049,7 +1202,6 @@ class AxisApp extends LitElement {
           }
         </div>
         <div class="panels dialog-content">
-          ${!connected && hasView ? html`<span role="status">${this.status}</span>` : nothing}
           ${hasView ? error : nothing}
           ${this.registration ? this.renderRegistration(this.registration) : nothing}
           ${this.settings ? this.renderSettings() : device ? this.renderSavedView(device, connected) : nothing}

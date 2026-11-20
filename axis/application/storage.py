@@ -11,6 +11,8 @@ from ipaddress import ip_address
 import os
 from pathlib import Path
 import re
+import secrets
+import stat
 import tomllib
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -173,6 +175,48 @@ class DeviceRegistry:
     def resolve(self, identifier: str) -> DeviceRecord:
         """Resolve only an exact serial or alias, never a host address."""
         return _resolve(self.load(), identifier)
+
+    def web_access_token(self) -> str:
+        """Return the registry's persistent, owner-only web access token."""
+        path = self.path.with_name(self.path.name + ".web-token")
+        with self._locked():
+            try:
+                try:
+                    descriptor = os.open(
+                        path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+                    )
+                except FileNotFoundError:
+                    token = secrets.token_urlsafe(32)
+                    descriptor = os.open(
+                        path,
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                        0o600,
+                    )
+                    with os.fdopen(descriptor, "w", encoding="ascii") as handle:
+                        os.fchmod(handle.fileno(), 0o600)
+                        handle.write(token)
+                        handle.flush()
+                        os.fsync(handle.fileno())
+                    return token
+                with os.fdopen(descriptor, "r", encoding="ascii") as handle:
+                    info = os.fstat(handle.fileno())
+                    if (
+                        not stat.S_ISREG(info.st_mode)
+                        or info.st_uid != os.getuid()
+                        or info.st_mode & 0o077
+                        or info.st_nlink != 1
+                    ):
+                        _fail("Web access token must be an owner-only regular file.")
+                    token = handle.read(128)
+                if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+                    _fail(
+                        "Invalid web access token file; remove it and restart the web server."
+                    )
+                return token
+            except OSError, UnicodeError:
+                _fail(
+                    "Cannot read or create the web access token; check file permissions."
+                )
 
     @contextmanager
     def _locked(self) -> Generator[None]:

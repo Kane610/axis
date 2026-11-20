@@ -81,8 +81,10 @@ export type DeviceInterface = {
 export const fetchDevices = (connection: AxisConnection) =>
   connection.callWS("devices/list", {});
 
-export const discoverDevices = (connection: AxisConnection) =>
-  connection.callWS("devices/discover", {});
+export const discoverDevices = (
+  connection: AxisConnection,
+  onDiscovered: (device: DiscoveredDevice) => void,
+) => connection.callWS("devices/discover", { stream: true }, onDiscovered);
 
 export const saveDevice = (connection: AxisConnection, settings: SaveDevice) =>
   connection.callWS("devices/save", settings);

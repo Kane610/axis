@@ -95,11 +95,13 @@ the browser. The CLI's `--config` option selects the device registry:
 `uv run axis --config PATH web --port 8766`. Ctrl-C stops the server and
 returns to the menu when launched there.
 
-The server opens your default browser and prints a private URL to use if it
-cannot open the browser. Stop the server with Ctrl-C. The link contains an
-access token; do not share it. A new token is generated on each
-start. Opening a new private link in an existing tab reconnects it with the new
-token without requiring a reload. The server binds to IPv4 loopback only; it is
+The server prints a private URL and waits briefly for an existing authorized
+tab to reconnect before opening your default browser. Stop the server with
+Ctrl-C. The link contains an access token; do not share it. The token persists
+in an owner-only file next to the selected registry so an existing tab can
+reconnect after restart. Removing that file while the server is stopped revokes
+the old link; the next start creates a new token. Opening a new private link in
+an existing tab reconnects it without requiring a reload. The server binds to IPv4 loopback only; it is
 not intended for remote or multi-user access. Use `axis web --port 8766` to choose
 another port.
 The local registry stores device credentials as plaintext in owner-only files.
@@ -112,11 +114,23 @@ advertised model when available. Saved rows use an alias, discovered name, or
 model as their label, falling back to the serial number, but never append a
 separate model field. A reported serial mismatch is displayed as a warning.
 
-In the **Devices** card, choose **Scan local network** to look for Axis devices
-advertising over mDNS on the IPv4 network of the computer running the server.
+The line under **Axis devices** indicates the web app's connection to the local
+server. It is green when connected, pulses orange while connecting or retrying,
+and turns red when the app needs a valid access link. Hover over the heading for
+the status text. With reduced motion enabled, the orange line stays steady.
+
+The backend starts looking for Axis devices advertising over mDNS on its IPv4
+network as it starts. The web app loads the saved list and uses the initial
+scan if it is still running or recently finished; otherwise it starts a new scan.
+Choose **Discover devices** below
+the list in the **Devices** card to scan again.
 The button shows the scan progress and result. Its dashed outline stays still
-when reduced motion is enabled. During a rescan, previous results stay visible
-but cannot be selected until the scan finishes.
+when reduced motion is enabled. Devices appear as their announcements resolve.
+During a rescan, previous results stay visible. You can open a discovered
+device and enter its credentials during the scan. **Test connection** and
+**Save device** stay disabled until the final results confirm the device.
+If the backend disconnects, the last discovered results remain visible but
+disabled. A new scan reconciles them after reconnection.
 New devices appear alongside saved devices with a different outline and a
 **Discovered** label. Results that match a saved serial number or MAC address
 do not get a second tile. Discovery announcements are unverified. A scan does
@@ -142,8 +156,9 @@ buttons are inside **Interfaces**. While the modal is open, switching back to
 a view or interface reuses its last successful result. Select the active button
 again to refresh it. A moving dashed outline marks the button while it loads
 without moving the existing content. The modal starts at the top of the
-**Devices** box and scrolls independently. Use **Close** or **Esc** to return
-to the list.
+**Devices** box and scrolls independently. Use **Close** or click outside the
+modal to return to the list. **Esc** returns from Settings to the current view,
+or closes the modal otherwise.
 
 Use **Settings** next to **Close** to edit a saved device's local alias,
 address, port, credentials, protocol, or certificate verification. Clearing
