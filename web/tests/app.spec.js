@@ -782,6 +782,33 @@ for (const state of ["connected", "denied", "disconnected"]) {
   });
 }
 
+test("dialog controls respond to hover in both themes", async ({ page }) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  for (const scheme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const name of ["Settings", "Close"]) {
+      const button = dialog.getByRole("button", { name, exact: true });
+      await page.mouse.move(0, 0);
+      const background = await button.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      );
+      await button.hover();
+      await expect(button).not.toHaveCSS("background-color", background);
+      await expect(button).toHaveCSS("cursor", "pointer");
+    }
+  }
+  const settings = dialog.getByRole("button", { name: "Settings" });
+  await page.mouse.move(0, 0);
+  await settings.evaluate((button) => (button.disabled = true));
+  const disabledBackground = await settings.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  await settings.hover();
+  await expect(settings).toHaveCSS("background-color", disabledBackground);
+});
+
 test("keyboard selection and typed API commands work through the component boundaries", async ({
   page,
 }) => {

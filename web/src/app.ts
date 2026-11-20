@@ -197,6 +197,12 @@ class AxisApp extends LitElement {
         justify-content: flex-end;
         gap: var(--axis-space-2);
       }
+      .dialog-controls button:not(:disabled) {
+        cursor: pointer;
+      }
+      .dialog-controls button:not(:disabled):hover {
+        background: var(--axis-color-surface-muted);
+      }
       .device-views axis-button::part(base) {
         border-color: transparent;
         background: transparent;
