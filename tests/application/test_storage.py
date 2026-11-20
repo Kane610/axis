@@ -54,6 +54,45 @@ def raw_config(registry: DeviceRegistry) -> dict[str, Any]:
     return tomllib.loads(registry.path.read_text())
 
 
+def test_web_access_token_is_private_stable_and_concurrent(
+    registry: DeviceRegistry,
+) -> None:
+    """Keep the same protected token for all launches of one registry."""
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        tokens = list(executor.map(lambda _: registry.web_access_token(), range(8)))
+    assert len(set(tokens)) == 1
+    path = registry.path.with_name(registry.path.name + ".web-token")
+    assert path.read_text(encoding="ascii") == tokens[0]
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert registry.web_access_token() == tokens[0]
+
+
+@pytest.mark.parametrize(
+    "problem", ["permissions", "malformed", "symlink", "non-ascii", "hardlink"]
+)
+def test_web_access_token_rejects_unsafe_files(
+    registry: DeviceRegistry, tmp_path: Path, problem: str
+) -> None:
+    """Never use a public, malformed, or redirected access token."""
+    token = registry.web_access_token()
+    path = registry.path.with_name(registry.path.name + ".web-token")
+    if problem == "permissions":
+        path.chmod(0o644)
+    elif problem == "malformed":
+        path.write_text("invalid", encoding="ascii")
+    elif problem == "non-ascii":
+        path.write_bytes(b"\xff")
+    elif problem == "hardlink":
+        os.link(path, tmp_path / "another-link")
+    else:
+        path.unlink()
+        other = tmp_path / "other-token"
+        other.write_text(token, encoding="ascii")
+        path.symlink_to(other)
+    with pytest.raises(StorageError, match="token"):
+        registry.web_access_token()
+
+
 def test_discovery_refresh_updates_known_devices_and_preserves_local_settings(
     registry: DeviceRegistry,
 ) -> None:

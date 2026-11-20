@@ -25,7 +25,7 @@ from axis.models.api_discovery import Api, ApiStatus
 from axis.web import server
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable
+    from collections.abc import AsyncIterator, Awaitable, Callable
     from typing import Any
 
     from aiohttp import ClientWebSocketResponse
@@ -129,6 +129,101 @@ async def test_list_returns_only_safe_json(
     await socket.close()
 
 
+async def test_settings_only_change_the_alias_without_contacting_device(
+    client: TestClient, registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep passwords server-side and save alias changes without a live read."""
+    original = registry.resolve("SERIAL")
+    identify = AsyncMock()
+    monkeypatch.setattr(server.operations, "identify", identify)
+    socket = await connect(client)
+    invalid = await command(socket, type="device/settings", device="")
+    assert invalid["error"]["code"] == "invalid_request"
+    response = await command(socket, type="device/settings", device="SERIAL")
+    assert response["result"]["username"] == original.config.username
+    assert "private-password" not in str(response)
+    args = {
+        "type": "device/configure",
+        "device": "SERIAL",
+        "host": original.config.host,
+        "port": original.config.port,
+        "username": original.config.username,
+        "password": "",
+        "web_proto": original.config.web_proto,
+        "verify_ssl": original.config.verify_ssl,
+    }
+    assert (await command(socket, **args, alias=None))["error"][
+        "code"
+    ] == "invalid_request"
+    result = (await command(socket, **args, alias="  Lobby  "))["result"]
+    assert result["device"]["alias"] == "Lobby"
+    assert not result["connection_changed"]
+    original.alias = "Lobby"
+    assert registry.resolve("SERIAL") == original
+    result = (await command(socket, **args, alias="SERIAL"))["result"]
+    assert result["device"]["alias"] == ""
+    identify.assert_not_awaited()
+    await socket.close()
+
+
+async def test_connection_settings_require_verified_identity(
+    client: TestClient, registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Never reuse the saved password at a new address or commit an unverified change."""
+    original = registry.resolve("SERIAL")
+    args = {
+        "type": "device/configure",
+        "device": "SERIAL",
+        "alias": "Lobby",
+        "host": "192.0.2.10",
+        "port": 8443,
+        "username": "operator",
+        "password": "replacement",
+        "web_proto": "https",
+        "verify_ssl": True,
+    }
+    socket = await connect(client)
+    identify = AsyncMock()
+    monkeypatch.setattr(server.operations, "identify", identify)
+    for overrides in ({"password": ""}, {"host": "user@camera.local"}):
+        response = await command(socket, **(args | overrides))
+        assert response["error"]["code"] == "validation"
+    identify.assert_not_awaited()
+
+    identify.return_value = DeviceRecord("OTHER", original.config)
+    assert (await command(socket, **args))["error"]["code"] == "conflict"
+    assert registry.resolve("SERIAL") == original
+
+    identify.side_effect = OperationError("Unreachable.", kind=ErrorKind.CONNECTION)
+    response = await command(socket, **args)
+    assert response["error"]["code"] == "connection"
+    assert "protocol" in response["error"]["message"]
+    assert registry.resolve("SERIAL") == original
+
+    async def concurrent_update(config: ConnectionSettings) -> DeviceRecord:
+        registry.update_alias("SERIAL", "Updated elsewhere")
+        return DeviceRecord("SERIAL", config)
+
+    identify.side_effect = concurrent_update
+    assert (await command(socket, **args))["error"]["code"] == "storage"
+    assert registry.resolve("SERIAL").config == original.config
+
+    identify.side_effect = None
+    identify.return_value = original
+    response = await command(socket, **args)
+    assert response["result"]["connection_changed"]
+    assert "replacement" not in str(response)
+    assert registry.resolve("SERIAL").config == ConnectionSettings(
+        "192.0.2.10",
+        "operator",
+        "replacement",
+        port=8443,
+        web_proto="https",
+        verify_ssl=True,
+    )
+    await socket.close()
+
+
 async def test_discovery_is_explicit_and_does_not_update_registry(
     client: TestClient,
     registry: DeviceRegistry,
@@ -152,6 +247,198 @@ async def test_discovery_is_explicit_and_does_not_update_registry(
     discover.assert_awaited_once_with()
     assert registry.load() == before
     await socket.close()
+
+
+async def test_streams_discovery_without_authorizing_provisional_devices(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep the request open for updates and require a final result before connecting."""
+    finish = asyncio.Event()
+    entry = {
+        "name": "Entrance",
+        "host": "192.0.2.2",
+        "macaddress": "00:40:8c:01:02:03",
+    }
+
+    async def discover(
+        *, on_device: Callable[[dict[str, str]], Awaitable[None]]
+    ) -> list[dict[str, str]]:
+        await on_device(entry)
+        await finish.wait()
+        return [entry]
+
+    monkeypatch.setattr(server, "discover_axis_devices", discover)
+    socket = await connect(client)
+    await socket.send_json({"id": 2, "type": "devices/discover", "stream": True})
+    assert await socket.receive_json(timeout=2) == {
+        "id": 2,
+        "type": "discovery/device",
+        "device": entry,
+    }
+    attempt = await command(
+        socket,
+        type="devices/test-connection",
+        host=entry["host"],
+        username="root",
+        password="test-password",
+        verify_ssl=True,
+    )
+    assert attempt["error"]["code"] == "validation"
+    finish.set()
+    assert await socket.receive_json(timeout=2) == {"id": 2, "result": [entry]}
+    await socket.close()
+
+
+async def test_startup_discovery_is_shared_and_authorized_per_socket(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Replay and stream a startup scan without authorizing provisional results."""
+    first = {"name": "First", "host": "192.0.2.2", "macaddress": "00:40:8c:01:02:03"}
+    second = {"name": "Second", "host": "192.0.2.3", "macaddress": "00:40:8c:01:02:04"}
+    started, next_device, published, finish = (asyncio.Event() for _ in range(4))
+
+    async def discover(
+        *, on_device: Callable[[dict[str, str]], Awaitable[None]]
+    ) -> list[dict[str, str]]:
+        await on_device(first)
+        started.set()
+        await next_device.wait()
+        await on_device(second)
+        published.set()
+        await finish.wait()
+        return [first, second]
+
+    mock = AsyncMock(side_effect=discover)
+    monkeypatch.setattr(server, "discover_axis_devices", mock)
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    await asyncio.wait_for(started.wait(), 2)
+    socket = await connect(client)
+    other = await connect(client)
+    await socket.send_json({"id": 2, "type": "devices/discover", "stream": True})
+    await other.send_json({"id": 3, "type": "devices/discover", "stream": True})
+    assert (await socket.receive_json(timeout=2))["device"] == first
+    assert (await other.receive_json(timeout=2))["device"] == first
+    args = {
+        "type": "devices/test-connection",
+        "host": first["host"],
+        "username": "root",
+        "password": "test-password",
+        "verify_ssl": True,
+    }
+    assert (await command(other, **args))["error"]["code"] == "validation"
+    await socket.close()
+    next_device.set()
+    await asyncio.wait_for(published.wait(), 2)
+    assert (await other.receive_json(timeout=2))["device"] == second
+    identify = AsyncMock(
+        return_value=DeviceRecord("NEW", ConnectionSettings("x", "x", "x"))
+    )
+    monkeypatch.setattr(server.operations, "identify", identify)
+    finish.set()
+    assert await other.receive_json(timeout=2) == {"id": 3, "result": [first, second]}
+    assert await command(other, **args) == {"id": 1, "result": "NEW"}
+    mock.assert_awaited_once()
+    late = await connect(client)
+    assert (await command(late, **args))["error"]["code"] == "validation"
+    await late.send_json({"id": 4, "type": "devices/discover", "stream": True})
+    assert (await late.receive_json(timeout=2))["device"] == first
+    assert (await late.receive_json(timeout=2))["device"] == second
+    assert await late.receive_json(timeout=2) == {"id": 4, "result": [first, second]}
+    nonstream = await connect(client)
+    assert await command(nonstream, type="devices/discover") == {
+        "id": 1,
+        "result": [first, second],
+    }
+    mock.assert_awaited_once()
+    await nonstream.close()
+    await late.send_json({"id": 5, "type": "devices/discover", "stream": True})
+    assert (await late.receive_json(timeout=2))["device"] == first
+    assert (await late.receive_json(timeout=2))["device"] == second
+    assert await late.receive_json(timeout=2) == {"id": 5, "result": [first, second]}
+    assert mock.await_count == 2
+    await late.close()
+    await other.close()
+
+
+async def test_startup_discovery_expires_and_manual_scans_are_fresh(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Completed old startup results are not reused, nor are manual scans."""
+    startup_done = asyncio.Event()
+    calls = 0
+
+    async def discover(
+        *, on_device: Callable[[dict[str, str]], Awaitable[None]]
+    ) -> list[dict[str, str]]:
+        nonlocal calls
+        calls += 1
+        entry = {
+            "name": str(calls),
+            "host": "192.0.2.2",
+            "macaddress": "00:40:8c:01:02:03",
+        }
+        if calls == 1:
+            startup_done.set()
+        await on_device(entry)
+        return [entry]
+
+    monkeypatch.setattr(server, "discover_axis_devices", discover)
+    monkeypatch.setattr(server, "STARTUP_DISCOVERY_MAX_AGE", 0.0)
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    await asyncio.wait_for(startup_done.wait(), 2)
+    socket = await connect(client)
+    for expected in ("2", "3"):
+        await socket.send_json({"id": 2, "type": "devices/discover", "stream": True})
+        assert (await socket.receive_json(timeout=2))["device"]["name"] == expected
+        assert (await socket.receive_json(timeout=2))["result"][0]["name"] == expected
+    await socket.close()
+
+
+async def test_startup_discovery_failure_and_shutdown(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Report startup failures and cancel a running scan on application cleanup."""
+    failure = AsyncMock(side_effect=OperationError("failed", kind=ErrorKind.CONNECTION))
+    monkeypatch.setattr(server, "discover_axis_devices", failure)
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    socket = await connect(client)
+    response = await command(socket, type="devices/discover", stream=True)
+    assert response["error"]["code"] == "connection"
+    assert "Startup device discovery failed" in caplog.text
+    await client.close()
+
+    started, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def running(
+        *, on_device: Callable[[dict[str, str]], Awaitable[None]]
+    ) -> list[dict[str, str]]:
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+        return []
+
+    monkeypatch.setattr(server, "discover_axis_devices", running)
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    await asyncio.wait_for(started.wait(), 2)
+    await client.close()
+    assert cancelled.is_set()
 
 
 @pytest.mark.parametrize(
@@ -182,11 +469,18 @@ async def test_discovery_errors(
     await socket.close()
 
 
+@pytest.mark.parametrize(
+    ("options", "port", "proto"),
+    [({}, 0, "https"), ({"port": 8080, "web_proto": "http"}, 8080, "http")],
+)
 async def test_save_authenticates_discovered_target_without_overwriting(
     client: TestClient,
     registry: DeviceRegistry,
     monkeypatch: pytest.MonkeyPatch,
     wire_results: dict[str, object],
+    options: dict[str, object],
+    port: int,
+    proto: str,
 ) -> None:
     """Require the current socket's scan and use live identity, not advertised serial."""
     monkeypatch.setattr(
@@ -207,6 +501,7 @@ async def test_save_authenticates_discovered_target_without_overwriting(
         "password": "device-test-password",
         "alias": "Entrance",
         "verify_ssl": False,
+        **options,
     }
     socket = await connect(client)
     assert (await command(socket, **args))["error"]["code"] == "validation"
@@ -217,6 +512,14 @@ async def test_save_authenticates_discovered_target_without_overwriting(
     assert (await command(socket, **(args | {"verify_ssl": "false"})))["error"][
         "code"
     ] == "invalid_request"
+    for invalid_connection, code in (
+        ({"port": True}, "invalid_request"),
+        ({"port": 65536}, "storage"),
+        ({"web_proto": "ftp"}, "storage"),
+        ({"web_proto": None}, "invalid_request"),
+    ):
+        response = await command(socket, **(args | invalid_connection))
+        assert response["error"]["code"] == code
     login.assert_not_awaited()
 
     assert await command(socket, **args) == {"id": 1, "result": "LIVE-SERIAL"}
@@ -226,14 +529,64 @@ async def test_save_authenticates_discovered_target_without_overwriting(
     assert record.discovery is not None
     assert record.discovery.macaddress == "00:40:8c:01:02:03"
     assert record.config == ConnectionSettings(
-        "192.0.2.2", "root", "device-test-password", web_proto="https"
+        "192.0.2.2", "root", "device-test-password", port=port, web_proto=proto
     )
+    login.assert_awaited_once_with(record.config)
     assert (await command(socket, **(args | {"password": "replacement"})))["error"] == {
         "code": "storage",
         "message": "This device is already saved.",
     }
     assert registry.resolve("LIVE-SERIAL") == record
     assert "device-test-password" not in str(await command(socket, type="devices/list"))
+    await socket.close()
+
+
+async def test_connection_checks_do_not_save(
+    client: TestClient,
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    wire_results: dict[str, object],
+) -> None:
+    """Test discovered and saved connections using the same guards as saving."""
+    monkeypatch.setattr(
+        server,
+        "discover_axis_devices",
+        AsyncMock(return_value=wire_results["devices/discover"]),
+    )
+    before = registry.load()
+    original = before["SERIAL"]
+    config = original.config
+    identify = AsyncMock(return_value=original)
+    monkeypatch.setattr(server.operations, "identify", identify)
+    socket = await connect(client)
+    args = {
+        "host": config.host,
+        "port": config.port,
+        "username": config.username,
+        "password": "",
+        "web_proto": config.web_proto,
+        "verify_ssl": config.verify_ssl,
+    }
+    saved = args | {"type": "device/test-connection", "device": original.serial}
+    response = await command(socket, **(saved | {"port": "443"}))
+    assert response["error"]["code"] == "invalid_request"
+    response = await command(socket, **(saved | {"host": "192.0.2.2"}))
+    assert response["error"]["code"] == "validation"
+    discovered = args | {
+        "type": "devices/test-connection",
+        "host": "192.0.2.2",
+        "password": "test-password",
+    }
+    assert (await command(socket, **discovered))["error"]["code"] == "validation"
+    identify.assert_not_awaited()
+
+    assert await command(socket, **saved) == {"id": 1, "result": "SERIAL"}
+    identify.assert_awaited_once_with(config)
+    identify.return_value = DeviceRecord("OTHER", config)
+    assert (await command(socket, **saved))["error"]["code"] == "conflict"
+    await command(socket, type="devices/discover")
+    assert await command(socket, **discovered) == {"id": 1, "result": "OTHER"}
+    assert registry.load() == before
     await socket.close()
 
 
@@ -268,7 +621,7 @@ async def test_save_failure_does_not_change_registry(
         verify_ssl=True,
     )
     assert result["error"]["code"] == "connection"
-    assert "HTTPS" in result["error"]["message"]
+    assert "port, protocol" in result["error"]["message"]
     assert list(registry.load()) == ["SERIAL"]
     await socket.close()
 
@@ -533,6 +886,72 @@ async def test_response_lost_during_send(registry: DeviceRegistry) -> None:
     socket.send_json.assert_awaited_once()
 
 
+async def test_only_authenticated_clients_prevent_browser_launch(
+    aiohttp_client: Callable[..., Any], registry: DeviceRegistry
+) -> None:
+    """A rejected connection must not count as an existing authorized tab."""
+    event = server.Event()
+    client = await aiohttp_client(server.create_app(registry, TOKEN, 8765, event))
+    invalid = await client.ws_connect("/api/websocket", headers=HEADERS)
+    await invalid.send_json({"token": "wrong"})
+    await invalid.receive()
+    assert not event.is_set()
+    socket = await connect(client)
+    assert event.is_set()
+    await socket.close()
+
+
+async def test_existing_tab_reconnects_after_server_restart(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A retained token authenticates the tab after restart without opening a browser."""
+    token = registry.web_access_token()
+    first = await aiohttp_client(server.create_app(registry, token, 8765))
+    socket = await first.ws_connect("/api/websocket", headers=HEADERS)
+    await socket.send_json({"token": token})
+    assert (await socket.receive_json())["type"] == "ready"
+    await socket.close()
+    await first.close()
+
+    event = server.Event()
+    second_token = DeviceRegistry(registry.path).web_access_token()
+    second = await aiohttp_client(
+        server.create_app(registry, second_token, 8765, event)
+    )
+    browser = MagicMock()
+    monkeypatch.setattr(server, "_open_browser", browser)
+    waiting = asyncio.create_task(
+        asyncio.to_thread(
+            server._open_if_no_client, "http://127.0.0.1:8765/#test", event
+        )
+    )
+    socket = await second.ws_connect("/api/websocket", headers=HEADERS)
+    await socket.send_json({"token": token})
+    assert (await socket.receive_json())["type"] == "ready"
+    await asyncio.wait_for(waiting, timeout=1)
+    browser.assert_not_called()
+    await socket.close()
+
+
+@pytest.mark.parametrize("connected", [True, False])
+def test_open_browser_only_without_reconnected_client(
+    monkeypatch: pytest.MonkeyPatch, connected: bool
+) -> None:
+    """Wait for a verified client before deciding whether to open the link."""
+    event = MagicMock()
+    event.wait.return_value = connected
+    browser = MagicMock()
+    monkeypatch.setattr(server, "_open_browser", browser)
+    server._open_if_no_client("http://127.0.0.1:8765/#test-token", event)
+    event.wait.assert_called_once_with(server.BROWSER_RECONNECT_WAIT)
+    if connected:
+        browser.assert_not_called()
+    else:
+        browser.assert_called_once()
+
+
 def test_server_starts_only_on_loopback(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
@@ -542,14 +961,18 @@ def test_server_starts_only_on_loopback(
     monkeypatch.setattr(server, "Thread", thread_factory)
     runner = MagicMock(side_effect=lambda *args, **kwargs: kwargs["print"]("listening"))
     monkeypatch.setattr(server.web, "run_app", runner)
-    monkeypatch.setattr(server.secrets, "token_urlsafe", lambda _: "temporary-token")
+    monkeypatch.setattr(
+        server.DeviceRegistry, "web_access_token", lambda _: "temporary-token"
+    )
     server.run_server(tmp_path / "test", 8766)
     assert "http://127.0.0.1:8766/#temporary-token" in capsys.readouterr().out
     assert runner.call_args.kwargs["host"] == "127.0.0.1"
     assert runner.call_args.kwargs["port"] == 8766
+    event = thread_factory.call_args.kwargs["args"][1]
+    assert isinstance(event, server.Event)
     thread_factory.assert_called_once_with(
-        target=server._open_browser,
-        args=("http://127.0.0.1:8766/#temporary-token",),
+        target=server._open_if_no_client,
+        args=("http://127.0.0.1:8766/#temporary-token", event),
         daemon=True,
     )
     browser_thread.start.assert_called_once()

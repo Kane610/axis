@@ -24,6 +24,7 @@ async def test_discovery_prefers_non_link_local_and_retains_fallbacks() -> None:
         "D-duplicate": ["192.0.2.40"],
     }
     zeroconf = MagicMock(async_close=AsyncMock())
+    zeroconf.zeroconf.async_wait_for_start = AsyncMock()
     browser = MagicMock(async_cancel=AsyncMock())
 
     def announce(
@@ -76,6 +77,7 @@ async def test_removed_announcements_do_not_replace_fresh_data(
 ) -> None:
     """A removed old name cannot hide a new name advertising the same device address."""
     zeroconf = MagicMock(async_close=AsyncMock())
+    zeroconf.zeroconf.async_wait_for_start = AsyncMock()
     browser = MagicMock(async_cancel=AsyncMock())
     callback: Callable[..., None] | None = None
     old = f"A-old.{discovery.AXIS_SERVICE_TYPE}"
@@ -128,10 +130,88 @@ async def test_invalid_duration_is_offline(duration: float) -> None:
     create.assert_not_called()
 
 
+async def test_cancellation_during_zeroconf_startup_waits_for_cleanup() -> None:
+    """Do not cancel Zeroconf's shared startup future before closing its sockets."""
+    started, ready = asyncio.Event(), asyncio.Event()
+    zeroconf = MagicMock(async_close=AsyncMock())
+
+    async def start() -> None:
+        started.set()
+        await ready.wait()
+
+    zeroconf.zeroconf.async_wait_for_start = AsyncMock(side_effect=start)
+    with (
+        patch.object(discovery, "AsyncZeroconf", return_value=zeroconf),
+        patch.object(discovery, "AsyncServiceBrowser") as browser,
+    ):
+        task = asyncio.create_task(discovery.discover_axis_devices())
+        await asyncio.wait_for(started.wait(), 2)
+        task.cancel()
+        ready.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    browser.assert_not_called()
+    zeroconf.async_close.assert_awaited_once()
+
+
+async def test_streams_resolved_announcements_before_scan_ends() -> None:
+    """Report a resolved device immediately and omit removed devices from the final list."""
+    zeroconf = MagicMock(async_close=AsyncMock())
+    zeroconf.zeroconf.async_wait_for_start = AsyncMock()
+    browser = MagicMock(async_cancel=AsyncMock())
+    browser_factory = MagicMock(return_value=browser)
+    finish = asyncio.Event()
+    started = asyncio.Event()
+
+    async def scan_window(_duration: float) -> None:
+        started.set()
+        await finish.wait()
+
+    published: asyncio.Queue[discovery.DiscoveredDevice] = asyncio.Queue()
+    info = MagicMock(
+        async_request=AsyncMock(return_value=True),
+        properties={b"macaddress": b"00408C112233"},
+        parsed_addresses=MagicMock(return_value=["192.0.2.1"]),
+    )
+    with (
+        patch.object(discovery, "AsyncZeroconf", return_value=zeroconf),
+        patch.object(discovery, "AsyncServiceBrowser", browser_factory),
+        patch.object(discovery, "AsyncServiceInfo", return_value=info),
+        patch.object(discovery.asyncio, "sleep", new=scan_window),
+    ):
+        async with asyncio.timeout(2), asyncio.TaskGroup() as group:
+            scan = group.create_task(
+                discovery.discover_axis_devices(on_device=published.put)
+            )
+            await started.wait()
+            handler = browser_factory.call_args.kwargs["handlers"][0]
+            service = discovery.AXIS_SERVICE_TYPE
+            name = f"Entrance.{service}"
+            handler(zeroconf, service, name, discovery.ServiceStateChange.Added)
+            handler(zeroconf, service, name, discovery.ServiceStateChange.Updated)
+            assert await published.get() == {
+                "name": "Entrance",
+                "host": "192.0.2.1",
+                "macaddress": "00408C112233",
+            }
+            assert not scan.done()
+            handler(zeroconf, service, name, discovery.ServiceStateChange.Removed)
+            handler(
+                zeroconf,
+                service,
+                f"Lobby.{service}",
+                discovery.ServiceStateChange.Added,
+            )
+            lobby = await published.get()
+            finish.set()
+            assert await scan == [lobby]
+
+
 @pytest.mark.parametrize("failure", ["construction", "cancellation", "cleanup"])
 async def test_discovery_releases_resources_on_failure(failure: str) -> None:
     """Browser creation/cleanup failures and cancellation still close Zeroconf."""
     zeroconf = MagicMock(async_close=AsyncMock())
+    zeroconf.zeroconf.async_wait_for_start = AsyncMock()
     browser = MagicMock(async_cancel=AsyncMock())
     create_browser = MagicMock(return_value=browser)
     sleep = AsyncMock()

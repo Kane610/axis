@@ -9,11 +9,15 @@ from contextlib import AsyncExitStack
 from ipaddress import IPv4Address
 import math
 import re
+from typing import TYPE_CHECKING
 
 from zeroconf import IPVersion, ServiceStateChange
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
 from .errors import ErrorKind, OperationError, _failure
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 DiscoveredDevice = dict[str, str]
 
@@ -93,16 +97,65 @@ def _zeroconf_instance_name(service_name: str) -> str:
     return service_name
 
 
-async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDevice]:
+async def _resolve_announcement(
+    zc: AsyncZeroconf, name: str, active_names: set[str]
+) -> DiscoveredDevice | None:
+    info = AsyncServiceInfo(AXIS_SERVICE_TYPE, name)
+    if (
+        not await info.async_request(zc.zeroconf, timeout=1500)
+        or name not in active_names
+    ):
+        return None
+    macaddress = _extract_macaddress_property(info.properties)
+    if not macaddress or not is_axis_macaddress(macaddress):
+        return None
+    addresses = info.parsed_addresses(IPVersion.V4Only)
+    if not addresses:
+        return None
+    host = min(addresses, key=lambda address: IPv4Address(address).is_link_local)
+    link_local_host = next(
+        (
+            address
+            for address in addresses
+            if IPv4Address(address).is_link_local and address != host
+        ),
+        "",
+    )
+    return {
+        "host": host,
+        "name": _zeroconf_instance_name(name),
+        "macaddress": macaddress,
+        **({"link_local_host": link_local_host} if link_local_host else {}),
+        **_extract_discovery_metadata(info.properties),
+    }
+
+
+async def discover_axis_devices(
+    scan_seconds: float = 5.0,
+    *,
+    on_device: Callable[[DiscoveredDevice], Awaitable[None]] | None = None,
+) -> list[DiscoveredDevice]:
     """Find Axis devices, preferring advertised non-link-local IPv4 addresses.
 
     Devices advertising only link-local addresses remain in the results, after
-    devices with non-link-local addresses.
+    devices with non-link-local addresses. The optional callback reports provisional
+    results as they resolve; the return value is the final deduplicated list.
     """
     if not math.isfinite(scan_seconds) or scan_seconds < 0:
         msg = "Discovery duration must be finite and non-negative."
         raise OperationError(msg, kind=ErrorKind.VALIDATION)
     discovered_names: set[str] = set()
+    tasks: dict[str, asyncio.Task[None]] = {}
+    resolved: dict[str, DiscoveredDevice] = {}
+    accepting = True
+    limit = asyncio.Semaphore(8)
+
+    async def publish(name: str) -> None:
+        async with limit:
+            entry = await _resolve_announcement(azc, name, discovered_names)
+            if entry is not None and on_device is not None:
+                resolved[name] = entry
+                await on_device(entry)
 
     def _on_service_state_change(
         zeroconf: object,
@@ -113,65 +166,54 @@ async def discover_axis_devices(scan_seconds: float = 5.0) -> list[DiscoveredDev
         _ = (zeroconf, service_type)
         if state_change in {ServiceStateChange.Added, ServiceStateChange.Updated}:
             discovered_names.add(name)
+            if on_device is not None and accepting:
+                if previous := tasks.get(name):
+                    previous.cancel()
+                resolved.pop(name, None)
+                tasks[name] = group.create_task(publish(name))
         elif state_change == ServiceStateChange.Removed:
             discovered_names.discard(name)
+            if previous := tasks.pop(name, None):
+                previous.cancel()
+            resolved.pop(name, None)
 
     try:
         async with AsyncExitStack() as resources:
             azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
             resources.push_async_callback(azc.async_close)
-            browser = AsyncServiceBrowser(
-                azc.zeroconf,
-                [AXIS_SERVICE_TYPE],
-                handlers=[_on_service_state_change],
-            )
-            resources.push_async_callback(browser.async_cancel)
-            await asyncio.sleep(scan_seconds)
+            # The browser can cancel Zeroconf's shared startup future on shutdown.
+            startup = asyncio.create_task(azc.zeroconf.async_wait_for_start())
+            try:
+                await asyncio.shield(startup)
+            except asyncio.CancelledError:
+                await startup
+                raise
+            async with asyncio.TaskGroup() as group:
+                browser = AsyncServiceBrowser(
+                    azc.zeroconf,
+                    [AXIS_SERVICE_TYPE],
+                    handlers=[_on_service_state_change],
+                )
+                resources.push_async_callback(browser.async_cancel)
+                try:
+                    await asyncio.sleep(scan_seconds)
+                finally:
+                    accepting = False
 
-            entries: list[DiscoveredDevice] = []
-            seen_hosts: set[str] = set()
+            entries: dict[str, DiscoveredDevice] = {}
             for service_name in sorted(discovered_names):
-                info = AsyncServiceInfo(AXIS_SERVICE_TYPE, service_name)
-                if (
-                    not await info.async_request(azc.zeroconf, timeout=1500)
-                    or service_name not in discovered_names
-                ):
-                    continue
-                macaddress = _extract_macaddress_property(info.properties)
-                if not macaddress or not is_axis_macaddress(macaddress):
-                    continue
-                addresses = info.parsed_addresses(IPVersion.V4Only)
-                if not addresses:
-                    continue
-                host = min(
-                    addresses, key=lambda address: IPv4Address(address).is_link_local
+                entry = (
+                    resolved.get(service_name)
+                    if on_device is not None
+                    else await _resolve_announcement(
+                        azc, service_name, discovered_names
+                    )
                 )
-                link_local_host = next(
-                    (
-                        address
-                        for address in addresses
-                        if IPv4Address(address).is_link_local and address != host
-                    ),
-                    "",
-                )
-                if host in seen_hosts:
-                    continue
-                seen_hosts.add(host)
-                entries.append(
-                    {
-                        "host": host,
-                        "name": _zeroconf_instance_name(service_name),
-                        "macaddress": macaddress,
-                        **(
-                            {"link_local_host": link_local_host}
-                            if link_local_host
-                            else {}
-                        ),
-                        **_extract_discovery_metadata(info.properties),
-                    }
-                )
+                if entry is not None:
+                    entries.setdefault(entry["host"], entry)
             return sorted(
-                entries, key=lambda entry: IPv4Address(entry["host"]).is_link_local
+                entries.values(),
+                key=lambda entry: IPv4Address(entry["host"]).is_link_local,
             )
     except Exception as exc:  # noqa: BLE001 - safe boundary; cancellation propagates
         raise _failure(exc, message="Device discovery failed.") from None

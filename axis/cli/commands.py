@@ -265,6 +265,8 @@ def web_interface(runtime: Runtime, port: int) -> None:
 
     try:
         run_server(runtime.config_path, port)
+    except StorageError as exc:
+        raise click.ClickException(str(exc)) from exc
     except OSError as exc:
         msg = "Cannot start the local web server. Check the port or choose another with --port."
         raise click.ClickException(msg) from exc

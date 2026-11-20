@@ -2,16 +2,20 @@ import { LitElement, css, html, nothing } from "lit";
 import { keyed } from "lit/directives/keyed.js";
 import { AxisConnection, type ConnectionStatus } from "./data/connection";
 import {
+  configureDevice,
   discoverDevices,
   fetchApis,
   fetchDevices,
+  fetchDeviceSettings,
   fetchHealth,
   fetchInterfaces,
   readInterface,
   saveDevice,
   type Device,
   type DeviceApi,
+  type DeviceConnection,
   type DeviceInterface,
+  type DeviceSettings,
   type DiscoveredDevice,
   type Health,
 } from "./data/devices";
@@ -20,11 +24,43 @@ import { contentStyles } from "./resources/theme";
 import "./components/axis-button";
 import "./components/axis-card";
 import "./components/axis-device-health";
-import "./components/axis-device-list";
-import type { DiscoveryState } from "./components/axis-device-list";
+import { macKey, type DiscoveryState } from "./components/axis-device-list";
 
 const DEVICE_VIEWS = ["Health", "APIs", "Interfaces"] as const;
 type DeviceView = (typeof DEVICE_VIEWS)[number];
+
+const CONNECTION_LABELS = {
+  connecting: "Connecting to Axis…",
+  connected: "Connected to Axis",
+  reconnecting: "Reconnecting to Axis…",
+  denied: "Access link rejected",
+  "link-required": "Access link required",
+} as const;
+
+const defaultPort = (protocol: string): number =>
+  protocol === "https" ? 443 : 80;
+
+function submittedPort(values: FormData, original?: Device): number {
+  const port = Number(values.get("port"));
+  const protocol = String(values.get("web_proto") ?? "");
+  if (original?.web_proto === protocol && original.port === port) return port;
+  return port === defaultPort(protocol) ? 0 : port;
+}
+
+function connectionDraft(
+  values: FormData,
+  original?: Device,
+): DeviceConnection {
+  const text = (name: string) => String(values.get(name) ?? "");
+  return {
+    host: text("host"),
+    port: submittedPort(values, original),
+    username: text("username"),
+    password: text("password"),
+    web_proto: text("web_proto"),
+    verify_ssl: values.has("verify_ssl"),
+  };
+}
 
 type DeviceViewData = {
   health?: Health;
@@ -47,6 +83,11 @@ class AxisApp extends LitElement {
     registration: { state: true },
     saving: { state: true },
     saveError: { state: true },
+    settings: { state: true },
+    settingsPending: { state: true },
+    settingsError: { state: true },
+    connectionEdited: { state: true },
+    connectionTest: { state: true },
   };
 
   static styles = [
@@ -63,6 +104,48 @@ class AxisApp extends LitElement {
         justify-content: space-between;
         align-items: baseline;
         gap: var(--axis-space-4);
+      }
+      .app-heading {
+        display: block;
+        margin-block-end: var(--axis-space-4);
+      }
+      .app-heading h1 {
+        margin-block-end: 0;
+      }
+      .connection-heading {
+        display: inline-block;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+      }
+      .connection-status {
+        display: block;
+        block-size: 3px;
+        margin-block-start: var(--axis-space-1);
+        border-radius: var(--axis-radius-control);
+        background-color: var(--axis-color-danger);
+      }
+      .connection-status[data-state="connected"] {
+        background-color: var(--axis-color-success);
+      }
+      .connection-status:is(
+        [data-state="connecting"],
+        [data-state="reconnecting"]
+      ) {
+        background-color: light-dark(#a94c00, #ffd08a);
+        animation: connection-pulse 1.6s ease-in-out infinite alternate;
+      }
+      @keyframes connection-pulse {
+        to {
+          opacity: 0.55;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .connection-status:is(
+          [data-state="connecting"],
+          [data-state="reconnecting"]
+        ) {
+          animation: none;
+        }
       }
       .panels {
         display: grid;
@@ -106,6 +189,43 @@ class AxisApp extends LitElement {
       .dialog-header h2 {
         margin: 0;
         min-inline-size: 0;
+        overflow-wrap: anywhere;
+      }
+      .dialog-controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: var(--axis-space-2);
+      }
+      .dialog-controls button:not(:disabled) {
+        cursor: pointer;
+      }
+      .dialog-controls button:not(:disabled):hover {
+        background: var(--axis-color-surface-muted);
+      }
+      .device-views axis-button::part(base) {
+        border-color: transparent;
+        background: transparent;
+      }
+      .device-views axis-button.active::part(base) {
+        border-color: var(--axis-color-border);
+        background: var(--axis-color-surface-muted);
+        color: var(--axis-color-primary);
+      }
+      .settings-form input::placeholder {
+        color: color-mix(
+          in srgb,
+          var(--axis-color-text) 70%,
+          var(--axis-color-surface)
+        );
+        opacity: 1;
+      }
+      .settings-form fieldset + fieldset {
+        margin-block-start: var(--axis-space-4);
+      }
+      .settings-form legend {
+        font-weight: var(--axis-font-weight-medium);
+        margin-block-end: var(--axis-space-2);
       }
       .dialog-content {
         overflow: auto;
@@ -132,11 +252,13 @@ class AxisApp extends LitElement {
         display: block;
       }
       input,
+      select,
       button {
         font: inherit;
         color: inherit;
       }
       input:not([type="checkbox"]),
+      select,
       button {
         min-block-size: var(--axis-control-height);
         padding-inline: var(--axis-space-3);
@@ -144,17 +266,19 @@ class AxisApp extends LitElement {
         border-radius: var(--axis-radius-control);
         background: var(--axis-color-surface);
       }
-      button[type="submit"] {
-        background: var(--axis-color-primary);
-        color: var(--axis-color-on-primary);
-      }
-      .registration-target {
-        overflow-wrap: anywhere;
+      .form-status,
+      .connection-status [role="status"] {
+        position: absolute;
+        clip-path: inset(50%);
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        white-space: nowrap;
       }
     `,
   ];
 
-  private status = "Connecting";
+  private status: ConnectionStatus | "link-required" = "connecting";
   private devices: Device[] = [];
   private discovery: DiscoveryState | null = null;
   private selected = "";
@@ -166,8 +290,23 @@ class AxisApp extends LitElement {
   private registration: DiscoveredDevice | null = null;
   private saving = false;
   private saveError = "";
+  private settings: { serial: string; value?: DeviceSettings } | null = null;
+  private settingsPending = false;
+  private settingsError = "";
+  private connectionEdited = false;
+  private connectionTest: {
+    pending: boolean;
+    message?: string;
+    failed?: boolean;
+    draft?: DeviceConnection;
+  } | null = null;
   private operation = 0;
   private refreshId = 0;
+  private backdropPressed = false;
+  private readonly portDrafts = new WeakMap<
+    HTMLSelectElement,
+    { protocol: string; ports: Map<string, string> }
+  >();
   private readonly connection = new AxisConnection((status) =>
     this.connectionChanged(status),
   );
@@ -188,7 +327,7 @@ class AxisApp extends LitElement {
     }
     if (!token) {
       this.connection.disconnect();
-      this.status = "Access link required";
+      this.status = "link-required";
       this.error = "Open the private URL printed when the server starts.";
       return;
     }
@@ -227,9 +366,11 @@ class AxisApp extends LitElement {
 
   private dismissDevice(event?: Event): void {
     event?.preventDefault();
-    if (this.saving) return;
+    if (this.saving || this.settingsPending) return;
     ++this.operation;
     this.registration = null;
+    this.settings = null;
+    this.connectionTest = null;
     this.selected = "";
     this.viewData = {};
     this.selectedInterface = null;
@@ -238,28 +379,34 @@ class AxisApp extends LitElement {
   }
 
   private connectionChanged(status: ConnectionStatus): void {
-    this.status = {
-      connecting: "Connecting",
-      connected: "Connected",
-      disconnected: "Disconnected; reconnecting",
-      denied: "Access denied",
-    }[status];
+    if (this.status === status && status === "reconnecting") return;
+    this.status = status;
     this.error =
       status === "denied"
         ? "Open the private URL printed by the running server."
         : "";
     if (status === "connected") {
       void this.refreshDevices();
+      void this.scanLocalNetwork();
       return;
     }
     ++this.operation;
     ++this.refreshId;
-    this.discovery = null;
+    if (this.discovery)
+      this.discovery = {
+        status: "interrupted",
+        devices: this.discovery.devices,
+      };
     this.registration = null;
+    this.settings = null;
+    this.connectionTest = null;
+    this.settingsPending = false;
     this.saving = false;
     this.saveError = "";
-    this.viewData = {};
-    this.selectedInterface = null;
+    if (status !== "reconnecting") {
+      this.viewData = {};
+      this.selectedInterface = null;
+    }
     this.loading = null;
   }
 
@@ -289,60 +436,106 @@ class AxisApp extends LitElement {
 
   private async scanLocalNetwork(): Promise<void> {
     if (
-      this.status !== "Connected" ||
+      this.status !== "connected" ||
       this.saving ||
       this.discovery?.status === "scanning"
     )
       return;
     this.registration = null;
-    const scan = {
+    let scan = {
       status: "scanning",
-      devices:
-        this.discovery?.status === "complete" ? this.discovery.devices : [],
+      devices: this.discovery?.devices ?? [],
     } as const;
     this.discovery = scan;
     try {
-      const devices = await discoverDevices(this.connection);
-      if (this.discovery === scan)
-        this.discovery = { status: "complete", devices };
+      const devices = await discoverDevices(this.connection, (device) => {
+        if (this.discovery !== scan) return;
+        const byHost = new Map(scan.devices.map((item) => [item.host, item]));
+        byHost.set(device.host, device);
+        scan = { status: "scanning", devices: [...byHost.values()] };
+        this.discovery = scan;
+      });
+      if (this.discovery === scan) {
+        const final = new Map(devices.map((device) => [device.host, device]));
+        const ordered = scan.devices.flatMap(({ host }) => {
+          const device = final.get(host);
+          final.delete(host);
+          return device ? [device] : [];
+        });
+        this.discovery = {
+          status: "complete",
+          devices: [...ordered, ...final.values()],
+        };
+      }
     } catch (error) {
       if (this.discovery === scan)
-        this.discovery = { status: "error", message: (error as Error).message };
+        this.discovery = {
+          status: "error",
+          devices: scan.devices,
+          message: (error as Error).message,
+        };
     }
   }
 
   private openRegistration(device: DiscoveredDevice): void {
+    this.connectionTest = null;
     this.registration = device;
     this.saveError = "";
     this.selected = "";
     ++this.operation;
   }
 
+  private registrationBlock(target: DiscoveredDevice): string {
+    if (this.discovery?.status === "scanning")
+      return "Wait for discovery to finish before testing the connection.";
+    const mac = macKey(target.macaddress) ?? target.macaddress;
+    const confirmed =
+      this.discovery?.status === "complete" &&
+      this.discovery.devices.some(
+        (device) =>
+          device.host === target.host &&
+          (macKey(device.macaddress) ?? device.macaddress) === mac,
+      );
+    return confirmed
+      ? ""
+      : "This device was not confirmed. Close this form and run discovery again.";
+  }
+
   private async submitRegistration(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
     const target = this.registration;
-    if (!(form instanceof HTMLFormElement) || !target || this.saving) return;
+    if (
+      !(form instanceof HTMLFormElement) ||
+      !target ||
+      this.registrationBlock(target) ||
+      this.saving ||
+      this.connectionTest?.pending
+    )
+      return;
     const values = new FormData(form);
+    const draft = connectionDraft(values);
+    if (!this.connectionVerified(draft)) return;
     const password = form.querySelector<HTMLInputElement>(
       'input[name="password"]',
     );
     if (password) password.value = "";
+    this.connectionTest = null;
     this.saving = true;
     this.saveError = "";
     try {
       const serial = await saveDevice(this.connection, {
+        ...draft,
         host: target.host,
-        username: String(values.get("username") ?? ""),
-        password: String(values.get("password") ?? ""),
         alias: String(values.get("alias") ?? ""),
-        verify_ssl: !values.has("selfSigned"),
       });
       if (this.registration !== target) return;
       this.registration = null;
       this.saving = false;
       this.selected = serial;
       this.deviceView = "Health";
+      const content = this.renderRoot.querySelector(".dialog-content");
+      if (content) content.scrollTop = 0;
       await this.refreshDevices();
     } catch (error) {
       if (this.registration === target)
@@ -353,50 +546,20 @@ class AxisApp extends LitElement {
   }
 
   private renderRegistration(target: DiscoveredDevice) {
+    const blocked = this.registrationBlock(target);
     return keyed(
       target.host,
       html`
         <axis-card>
-          <p class="registration-target">
-            Connect over HTTPS to ${target.name || target.host}
-            ${target.name ? `(${target.host})` : ""}.
+          <h3>Save discovered device</h3>
+          <p>
+            ${
+              blocked && this.discovery?.status !== "scanning"
+                ? blocked
+                : "Enter the device credentials to read its identity and save it locally."
+            }
           </p>
-          <form method="post" @submit=${this.submitRegistration}>
-            <fieldset ?disabled=${this.saving}>
-              <label
-                >Username
-                <input name="username" autocomplete="username" required
-              /></label>
-              <label
-                >Password
-                <input
-                  name="password"
-                  type="password"
-                  autocomplete="current-password"
-                  required
-              /></label>
-              <label>Alias (optional) <input name="alias" /></label>
-              <label class="certificate">
-                <input name="selfSigned" type="checkbox" checked />
-                Allow a self-signed certificate
-              </label>
-              <p class="warning">
-                Allowing self-signed certificates skips server identity
-                verification. Check the address and only continue if you trust
-                this device and network.
-              </p>
-              <div class="actions">
-                <button type="submit">Save device</button>
-                <button type="button" @click=${this.dismissDevice}>
-                  Cancel
-                </button>
-              </div>
-            </fieldset>
-          </form>
-          <div role="status">
-            ${this.saving ? "Verifying and saving device…" : nothing}
-          </div>
-          ${this.saveError ? html`<p class="error" role="alert">${this.saveError}</p>` : nothing}
+          ${this.renderSettingsForm(target, blocked)}
         </axis-card>
       `,
     );
@@ -532,20 +695,396 @@ class AxisApp extends LitElement {
     `;
   }
 
+  private async openSettings(serial: string): Promise<void> {
+    this.connectionTest = null;
+    this.connectionEdited = false;
+    const request = { serial };
+    this.settingsError = "";
+    this.settings = request;
+    try {
+      const value = await fetchDeviceSettings(this.connection, serial);
+      if (this.settings !== request) return;
+      this.settings = { serial, value };
+      await this.updateComplete;
+      this.renderRoot
+        .querySelector<HTMLInputElement>(".settings-form input")
+        ?.focus();
+    } catch (error) {
+      if (this.settings === request)
+        this.settingsError = (error as Error).message;
+    }
+  }
+
+  private async closeSettings(): Promise<void> {
+    this.settings = null;
+    this.connectionTest = null;
+    await this.updateComplete;
+    this.renderRoot
+      .querySelector<HTMLButtonElement>(".settings-trigger")
+      ?.focus();
+  }
+
+  private async submitSettings(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const target = this.settings;
+    const form = event.currentTarget;
+    if (
+      !target?.value ||
+      this.settingsPending ||
+      this.connectionTest?.pending ||
+      !(form instanceof HTMLFormElement)
+    )
+      return;
+    const values = new FormData(form);
+    const draft = connectionDraft(values, target.value.device);
+    if (
+      this.needsConnectionTest(draft, target.value) &&
+      !this.connectionVerified(draft)
+    )
+      return;
+    this.settingsError = "";
+    this.settingsPending = true;
+    try {
+      const result = await configureDevice(this.connection, target.serial, {
+        ...draft,
+        alias: String(values.get("alias") ?? ""),
+      });
+      if (this.settings !== target) return;
+      this.devices = this.devices.map((device) =>
+        device.serial === target.serial ? result.device : device,
+      );
+      this.settingsPending = false;
+      void this.closeSettings();
+      if (result.connection_changed) {
+        this.viewData = {};
+        this.selectedInterface = null;
+        void this.showDeviceView(target.serial, this.deviceView);
+      }
+    } catch (error) {
+      if (this.settings === target)
+        this.settingsError = (error as Error).message;
+    } finally {
+      if (this.settings === target) this.settingsPending = false;
+    }
+  }
+
+  private renderSettings() {
+    const value = this.settings?.value;
+    return html`
+      <axis-card>
+        <h3>Device settings</h3>
+        <p>These settings affect how Axis connects, not the device itself.</p>
+        ${!value && this.settingsError ? html`<p class="error" role="alert">${this.settingsError}</p>` : nothing}
+        ${
+          value
+            ? this.renderSettingsForm(value)
+            : this.settingsError
+              ? html`<button type="button" @click=${this.closeSettings}>
+                  Back
+                </button>`
+              : html`<p role="status">Loading settings…</p>`
+        }
+      </axis-card>
+    `;
+  }
+
+  private async testConnection(event: Event): Promise<void> {
+    const button = event.currentTarget;
+    const form = button instanceof HTMLElement ? button.closest("form") : null;
+    if (!form || this.connectionTest?.pending || !form.reportValidity()) return;
+    const registration = this.registration;
+    const saved = this.settings?.value?.device;
+    if (!registration && !saved) return;
+    if (registration && this.registrationBlock(registration)) return;
+    const draft = connectionDraft(new FormData(form), saved);
+    const request = { pending: true };
+    this.connectionTest = request;
+    this.settingsError = "";
+    this.saveError = "";
+    try {
+      const serial = saved
+        ? await this.connection.callWS("device/test-connection", {
+            ...draft,
+            device: saved.serial,
+          })
+        : await this.connection.callWS("devices/test-connection", draft);
+      if (this.connectionTest === request) {
+        this.connectionTest = {
+          pending: false,
+          draft,
+          message: `Connection successful (serial: ${serial}).`,
+        };
+      }
+    } catch (error) {
+      if (this.connectionTest === request) {
+        this.connectionTest = {
+          pending: false,
+          failed: true,
+          message: (error as Error).message,
+        };
+      }
+    }
+  }
+
+  private connectionVerified(draft: DeviceConnection): boolean {
+    const verified = this.connectionTest?.draft;
+    return (
+      verified !== undefined &&
+      JSON.stringify(verified) === JSON.stringify(draft)
+    );
+  }
+
+  private needsConnectionTest(
+    draft: DeviceConnection,
+    original: DeviceSettings,
+  ): boolean {
+    const { device, username } = original;
+    return (
+      draft.host.trim() !== device.host ||
+      draft.port !== device.port ||
+      draft.web_proto !== device.web_proto ||
+      draft.verify_ssl !== device.verify_ssl ||
+      draft.username.trim() !== username ||
+      draft.password !== ""
+    );
+  }
+
+  private updateConnectionTest(event: Event): void {
+    if (
+      this.connectionTest?.pending ||
+      !(
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLSelectElement
+      ) ||
+      event.target.name === "alias" ||
+      !(event.currentTarget instanceof HTMLFormElement)
+    )
+      return;
+    // The protocol change handler restores the port before this event reaches the form.
+    if (event.type === "input" && event.target instanceof HTMLSelectElement)
+      return;
+    this.connectionTest = null;
+    this.saveError = "";
+    this.settingsError = "";
+    const saved = this.settings?.value;
+    if (saved) {
+      this.connectionEdited = this.needsConnectionTest(
+        connectionDraft(new FormData(event.currentTarget), saved.device),
+        saved,
+      );
+    }
+  }
+
+  private switchPortProtocol(event: Event, initialProtocol: string): void {
+    const select = event.currentTarget;
+    if (!(select instanceof HTMLSelectElement)) return;
+    const port = select.form?.elements.namedItem("port");
+    if (!(port instanceof HTMLInputElement)) return;
+    const draft = this.portDrafts.get(select) ?? {
+      protocol: initialProtocol,
+      ports: new Map<string, string>(),
+    };
+    draft.ports.set(draft.protocol, port.value);
+    draft.protocol = select.value;
+    port.value =
+      draft.ports.get(draft.protocol) ?? String(defaultPort(draft.protocol));
+    this.portDrafts.set(select, draft);
+  }
+
+  private renderSettingsForm(
+    target: DeviceSettings | DiscoveredDevice,
+    blocked = "",
+  ) {
+    const registering = !("device" in target);
+    const pending = registering ? this.saving : this.settingsPending;
+    const testing = this.connectionTest?.pending ?? false;
+    const saveLabel = registering ? "Save device" : "Save settings";
+    const test = this.connectionTest;
+    const mustTest = (registering || this.connectionEdited) && !test?.draft;
+    const saveError = registering ? this.saveError : this.settingsError;
+    const defaultName = registering
+      ? target.name.trim() || target.host
+      : deviceName({ ...target.device, alias: "" });
+    const protocol = registering ? "https" : target.device.web_proto;
+    const port =
+      (registering ? 0 : target.device.port) || defaultPort(protocol);
+    return html`
+      <form
+        class="settings-form"
+        method="post"
+        @submit=${registering ? this.submitRegistration : this.submitSettings}
+        @input=${this.updateConnectionTest}
+        @change=${this.updateConnectionTest}
+        @keydown=${(event: KeyboardEvent) => {
+          if (
+            event.key !== "Enter" ||
+            event.isComposing ||
+            !(event.target instanceof HTMLInputElement) ||
+            event.target.type === "checkbox"
+          )
+            return;
+          event.preventDefault();
+          if (
+            !pending &&
+            !testing &&
+            !blocked &&
+            !mustTest &&
+            event.currentTarget instanceof HTMLFormElement
+          )
+            event.currentTarget.requestSubmit();
+        }}
+      >
+        <fieldset ?disabled=${pending || testing}>
+          <legend>General</legend>
+          <label>
+            Alias
+            <input
+              name="alias"
+              .value=${registering ? "" : target.device.alias}
+              placeholder=${defaultName}
+            />
+          </label>
+        </fieldset>
+        <fieldset ?disabled=${pending || testing}>
+          <legend>Connection</legend>
+          <label>
+            Address
+            <input
+              name="host"
+              .value=${registering ? target.host : target.device.host}
+              ?readonly=${registering}
+              required
+            />
+          </label>
+          <label>
+            Port
+            <input
+              name="port"
+              type="number"
+              min="1"
+              max="65535"
+              .value=${String(port)}
+              required
+            />
+          </label>
+          <label>
+            Username
+            <input
+              name="username"
+              autocomplete="username"
+              .value=${registering ? "" : target.username}
+              required
+            />
+          </label>
+          <label>
+            ${registering ? "Password" : "New password"}
+            <input
+              name="password"
+              type="password"
+              autocomplete=${registering ? "current-password" : "new-password"}
+              placeholder=${registering ? nothing : "Keep current password"}
+              ?required=${registering}
+            />
+          </label>
+        </fieldset>
+        <fieldset ?disabled=${pending || testing}>
+          <legend>Advanced</legend>
+          <label>
+            Protocol
+            <select
+              name="web_proto"
+              @change=${(event: Event) => this.switchPortProtocol(event, protocol)}
+            >
+              <option value="https" ?selected=${protocol === "https"}>
+                HTTPS
+              </option>
+              <option value="http" ?selected=${protocol === "http"}>
+                HTTP
+              </option>
+            </select>
+          </label>
+          <label class="certificate">
+            <input
+              name="verify_ssl"
+              type="checkbox"
+              .checked=${!registering && target.device.verify_ssl}
+            />
+            Verify HTTPS certificates
+          </label>
+          ${
+            registering
+              ? html`<small class="warning">
+                  Turning verification off allows self-signed certificates but
+                  skips certificate checks. HTTP is not encrypted. Verify the
+                  address and only continue if you trust the device and network.
+                </small>`
+              : html`<small>
+                  Use HTTPS with certificate verification when possible. HTTP is
+                  not encrypted.
+                </small>`
+          }
+        </fieldset>
+        <div class="actions">
+          <axis-button
+            type="submit"
+            variant=${saveError ? "danger" : "brand"}
+            .busy=${pending}
+            ?disabled=${pending || testing || mustTest || Boolean(blocked)}
+            title=${blocked || saveError || (mustTest ? "Test the connection before saving." : "")}
+          >
+            ${saveLabel}
+          </axis-button>
+          <axis-button
+            type="button"
+            variant=${test?.failed ? "danger" : test?.draft ? "success" : "neutral"}
+            .busy=${testing}
+            ?disabled=${pending || testing || Boolean(blocked)}
+            title=${blocked || test?.message || ""}
+            @click=${this.testConnection}
+          >
+            Test connection
+          </axis-button>
+          <axis-button
+            type="button"
+            ?disabled=${pending}
+            @click=${registering ? this.dismissDevice : this.closeSettings}
+          >
+            Cancel
+          </axis-button>
+        </div>
+        <div class="form-status" role="status">
+          ${blocked || (test?.draft ? test.message : "")}
+        </div>
+        <div class="form-status" role="alert">
+          ${saveError || (test?.failed ? test.message : "")}
+        </div>
+      </form>
+    `;
+  }
+
+  private renderConnectionStatus(label: string) {
+    return html`
+      <span class="connection-status" data-state=${this.status}>
+        <span role="status">${label}</span>
+      </span>
+    `;
+  }
+
   protected render() {
     const device = this.devices.find((item) => item.serial === this.selected);
-    const connected = this.status === "Connected";
+    const connected = this.status === "connected";
+    const status = CONNECTION_LABELS[this.status];
     const hasView = this.registration !== null || this.selected !== "";
     const error = this.error
       ? html`<p class="error" role="alert">${this.error}</p>`
       : nothing;
     return html`
       <main>
-        <header>
-          <h1 tabindex="-1">Axis devices</h1>
-          <span role="status" ?hidden=${hasView && !connected}
-            >${this.status}</span
-          >
+        <header class="app-heading">
+          <div class="connection-heading" title=${status}>
+            <h1 tabindex="-1">Axis devices</h1>
+            ${this.renderConnectionStatus(status)}
+          </div>
         </header>
         ${hasView ? nothing : error}
         <axis-device-list
@@ -553,7 +1092,6 @@ class AxisApp extends LitElement {
           .discovery=${this.discovery}
           .selected=${this.selected}
           .connected=${connected && !this.saving}
-          @axis-refresh=${this.refreshDevices}
           @axis-scan=${this.scanLocalNetwork}
           @axis-select=${(event: CustomEvent<string>) => {
             this.registration = null;
@@ -565,33 +1103,102 @@ class AxisApp extends LitElement {
       </main>
       <dialog
         aria-labelledby="device-dialog-title"
-        @cancel=${this.dismissDevice}
+        @pointerdown=${(event: PointerEvent) => {
+          const dialog = event.currentTarget;
+          this.backdropPressed = false;
+          if (event.target === dialog && dialog instanceof HTMLDialogElement) {
+            const rect = dialog.getBoundingClientRect();
+            this.backdropPressed =
+              event.clientX < rect.left ||
+              event.clientX >= rect.right ||
+              event.clientY < rect.top ||
+              event.clientY >= rect.bottom;
+          }
+        }}
+        @pointercancel=${() => {
+          this.backdropPressed = false;
+        }}
+        @click=${(event: MouseEvent) => {
+          const dialog = event.currentTarget;
+          if (
+            this.backdropPressed &&
+            event.target === dialog &&
+            dialog instanceof HTMLDialogElement
+          ) {
+            const rect = dialog.getBoundingClientRect();
+            if (
+              event.clientX < rect.left ||
+              event.clientX >= rect.right ||
+              event.clientY < rect.top ||
+              event.clientY >= rect.bottom
+            )
+              this.dismissDevice(event);
+          }
+          this.backdropPressed = false;
+        }}
+        @cancel=${(event: Event) => {
+          if (!this.settings) {
+            this.dismissDevice(event);
+            return;
+          }
+          event.preventDefault();
+          if (!this.settingsPending) void this.closeSettings();
+        }}
       >
         <div class="dialog-header">
           <header class="dialog-heading">
             <h2 id="device-dialog-title">
-              ${this.registration ? "Save device" : device ? deviceName(device) : "Device details"}
+              ${this.registration ? this.registration.name.trim() || this.registration.host : device ? deviceName(device) : "Device details"}
             </h2>
-            <button
-              type="button"
-              autofocus
-              ?disabled=${this.saving}
-              @click=${this.dismissDevice}
-            >
-              Close
-            </button>
+            <div class="dialog-controls">
+              ${
+                device
+                  ? html`<button
+                      type="button"
+                      class="settings-trigger"
+                      aria-pressed=${String(this.settings !== null)}
+                      ?disabled=${!connected || this.settingsPending}
+                      @click=${() => (this.settings ? this.closeSettings() : this.openSettings(device.serial))}
+                    >
+                      Settings
+                    </button>`
+                  : nothing
+              }
+              <button
+                type="button"
+                autofocus
+                ?disabled=${this.saving || this.settingsPending}
+                @click=${this.dismissDevice}
+              >
+                Close
+              </button>
+            </div>
           </header>
           ${
             device
-              ? html`<nav class="actions" aria-label="Device views">
+              ? html`<nav
+                  class="actions device-views"
+                  aria-label="Device views"
+                >
                   ${DEVICE_VIEWS.map(
                     (view) => html`
                       <axis-button
-                        variant=${this.deviceView === view ? "brand" : "neutral"}
-                        .pressed=${this.deviceView === view}
+                        class=${!this.settings && this.deviceView === view ? "active" : ""}
+                        variant="neutral"
+                        .pressed=${!this.settings && this.deviceView === view}
                         .busy=${this.loading === "view" && this.deviceView === view}
-                        ?disabled=${!connected}
-                        @click=${() => this.showDeviceView(device.serial, view, this.deviceView === view)}
+                        ?disabled=${!connected || this.settingsPending}
+                        @click=${() => {
+                          const refresh =
+                            !this.settings && this.deviceView === view;
+                          this.settings = null;
+                          this.connectionTest = null;
+                          void this.showDeviceView(
+                            device.serial,
+                            view,
+                            refresh,
+                          );
+                        }}
                         >${view}</axis-button
                       >
                     `,
@@ -601,10 +1208,9 @@ class AxisApp extends LitElement {
           }
         </div>
         <div class="panels dialog-content">
-          ${!connected && hasView ? html`<span role="status">${this.status}</span>` : nothing}
           ${hasView ? error : nothing}
           ${this.registration ? this.renderRegistration(this.registration) : nothing}
-          ${device ? this.renderSavedView(device, connected) : nothing}
+          ${this.settings ? this.renderSettings() : device ? this.renderSavedView(device, connected) : nothing}
         </div>
       </dialog>
     `;

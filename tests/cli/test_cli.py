@@ -395,7 +395,7 @@ def test_select_discovered_device_valid_selection() -> None:
 def test_discover_axis_devices_filters_axis_and_deduplicates_hosts() -> None:
     """Discovery keeps only Axis OUI entries and deduplicates hosts."""
     fake_azc = MagicMock()
-    fake_azc.zeroconf = object()
+    fake_azc.zeroconf = MagicMock(async_wait_for_start=AsyncMock())
     fake_azc.async_close = AsyncMock()
 
     fake_browser = MagicMock()
@@ -469,7 +469,7 @@ def test_discover_axis_devices_filters_axis_and_deduplicates_hosts() -> None:
 def test_discover_axis_devices_includes_metadata_fields() -> None:
     """Discovery includes optional metadata decoded from TXT properties."""
     fake_azc = MagicMock()
-    fake_azc.zeroconf = object()
+    fake_azc.zeroconf = MagicMock(async_wait_for_start=AsyncMock())
     fake_azc.async_close = AsyncMock()
 
     fake_browser = MagicMock()
@@ -535,7 +535,7 @@ def test_discover_axis_devices_includes_metadata_fields() -> None:
 def test_discover_axis_devices_skips_bad_and_duplicate_services() -> None:
     """Skip failed, malformed, non-Axis, addressless, and duplicate results."""
     fake_azc = MagicMock()
-    fake_azc.zeroconf = object()
+    fake_azc.zeroconf = MagicMock(async_wait_for_start=AsyncMock())
     fake_azc.async_close = AsyncMock()
     fake_browser = MagicMock()
     fake_browser.async_cancel = AsyncMock()

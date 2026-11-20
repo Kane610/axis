@@ -18,8 +18,14 @@ const devices = [
   },
 ];
 
-async function openApp(page, savedDevices = devices) {
+async function openApp(
+  page,
+  savedDevices = devices,
+  ready = () => true,
+  holdInitialDiscovery = false,
+) {
   const requests = [];
+  const automaticScans = [];
   const sockets = [];
   const tokens = [];
   await page.route("http://axis.test/**", (route) => {
@@ -42,13 +48,19 @@ async function openApp(page, savedDevices = devices) {
   });
   await page.routeWebSocket("ws://axis.test/api/websocket", (socket) => {
     sockets.push(socket);
+    let firstDiscovery = true;
     socket.onMessage((raw) => {
       const message = JSON.parse(raw);
       if ("token" in message) {
         tokens.push(message.token);
-        socket.send(JSON.stringify({ type: "ready", version: 1 }));
+        if (ready()) socket.send(JSON.stringify({ type: "ready", version: 1 }));
       } else if (message.type === "devices/list") {
         socket.send(JSON.stringify({ id: message.id, result: savedDevices }));
+      } else if (message.type === "devices/discover" && firstDiscovery) {
+        firstDiscovery = false;
+        automaticScans.push({ ...message, socket });
+        if (!holdInitialDiscovery)
+          socket.send(JSON.stringify({ id: message.id, result: [] }));
       } else {
         requests.push({ ...message, socket });
       }
@@ -58,7 +70,11 @@ async function openApp(page, savedDevices = devices) {
   await expect(
     page.getByRole("button", { name: "Camera A", exact: false }),
   ).toBeEnabled();
-  return { requests, sockets, tokens };
+  if (!holdInitialDiscovery)
+    await expect(
+      page.getByRole("button", { name: "Discover devices · No new devices" }),
+    ).toBeEnabled();
+  return { requests, automaticScans, sockets, tokens };
 }
 
 async function respond(page, request, result, error) {
@@ -88,27 +104,49 @@ async function select(page, name, requests, count) {
   await expect.poll(() => requests.length).toBe(count);
 }
 
-test("scans only on request and shows distinct discovered tiles in the saved device list", async ({
+test("discovers automatically and shows distinct discovered tiles in the saved device list", async ({
   page,
 }) => {
-  const { requests } = await openApp(page, [
-    { ...devices[0], serial: "00408C010204", model: "Saved camera" },
-    { ...devices[1], alias: "Camera B M3115 Lobby", model: "AXIS M3115-LVE" },
-  ]);
+  const { automaticScans } = await openApp(
+    page,
+    [
+      { ...devices[0], serial: "00408C010204", model: "Saved camera" },
+      { ...devices[1], alias: "Camera B M3115 Lobby", model: "AXIS M3115-LVE" },
+    ],
+    undefined,
+    true,
+  );
   const scan = page.getByRole("button", {
-    name: /^Scan (local network|again)/,
+    name: /^Discover devices/,
   });
-  expect(requests).toHaveLength(0);
-
-  await scan.click();
-  const scanning = page.getByRole("button", { name: "Scanning…" });
+  const scanning = page.getByRole("button", { name: "Discovering devices…" });
   await expect(scanning).toBeDisabled();
-  await expect(scanning).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect
-    .poll(() => requests.map(({ type }) => type))
-    .toEqual(["devices/discover"]);
-  await respond(page, requests[0], [
+  await expect.poll(() => automaticScans.length).toBe(1);
+  const [request] = automaticScans;
+  expect(request.stream).toBe(true);
+  const provisional = {
+    name: "Provisional camera",
+    host: "192.0.2.12",
+    macaddress: "00:40:8c:01:02:12",
+  };
+  request.socket.send(
+    JSON.stringify({
+      id: request.id,
+      type: "discovery/device",
+      device: provisional,
+    }),
+  );
+  const tile = page.getByRole("button", {
+    name: /Provisional camera.*Discovered/,
+  });
+  await expect(tile).toBeVisible();
+  await expect(scanning).toBeVisible();
+  await tile.click();
+  const preview = page.getByRole("dialog", { name: provisional.name });
+  await expect(preview.getByLabel("Username")).toBeEditable();
+  const previewTest = preview.getByRole("button", { name: "Test connection" });
+  await expect(previewTest).toBeDisabled();
+  await respond(page, request, [
     {
       name: "<b>Entrance camera</b>",
       host: "192.0.2.2",
@@ -116,28 +154,47 @@ test("scans only on request and shows distinct discovered tiles in the saved dev
       model: "Test camera",
     },
   ]);
-  await expect(scan).toHaveAccessibleName("Scan again · 1 new");
+  await expect(
+    preview
+      .getByRole("paragraph")
+      .filter({ hasText: "This device was not confirmed" }),
+  ).toBeVisible();
+  await expect(previewTest).toBeDisabled();
+  await preview.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(tile).toHaveCount(0);
+  await expect(scan).toHaveAccessibleName("Discover devices · 1 new");
   const list = page.getByRole("list", { name: "Devices", exact: true });
+  await expect(
+    page.getByRole("heading", { name: "Devices", exact: true }),
+  ).toHaveCount(0);
   const saved = list.getByRole("button", { name: /Camera A/ });
   const discovered = list
     .getByRole("listitem")
     .filter({ hasText: "<b>Entrance camera</b>" });
   await expect(discovered).toBeVisible();
-  await expect(discovered).toContainText(
-    "192.0.2.2) — 00:40:8c:01:02:03 — Test camera",
+  await expect(discovered.locator(".device-name")).toHaveText(
+    "<b>Entrance camera</b>",
+  );
+  await expect(discovered.locator(".device-meta")).toHaveText(
+    "192.0.2.2 — 00:40:8c:01:02:03 — Test camera",
   );
   await expect(discovered).toContainText("Discovered");
   const discoveredButton = discovered.getByRole("button");
   await expect(discoveredButton).toBeEnabled();
   await expect(saved).toBeEnabled();
   await expect(saved).toHaveAccessibleName(
-    "Camera A (camera-a) — 00:40:8c:01:02:04",
+    "Camera A camera-a — 00:40:8c:01:02:04",
   );
   const secondSaved = list.getByRole("button", {
-    name: "Camera B M3115 Lobby (camera-b)",
+    name: "Camera B M3115 Lobby camera-b",
     exact: true,
   });
   await expect(secondSaved).toBeVisible();
+  const deviceNameBox = await discovered.locator(".device-name").boundingBox();
+  const deviceMetaBox = await discovered.locator(".device-meta").boundingBox();
+  expect(deviceMetaBox.y).toBeGreaterThanOrEqual(
+    deviceNameBox.y + deviceNameBox.height,
+  );
   const savedBox = await saved.boundingBox();
   const secondSavedBox = await secondSaved.boundingBox();
   const discoveredBox = await discoveredButton.boundingBox();
@@ -147,6 +204,11 @@ test("scans only on request and shows distinct discovered tiles in the saved dev
   );
   expect(discoveredBox.x).toBeCloseTo(savedBox.x);
   expect(discoveredBox.width).toBeCloseTo(savedBox.width);
+  const scanBox = await scan.boundingBox();
+  expect(scanBox.y).toBeGreaterThanOrEqual(
+    discoveredBox.y + discoveredBox.height,
+  );
+  expect(scanBox.x + scanBox.width).toBeCloseTo(savedBox.x + savedBox.width);
   const savedOutline = await saved.evaluate(
     (button) => getComputedStyle(button).borderTopColor,
   );
@@ -158,38 +220,101 @@ test("scans only on request and shows distinct discovered tiles in the saved dev
   await expect(scan).toBeEnabled();
 });
 
-test("saves a discovered device over HTTPS and selects the saved tile", async ({
+test("saves a discovered device with a custom port and protocol and opens Health", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 480 });
   const saved = [...devices];
   const { requests } = await openApp(page, saved);
-  await page.getByRole("button", { name: "Scan local network" }).click();
+  await page.getByRole("button", { name: /^Discover devices/ }).click();
   await expect.poll(() => requests.length).toBe(1);
   const found = {
     name: "Entrance camera",
     host: "192.0.2.2",
     macaddress: "00:40:8c:01:02:03",
   };
-  await respond(page, requests[0], [found]);
+  requests[0].socket.send(
+    JSON.stringify({
+      id: requests[0].id,
+      type: "discovery/device",
+      device: found,
+    }),
+  );
   await page
     .getByRole("button", { name: /Entrance camera.*Discovered/ })
     .click();
-  await expect(page.getByRole("dialog", { name: "Save device" })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: found.name });
   await expect(
-    page.getByRole("checkbox", { name: /self-signed/ }),
-  ).toBeChecked();
-  await page.getByLabel("Username").fill("root");
-  const password = page.getByLabel("Password");
+    dialog.getByRole("heading", { name: "Save discovered device" }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("group", { name: "General" }).getByLabel("Alias"),
+  ).toHaveAttribute("placeholder", found.name);
+  const connection = dialog.getByRole("group", { name: "Connection" });
+  await expect(connection.getByLabel("Address")).toHaveValue(found.host);
+  await expect(connection.getByLabel("Address")).not.toBeEditable();
+  const port = connection.getByLabel("Port");
+  await expect(port).toHaveValue("443");
+  const advanced = dialog.getByRole("group", { name: "Advanced" });
+  const protocol = advanced.getByLabel("Protocol");
+  await expect(protocol).toHaveValue("https");
+  const verify = advanced.getByRole("checkbox", {
+    name: "Verify HTTPS certificates",
+  });
+  await expect(verify).not.toBeChecked();
+  await connection.getByLabel("Username").fill("root");
+  const password = connection.getByLabel("Password");
   await password.fill("dummy-test-password");
-  await page.getByLabel("Alias (optional)").fill("Entrance");
-  await page.getByRole("button", { name: "Save device" }).click();
+  await dialog.getByLabel("Alias").fill("Entrance");
+  const testConnection = dialog
+    .locator("axis-button")
+    .filter({ hasText: "Test connection" });
+  const save = dialog.locator("axis-button").filter({ hasText: "Save device" });
+  await expect(save.getByRole("button")).toBeDisabled();
+  await expect(testConnection.getByRole("button")).toBeDisabled();
+  await respond(page, requests[0], [found]);
+  await expect(password).toHaveValue("dummy-test-password");
+  await expect(testConnection.getByRole("button")).toBeEnabled();
+  const testLabel = testConnection.locator('[part="label"]');
+  await testConnection.scrollIntoViewIfNeeded();
+  const labelBounds = await testLabel.boundingBox();
+  expect(labelBounds).not.toBeNull();
+  await testConnection.click();
   await expect.poll(() => requests.length).toBe(2);
+  await expect(testConnection).toHaveAttribute("busy", "");
+  const testBounds = await testConnection.boundingBox();
+  expect(await testLabel.boundingBox()).toEqual(labelBounds);
+  expect(requests[1]).toMatchObject({
+    type: "devices/test-connection",
+    host: found.host,
+    password: "dummy-test-password",
+  });
+  await respond(page, requests.pop(), "NEW");
+  await expect(testConnection).toHaveAttribute("variant", "success");
+  await expect(testConnection.getByRole("button")).toHaveCSS(
+    "border-top-color",
+    "rgb(0, 107, 60)",
+  );
+  await expect(testConnection).toHaveAttribute(
+    "title",
+    "Connection successful (serial: NEW).",
+  );
+  expect(await testConnection.boundingBox()).toEqual(testBounds);
+  expect(await testLabel.boundingBox()).toEqual(labelBounds);
+  await expect(testConnection).toHaveText("Test connection");
+  await expect(password).toHaveValue("dummy-test-password");
+  await dialog.getByRole("button", { name: "Save device" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await expect(save).toHaveAttribute("busy", "");
+  await expect(save.getByRole("button")).toBeDisabled();
   expect(requests[1]).toMatchObject({
     type: "devices/save",
     host: found.host,
     username: "root",
     password: "dummy-test-password",
     alias: "Entrance",
+    port: 0,
+    web_proto: "https",
     verify_ssl: false,
   });
   await expect(password).toHaveValue("");
@@ -200,30 +325,49 @@ test("saves a discovered device over HTTPS and selects the saved tile", async ({
   await expect(page.getByRole("alert")).toHaveText(
     "Invalid device credentials.",
   );
-  await page.getByRole("checkbox", { name: /self-signed/ }).uncheck();
+  await port.fill("8443");
+  await protocol.selectOption("http");
+  await expect(port).toHaveValue("80");
+  await port.fill("8080");
+  await protocol.selectOption("https");
+  await expect(port).toHaveValue("8443");
+  await protocol.selectOption("http");
+  await expect(port).toHaveValue("8080");
   await password.fill("new-dummy-password");
+  await expect(save.getByRole("button")).toBeDisabled();
+  await testConnection.click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests.pop(), "NEW");
+  await expect(testConnection).toHaveAttribute("variant", "success");
   await page.getByRole("button", { name: "Save device" }).click();
   await expect.poll(() => requests.length).toBe(3);
-  expect(requests[2]).toMatchObject({ type: "devices/save", verify_ssl: true });
+  expect(requests[2]).toMatchObject({
+    type: "devices/save",
+    host: found.host,
+    port: 8080,
+    web_proto: "http",
+  });
 
   saved.push({
     ...devices[0],
     alias: "Entrance",
     host: found.host,
     serial: "NEW",
+    port: 8080,
+    web_proto: "http",
     discovery: { macaddress: found.macaddress },
   });
   await respond(page, requests[2], "NEW");
-  await expect(page.getByRole("heading", { name: "Save device" })).toHaveCount(
-    0,
-  );
+  await expect(
+    page.getByRole("heading", { name: "Save discovered device" }),
+  ).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Discovered/ })).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: "Entrance" })).toBeVisible();
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3]).toMatchObject({ type: "device/health", device: "NEW" });
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: /^Entrance \(/ }),
+    page.getByRole("button", { name: /^Entrance 192\.0\.2\.2/ }),
   ).toBeEnabled();
 });
 
@@ -241,7 +385,7 @@ test("keeps saved tiles when discovery reports the same devices", async ({
     },
   ]);
   const scan = page.getByRole("button", {
-    name: /^Scan (local network|again)/,
+    name: /^Discover devices/,
   });
   const savedAnnouncements = [
     {
@@ -277,7 +421,7 @@ test("keeps saved tiles when discovery reports the same devices", async ({
   await expect(list.getByRole("button", { name: /^Camera [ABC]/ })).toHaveCount(
     3,
   );
-  await expect(scan).toHaveAccessibleName("Scan again · 1 new");
+  await expect(scan).toHaveAccessibleName("Discover devices · 1 new");
   await expect(list).toContainText("Different camera at a saved address");
 
   await scan.click();
@@ -286,10 +430,10 @@ test("keeps saved tiles when discovery reports the same devices", async ({
     name: /Different camera at a saved address/,
   });
   await expect(previousResult).toBeVisible();
-  await expect(previousResult).toBeDisabled();
+  await expect(previousResult).toBeEnabled();
   await expect(list.getByRole("button", { name: /Camera A/ })).toBeEnabled();
   await respond(page, requests[1], savedAnnouncements);
-  await expect(scan).toHaveAccessibleName("Scan again · No new devices");
+  await expect(scan).toHaveAccessibleName("Discover devices · No new devices");
   await expect(page.locator(".scan-status")).toHaveText(
     "All discovered devices are already saved.",
   );
@@ -300,21 +444,21 @@ test("reports a failed scan and can retry with no results", async ({
   page,
 }) => {
   const { requests } = await openApp(page);
-  const scan = page.getByRole("button", { name: "Scan local network" });
+  const scan = page.getByRole("button", { name: /^Discover devices/ });
   await scan.click();
   await expect.poll(() => requests.length).toBe(1);
   await respond(page, requests[0], undefined, {
     code: "operation",
     message: "Device discovery failed.",
   });
-  const retry = page.getByRole("button", { name: "Retry scan · Scan failed" });
+  const retry = page.getByRole("button", { name: "Retry discovery · Failed" });
   await expect(retry).toHaveAccessibleDescription("Device discovery failed.");
   await expect(page.getByText("Device discovery failed.")).not.toBeInViewport();
   await retry.click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], []);
   await expect(
-    page.getByRole("button", { name: "Scan again · No new devices" }),
+    page.getByRole("button", { name: "Discover devices · No new devices" }),
   ).toBeEnabled();
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
@@ -324,7 +468,7 @@ test("moves the scan outline unless reduced motion is enabled", async ({
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const { requests } = await openApp(page);
-  await page.getByRole("button", { name: "Scan local network" }).click();
+  await page.getByRole("button", { name: /^Discover devices/ }).click();
   await expect.poll(() => requests.length).toBe(1);
   const outline = page.locator(".scan-control .busy-outline rect");
   await expect(outline).toBeInViewport();
@@ -420,18 +564,14 @@ test("keeps the newest health when an older response arrives last", async ({
   await expect(page.getByText("Obsolete", { exact: true })).toHaveCount(0);
 });
 
-test("ignores an outstanding read after dismissal and a list refresh", async ({
-  page,
-}) => {
-  const savedDevices = [...devices];
-  const { requests } = await openApp(page, savedDevices);
+test("ignores an outstanding read after dismissal", async ({ page }) => {
+  const { requests } = await openApp(page);
+  await expect(page.getByRole("button", { name: "Refresh list" })).toHaveCount(
+    0,
+  );
   await select(page, "A", requests, 1);
   await page.keyboard.press("Escape");
-  savedDevices.length = 0;
-  await page.getByRole("button", { name: "Refresh list" }).click();
-  await expect(
-    page.getByText("No saved devices.", { exact: false }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeHidden();
   await respond(page, requests[0], undefined, {
     code: "connection",
     message: "Obsolete error",
@@ -440,23 +580,186 @@ test("ignores an outstanding read after dismissal and a list refresh", async ({
   await expect(page.locator("axis-button[busy]")).toHaveCount(0);
 });
 
+for (const state of ["complete", "scanning"]) {
+  test(`keeps ${state} discovery results visible when disconnected`, async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const { requests, automaticScans, sockets } = await openApp(
+      page,
+      devices,
+      undefined,
+      true,
+    );
+    await expect.poll(() => automaticScans.length).toBe(1);
+    const found = {
+      name: "Entrance camera",
+      host: "192.0.2.2",
+      macaddress: "00:40:8c:01:02:03",
+    };
+    const first = automaticScans[0];
+    first.socket.send(
+      JSON.stringify({
+        id: first.id,
+        type: "discovery/device",
+        device: found,
+      }),
+    );
+    const tile = page.getByRole("button", {
+      name: /Entrance camera.*Discovered/,
+    });
+    await expect(tile).toBeVisible();
+    if (state === "complete") await respond(page, first, [found]);
+    sockets[0].close({ code: 1001 });
+    await expect(tile).toBeVisible();
+    await expect(tile).toBeDisabled();
+    await expect(page.locator("main .connection-status")).toHaveText(
+      "Reconnecting to Axis…",
+    );
+
+    await page.clock.fastForward(2100);
+    await expect.poll(() => automaticScans.length).toBe(2);
+    await expect(tile).toBeVisible();
+    await tile.click();
+    const dialog = page.getByRole("dialog", { name: found.name });
+    await expect(
+      dialog.getByRole("button", { name: "Test connection" }),
+    ).toBeDisabled();
+    await respond(page, automaticScans[1], undefined, {
+      code: "connection",
+      message: "Device discovery failed.",
+    });
+    await expect(
+      dialog
+        .getByRole("paragraph")
+        .filter({ hasText: "This device was not confirmed" }),
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(tile).toBeVisible();
+    await page
+      .getByRole("button", { name: "Retry discovery · Failed" })
+      .click();
+    await expect.poll(() => requests.length).toBe(1);
+    await expect(tile).toBeVisible();
+    await respond(page, requests[0], []);
+    await expect(tile).toHaveCount(0);
+  });
+}
+
+test("clicking outside closes a device modal, including Settings", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByText("Camera", { exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(2, 2);
+  await expect(dialog).toBeHidden();
+
+  await select(page, "A", requests, 2);
+  await respond(page, requests[1], health("Camera"));
+  await dialog.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], {
+    device: { ...devices[0], web_proto: "https", port: 0, verify_ssl: true },
+    username: "operator",
+  });
+  await dialog.getByLabel("Alias").fill("Unsaved");
+  await page.mouse.click(2, 2);
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("button", { name: /Camera A/ })).toBeVisible();
+});
+
+test("keeps Interfaces in place through repeated connection retries", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.emulateMedia({
+    colorScheme: "light",
+    reducedMotion: "no-preference",
+  });
+  await page.clock.install();
+  let ready = true;
+  const { requests, automaticScans, sockets, tokens } = await openApp(
+    page,
+    devices,
+    () => ready,
+  );
+  await select(page, "A", requests, 1);
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "Light", supported: true }]);
+  await dialog.getByRole("button", { name: "Light", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], { enabled: true });
+
+  const data = dialog.locator("pre");
+  await expect(data).toContainText('"enabled": true');
+  const originalBounds = await data.boundingBox();
+  await expect(dialog.locator(".connection-status")).toHaveCount(0);
+  const status = page.locator("main .connection-status");
+  await expect(status).toHaveCSS("background-color", "rgb(0, 107, 60)");
+  await expect(status).toHaveCSS("animation-name", "none");
+  const listTop = await page
+    .locator("axis-device-list")
+    .evaluate((list) => list.getBoundingClientRect().top);
+  ready = false;
+  sockets[0].close({ code: 1001 });
+  await expect(status).toHaveText("Reconnecting to Axis…");
+  await expect(status).toHaveCSS("background-color", "rgb(169, 76, 0)");
+  await expect(status).toHaveCSS("animation-name", "connection-pulse");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(status).toHaveCSS("animation-name", "none");
+  expect(await data.boundingBox()).toEqual(originalBounds);
+  await page.clock.fastForward(2100);
+  await expect.poll(() => tokens.length).toBe(2);
+  await expect(status).toHaveText("Reconnecting to Axis…");
+  sockets[1].close({ code: 1001 });
+  await page.clock.fastForward(2100);
+  await expect.poll(() => tokens.length).toBe(3);
+  await expect(status).toHaveText("Reconnecting to Axis…");
+  expect(await data.boundingBox()).toEqual(originalBounds);
+  expect(
+    await page
+      .locator("axis-device-list")
+      .evaluate((list) => list.getBoundingClientRect().top),
+  ).toBe(listTop);
+
+  sockets[2].send(JSON.stringify({ type: "ready", version: 1 }));
+  await expect.poll(() => automaticScans.length).toBe(2);
+  await expect(status).toHaveText("Connected to Axis");
+  await expect(status).toHaveCSS("background-color", "rgb(0, 107, 60)");
+  await expect(
+    dialog.getByRole("button", { name: "Light", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(data).toContainText('"enabled": true');
+  expect(await data.boundingBox()).toEqual(originalBounds);
+});
+
 for (const state of ["connected", "denied", "disconnected"]) {
   test(`uses a replacement link when ${state} without reloading`, async ({
     page,
   }) => {
+    await page.emulateMedia({ colorScheme: "light" });
     await page.clock.install();
     const { requests, sockets, tokens } = await openApp(page);
     await select(page, "A", requests, 1);
     if (state !== "connected") {
       sockets[0].close({ code: state === "denied" ? 1008 : 1001 });
-      await expect(
-        page
-          .getByRole("dialog")
-          .getByText(
-            state === "denied" ? "Access denied" : "Disconnected; reconnecting",
-            { exact: true },
-          ),
-      ).toBeVisible();
+      await expect(page.locator("main .connection-status")).toHaveText(
+        state === "denied" ? "Access link rejected" : "Reconnecting to Axis…",
+      );
+      if (state === "denied") {
+        const indicator = page.locator("main .connection-status");
+        await expect(indicator).toHaveCSS("background-color", "rgb(160, 0, 0)");
+        await expect(indicator).toHaveCSS("animation-name", "none");
+        await expect(page.getByRole("alert")).toHaveText(
+          "Open the private URL printed by the running server.",
+        );
+      }
     }
     await page.evaluate(() => {
       location.hash = "replacement-token";
@@ -479,11 +782,40 @@ for (const state of ["connected", "denied", "disconnected"]) {
   });
 }
 
+test("dialog controls respond to hover in both themes", async ({ page }) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  for (const scheme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const name of ["Settings", "Close"]) {
+      const button = dialog.getByRole("button", { name, exact: true });
+      await page.mouse.move(0, 0);
+      const background = await button.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      );
+      await button.hover();
+      await expect(button).not.toHaveCSS("background-color", background);
+      await expect(button).toHaveCSS("cursor", "pointer");
+    }
+  }
+  const settings = dialog.getByRole("button", { name: "Settings" });
+  await page.mouse.move(0, 0);
+  await settings.evaluate((button) => (button.disabled = true));
+  const disabledBackground = await settings.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  await settings.hover();
+  await expect(settings).toHaveCSS("background-color", disabledBackground);
+});
+
 test("keyboard selection and typed API commands work through the component boundaries", async ({
   page,
 }) => {
   const { requests } = await openApp(page);
-  const camera = page.getByRole("button", { name: "Camera A", exact: false });
+  const camera = page
+    .getByRole("list", { name: "Devices", exact: true })
+    .getByRole("button", { name: "Camera A", exact: false });
   await camera.focus();
   await camera.press("Enter");
   await expect.poll(() => requests.length).toBe(1);
@@ -494,6 +826,7 @@ test("keyboard selection and typed API commands work through the component bound
   await expect(
     views.getByRole("button", { name: "Health", pressed: true }),
   ).toBeVisible();
+  await expect(views.locator("axis-button.active")).toHaveCount(1);
   await expect(close).toBeFocused();
   await camera.evaluate((button) => button.focus());
   await expect(close).toBeFocused();
@@ -503,6 +836,7 @@ test("keyboard selection and typed API commands work through the component bound
   await respond(page, requests[0], health("Camera"));
 
   await views.getByRole("button", { name: "APIs", exact: true }).click();
+  await expect(views.locator("axis-button.active")).toHaveText("APIs");
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1]).toMatchObject({ type: "device/apis", device: "A" });
   await expect(
@@ -656,6 +990,172 @@ test("reuses loaded views and interface results until the active button is click
   await interfaces.click();
   await expect(result).toHaveText("[]");
   expect(requests).toHaveLength(7);
+});
+
+test("edits a saved device in Settings without reloading health for an alias change", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Live camera"));
+  const dialog = page.getByRole("dialog");
+  const settings = dialog.getByRole("button", {
+    name: "Settings",
+    exact: true,
+  });
+  const device = {
+    ...devices[0],
+    web_proto: "https",
+    port: 0,
+    verify_ssl: true,
+  };
+  await settings.click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({ type: "device/settings", device: "A" });
+  await respond(page, requests[1], { device, username: "operator" });
+  const name = dialog.getByRole("textbox", { name: "Alias" });
+  await expect(name).toBeFocused();
+  await expect(dialog.getByLabel("New password")).toHaveValue("");
+  await expect(dialog.getByLabel("Username")).toHaveValue("operator");
+  const port = dialog.getByLabel("Port");
+  const protocol = dialog.getByLabel("Protocol");
+  await expect(port).toHaveValue("443");
+  await dialog.getByRole("button", { name: "Test connection" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({
+    type: "device/test-connection",
+    device: "A",
+    password: "",
+    port: 0,
+  });
+  await respond(page, requests.pop(), undefined, {
+    code: "connection",
+    message: "Could not connect.",
+  });
+  await expect(dialog.getByRole("alert")).toHaveText("Could not connect.");
+  await protocol.selectOption("http");
+  await expect(dialog.getByRole("alert")).toBeEmpty();
+  await expect(port).toHaveValue("80");
+  await protocol.selectOption("https");
+  await expect(port).toHaveValue("443");
+  await name.fill("");
+  await expect(name).toHaveAttribute("placeholder", "A");
+  await name.fill("Lobby");
+  await name.press("Enter");
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({
+    type: "device/configure",
+    device: "A",
+    alias: "Lobby",
+    username: "operator",
+    password: "",
+    port: 0,
+    web_proto: "https",
+    verify_ssl: true,
+  });
+  await respond(page, requests[2], undefined, {
+    code: "storage",
+    message: "That name is already in use.",
+  });
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "That name is already in use.",
+  );
+  await expect(name).toHaveValue("Lobby");
+  await name.fill("Front entrance");
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], {
+    device: { ...device, alias: "Front entrance" },
+    connection_changed: false,
+  });
+  const title = dialog.getByRole("heading", {
+    name: "Front entrance",
+    exact: true,
+  });
+  await expect(title).toBeVisible();
+  await expect(settings).toBeFocused();
+  await expect(dialog.getByText("Live camera")).toBeVisible();
+  await settings.click();
+  await expect.poll(() => requests.length).toBe(5);
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeFocused();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /Front entrance camera-a/ }),
+  ).toBeVisible();
+  expect(requests).toHaveLength(5);
+});
+
+test("refreshes the saved device view after validated connection settings change", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Old connection"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  const device = {
+    ...devices[0],
+    web_proto: "https",
+    port: 0,
+    verify_ssl: true,
+  };
+  await respond(page, requests[1], { device, username: "operator" });
+  await dialog.getByLabel("Address").fill("camera-new");
+  await dialog.getByLabel("New password").fill("test-new-password");
+  await dialog.getByLabel("Port").fill("8443");
+  const save = dialog.getByRole("button", { name: "Save settings" });
+  const testConnection = dialog
+    .locator("axis-button")
+    .filter({ hasText: "Test connection" });
+  await expect(save).toBeDisabled();
+  await testConnection.click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests.pop(), undefined, {
+    code: "connection",
+    message: "Could not connect.",
+  });
+  await expect(testConnection).toHaveAttribute("variant", "danger");
+  await expect(testConnection.getByRole("button")).toHaveCSS(
+    "border-top-color",
+    "rgb(160, 0, 0)",
+  );
+  await expect(testConnection).toHaveText("Test connection");
+  await expect(save).toBeDisabled();
+  await testConnection.click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests.pop(), "A");
+  await expect(testConnection).toHaveAttribute("variant", "success");
+  await expect(save).toBeEnabled();
+  await dialog.getByLabel("Port").fill("9443");
+  await expect(testConnection).toHaveAttribute("variant", "neutral");
+  await expect(save).toBeDisabled();
+  await testConnection.click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests.pop(), "A");
+  await expect(testConnection).toHaveAttribute("variant", "success");
+  await dialog.getByLabel("Alias").fill("New name");
+  await expect(testConnection).toHaveAttribute("variant", "success");
+  await save.click();
+  await expect.poll(() => requests.length).toBe(3);
+  await page.mouse.click(2, 2);
+  await expect(dialog).toBeVisible();
+  expect(requests[2]).toMatchObject({
+    type: "device/configure",
+    host: "camera-new",
+    port: 9443,
+    password: "test-new-password",
+  });
+  await respond(page, requests[2], {
+    device: { ...device, host: "camera-new", port: 9443 },
+    connection_changed: true,
+  });
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({ type: "device/health", device: "A" });
+  await expect(dialog.getByText("Old connection")).toHaveCount(0);
+  await respond(page, requests[3], health("New connection"));
+  await expect(dialog.getByText("New connection")).toBeVisible();
 });
 
 test("keeps device details scrollable without extending the list page", async ({

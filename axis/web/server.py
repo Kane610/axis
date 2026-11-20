@@ -1,22 +1,24 @@
 """Serve a local web interface for discovering, saving, and reading Axis devices."""
 
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime
 from importlib.resources import files
 import json
 import logging
+import re
 import secrets
 import sys
-from threading import Thread
+from threading import Event, Thread
 from typing import TYPE_CHECKING, Any
 import webbrowser
 
 from aiohttp import WSMsgType, web
 
 from axis.application import operations
-from axis.application.discovery import discover_axis_devices
+from axis.application.discovery import DiscoveredDevice, discover_axis_devices
 from axis.application.errors import ErrorKind, OperationError, StorageError
-from axis.application.records import ConnectionSettings, DiscoverySnapshot
+from axis.application.records import ConnectionSettings, DeviceRecord, DiscoverySnapshot
 from axis.application.storage import DeviceRegistry
 
 if TYPE_CHECKING:
@@ -27,9 +29,150 @@ LOGGER = logging.getLogger(__name__)
 MAX_MESSAGE_SIZE = 16384
 MAX_PENDING = 8
 COMMAND_TIMEOUT = 60
+BROWSER_RECONNECT_WAIT = 3.0
+STARTUP_DISCOVERY_MAX_AGE = 15.0
 
 
-async def _save_discovered(
+class _StartupDiscovery:
+    """Share the initial scan with authenticated pages without sharing their sessions."""
+
+    def __init__(self) -> None:
+        self.started = datetime.now(UTC)
+        self.started_at = asyncio.get_running_loop().time()
+        self.entries: dict[str, DiscoveredDevice] = {}
+        self.subscribers: set[asyncio.Queue[DiscoveredDevice | None]] = set()
+        self.task = asyncio.create_task(discover_axis_devices(on_device=self.publish))
+        self.task.add_done_callback(self.finished)
+
+    async def publish(self, entry: DiscoveredDevice) -> None:
+        self.entries[entry["host"]] = entry
+        for subscriber in self.subscribers:
+            subscriber.put_nowait(entry)
+
+    def finished(self, task: asyncio.Task[list[DiscoveredDevice]]) -> None:
+        if not task.cancelled() and task.exception() is not None:
+            LOGGER.warning("Startup device discovery failed.")
+        for subscriber in self.subscribers:
+            subscriber.put_nowait(None)
+
+    def fresh(self) -> bool:
+        return (
+            not self.task.done()
+            or asyncio.get_running_loop().time() - self.started_at
+            <= STARTUP_DISCOVERY_MAX_AGE
+        )
+
+    async def results(
+        self, publish: Callable[[DiscoveredDevice], Awaitable[None]]
+    ) -> list[DiscoveredDevice]:
+        queue: asyncio.Queue[DiscoveredDevice | None] = asyncio.Queue()
+        self.subscribers.add(queue)
+        try:
+            for entry in list(self.entries.values()):
+                await publish(entry)
+            if not self.task.done():
+                while (queued := await queue.get()) is not None:
+                    await publish(queued)
+            return await asyncio.shield(self.task)
+        finally:
+            self.subscribers.discard(queue)
+
+
+def _initial_scan_for_request(
+    startup: _StartupDiscovery | None, first: bool, message: dict[str, Any]
+) -> _StartupDiscovery | None:
+    if (
+        first
+        and message.get("type") == "devices/discover"
+        and startup is not None
+        and startup.fresh()
+    ):
+        return startup
+    return None
+
+
+async def _configure_saved(registry: DeviceRegistry, message: dict[str, Any]) -> object:
+    identifier = message.get("device")
+    if not isinstance(identifier, str) or not identifier:
+        raise ValueError
+    original = registry.resolve(identifier)
+    if message["type"] == "device/settings":
+        return {
+            "device": operations.normalize_payload(original.summary()),
+            "username": original.config.username,
+        }
+
+    host = message.get("host")
+    port = message.get("port")
+    username = message.get("username")
+    password = message.get("password")
+    proto = message.get("web_proto")
+    verify_ssl = message.get("verify_ssl")
+    if (
+        not isinstance(host, str)
+        or not isinstance(username, str)
+        or not isinstance(password, str)
+        or not isinstance(proto, str)
+        or type(port) is not int
+        or type(verify_ssl) is not bool
+    ):
+        raise ValueError
+    config = replace(
+        original.config,
+        host=host.strip(),
+        port=port,
+        username=username.strip(),
+        password=password or original.config.password,
+        web_proto=proto,
+        verify_ssl=verify_ssl,
+    )
+    if message["type"] == "device/test-connection":
+        await _verify_settings(original, config, password)
+        return original.serial
+
+    alias = message.get("alias")
+    if not isinstance(alias, str):
+        raise ValueError
+    alias = alias.strip()
+    default_name = (
+        (original.discovery.name.strip() if original.discovery else "")
+        or original.model.strip()
+        or original.serial
+    )
+    if alias == default_name:
+        alias = ""
+    replace(original, alias=alias, config=config)
+    changed = config != original.config
+    if changed:
+        await _verify_settings(original, config, password)
+    record = registry.update_settings(original, config, alias)
+    return {
+        "device": operations.normalize_payload(record.summary()),
+        "connection_changed": changed,
+    }
+
+
+async def _verify_settings(
+    original: DeviceRecord, config: ConnectionSettings, password: str
+) -> None:
+    if not re.fullmatch(r"[a-zA-Z0-9._-]+|\[[0-9a-fA-F:.]+\]", config.host):
+        msg = "Enter a hostname or IP address without a scheme, port, or path."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    previous = original.config
+    if not password and (
+        (config.host, config.port, config.web_proto)
+        != (previous.host, previous.port, previous.web_proto)
+        or (previous.verify_ssl and not config.verify_ssl)
+    ):
+        msg = "Re-enter the device password to change its address, port, protocol, or relax certificate verification."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    identified = await operations.identify(config)
+    if identified.serial != original.serial:
+        msg = "The new settings reached a different device. Your saved settings were not changed."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+
+
+async def _connect_discovered(
     registry: DeviceRegistry,
     message: dict[str, Any],
     discovered: dict[str, DiscoverySnapshot],
@@ -37,8 +180,11 @@ async def _save_discovered(
     host = message.get("host")
     username = message.get("username")
     password = message.get("password")
-    alias = message.get("alias")
+    testing = message["type"] == "devices/test-connection"
+    alias = "" if testing else message.get("alias")
     verify_ssl = message.get("verify_ssl")
+    port = message.get("port", 0)
+    proto = message.get("web_proto", "https")
     if (
         not isinstance(host, str)
         or not isinstance(username, str)
@@ -46,21 +192,26 @@ async def _save_discovered(
         or not password
         or not isinstance(alias, str)
         or type(verify_ssl) is not bool
+        or type(port) is not int
+        or not isinstance(proto, str)
     ):
         raise ValueError
     snapshot = discovered.get(host)
     if snapshot is None:
-        msg = "Scan the local network and select a device before saving."
+        msg = "Scan the local network and select a device first."
         raise OperationError(msg, kind=ErrorKind.VALIDATION)
     record = await operations.identify(
         ConnectionSettings(
             host=snapshot.host,
             username=username.strip(),
             password=password,
-            web_proto="https",
+            port=port,
+            web_proto=proto,
             verify_ssl=verify_ssl,
         )
     )
+    if testing:
+        return record.serial
     record.alias = alias.strip()
     record.discovery = snapshot
     registry.upsert(record, create_only=True)
@@ -68,9 +219,11 @@ async def _save_discovered(
 
 
 async def _execute(
+    socket: web.WebSocketResponse,
     registry: DeviceRegistry,
     message: dict[str, Any],
     discovered: dict[str, DiscoverySnapshot],
+    startup: _StartupDiscovery | None = None,
 ) -> object:
     command = message.get("type")
     if command == "devices/list":
@@ -80,8 +233,20 @@ async def _execute(
         ]
     if command == "devices/discover":
         discovered.clear()
-        started = datetime.now(UTC)
-        results = await discover_axis_devices()
+        started = startup.started if startup is not None else datetime.now(UTC)
+
+        async def publish(entry: DiscoveredDevice) -> None:
+            if message.get("stream") is True:
+                await socket.send_json(
+                    {"id": message["id"], "type": "discovery/device", "device": entry}
+                )
+
+        if startup is not None:
+            results = await startup.results(publish)
+        elif message.get("stream") is True:
+            results = await discover_axis_devices(on_device=publish)
+        else:
+            results = await discover_axis_devices()
         snapshots = {
             entry["host"]: DiscoverySnapshot(
                 host=entry["host"],
@@ -94,8 +259,10 @@ async def _execute(
         discovered.clear()
         discovered.update(snapshots)
         return results
-    if command == "devices/save":
-        return await _save_discovered(registry, message, discovered)
+    if command in ("devices/save", "devices/test-connection"):
+        return await _connect_discovered(registry, message, discovered)
+    if command in ("device/settings", "device/configure", "device/test-connection"):
+        return await _configure_saved(registry, message)
     return await _read_saved(registry, command, message)
 
 
@@ -135,20 +302,30 @@ async def _respond(
     registry: DeviceRegistry,
     message: dict[str, Any],
     discovered: dict[str, DiscoverySnapshot],
+    startup: _StartupDiscovery | None = None,
 ) -> None:
     request_id = message["id"]
     is_discovery = message.get("type") == "devices/discover"
     try:
         async with asyncio.timeout(COMMAND_TIMEOUT):
-            result = await _execute(registry, message, discovered)
+            result = await _execute(socket, registry, message, discovered, startup)
     except StorageError as err:
         response = {"id": request_id, "error": {"code": "storage", "message": str(err)}}
     except OperationError as err:
         error_message = str(err)
         if is_discovery:
             error_message = "Device discovery failed. Check this computer's local network access and try again."
-        elif message.get("type") == "devices/save" and err.kind == ErrorKind.CONNECTION:
-            error_message = "Cannot reach the device over HTTPS. Check the discovered address and certificate settings."
+        elif (
+            message.get("type")
+            in (
+                "devices/save",
+                "device/configure",
+                "devices/test-connection",
+                "device/test-connection",
+            )
+            and err.kind == ErrorKind.CONNECTION
+        ):
+            error_message = "Cannot reach the device. Check the address, port, protocol, and certificate settings."
         elif err.kind == ErrorKind.CONNECTION:
             error_message = (
                 "Cannot reach the device. Check that it is powered on, that this "
@@ -195,13 +372,34 @@ async def _respond(
             LOGGER.debug("Web client disconnected before receiving a response.")
 
 
-def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Application:
+def create_app(
+    registry: DeviceRegistry,
+    token: str,
+    port: int,
+    client_connected: Event | None = None,
+    *,
+    startup_discovery: bool = False,
+) -> web.Application:
     """Create a loopback-only web application."""
     app = web.Application(client_max_size=MAX_MESSAGE_SIZE)
     authority = f"127.0.0.1:{port}"
     origin = f"http://{authority}"
 
     sockets: set[web.WebSocketResponse] = set()
+    initial: _StartupDiscovery | None = None
+
+    async def start_discovery(application: web.Application) -> None:
+        nonlocal initial
+        initial = _StartupDiscovery()
+
+    async def stop_discovery(application: web.Application) -> None:
+        if initial is not None:
+            initial.task.cancel()
+            await asyncio.gather(initial.task, return_exceptions=True)
+
+    if startup_discovery:
+        app.on_startup.append(start_discovery)
+        app.on_cleanup.append(stop_discovery)
 
     @web.middleware
     async def guard(
@@ -242,6 +440,7 @@ def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Applicati
         sockets.add(socket)
         pending: dict[int, asyncio.Task[None]] = {}
         discovered: dict[str, DiscoverySnapshot] = {}
+        first_discovery = True
 
         def forget(task: asyncio.Task[None]) -> None:
             pending.pop(int(task.get_name()), None)
@@ -262,6 +461,8 @@ def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Applicati
                 await socket.close(code=1008, message=b"Authentication required")
                 return socket
             await socket.send_json({"type": "ready", "version": 1})
+            if client_connected is not None:
+                client_connected.set()
             async for incoming in socket:
                 if incoming.type != WSMsgType.TEXT:
                     await socket.close(code=1003, message=b"Text messages required")
@@ -289,8 +490,12 @@ def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Applicati
                         }
                     )
                     continue
+                startup = _initial_scan_for_request(initial, first_discovery, message)
+                first_discovery = (
+                    first_discovery and message.get("type") != "devices/discover"
+                )
                 task = asyncio.create_task(
-                    _respond(socket, registry, message, discovered),
+                    _respond(socket, registry, message, discovered, startup),
                     name=str(message["id"]),
                 )
                 pending[message["id"]] = task
@@ -304,6 +509,8 @@ def create_app(registry: DeviceRegistry, token: str, port: int) -> web.Applicati
         return socket
 
     async def shutdown(application: web.Application) -> None:
+        if client_connected is not None:
+            client_connected.set()
         for socket in tuple(sockets):
             await socket.close(code=1001, message=b"Server shutting down")
 
@@ -323,17 +530,26 @@ def _open_browser(url: str) -> None:
         print("Could not open a browser; use the private URL above.", file=sys.stderr)  # noqa: T201
 
 
+def _open_if_no_client(url: str, client_connected: Event) -> None:
+    if not client_connected.wait(BROWSER_RECONNECT_WAIT):
+        _open_browser(url)
+
+
 def run_server(config_path: Path, port: int) -> None:
-    """Run the local server and open its private URL once it is listening."""
-    token = secrets.token_urlsafe(32)
+    """Run the local server and open its private URL if no existing tab connects."""
+    registry = DeviceRegistry(config_path)
+    token = registry.web_access_token()
+    client_connected = Event()
     url = f"http://127.0.0.1:{port}/#{token}"
 
     def on_listening(_message: str) -> None:
         print(f"Open this private URL in your browser: {url}", flush=True)  # noqa: T201
-        Thread(target=_open_browser, args=(url,), daemon=True).start()
+        Thread(
+            target=_open_if_no_client, args=(url, client_connected), daemon=True
+        ).start()
 
     web.run_app(
-        create_app(DeviceRegistry(config_path), token, port),
+        create_app(registry, token, port, client_connected, startup_discovery=True),
         host="127.0.0.1",
         port=port,
         print=on_listening,

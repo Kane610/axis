@@ -1,7 +1,10 @@
 import type {
+  ConfiguredDevice,
   Device,
   DeviceApi,
+  DeviceConnection,
   DeviceInterface,
+  DeviceSettings,
   DiscoveredDevice,
   Health,
   SaveDevice,
@@ -10,10 +13,20 @@ import type {
 type Commands = {
   "devices/list": { args: Record<string, never>; result: Device[] };
   "devices/discover": {
-    args: Record<string, never>;
+    args: { stream: true };
     result: DiscoveredDevice[];
   };
   "devices/save": { args: SaveDevice; result: string };
+  "devices/test-connection": { args: DeviceConnection; result: string };
+  "device/test-connection": {
+    args: DeviceConnection & { device: string };
+    result: string;
+  };
+  "device/settings": { args: { device: string }; result: DeviceSettings };
+  "device/configure": {
+    args: SaveDevice & { device: string };
+    result: ConfiguredDevice;
+  };
   "device/health": { args: { device: string }; result: Health };
   "device/apis": { args: { device: string }; result: DeviceApi[] };
   "device/interfaces": { args: { device: string }; result: DeviceInterface[] };
@@ -24,6 +37,7 @@ type Response = {
   id?: number;
   type?: string;
   result?: unknown;
+  device?: DiscoveredDevice;
   error?: { code: string; message: string };
 };
 
@@ -31,10 +45,11 @@ type Pending = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
+  onDiscovered?: (device: DiscoveredDevice) => void;
 };
 
 export type ConnectionStatus =
-  "connecting" | "connected" | "disconnected" | "denied";
+  "connecting" | "connected" | "reconnecting" | "denied";
 
 export class AxisConnection {
   private socket: WebSocket | null = null;
@@ -48,6 +63,10 @@ export class AxisConnection {
   connect(token: string): void {
     this.disconnect();
     this.onStatus("connecting");
+    this.openSocket(token);
+  }
+
+  private openSocket(token: string): void {
     const socket = new WebSocket(`ws://${location.host}/api/websocket`);
     this.socket = socket;
     socket.onopen = () => {
@@ -64,6 +83,10 @@ export class AxisConnection {
       if (message.id === undefined) return;
       const pending = this.pending.get(message.id);
       if (!pending) return;
+      if (message.type === "discovery/device") {
+        if (message.device) pending.onDiscovered?.(message.device);
+        return;
+      }
       clearTimeout(pending.timer);
       this.pending.delete(message.id);
       if (message.error) pending.reject(new Error(message.error.message));
@@ -76,7 +99,8 @@ export class AxisConnection {
         this.onStatus("denied");
         return;
       }
-      this.reconnectTimer = setTimeout(() => this.connect(token), 2000);
+      this.onStatus("reconnecting");
+      this.reconnectTimer = setTimeout(() => this.openSocket(token), 2000);
     };
   }
 
@@ -86,10 +110,9 @@ export class AxisConnection {
     this.socket = null;
     this.connected = false;
     socket?.close();
-    this.onStatus("disconnected");
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);
-      pending.reject(new Error("Connection lost; please refresh the data."));
+      pending.reject(new Error("Connection lost. Try again once reconnected."));
     }
     this.pending.clear();
   }
@@ -97,6 +120,7 @@ export class AxisConnection {
   callWS<T extends keyof Commands>(
     type: T,
     args: Commands[T]["args"],
+    onDiscovered?: (device: DiscoveredDevice) => void,
   ): Promise<Commands[T]["result"]> {
     const socket = this.socket;
     if (socket?.readyState !== WebSocket.OPEN || !this.connected) {
@@ -112,6 +136,7 @@ export class AxisConnection {
         resolve: (value) => resolve(value as Commands[T]["result"]),
         reject,
         timer,
+        onDiscovered,
       });
       socket.send(JSON.stringify({ id, type, ...args }));
     });

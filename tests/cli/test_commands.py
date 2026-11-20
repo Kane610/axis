@@ -167,6 +167,12 @@ def test_web_invalid_port_and_startup_failure(runtime: Runtime) -> None:
     assert result.exit_code == 1
     assert "Cannot start the local web server" in result.output
     assert "--port" in result.output
+    with patch.object(
+        web_server, "run_server", side_effect=StorageError("Invalid web access token.")
+    ):
+        result = invoke(runtime, ["web"])
+    assert result.exit_code == 1
+    assert "Invalid web access token." in result.output
 
 
 def test_launcher_and_debug(runtime: Runtime, monkeypatch: pytest.MonkeyPatch) -> None:

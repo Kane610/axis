@@ -95,11 +95,13 @@ the browser. The CLI's `--config` option selects the device registry:
 `uv run axis --config PATH web --port 8766`. Ctrl-C stops the server and
 returns to the menu when launched there.
 
-The server opens your default browser and prints a private URL to use if it
-cannot open the browser. Stop the server with Ctrl-C. The link contains an
-access token; do not share it. A new token is generated on each
-start. Opening a new private link in an existing tab reconnects it with the new
-token without requiring a reload. The server binds to IPv4 loopback only; it is
+The server prints a private URL and waits briefly for an existing authorized
+tab to reconnect before opening your default browser. Stop the server with
+Ctrl-C. The link contains an access token; do not share it. The token persists
+in an owner-only file next to the selected registry so an existing tab can
+reconnect after restart. Removing that file while the server is stopped revokes
+the old link; the next start creates a new token. Opening a new private link in
+an existing tab reconnects it without requiring a reload. The server binds to IPv4 loopback only; it is
 not intended for remote or multi-user access. Use `axis web --port 8766` to choose
 another port.
 The local registry stores device credentials as plaintext in owner-only files.
@@ -112,34 +114,67 @@ advertised model when available. Saved rows use an alias, discovered name, or
 model as their label, falling back to the serial number, but never append a
 separate model field. A reported serial mismatch is displayed as a warning.
 
-In the **Devices** card, choose **Scan local network** to look for Axis devices
-advertising over mDNS on the IPv4 network of the computer running the server.
+The line under **Axis devices** indicates the web app's connection to the local
+server. It is green when connected, pulses orange while connecting or retrying,
+and turns red when the app needs a valid access link. Hover over the heading for
+the status text. With reduced motion enabled, the orange line stays steady.
+
+The backend starts looking for Axis devices advertising over mDNS on its IPv4
+network as it starts. The web app loads the saved list and uses the initial
+scan if it is still running or recently finished; otherwise it starts a new scan.
+Choose **Discover devices** below
+the list in the **Devices** card to scan again.
 The button shows the scan progress and result. Its dashed outline stays still
-when reduced motion is enabled. During a rescan, previous results stay visible
-but cannot be selected until the scan finishes.
+when reduced motion is enabled. Devices appear as their announcements resolve.
+During a rescan, previous results stay visible. You can open a discovered
+device and enter its credentials during the scan. **Test connection** and
+**Save device** stay disabled until the final results confirm the device.
+If the backend disconnects, the last discovered results remain visible but
+disabled. A new scan reconciles them after reconnection.
 New devices appear alongside saved devices with a different outline and a
 **Discovered** label. Results that match a saved serial number or MAC address
 do not get a second tile. Discovery announcements are unverified. A scan does
 not log in, register devices, or update saved records.
 An empty scan does not mean there are no devices on the network.
 
-Select a discovered device to enter its credentials and an optional alias,
-then click **Save device**. Selecting a saved device opens its health and API
-details. The saved-device modal opens on **Health**. Use **APIs** or
+Select a discovered device to open a form with the same **General**,
+**Connection**, and **Advanced** sections as saved-device Settings. Enter its
+credentials and an optional alias, then click **Save device**. The discovered
+address is read-only, but you can change the protocol or port. HTTPS is selected
+by default. Both forms show the port number (443 for HTTPS or 80 for HTTP by
+default) and remember the last port for each protocol while the form is open.
+Use **Test connection** in either form to check the current connection
+settings without saving. For a saved device, the test also checks that the
+reported serial matches the registration. The button turns green on success
+or red on failure without changing its label or moving the form. A successful
+test is required to register a device or save changed connection settings.
+Editing a connection field clears the result; changing only the alias does not
+require a test.
+The saved-device modal opens on **Health**. Use **APIs** or
 **Interfaces** below the device name to switch views; individual interface
 buttons are inside **Interfaces**. While the modal is open, switching back to
 a view or interface reuses its last successful result. Select the active button
 again to refresh it. A moving dashed outline marks the button while it loads
 without moving the existing content. The modal starts at the top of the
-**Devices** box and scrolls independently. Use **Close** or **Esc** to return
-to the list.
+**Devices** box and scrolls independently. Use **Close** or click outside the
+modal to return to the list. **Esc** returns from Settings to the current view,
+or closes the modal otherwise.
 
-When saving a device, the server connects over HTTPS, reads the device's
-serial number, and adds a local registration without replacing an existing one.
-**Allow a self-signed certificate** is selected by default for factory devices.
-This skips certificate verification, so verify the address and use it only on a
-trusted network. Clear the option if the device has a trusted certificate. Use
-the CLI for manual addresses or other connection settings.
+Use **Settings** next to **Close** to edit a saved device's local alias,
+address, port, credentials, protocol, or certificate verification. Clearing
+the alias previews the default name in gray. An empty password field keeps the
+current password. Re-enter it when changing the address, port, or protocol,
+or turning off certificate verification. Axis verifies that changed
+connection settings reach the saved serial number before replacing them.
+These settings do not change the device itself.
+
+When saving a device, the server connects using the selected protocol and port,
+reads the device's serial number, and adds a local registration without replacing
+an existing one. Prefer HTTPS because HTTP is not encrypted.
+**Verify HTTPS certificates** is off by default to allow self-signed factory
+certificates. Enable it if the device has a trusted certificate. If leaving
+it off, check the address and continue only on a trusted network. Use the CLI
+to register devices at manual addresses or with other connection settings.
 
 Live reads can take up to 60 seconds. If a device cannot be reached, check its
 saved address and port and network access from the computer running the server,
