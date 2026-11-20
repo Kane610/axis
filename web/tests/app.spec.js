@@ -782,6 +782,56 @@ for (const state of ["connected", "denied", "disconnected"]) {
   });
 }
 
+test("server settings select discovery interfaces and show warnings", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  const open = page.getByRole("button", {
+    name: "Server settings",
+    exact: true,
+  });
+  await open.click();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].type).toBe("server/settings");
+  await respond(page, requests[0], {
+    selected: null,
+    interfaces: [
+      { name: "lan", label: "Ethernet", addresses: ["192.0.2.10"], up: true },
+      { name: "vpn", label: "VPN", addresses: [], up: false },
+    ],
+  });
+  const dialog = page.getByRole("dialog", { name: "Server settings" });
+  await dialog.getByLabel("Use selected interfaces").check();
+  await expect(dialog.getByLabel(/Ethernet/)).toBeChecked();
+  await dialog.getByLabel(/VPN/).check();
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    type: "server/configure",
+    interfaces: ["lan", "vpn"],
+  });
+  await respond(page, requests[1], {
+    selected: ["lan", "vpn"],
+    interfaces: [],
+  });
+  await expect(dialog).not.toBeVisible();
+  await expect(open).toBeFocused();
+
+  await page.getByRole("button", { name: /Discover devices/ }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  requests[2].socket.send(
+    JSON.stringify({
+      id: requests[2].id,
+      type: "discovery/warning",
+      message: "Selected interfaces are down or unavailable: vpn",
+    }),
+  );
+  await respond(page, requests[2], []);
+  await expect(
+    page.getByRole("status").filter({ hasText: "vpn" }),
+  ).toBeVisible();
+});
+
 test("dialog controls respond to hover in both themes", async ({ page }) => {
   const { requests } = await openApp(page);
   await select(page, "A", requests, 1);

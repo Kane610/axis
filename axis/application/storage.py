@@ -176,6 +176,44 @@ class DeviceRegistry:
         """Resolve only an exact serial or alias, never a host address."""
         return _resolve(self.load(), identifier)
 
+    def web_discovery_interfaces(self) -> list[str] | None:
+        """Return selected web discovery interface names, or None for automatic."""
+        section = self._read().get("web", {})
+        if not isinstance(section, dict):
+            _fail("The web settings section must be a TOML table.")
+        selected = section.get("discovery_interfaces")
+        if selected is not None and (
+            not isinstance(selected, list)
+            or not selected
+            or any(not isinstance(name, str) or not name.strip() for name in selected)
+            or len(set(selected)) != len(selected)
+        ):
+            _fail("Web discovery interfaces must be a non-empty list of unique names.")
+        return selected
+
+    def update_web_discovery_interfaces(self, selected: list[str] | None) -> None:
+        """Persist web discovery settings without changing other registry data."""
+        with self._locked():
+            data = self._read()
+            section = data.setdefault("web", {})
+            if not isinstance(section, dict):
+                _fail("The web settings section must be a TOML table.")
+            if selected is None:
+                section.pop("discovery_interfaces", None)
+            elif (
+                not selected
+                or any(
+                    not isinstance(name, str) or not name.strip() for name in selected
+                )
+                or len(set(selected)) != len(selected)
+            ):
+                _fail(
+                    "Web discovery interfaces must be a non-empty list of unique names."
+                )
+            else:
+                section["discovery_interfaces"] = selected
+            self._write(data)
+
     def web_access_token(self) -> str:
         """Return the registry's persistent, owner-only web access token."""
         path = self.path.with_name(self.path.name + ".web-token")

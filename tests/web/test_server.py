@@ -22,7 +22,8 @@ from axis.application.records import (
 from axis.application.storage import DeviceRegistry
 from axis.interfaces.vapix import InterfaceState
 from axis.models.api_discovery import Api, ApiStatus
-from axis.web import server
+from axis.web import network, server
+from axis.web.network import NetworkInterface
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
@@ -34,6 +35,44 @@ if TYPE_CHECKING:
 HOST = "127.0.0.1:8765"
 HEADERS = {"Host": HOST, "Origin": f"http://{HOST}"}
 TOKEN = "test-token"
+
+
+def test_network_interface_inventory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep down, addressless, and unknown-status interfaces distinct."""
+    monkeypatch.setattr(
+        network.psutil,
+        "net_if_addrs",
+        lambda: {
+            "lan": [MagicMock(family=socket.AF_INET, address="192.0.2.10")],
+            "unknown": [MagicMock(family=socket.AF_INET6, address="::1")],
+        },
+    )
+    monkeypatch.setattr(
+        network.psutil,
+        "net_if_stats",
+        lambda: {"lan": MagicMock(isup=True), "down": MagicMock(isup=False)},
+    )
+    interfaces = network.network_interfaces()
+    assert interfaces == [
+        NetworkInterface("down", "down", (), False),
+        NetworkInterface("lan", "lan", ("192.0.2.10",), True),
+        NetworkInterface("unknown", "unknown", (), None),
+    ]
+    assert [item.available for item in interfaces] == [False, True, False]
+
+
+@pytest.mark.parametrize("method", ["net_if_addrs", "net_if_stats"])
+def test_network_inventory_failure_is_explicit(
+    monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    """Surface operating-system failures instead of silently selecting all interfaces."""
+    monkeypatch.setattr(network.psutil, "net_if_addrs", dict)
+    monkeypatch.setattr(network.psutil, "net_if_stats", dict)
+    monkeypatch.setattr(
+        network.psutil, method, MagicMock(side_effect=OSError("unavailable"))
+    )
+    with pytest.raises(OperationError, match="Cannot list local network interfaces"):
+        network.network_interfaces()
 
 
 @pytest.fixture(scope="module")
@@ -287,6 +326,174 @@ async def test_streams_discovery_without_authorizing_provisional_devices(
     finish.set()
     assert await socket.receive_json(timeout=2) == {"id": 2, "result": [entry]}
     await socket.close()
+
+
+async def test_web_network_settings_control_discovery(
+    client: TestClient, registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Persist choices and scan only available selected IPv4 addresses."""
+    adapters = [
+        NetworkInterface("lan", "Ethernet", ("192.0.2.10", "192.0.2.11"), True),
+        NetworkInterface("vpn", "VPN", ("192.0.2.30",), False),
+        NetworkInterface("other", "Other", ("192.0.2.20",), True),
+    ]
+    monkeypatch.setattr(server, "network_interfaces", lambda: adapters)
+    discover = AsyncMock(return_value=[])
+    monkeypatch.setattr(server, "discover_axis_devices", discover)
+    socket = await connect(client)
+    assert (await command(socket, type="server/settings"))["result"]["selected"] is None
+    for invalid in (
+        {},
+        {"interfaces": []},
+        {"interfaces": ["other", "other"]},
+        {"interfaces": ["unknown"]},
+        {"interfaces": [None]},
+    ):
+        response = await command(socket, type="server/configure", **invalid)
+        assert response["error"]["code"] == "invalid_request"
+    response = await command(socket, type="server/configure", interfaces=["lan", "vpn"])
+    assert response["result"]["selected"] == ["lan", "vpn"]
+    assert DeviceRegistry(registry.path).web_discovery_interfaces() == ["lan", "vpn"]
+    await socket.send_json({"id": 2, "type": "devices/discover", "stream": True})
+    warning = await socket.receive_json(timeout=2)
+    assert warning["type"] == "discovery/warning"
+    assert "vpn" in warning["message"]
+    assert await socket.receive_json(timeout=2) == {"id": 2, "result": []}
+    assert discover.call_args.kwargs["interfaces"] == ["192.0.2.10", "192.0.2.11"]
+
+    adapters[:] = [adapters[1]]
+    settings = (await command(socket, type="server/settings"))["result"]
+    assert any(
+        item["name"] == "lan" and item["addresses"] == []
+        for item in settings["interfaces"]
+    )
+    await socket.send_json({"id": 3, "type": "devices/discover", "stream": True})
+    assert (await socket.receive_json(timeout=2))["type"] == "discovery/warning"
+    assert (await socket.receive_json(timeout=2))["error"]["message"] == (
+        "No selected network interface is up with an IPv4 address."
+    )
+    assert discover.await_count == 1
+    assert (await command(socket, type="server/configure", interfaces=None))["result"][
+        "selected"
+    ] is None
+    assert registry.web_discovery_interfaces() is None
+    await command(socket, type="devices/discover")
+    discover.assert_awaited_with()
+    await socket.close()
+
+
+async def test_network_settings_report_inventory_failures(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep local interface errors distinct from device connection errors."""
+    monkeypatch.setattr(
+        server,
+        "network_interfaces",
+        MagicMock(
+            side_effect=OperationError(
+                "Cannot list local network interfaces.", kind=ErrorKind.CONNECTION
+            )
+        ),
+    )
+    socket = await connect(client)
+    response = await command(socket, type="server/settings")
+    assert response["error"]["message"] == "Cannot list local network interfaces."
+    await socket.close()
+
+
+async def test_changed_network_settings_do_not_reuse_startup_scan(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A first client scan uses new settings, not an earlier in-flight scan."""
+    started, finish = asyncio.Event(), asyncio.Event()
+
+    async def discover(
+        *,
+        on_device: Callable[[dict[str, str]], Awaitable[None]] | None = None,
+        interfaces: list[str] | None = None,
+    ) -> list[dict[str, str]]:
+        if interfaces is None:
+            started.set()
+            await finish.wait()
+        return []
+
+    mock = AsyncMock(side_effect=discover)
+    monkeypatch.setattr(server, "discover_axis_devices", mock)
+    monkeypatch.setattr(
+        server,
+        "network_interfaces",
+        lambda: [NetworkInterface("lan", "LAN", ("192.0.2.10",), True)],
+    )
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    await asyncio.wait_for(started.wait(), 2)
+    socket = await connect(client)
+    await command(socket, type="server/configure", interfaces=["lan"])
+    assert await command(socket, type="devices/discover", stream=True) == {
+        "id": 1,
+        "result": [],
+    }
+    assert mock.call_args.kwargs["interfaces"] == ["192.0.2.10"]
+    finish.set()
+    await socket.close()
+
+
+async def test_startup_warning_is_replayed_to_late_client(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An authenticated late client receives the startup scan warning."""
+    registry.update_web_discovery_interfaces(["lan", "vpn"])
+    monkeypatch.setattr(
+        server,
+        "network_interfaces",
+        lambda: [NetworkInterface("lan", "LAN", ("192.0.2.10",), True)],
+    )
+    done = asyncio.Event()
+
+    async def discover(**kwargs: object) -> list[dict[str, str]]:
+        done.set()
+        return []
+
+    monkeypatch.setattr(server, "discover_axis_devices", discover)
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    await asyncio.wait_for(done.wait(), 2)
+    socket = await connect(client)
+    await socket.send_json({"id": 2, "type": "devices/discover", "stream": True})
+    assert (await socket.receive_json(timeout=2))["message"].endswith("vpn")
+    assert await socket.receive_json(timeout=2) == {"id": 2, "result": []}
+    await socket.close()
+
+
+async def test_startup_warning_is_streamed_to_waiting_client(
+    registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deliver warnings raised after an authenticated client subscribes."""
+    release = asyncio.Event()
+
+    async def discover(
+        selected: list[str] | None,
+        publish: Callable[[dict[str, str]], Awaitable[None]],
+        warn: Callable[[str], Awaitable[None]],
+    ) -> list[dict[str, str]]:
+        await release.wait()
+        await warn("An interface is unavailable.")
+        return []
+
+    monkeypatch.setattr(server, "_web_discovery", discover)
+    startup = server._StartupDiscovery(registry)
+    warn = AsyncMock()
+    waiting = asyncio.create_task(startup.results(AsyncMock(), warn))
+    await asyncio.sleep(0)
+    release.set()
+    assert await waiting == []
+    warn.assert_awaited_once_with("An interface is unavailable.")
 
 
 async def test_startup_discovery_is_shared_and_authorized_per_socket(

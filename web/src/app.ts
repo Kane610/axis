@@ -18,6 +18,7 @@ import {
   type DeviceSettings,
   type DiscoveredDevice,
   type Health,
+  type ServerSettings,
 } from "./data/devices";
 import { deviceName } from "./device-name";
 import { contentStyles } from "./resources/theme";
@@ -88,6 +89,13 @@ class AxisApp extends LitElement {
     settingsError: { state: true },
     connectionEdited: { state: true },
     connectionTest: { state: true },
+    serverSettingsOpen: { state: true },
+    serverSettings: { state: true },
+    serverPending: { state: true },
+    serverError: { state: true },
+    serverAutomatic: { state: true },
+    serverSelection: { state: true },
+    discoveryWarning: { state: true },
   };
 
   static styles = [
@@ -106,7 +114,7 @@ class AxisApp extends LitElement {
         gap: var(--axis-space-4);
       }
       .app-heading {
-        display: block;
+        display: flex;
         margin-block-end: var(--axis-space-4);
       }
       .app-heading h1 {
@@ -197,11 +205,22 @@ class AxisApp extends LitElement {
         justify-content: flex-end;
         gap: var(--axis-space-2);
       }
-      .dialog-controls button:not(:disabled) {
+      .dialog-controls button:not(:disabled),
+      .server-settings-trigger:not(:disabled) {
         cursor: pointer;
       }
-      .dialog-controls button:not(:disabled):hover {
+      .dialog-controls button:not(:disabled):hover,
+      .server-settings-trigger:not(:disabled):hover {
         background: var(--axis-color-surface-muted);
+      }
+      .server-interfaces label {
+        display: flex;
+        align-items: baseline;
+        gap: var(--axis-space-2);
+      }
+      .server-interface-detail {
+        font-size: 0.875rem;
+        font-weight: 400;
       }
       .device-views axis-button::part(base) {
         border-color: transparent;
@@ -300,6 +319,13 @@ class AxisApp extends LitElement {
     failed?: boolean;
     draft?: DeviceConnection;
   } | null = null;
+  private serverSettingsOpen = false;
+  private serverSettings: ServerSettings | null = null;
+  private serverPending = false;
+  private serverError = "";
+  private serverAutomatic = true;
+  private serverSelection: string[] = [];
+  private discoveryWarning = "";
   private operation = 0;
   private refreshId = 0;
   private backdropPressed = false;
@@ -353,7 +379,10 @@ class AxisApp extends LitElement {
   protected updated(): void {
     const dialog = this.renderRoot.querySelector("dialog");
     if (!dialog) return;
-    const hasView = this.registration !== null || this.selected !== "";
+    const hasView =
+      this.serverSettingsOpen ||
+      this.registration !== null ||
+      this.selected !== "";
     if (hasView) {
       this.alignDeviceDialog();
       if (!dialog.open) dialog.showModal();
@@ -366,9 +395,11 @@ class AxisApp extends LitElement {
 
   private dismissDevice(event?: Event): void {
     event?.preventDefault();
-    if (this.saving || this.settingsPending) return;
+    if (this.saving || this.settingsPending || this.serverPending) return;
+    const serverWasOpen = this.serverSettingsOpen;
     ++this.operation;
     this.registration = null;
+    this.serverSettingsOpen = false;
     this.settings = null;
     this.connectionTest = null;
     this.selected = "";
@@ -376,6 +407,12 @@ class AxisApp extends LitElement {
     this.selectedInterface = null;
     this.loading = null;
     this.error = "";
+    if (serverWasOpen)
+      void this.updateComplete.then(() =>
+        this.renderRoot
+          .querySelector<HTMLButtonElement>(".server-settings-trigger")
+          ?.focus(),
+      );
   }
 
   private connectionChanged(status: ConnectionStatus): void {
@@ -398,6 +435,8 @@ class AxisApp extends LitElement {
         devices: this.discovery.devices,
       };
     this.registration = null;
+    this.serverSettingsOpen = false;
+    this.serverPending = false;
     this.settings = null;
     this.connectionTest = null;
     this.settingsPending = false;
@@ -447,14 +486,21 @@ class AxisApp extends LitElement {
       devices: this.discovery?.devices ?? [],
     } as const;
     this.discovery = scan;
+    this.discoveryWarning = "";
     try {
-      const devices = await discoverDevices(this.connection, (device) => {
-        if (this.discovery !== scan) return;
-        const byHost = new Map(scan.devices.map((item) => [item.host, item]));
-        byHost.set(device.host, device);
-        scan = { status: "scanning", devices: [...byHost.values()] };
-        this.discovery = scan;
-      });
+      const devices = await discoverDevices(
+        this.connection,
+        (device) => {
+          if (this.discovery !== scan) return;
+          const byHost = new Map(scan.devices.map((item) => [item.host, item]));
+          byHost.set(device.host, device);
+          scan = { status: "scanning", devices: [...byHost.values()] };
+          this.discovery = scan;
+        },
+        (warning) => {
+          if (this.discovery === scan) this.discoveryWarning = warning;
+        },
+      );
       if (this.discovery === scan) {
         const final = new Map(devices.map((device) => [device.host, device]));
         const ordered = scan.devices.flatMap(({ host }) => {
@@ -1062,6 +1108,141 @@ class AxisApp extends LitElement {
     `;
   }
 
+  private async openServerSettings(): Promise<void> {
+    this.serverSettingsOpen = true;
+    this.serverSettings = null;
+    this.serverError = "";
+    this.serverPending = true;
+    try {
+      const settings = await this.connection.callWS("server/settings", {});
+      if (!this.serverSettingsOpen) return;
+      this.serverSettings = settings;
+      this.serverAutomatic = settings.selected === null;
+      this.serverSelection =
+        settings.selected ??
+        settings.interfaces
+          .filter((item) => item.up && item.addresses.length)
+          .map((item) => item.name);
+    } catch (error) {
+      if (this.serverSettingsOpen) this.serverError = (error as Error).message;
+    } finally {
+      this.serverPending = false;
+    }
+  }
+
+  private async saveServerSettings(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (!this.serverAutomatic && !this.serverSelection.length) {
+      this.serverError =
+        "Select at least one interface, or use automatic discovery.";
+      return;
+    }
+    this.serverPending = true;
+    this.serverError = "";
+    try {
+      await this.connection.callWS("server/configure", {
+        interfaces: this.serverAutomatic ? null : this.serverSelection,
+      });
+      this.serverPending = false;
+      this.dismissDevice();
+    } catch (error) {
+      if (this.serverSettingsOpen) this.serverError = (error as Error).message;
+    } finally {
+      this.serverPending = false;
+    }
+  }
+
+  private renderServerSettings() {
+    const settings = this.serverSettings;
+    return html`
+      <axis-card>
+        <h3>Discovery network interfaces</h3>
+        <p>Changes apply to the next web discovery scan.</p>
+        ${this.serverError ? html`<p class="error" role="alert">${this.serverError}</p>` : nothing}
+        ${
+          settings
+            ? html`
+                <form @submit=${this.saveServerSettings}>
+                  <fieldset
+                    class="server-interfaces"
+                    ?disabled=${this.serverPending}
+                  >
+                    <label>
+                      <input
+                        type="radio"
+                        name="mode"
+                        .checked=${this.serverAutomatic}
+                        @change=${() => (this.serverAutomatic = true)}
+                      />
+                      Use all interfaces automatically
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="mode"
+                        .checked=${!this.serverAutomatic}
+                        @change=${() => (this.serverAutomatic = false)}
+                      />
+                      Use selected interfaces
+                    </label>
+                    ${settings.interfaces.map(
+                      (item) => html`
+                        <label>
+                          <input
+                            type="checkbox"
+                            .checked=${this.serverSelection.includes(item.name)}
+                            ?disabled=${this.serverAutomatic}
+                            @change=${(event: Event) => {
+                              const checked = (event.target as HTMLInputElement)
+                                .checked;
+                              this.serverSelection = checked
+                                ? [...this.serverSelection, item.name]
+                                : this.serverSelection.filter(
+                                    (name) => name !== item.name,
+                                  );
+                            }}
+                          />
+                          <span>
+                            ${item.label}${item.label !== item.name ? ` (${item.name})` : ""}
+                            <span class="server-interface-detail">
+                              —
+                              ${
+                                item.up === false
+                                  ? "Down"
+                                  : item.up === null
+                                    ? "Unavailable"
+                                    : item.addresses.join(", ") ||
+                                      "No IPv4 address"
+                              }
+                            </span>
+                          </span>
+                        </label>
+                      `,
+                    )}
+                  </fieldset>
+                  <div class="actions">
+                    <axis-button
+                      type="submit"
+                      variant="brand"
+                      .busy=${this.serverPending}
+                      ?disabled=${this.serverPending}
+                      >Save settings</axis-button
+                    >
+                    <axis-button
+                      type="button"
+                      ?disabled=${this.serverPending}
+                      @click=${this.dismissDevice}
+                      >Cancel</axis-button
+                    >
+                  </div>
+                </form>
+              `
+            : nothing
+        }
+      </axis-card>
+    `;
+  }
+
   private renderConnectionStatus(label: string) {
     return html`
       <span class="connection-status" data-state=${this.status}>
@@ -1074,7 +1255,10 @@ class AxisApp extends LitElement {
     const device = this.devices.find((item) => item.serial === this.selected);
     const connected = this.status === "connected";
     const status = CONNECTION_LABELS[this.status];
-    const hasView = this.registration !== null || this.selected !== "";
+    const hasView =
+      this.serverSettingsOpen ||
+      this.registration !== null ||
+      this.selected !== "";
     const error = this.error
       ? html`<p class="error" role="alert">${this.error}</p>`
       : nothing;
@@ -1085,6 +1269,14 @@ class AxisApp extends LitElement {
             <h1 tabindex="-1">Axis devices</h1>
             ${this.renderConnectionStatus(status)}
           </div>
+          <button
+            type="button"
+            class="server-settings-trigger"
+            ?disabled=${!connected || this.saving}
+            @click=${this.openServerSettings}
+          >
+            Server settings
+          </button>
         </header>
         ${hasView ? nothing : error}
         <axis-device-list
@@ -1092,6 +1284,7 @@ class AxisApp extends LitElement {
           .discovery=${this.discovery}
           .selected=${this.selected}
           .connected=${connected && !this.saving}
+          .warning=${this.discoveryWarning}
           @axis-scan=${this.scanLocalNetwork}
           @axis-select=${(event: CustomEvent<string>) => {
             this.registration = null;
@@ -1148,7 +1341,7 @@ class AxisApp extends LitElement {
         <div class="dialog-header">
           <header class="dialog-heading">
             <h2 id="device-dialog-title">
-              ${this.registration ? this.registration.name.trim() || this.registration.host : device ? deviceName(device) : "Device details"}
+              ${this.serverSettingsOpen ? "Server settings" : this.registration ? this.registration.name.trim() || this.registration.host : device ? deviceName(device) : "Device details"}
             </h2>
             <div class="dialog-controls">
               ${
@@ -1167,7 +1360,7 @@ class AxisApp extends LitElement {
               <button
                 type="button"
                 autofocus
-                ?disabled=${this.saving || this.settingsPending}
+                ?disabled=${this.saving || this.settingsPending || this.serverPending}
                 @click=${this.dismissDevice}
               >
                 Close
@@ -1209,6 +1402,7 @@ class AxisApp extends LitElement {
         </div>
         <div class="panels dialog-content">
           ${hasView ? error : nothing}
+          ${this.serverSettingsOpen ? this.renderServerSettings() : nothing}
           ${this.registration ? this.renderRegistration(this.registration) : nothing}
           ${this.settings ? this.renderSettings() : device ? this.renderSavedView(device, connected) : nothing}
         </div>

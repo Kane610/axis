@@ -20,6 +20,7 @@ from axis.application.discovery import DiscoveredDevice, discover_axis_devices
 from axis.application.errors import ErrorKind, OperationError, StorageError
 from axis.application.records import ConnectionSettings, DeviceRecord, DiscoverySnapshot
 from axis.application.storage import DeviceRegistry
+from axis.web.network import NetworkInterface, network_interfaces
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -36,18 +37,27 @@ STARTUP_DISCOVERY_MAX_AGE = 15.0
 class _StartupDiscovery:
     """Share the initial scan with authenticated pages without sharing their sessions."""
 
-    def __init__(self) -> None:
+    def __init__(self, registry: DeviceRegistry) -> None:
         self.started = datetime.now(UTC)
         self.started_at = asyncio.get_running_loop().time()
+        self.selected = registry.web_discovery_interfaces()
         self.entries: dict[str, DiscoveredDevice] = {}
-        self.subscribers: set[asyncio.Queue[DiscoveredDevice | None]] = set()
-        self.task = asyncio.create_task(discover_axis_devices(on_device=self.publish))
+        self.warning = ""
+        self.subscribers: set[asyncio.Queue[DiscoveredDevice | str | None]] = set()
+        self.task = asyncio.create_task(
+            _web_discovery(self.selected, self.publish, self.publish_warning)
+        )
         self.task.add_done_callback(self.finished)
 
     async def publish(self, entry: DiscoveredDevice) -> None:
         self.entries[entry["host"]] = entry
         for subscriber in self.subscribers:
             subscriber.put_nowait(entry)
+
+    async def publish_warning(self, warning: str) -> None:
+        self.warning = warning
+        for subscriber in self.subscribers:
+            subscriber.put_nowait(warning)
 
     def finished(self, task: asyncio.Task[list[DiscoveredDevice]]) -> None:
         if not task.cancelled() and task.exception() is not None:
@@ -63,23 +73,32 @@ class _StartupDiscovery:
         )
 
     async def results(
-        self, publish: Callable[[DiscoveredDevice], Awaitable[None]]
+        self,
+        publish: Callable[[DiscoveredDevice], Awaitable[None]],
+        warn: Callable[[str], Awaitable[None]],
     ) -> list[DiscoveredDevice]:
-        queue: asyncio.Queue[DiscoveredDevice | None] = asyncio.Queue()
+        queue: asyncio.Queue[DiscoveredDevice | str | None] = asyncio.Queue()
         self.subscribers.add(queue)
         try:
+            if self.warning:
+                await warn(self.warning)
             for entry in list(self.entries.values()):
                 await publish(entry)
             if not self.task.done():
                 while (queued := await queue.get()) is not None:
-                    await publish(queued)
+                    if isinstance(queued, str):
+                        await warn(queued)
+                    else:
+                        await publish(queued)
             return await asyncio.shield(self.task)
         finally:
             self.subscribers.discard(queue)
 
 
 def _initial_scan_for_request(
-    startup: _StartupDiscovery | None, first: bool, message: dict[str, Any]
+    startup: _StartupDiscovery | None,
+    first: bool,
+    message: dict[str, Any],
 ) -> _StartupDiscovery | None:
     if (
         first
@@ -89,6 +108,89 @@ def _initial_scan_for_request(
     ):
         return startup
     return None
+
+
+async def _web_discovery(
+    selected: list[str] | None,
+    publish: Callable[[DiscoveredDevice], Awaitable[None]] | None,
+    warn: Callable[[str], Awaitable[None]],
+) -> list[DiscoveredDevice]:
+    if selected is None:
+        return (
+            await discover_axis_devices(on_device=publish)
+            if publish is not None
+            else await discover_axis_devices()
+        )
+    available = {item.name: item for item in network_interfaces()}
+    addresses = [
+        address
+        for name in selected
+        if name in available and available[name].available
+        for address in available[name].addresses
+    ]
+    unavailable = [
+        name
+        for name in selected
+        if name not in available or not available[name].available
+    ]
+    if unavailable:
+        warning = "Selected interfaces are down or unavailable: " + ", ".join(
+            unavailable
+        )
+        LOGGER.warning("%s", warning)
+        await warn(warning)
+    if not addresses:
+        msg = "No selected network interface is up with an IPv4 address."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    return await discover_axis_devices(interfaces=addresses, on_device=publish)
+
+
+def _server_settings(
+    selected: list[str] | None, interfaces: list[NetworkInterface]
+) -> dict[str, object]:
+    known = {item.name for item in interfaces}
+    return {
+        "selected": selected,
+        "interfaces": [
+            {
+                "name": item.name,
+                "label": item.label,
+                "addresses": item.addresses,
+                "up": item.up,
+            }
+            for item in interfaces
+        ]
+        + [
+            {"name": name, "label": name, "addresses": [], "up": None}
+            for name in selected or []
+            if name not in known
+        ],
+    }
+
+
+def _configure_server(registry: DeviceRegistry, message: dict[str, Any]) -> object:
+    if message["type"] == "server/settings":
+        return _server_settings(
+            registry.web_discovery_interfaces(), network_interfaces()
+        )
+    selected = message.get("interfaces")
+    if "interfaces" not in message or (
+        selected is not None
+        and (
+            not isinstance(selected, list)
+            or not selected
+            or any(not isinstance(name, str) or not name.strip() for name in selected)
+            or len(set(selected)) != len(selected)
+        )
+    ):
+        raise ValueError
+    interfaces = network_interfaces()
+    available = {item.name for item in interfaces}
+    available.update(registry.web_discovery_interfaces() or [])
+    if selected is not None and not set(selected) <= available:
+        raise ValueError
+    registry.update_web_discovery_interfaces(selected)
+    return _server_settings(selected, interfaces)
 
 
 async def _configure_saved(registry: DeviceRegistry, message: dict[str, Any]) -> object:
@@ -231,8 +333,13 @@ async def _execute(
             operations.normalize_payload(record.summary())
             for record in registry.load().values()
         ]
+    if command in ("server/settings", "server/configure"):
+        return _configure_server(registry, message)
     if command == "devices/discover":
         discovered.clear()
+        selected = registry.web_discovery_interfaces()
+        if startup is not None and startup.selected != selected:
+            startup = None
         started = startup.started if startup is not None else datetime.now(UTC)
 
         async def publish(entry: DiscoveredDevice) -> None:
@@ -241,12 +348,24 @@ async def _execute(
                     {"id": message["id"], "type": "discovery/device", "device": entry}
                 )
 
+        async def warn(warning: str) -> None:
+            if message.get("stream") is True:
+                await socket.send_json(
+                    {
+                        "id": message["id"],
+                        "type": "discovery/warning",
+                        "message": warning,
+                    }
+                )
+
         if startup is not None:
-            results = await startup.results(publish)
-        elif message.get("stream") is True:
-            results = await discover_axis_devices(on_device=publish)
+            results = await startup.results(publish, warn)
         else:
-            results = await discover_axis_devices()
+            results = await _web_discovery(
+                selected,
+                publish if message.get("stream") is True else None,
+                warn,
+            )
         snapshots = {
             entry["host"]: DiscoverySnapshot(
                 host=entry["host"],
@@ -313,7 +432,7 @@ async def _respond(
         response = {"id": request_id, "error": {"code": "storage", "message": str(err)}}
     except OperationError as err:
         error_message = str(err)
-        if is_discovery:
+        if is_discovery and err.kind != ErrorKind.VALIDATION:
             error_message = "Device discovery failed. Check this computer's local network access and try again."
         elif (
             message.get("type")
@@ -326,7 +445,10 @@ async def _respond(
             and err.kind == ErrorKind.CONNECTION
         ):
             error_message = "Cannot reach the device. Check the address, port, protocol, and certificate settings."
-        elif err.kind == ErrorKind.CONNECTION:
+        elif err.kind == ErrorKind.CONNECTION and message.get("type") not in (
+            "server/settings",
+            "server/configure",
+        ):
             error_message = (
                 "Cannot reach the device. Check that it is powered on, that this "
                 "computer can reach its network, and that its saved address and port are correct."
@@ -390,7 +512,7 @@ def create_app(
 
     async def start_discovery(application: web.Application) -> None:
         nonlocal initial
-        initial = _StartupDiscovery()
+        initial = _StartupDiscovery(registry)
 
     async def stop_discovery(application: web.Application) -> None:
         if initial is not None:

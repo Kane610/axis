@@ -67,6 +67,41 @@ def test_web_access_token_is_private_stable_and_concurrent(
     assert registry.web_access_token() == tokens[0]
 
 
+def test_web_discovery_settings_preserve_registry(registry: DeviceRegistry) -> None:
+    """Keep other web and device settings when changing discovery interfaces."""
+    registry.upsert(device())
+    data = raw_config(registry)
+    data["web"] = {"other": "keep"}
+    write_config(registry, data)
+    registry.update_web_discovery_interfaces(["en0", "vpn"])
+    assert registry.web_discovery_interfaces() == ["en0", "vpn"]
+    assert registry.load()["SERIAL"] == device()
+    registry.update_web_discovery_interfaces(None)
+    assert registry.web_discovery_interfaces() is None
+    assert raw_config(registry)["web"] == {"other": "keep"}
+
+
+@pytest.mark.parametrize("selected", [[], [" "], ["en0", "en0"], ["en0", 3]])
+def test_rejects_invalid_web_discovery_selection(
+    registry: DeviceRegistry, selected: list[Any]
+) -> None:
+    """Invalid stored or submitted selections never silently select all interfaces."""
+    write_config(registry, {"web": {"discovery_interfaces": selected}})
+    with pytest.raises(StorageError, match="interfaces"):
+        registry.web_discovery_interfaces()
+    with pytest.raises(StorageError, match="interfaces"):
+        registry.update_web_discovery_interfaces(selected)
+
+
+def test_rejects_invalid_web_settings_table(registry: DeviceRegistry) -> None:
+    """Do not overwrite malformed web settings."""
+    write_config(registry, {"web": "invalid"})
+    with pytest.raises(StorageError, match="web settings"):
+        registry.web_discovery_interfaces()
+    with pytest.raises(StorageError, match="web settings"):
+        registry.update_web_discovery_interfaces(None)
+
+
 @pytest.mark.parametrize(
     "problem", ["permissions", "malformed", "symlink", "non-ascii", "hardlink"]
 )

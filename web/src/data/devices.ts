@@ -38,6 +38,16 @@ export type SaveDevice = DeviceConnection & { alias: string };
 export type DeviceSettings = { device: Device; username: string };
 export type ConfiguredDevice = { device: Device; connection_changed: boolean };
 
+export type ServerSettings = {
+  selected: string[] | null;
+  interfaces: {
+    name: string;
+    label: string;
+    addresses: string[];
+    up: boolean | null;
+  }[];
+};
+
 export type Device = {
   alias: string;
   discovery: Discovery | null;
@@ -84,7 +94,14 @@ export const fetchDevices = (connection: AxisConnection) =>
 export const discoverDevices = (
   connection: AxisConnection,
   onDiscovered: (device: DiscoveredDevice) => void,
-) => connection.callWS("devices/discover", { stream: true }, onDiscovered);
+  onWarning: (message: string) => void,
+) =>
+  connection.callWS(
+    "devices/discover",
+    { stream: true },
+    onDiscovered,
+    onWarning,
+  );
 
 export const saveDevice = (connection: AxisConnection, settings: SaveDevice) =>
   connection.callWS("devices/save", settings);

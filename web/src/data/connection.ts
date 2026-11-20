@@ -8,6 +8,7 @@ import type {
   DiscoveredDevice,
   Health,
   SaveDevice,
+  ServerSettings,
 } from "./devices";
 
 type Commands = {
@@ -15,6 +16,11 @@ type Commands = {
   "devices/discover": {
     args: { stream: true };
     result: DiscoveredDevice[];
+  };
+  "server/settings": { args: Record<string, never>; result: ServerSettings };
+  "server/configure": {
+    args: { interfaces: string[] | null };
+    result: ServerSettings;
   };
   "devices/save": { args: SaveDevice; result: string };
   "devices/test-connection": { args: DeviceConnection; result: string };
@@ -38,6 +44,7 @@ type Response = {
   type?: string;
   result?: unknown;
   device?: DiscoveredDevice;
+  message?: string;
   error?: { code: string; message: string };
 };
 
@@ -46,6 +53,7 @@ type Pending = {
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
   onDiscovered?: (device: DiscoveredDevice) => void;
+  onWarning?: (message: string) => void;
 };
 
 export type ConnectionStatus =
@@ -87,6 +95,10 @@ export class AxisConnection {
         if (message.device) pending.onDiscovered?.(message.device);
         return;
       }
+      if (message.type === "discovery/warning") {
+        if (message.message) pending.onWarning?.(message.message);
+        return;
+      }
       clearTimeout(pending.timer);
       this.pending.delete(message.id);
       if (message.error) pending.reject(new Error(message.error.message));
@@ -121,6 +133,7 @@ export class AxisConnection {
     type: T,
     args: Commands[T]["args"],
     onDiscovered?: (device: DiscoveredDevice) => void,
+    onWarning?: (message: string) => void,
   ): Promise<Commands[T]["result"]> {
     const socket = this.socket;
     if (socket?.readyState !== WebSocket.OPEN || !this.connected) {
@@ -137,6 +150,7 @@ export class AxisConnection {
         reject,
         timer,
         onDiscovered,
+        onWarning,
       });
       socket.send(JSON.stringify({ id, type, ...args }));
     });

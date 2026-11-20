@@ -122,6 +122,14 @@ the status text. With reduced motion enabled, the orange line stays steady.
 The backend starts looking for Axis devices advertising over mDNS on its IPv4
 network as it starts. The web app loads the saved list and uses the initial
 scan if it is still running or recently finished; otherwise it starts a new scan.
+Use **Server settings** to select the network interfaces used for web discovery,
+or leave it on automatic to use all interfaces. Settings are saved alongside the
+device registry and apply on the next web scan, including after server restart.
+Selected interfaces that are down, missing, or have no IPv4 address are skipped
+with a warning; if none can be used, discovery fails instead of silently scanning
+other interfaces. Interface names are resolved to their current IPv4 addresses for
+each scan. This setting does not affect terminal discovery, the loopback web
+server, or how the operating system routes connections to saved devices.
 Choose **Discover devices** below
 the list in the **Devices** card to scan again.
 The button shows the scan progress and result. Its dashed outline stays still

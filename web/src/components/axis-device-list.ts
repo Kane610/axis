@@ -59,6 +59,7 @@ export class AxisDeviceList extends LitElement {
     discovery: { attribute: false },
     selected: {},
     connected: { type: Boolean },
+    warning: {},
   };
 
   static styles = [
@@ -131,6 +132,7 @@ export class AxisDeviceList extends LitElement {
   discovery: DiscoveryState | null = null;
   selected = "";
   connected = false;
+  warning = "";
 
   protected render() {
     const discovery = this.discovery;
@@ -214,6 +216,7 @@ export class AxisDeviceList extends LitElement {
           >
           <span class="scan-status" role="status">${scanStatus}</span>
         </div>
+        ${this.warning ? html`<p class="warning" role="status">${this.warning}</p>` : nothing}
         ${this.devices.length === 0 ? html`<p>No saved devices. Use Discover devices to find devices on the local network.</p>` : ""}
       </axis-card>
     `;
