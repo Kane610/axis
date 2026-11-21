@@ -9,8 +9,10 @@ import logging
 import re
 import secrets
 import sys
+from tempfile import TemporaryFile
 from threading import Event, Thread
 from typing import TYPE_CHECKING, Any
+from urllib.parse import unquote
 import webbrowser
 
 from aiohttp import WSMsgType, web
@@ -20,6 +22,7 @@ from axis.application.discovery import DiscoveredDevice, discover_axis_devices
 from axis.application.errors import ErrorKind, OperationError, StorageError
 from axis.application.records import ConnectionSettings, DeviceRecord, DiscoverySnapshot
 from axis.application.storage import DeviceRegistry
+from axis.web.network import NetworkInterface, network_interfaces
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -27,6 +30,9 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 MAX_MESSAGE_SIZE = 16384
+MAX_APPLICATION_PACKAGE_SIZE = 1024 * 1024 * 1024
+MAX_APPLICATION_LICENSE_SIZE = 1024 * 1024
+APPLICATION_UPLOAD_TIMEOUT = 1800
 MAX_PENDING = 8
 COMMAND_TIMEOUT = 60
 BROWSER_RECONNECT_WAIT = 3.0
@@ -36,18 +42,27 @@ STARTUP_DISCOVERY_MAX_AGE = 15.0
 class _StartupDiscovery:
     """Share the initial scan with authenticated pages without sharing their sessions."""
 
-    def __init__(self) -> None:
+    def __init__(self, registry: DeviceRegistry) -> None:
         self.started = datetime.now(UTC)
         self.started_at = asyncio.get_running_loop().time()
+        self.selected = registry.web_discovery_interfaces()
         self.entries: dict[str, DiscoveredDevice] = {}
-        self.subscribers: set[asyncio.Queue[DiscoveredDevice | None]] = set()
-        self.task = asyncio.create_task(discover_axis_devices(on_device=self.publish))
+        self.warning = ""
+        self.subscribers: set[asyncio.Queue[DiscoveredDevice | str | None]] = set()
+        self.task = asyncio.create_task(
+            _web_discovery(self.selected, self.publish, self.publish_warning)
+        )
         self.task.add_done_callback(self.finished)
 
     async def publish(self, entry: DiscoveredDevice) -> None:
         self.entries[entry["host"]] = entry
         for subscriber in self.subscribers:
             subscriber.put_nowait(entry)
+
+    async def publish_warning(self, warning: str) -> None:
+        self.warning = warning
+        for subscriber in self.subscribers:
+            subscriber.put_nowait(warning)
 
     def finished(self, task: asyncio.Task[list[DiscoveredDevice]]) -> None:
         if not task.cancelled() and task.exception() is not None:
@@ -63,23 +78,32 @@ class _StartupDiscovery:
         )
 
     async def results(
-        self, publish: Callable[[DiscoveredDevice], Awaitable[None]]
+        self,
+        publish: Callable[[DiscoveredDevice], Awaitable[None]],
+        warn: Callable[[str], Awaitable[None]],
     ) -> list[DiscoveredDevice]:
-        queue: asyncio.Queue[DiscoveredDevice | None] = asyncio.Queue()
+        queue: asyncio.Queue[DiscoveredDevice | str | None] = asyncio.Queue()
         self.subscribers.add(queue)
         try:
+            if self.warning:
+                await warn(self.warning)
             for entry in list(self.entries.values()):
                 await publish(entry)
             if not self.task.done():
                 while (queued := await queue.get()) is not None:
-                    await publish(queued)
+                    if isinstance(queued, str):
+                        await warn(queued)
+                    else:
+                        await publish(queued)
             return await asyncio.shield(self.task)
         finally:
             self.subscribers.discard(queue)
 
 
 def _initial_scan_for_request(
-    startup: _StartupDiscovery | None, first: bool, message: dict[str, Any]
+    startup: _StartupDiscovery | None,
+    first: bool,
+    message: dict[str, Any],
 ) -> _StartupDiscovery | None:
     if (
         first
@@ -89,6 +113,89 @@ def _initial_scan_for_request(
     ):
         return startup
     return None
+
+
+async def _web_discovery(
+    selected: list[str] | None,
+    publish: Callable[[DiscoveredDevice], Awaitable[None]] | None,
+    warn: Callable[[str], Awaitable[None]],
+) -> list[DiscoveredDevice]:
+    if selected is None:
+        return (
+            await discover_axis_devices(on_device=publish)
+            if publish is not None
+            else await discover_axis_devices()
+        )
+    available = {item.name: item for item in network_interfaces()}
+    addresses = [
+        address
+        for name in selected
+        if name in available and available[name].available
+        for address in available[name].addresses
+    ]
+    unavailable = [
+        name
+        for name in selected
+        if name not in available or not available[name].available
+    ]
+    if unavailable:
+        warning = "Selected interfaces are down or unavailable: " + ", ".join(
+            unavailable
+        )
+        LOGGER.warning("%s", warning)
+        await warn(warning)
+    if not addresses:
+        msg = "No selected network interface is up with an IPv4 address."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    return await discover_axis_devices(interfaces=addresses, on_device=publish)
+
+
+def _server_settings(
+    selected: list[str] | None, interfaces: list[NetworkInterface]
+) -> dict[str, object]:
+    known = {item.name for item in interfaces}
+    return {
+        "selected": selected,
+        "interfaces": [
+            {
+                "name": item.name,
+                "label": item.label,
+                "addresses": item.addresses,
+                "up": item.up,
+            }
+            for item in interfaces
+        ]
+        + [
+            {"name": name, "label": name, "addresses": [], "up": None}
+            for name in selected or []
+            if name not in known
+        ],
+    }
+
+
+def _configure_server(registry: DeviceRegistry, message: dict[str, Any]) -> object:
+    if message["type"] == "server/settings":
+        return _server_settings(
+            registry.web_discovery_interfaces(), network_interfaces()
+        )
+    selected = message.get("interfaces")
+    if "interfaces" not in message or (
+        selected is not None
+        and (
+            not isinstance(selected, list)
+            or not selected
+            or any(not isinstance(name, str) or not name.strip() for name in selected)
+            or len(set(selected)) != len(selected)
+        )
+    ):
+        raise ValueError
+    interfaces = network_interfaces()
+    available = {item.name for item in interfaces}
+    available.update(registry.web_discovery_interfaces() or [])
+    if selected is not None and not set(selected) <= available:
+        raise ValueError
+    registry.update_web_discovery_interfaces(selected)
+    return _server_settings(selected, interfaces)
 
 
 async def _configure_saved(registry: DeviceRegistry, message: dict[str, Any]) -> object:
@@ -231,8 +338,13 @@ async def _execute(
             operations.normalize_payload(record.summary())
             for record in registry.load().values()
         ]
+    if command in ("server/settings", "server/configure"):
+        return _configure_server(registry, message)
     if command == "devices/discover":
         discovered.clear()
+        selected = registry.web_discovery_interfaces()
+        if startup is not None and startup.selected != selected:
+            startup = None
         started = startup.started if startup is not None else datetime.now(UTC)
 
         async def publish(entry: DiscoveredDevice) -> None:
@@ -241,12 +353,24 @@ async def _execute(
                     {"id": message["id"], "type": "discovery/device", "device": entry}
                 )
 
+        async def warn(warning: str) -> None:
+            if message.get("stream") is True:
+                await socket.send_json(
+                    {
+                        "id": message["id"],
+                        "type": "discovery/warning",
+                        "message": warning,
+                    }
+                )
+
         if startup is not None:
-            results = await startup.results(publish)
-        elif message.get("stream") is True:
-            results = await discover_axis_devices(on_device=publish)
+            results = await startup.results(publish, warn)
         else:
-            results = await discover_axis_devices()
+            results = await _web_discovery(
+                selected,
+                publish if message.get("stream") is True else None,
+                warn,
+            )
         snapshots = {
             entry["host"]: DiscoverySnapshot(
                 host=entry["host"],
@@ -263,10 +387,10 @@ async def _execute(
         return await _connect_discovered(registry, message, discovered)
     if command in ("device/settings", "device/configure", "device/test-connection"):
         return await _configure_saved(registry, message)
-    return await _read_saved(registry, command, message)
+    return await _saved_operation(registry, command, message)
 
 
-async def _read_saved(
+async def _saved_operation(  # noqa: PLR0911 - each command returns its own response
     registry: DeviceRegistry, command: object, message: dict[str, Any]
 ) -> object:
     identifier = message.get("device")
@@ -275,20 +399,97 @@ async def _read_saved(
         or command
         not in {
             "device/health",
+            "device/architecture",
             "device/apis",
             "device/interfaces",
             "device/read",
+            "device/restart",
+            "device/applications",
+            "device/application-action",
+            "device/application-sdks",
+            "device/application-policy",
+            "device/application-policy-set",
+            "device/application-license-remove",
         }
         or not isinstance(identifier, str)
         or not identifier
     ):
         raise ValueError
     record = registry.resolve(identifier)
-    if command == "device/health":
-        snapshot = await operations.read_health(record)
-        return operations.normalize_payload(snapshot)
-    if command == "device/apis":
-        return await operations.list_apis(record)
+    if command == "device/application-action":
+        action = message.get("action")
+        package = message.get("package")
+        version = message.get("version")
+        status = message.get("status")
+        if (
+            action not in ("start", "stop", "restart", "remove")
+            or not isinstance(package, str)
+            or not isinstance(version, str)
+            or not isinstance(status, str)
+            or message.get("confirmed") is not True
+        ):
+            msg = (
+                "Application actions require a valid target and explicit confirmation."
+            )
+            raise OperationError(msg, kind=ErrorKind.VALIDATION)
+        await operations.control_application(
+            record, action, package, version, status, confirmed=True
+        )
+        return None
+    if command == "device/application-sdks":
+        return await operations.application_sdks(record)
+    if command == "device/application-policy":
+        return await operations.application_policy(record)
+    if command == "device/application-policy-set":
+        previous, value = message.get("previous"), message.get("value")
+        if (
+            type(previous) is not bool
+            or type(value) is not bool
+            or message.get("confirmed") is not True
+        ):
+            msg_0 = "Policy changes require confirmation."
+            raise OperationError(msg_0, kind=ErrorKind.VALIDATION)
+        await operations.set_application_policy(record, previous, value, confirmed=True)
+        return None
+    if command == "device/application-license-remove":
+        package, version, status, license_status = (
+            message.get("package"),
+            message.get("version"),
+            message.get("status"),
+            message.get("license_status"),
+        )
+        if (
+            not isinstance(package, str)
+            or not isinstance(version, str)
+            or not isinstance(status, str)
+            or not isinstance(license_status, str)
+            or message.get("confirmed") is not True
+        ):
+            msg_0 = "License changes require confirmation."
+            raise OperationError(msg_0, kind=ErrorKind.VALIDATION)
+        await operations.manage_application_license(
+            record, package, version, status, license_status, confirmed=True
+        )
+        return None
+    if command == "device/restart":
+        if message.get("confirmed") is not True:
+            msg = "Device restart requires explicit confirmation."
+            raise OperationError(msg, kind=ErrorKind.VALIDATION)
+        await operations.restart_device(record, confirmed=True)
+        return None
+    if command in ("device/health", "device/architecture"):
+        result = (
+            await operations.read_health(record)
+            if command == "device/health"
+            else await operations.read_architecture(record)
+        )
+        return operations.normalize_payload(result)
+    if command in ("device/apis", "device/applications"):
+        return (
+            await operations.list_apis(record)
+            if command == "device/apis"
+            else await operations.list_applications(record)
+        )
     if command == "device/interfaces":
         return await operations.list_interfaces(record)
     name = message.get("name")
@@ -313,7 +514,9 @@ async def _respond(
         response = {"id": request_id, "error": {"code": "storage", "message": str(err)}}
     except OperationError as err:
         error_message = str(err)
-        if is_discovery:
+        if err.outcome_unknown:
+            error_message = str(err)
+        elif is_discovery and err.kind != ErrorKind.VALIDATION:
             error_message = "Device discovery failed. Check this computer's local network access and try again."
         elif (
             message.get("type")
@@ -326,7 +529,10 @@ async def _respond(
             and err.kind == ErrorKind.CONNECTION
         ):
             error_message = "Cannot reach the device. Check the address, port, protocol, and certificate settings."
-        elif err.kind == ErrorKind.CONNECTION:
+        elif err.kind == ErrorKind.CONNECTION and message.get("type") not in (
+            "server/settings",
+            "server/configure",
+        ):
             error_message = (
                 "Cannot reach the device. Check that it is powered on, that this "
                 "computer can reach its network, and that its saved address and port are correct."
@@ -337,6 +543,8 @@ async def _respond(
             "id": request_id,
             "error": {"code": err.kind.value, "message": error_message},
         }
+        if err.outcome_unknown:
+            response["error"]["outcome_unknown"] = True
     except ValueError:
         response = {
             "id": request_id,
@@ -353,6 +561,14 @@ async def _respond(
                 "message": (
                     "Device discovery timed out. Try again."
                     if is_discovery
+                    else "Restart outcome is unknown. Check the device before trying again."
+                    if message.get("type") == "device/restart"
+                    else "Application action outcome is unknown. Check the application before trying again."
+                    if message.get("type") == "device/application-action"
+                    else "Policy change outcome is unknown. Check the policy before trying again."
+                    if message.get("type") == "device/application-policy-set"
+                    else "License change outcome is unknown. Check the application before trying again."
+                    if message.get("type") == "device/application-license-remove"
                     else "The device did not respond in time. Check its connection and try again."
                 ),
             },
@@ -372,7 +588,7 @@ async def _respond(
             LOGGER.debug("Web client disconnected before receiving a response.")
 
 
-def create_app(
+def create_app(  # noqa: C901
     registry: DeviceRegistry,
     token: str,
     port: int,
@@ -386,11 +602,12 @@ def create_app(
     origin = f"http://{authority}"
 
     sockets: set[web.WebSocketResponse] = set()
+    upload_lock = asyncio.Lock()
     initial: _StartupDiscovery | None = None
 
     async def start_discovery(application: web.Application) -> None:
         nonlocal initial
-        initial = _StartupDiscovery()
+        initial = _StartupDiscovery(registry)
 
     async def stop_discovery(application: web.Application) -> None:
         if initial is not None:
@@ -431,6 +648,189 @@ def create_app(
             body=files("axis.web").joinpath("static", "app.js").read_bytes(),
             content_type="application/javascript",
         )
+
+    async def upload_application(request: web.Request) -> web.Response:  # noqa: PLR0911
+        supplied = request.headers.get("X-Axis-Token", "")
+        if (
+            request.headers.get("Origin") != origin
+            or not supplied.isascii()
+            or not secrets.compare_digest(supplied, token)
+        ):
+            raise web.HTTPForbidden
+        if upload_lock.locked():
+            return web.json_response(
+                {"error": {"message": "Another application upload is in progress."}},
+                status=409,
+            )
+        try:
+            device_id = unquote(
+                request.headers.get("X-Axis-Device", ""), errors="strict"
+            )
+            filename = unquote(
+                request.headers.get("X-Axis-Filename", ""), errors="strict"
+            )
+            size = request.content_length
+            if (
+                not device_id
+                or request.headers.get("X-Axis-Confirmed") != "true"
+                or not filename.lower().endswith(".eap")
+                or "/" in filename
+                or "\\" in filename
+                or len(filename) > 255
+                or size is None
+                or not 0 < size <= MAX_APPLICATION_PACKAGE_SIZE
+            ):
+                raise ValueError
+            record = registry.resolve(device_id)
+        except StorageError as exc:
+            return web.json_response({"error": {"message": str(exc)}}, status=400)
+        except ValueError:
+            return web.json_response(
+                {
+                    "error": {
+                        "message": "Choose a non-empty .eap file up to 1024 MB (1 GiB) and confirm the installation."
+                    }
+                },
+                status=400,
+            )
+        async with upload_lock:
+            try:
+                with TemporaryFile() as package:
+                    received = 0
+                    async with asyncio.timeout(APPLICATION_UPLOAD_TIMEOUT):
+                        async for chunk in request.content.iter_chunked(262144):
+                            received += len(chunk)
+                            if (
+                                received > size
+                                or received > MAX_APPLICATION_PACKAGE_SIZE
+                            ):
+                                raise ValueError
+                            await asyncio.to_thread(package.write, chunk)
+                    if received != size:
+                        raise ValueError
+                    await asyncio.to_thread(package.seek, 0)
+                    await operations.install_application(
+                        record, package, confirmed=True
+                    )
+            except ValueError:
+                return web.json_response(
+                    {
+                        "error": {
+                            "message": "The package upload was incomplete or too large."
+                        }
+                    },
+                    status=400,
+                )
+            except OSError, TimeoutError:
+                return web.json_response(
+                    {
+                        "error": {
+                            "message": "Could not receive the application package."
+                        }
+                    },
+                    status=400,
+                )
+            except OperationError as exc:
+                return web.json_response(
+                    {
+                        "error": {
+                            "message": str(exc),
+                            "outcome_unknown": exc.outcome_unknown,
+                        }
+                    },
+                    status=400,
+                )
+        return web.json_response({"result": None})
+
+    async def upload_license(request: web.Request) -> web.Response:
+        supplied = request.headers.get("X-Axis-Token", "")
+        if (
+            request.headers.get("Origin") != origin
+            or not supplied.isascii()
+            or not secrets.compare_digest(supplied, token)
+        ):
+            raise web.HTTPForbidden
+        if upload_lock.locked():
+            return web.json_response(
+                {"error": {"message": "Another application upload is in progress."}},
+                status=409,
+            )
+        try:
+            device_id = unquote(
+                request.headers.get("X-Axis-Device", ""), errors="strict"
+            )
+            package = unquote(
+                request.headers.get("X-Axis-Package", ""), errors="strict"
+            )
+            version = unquote(
+                request.headers.get("X-Axis-Version", ""), errors="strict"
+            )
+            status = unquote(request.headers.get("X-Axis-Status", ""), errors="strict")
+            license_status = unquote(
+                request.headers.get("X-Axis-License-Status", ""), errors="strict"
+            )
+            size = request.content_length
+            if (
+                not device_id
+                or not package
+                or request.headers.get("X-Axis-Confirmed") != "true"
+                or size is None
+                or not 0 < size <= MAX_APPLICATION_LICENSE_SIZE
+            ):
+                raise ValueError
+            record = registry.resolve(device_id)
+        except StorageError as exc:
+            return web.json_response({"error": {"message": str(exc)}}, status=400)
+        except ValueError:
+            return web.json_response(
+                {
+                    "error": {
+                        "message": "Choose a non-empty license file up to 1 MiB and confirm the upload."
+                    }
+                },
+                status=400,
+            )
+        async with upload_lock:
+            try:
+                with TemporaryFile() as license_file:
+                    received = 0
+                    async with asyncio.timeout(APPLICATION_UPLOAD_TIMEOUT):
+                        async for chunk in request.content.iter_chunked(65536):
+                            received += len(chunk)
+                            if (
+                                received > size
+                                or received > MAX_APPLICATION_LICENSE_SIZE
+                            ):
+                                raise ValueError
+                            await asyncio.to_thread(license_file.write, chunk)
+                    if received != size:
+                        raise ValueError
+                    await asyncio.to_thread(license_file.seek, 0)
+                    await operations.manage_application_license(
+                        record,
+                        package,
+                        version,
+                        status,
+                        license_status,
+                        license_file,
+                        confirmed=True,
+                    )
+            except ValueError, OSError, TimeoutError:
+                return web.json_response(
+                    {"error": {"message": "Could not receive the license file."}},
+                    status=400,
+                )
+            except OperationError as exc:
+                return web.json_response(
+                    {
+                        "error": {
+                            "message": str(exc),
+                            "outcome_unknown": exc.outcome_unknown,
+                        }
+                    },
+                    status=400,
+                )
+        return web.json_response({"result": None})
 
     async def websocket(request: web.Request) -> web.WebSocketResponse:
         if request.headers.get("Origin") != origin:
@@ -517,6 +917,8 @@ def create_app(
     app.router.add_get("/", index)
     app.router.add_get("/app.js", script)
     app.router.add_get("/api/websocket", websocket)
+    app.router.add_post("/api/application-upload", upload_application)
+    app.router.add_post("/api/application-license", upload_license)
     app.on_shutdown.append(shutdown)
     return app
 

@@ -134,6 +134,7 @@ async def discover_axis_devices(
     scan_seconds: float = 5.0,
     *,
     on_device: Callable[[DiscoveredDevice], Awaitable[None]] | None = None,
+    interfaces: list[str] | None = None,
 ) -> list[DiscoveredDevice]:
     """Find Axis devices, preferring advertised non-link-local IPv4 addresses.
 
@@ -179,7 +180,11 @@ async def discover_axis_devices(
 
     try:
         async with AsyncExitStack() as resources:
-            azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
+            azc = (
+                AsyncZeroconf(ip_version=IPVersion.V4Only)
+                if interfaces is None
+                else AsyncZeroconf(ip_version=IPVersion.V4Only, interfaces=interfaces)
+            )
             resources.push_async_callback(azc.async_close)
             # The browser can cancel Zeroconf's shared startup future on shutdown.
             startup = asyncio.create_task(azc.zeroconf.async_wait_for_start())

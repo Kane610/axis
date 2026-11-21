@@ -114,6 +114,47 @@ advertised model when available. Saved rows use an alias, discovered name, or
 model as their label, falling back to the serial number, but never append a
 separate model field. A reported serial mismatch is displayed as a warning.
 
+In a saved device's **Interfaces** view, **Restart device** requires explicit
+confirmation and administrator credentials. The server verifies the saved
+serial and uses firmware management when advertised, otherwise `restart.cgi`.
+“Restart requested” does not confirm the reboot completed. If the outcome is
+unknown, check the device before trying again.
+
+Select **applications** in Interfaces to view installed apps and their status,
+version, vendor, license, signature, bundled status, resources, and compatible
+OS versions when reported. When available and the app is running, its
+configuration page opens on the device in a separate tab and may require a separate
+login. Starting, stopping, restarting,
+or uninstalling requires confirmation and administrator credentials. Uninstalling
+also removes the app's data. If an action's outcome is unknown, refresh and check
+the app before trying again.
+
+Select **Manage licenses**, choose the application, and select or drag and
+drop a license file (up to 1 MiB); confirm before uploading. Installed valid or
+invalid license keys can also be removed after confirmation. The
+upload uses the `fileData` form field observed on AXIS OS 12.11; older firmware
+may use a different format. License contents are not sent over the WebSocket.
+If a license change has an unknown outcome, check the app before retrying.
+
+To install an application, open **Install application**, choose or drag and drop
+an `.eap` package (up to 1024 MB / 1 GiB), and confirm. The device's reported
+hardware architecture and supported SDKs are shown to help select a compatible package; other
+application requirements still apply.
+The **Allow unsigned applications (AllowUnsigned)** toggle reflects the actual
+device policy when supported. Changing the toggle applies the setting;
+allowing unsigned applications weakens security. If a
+policy change has an unknown outcome, refresh the policy before retrying.
+A matching package may upgrade or downgrade an existing app; a
+failed or interrupted upgrade can remove both versions. Newly installed apps
+are not started automatically. Installation requires administrator credentials
+and temporarily uses local disk space for the package. If the result is unknown,
+check the device's applications before retrying. Devices that require digest
+`auth-int` without `auth` cannot be used for streamed installation.
+Signed-package verification may temporarily require approximately twice the
+package size in available device RAM.
+Upload error 2 means the package signature is missing or invalid; obtain a
+correctly signed package from the application vendor.
+
 The line under **Axis devices** indicates the web app's connection to the local
 server. It is green when connected, pulses orange while connecting or retrying,
 and turns red when the app needs a valid access link. Hover over the heading for
@@ -122,6 +163,14 @@ the status text. With reduced motion enabled, the orange line stays steady.
 The backend starts looking for Axis devices advertising over mDNS on its IPv4
 network as it starts. The web app loads the saved list and uses the initial
 scan if it is still running or recently finished; otherwise it starts a new scan.
+Use **Server settings** to select the network interfaces used for web discovery,
+or leave it on automatic to use all interfaces. Settings are saved alongside the
+device registry and apply on the next web scan, including after server restart.
+Selected interfaces that are down, missing, or have no IPv4 address are skipped
+with a warning; if none can be used, discovery fails instead of silently scanning
+other interfaces. Interface names are resolved to their current IPv4 addresses for
+each scan. This setting does not affect terminal discovery, the loopback web
+server, or how the operating system routes connections to saved devices.
 Choose **Discover devices** below
 the list in the **Devices** card to scan again.
 The button shows the scan progress and result. Its dashed outline stays still

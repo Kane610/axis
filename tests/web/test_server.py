@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from io import BytesIO
 import json
 from pathlib import Path
 import socket
@@ -22,7 +23,8 @@ from axis.application.records import (
 from axis.application.storage import DeviceRegistry
 from axis.interfaces.vapix import InterfaceState
 from axis.models.api_discovery import Api, ApiStatus
-from axis.web import server
+from axis.web import network, server
+from axis.web.network import NetworkInterface
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
@@ -34,6 +36,44 @@ if TYPE_CHECKING:
 HOST = "127.0.0.1:8765"
 HEADERS = {"Host": HOST, "Origin": f"http://{HOST}"}
 TOKEN = "test-token"
+
+
+def test_network_interface_inventory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep down, addressless, and unknown-status interfaces distinct."""
+    monkeypatch.setattr(
+        network.psutil,
+        "net_if_addrs",
+        lambda: {
+            "lan": [MagicMock(family=socket.AF_INET, address="192.0.2.10")],
+            "unknown": [MagicMock(family=socket.AF_INET6, address="::1")],
+        },
+    )
+    monkeypatch.setattr(
+        network.psutil,
+        "net_if_stats",
+        lambda: {"lan": MagicMock(isup=True), "down": MagicMock(isup=False)},
+    )
+    interfaces = network.network_interfaces()
+    assert interfaces == [
+        NetworkInterface("down", "down", (), False),
+        NetworkInterface("lan", "lan", ("192.0.2.10",), True),
+        NetworkInterface("unknown", "unknown", (), None),
+    ]
+    assert [item.available for item in interfaces] == [False, True, False]
+
+
+@pytest.mark.parametrize("method", ["net_if_addrs", "net_if_stats"])
+def test_network_inventory_failure_is_explicit(
+    monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    """Surface operating-system failures instead of silently selecting all interfaces."""
+    monkeypatch.setattr(network.psutil, "net_if_addrs", dict)
+    monkeypatch.setattr(network.psutil, "net_if_stats", dict)
+    monkeypatch.setattr(
+        network.psutil, method, MagicMock(side_effect=OSError("unavailable"))
+    )
+    with pytest.raises(OperationError, match="Cannot list local network interfaces"):
+        network.network_interfaces()
 
 
 @pytest.fixture(scope="module")
@@ -82,6 +122,406 @@ async def command(socket: ClientWebSocketResponse, **message: object) -> dict[st
     return await socket.receive_json()
 
 
+async def test_restart_requires_confirmation_and_reports_unknown(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The authenticated command requires confirmation and preserves uncertainty."""
+    restart = AsyncMock()
+    monkeypatch.setattr(server.operations, "restart_device", restart)
+    socket = await connect(client)
+    for confirmation in (None, False, 1, "true"):
+        result = await command(
+            socket, type="device/restart", device="SERIAL", confirmed=confirmation
+        )
+        assert result["error"]["code"] == "validation"
+    restart.assert_not_awaited()
+    result = await command(
+        socket, type="device/restart", device="SERIAL", confirmed=True
+    )
+    assert result == {"id": 1, "result": None}
+    assert restart.await_args.args[0].serial == "SERIAL"
+    assert restart.await_args.kwargs == {"confirmed": True}
+    restart.side_effect = OperationError(
+        "Restart outcome is unknown. Check the device before trying again.",
+        kind=ErrorKind.CONNECTION,
+        outcome_unknown=True,
+    )
+    result = await command(
+        socket, type="device/restart", device="SERIAL", confirmed=True
+    )
+    assert result["error"] == {
+        "code": "connection",
+        "message": "Restart outcome is unknown. Check the device before trying again.",
+        "outcome_unknown": True,
+    }
+
+
+async def test_application_action_requires_confirmation(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only explicit confirmed application actions reach the device operation."""
+    action = AsyncMock()
+    monkeypatch.setattr(server.operations, "control_application", action)
+    socket = await connect(client)
+    request = {
+        "type": "device/application-action",
+        "device": "SERIAL",
+        "action": "remove",
+        "package": "example",
+        "version": "1.0",
+        "status": "Stopped",
+    }
+    for confirmed in (False, 1, None):
+        response = await command(socket, **request, confirmed=confirmed)
+        assert response["error"]["code"] == "validation"
+    action.assert_not_awaited()
+    assert await command(socket, **request, confirmed=True) == {"id": 1, "result": None}
+    assert action.await_args.args[1:] == ("remove", "example", "1.0", "Stopped")
+    assert action.await_args.kwargs == {"confirmed": True}
+
+
+async def test_application_policy_and_license_commands(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Require confirmation for policy and license writes over the authenticated socket."""
+    policy = AsyncMock()
+    license_write = AsyncMock()
+    monkeypatch.setattr(server.operations, "set_application_policy", policy)
+    monkeypatch.setattr(server.operations, "manage_application_license", license_write)
+    monkeypatch.setattr(
+        server.operations, "application_sdks", AsyncMock(return_value=["acap3"])
+    )
+    monkeypatch.setattr(
+        server.operations, "application_policy", AsyncMock(return_value=False)
+    )
+    socket = await connect(client)
+    assert await command(socket, type="device/application-sdks", device="SERIAL") == {
+        "id": 1,
+        "result": ["acap3"],
+    }
+    assert await command(socket, type="device/application-policy", device="SERIAL") == {
+        "id": 1,
+        "result": False,
+    }
+    policy_request = {
+        "type": "device/application-policy-set",
+        "device": "SERIAL",
+        "previous": False,
+        "value": True,
+    }
+    license_request = {
+        "type": "device/application-license-remove",
+        "device": "SERIAL",
+        "package": "app",
+        "version": "1",
+        "status": "Stopped",
+        "license_status": "Valid",
+    }
+    for request in (policy_request, license_request):
+        assert (await command(socket, **request, confirmed=False))["error"][
+            "code"
+        ] == "validation"
+        assert await command(socket, **request, confirmed=True) == {
+            "id": 1,
+            "result": None,
+        }
+    policy.assert_awaited_once()
+    license_write.assert_awaited_once()
+    assert (await command(socket, **{**policy_request, "previous": 1}, confirmed=True))[
+        "error"
+    ]["code"] == "validation"
+
+
+async def test_license_upload_authentication_validation_and_contents(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only authenticated, confirmed, bounded license files reach the operation."""
+    contents = []
+
+    async def upload(
+        record, package, version, status, license_status, file, *, confirmed
+    ):
+        contents.append(
+            (
+                record.serial,
+                package,
+                version,
+                status,
+                license_status,
+                file.read(),
+                confirmed,
+            )
+        )
+
+    monkeypatch.setattr(server.operations, "manage_application_license", upload)
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Package": "my%20app",
+        "X-Axis-Version": "1",
+        "X-Axis-Status": "Stopped",
+        "X-Axis-License-Status": "Missing",
+        "X-Axis-Confirmed": "true",
+    }
+    for changes in ({"Origin": "http://attacker"}, {"X-Axis-Token": "bad"}):
+        assert (
+            await client.post(
+                "/api/application-license", headers={**headers, **changes}, data=b"key"
+            )
+        ).status == 403
+    for changes in ({"X-Axis-Confirmed": "false"}, {"X-Axis-Package": ""}):
+        assert (
+            await client.post(
+                "/api/application-license", headers={**headers, **changes}, data=b"key"
+            )
+        ).status == 400
+    assert (
+        await client.post("/api/application-license", headers=headers, data=b"")
+    ).status == 400
+    assert (
+        await client.post(
+            "/api/application-license",
+            headers={**headers, "X-Axis-Device": "unknown"},
+            data=b"key",
+        )
+    ).status == 400
+    assert (
+        await client.post(
+            "/api/application-license",
+            headers=headers,
+            data=BytesIO(b"x" * (1024 * 1024 + 1)),
+        )
+    ).status == 400
+    assert not contents
+    response = await client.post(
+        "/api/application-license", headers=headers, data=b"private key"
+    )
+    assert response.status == 200
+    assert contents == [
+        ("SERIAL", "my app", "1", "Stopped", "Missing", b"private key", True)
+    ]
+
+
+@pytest.mark.parametrize("body", [b"ab", b"abcd"])
+async def test_license_upload_rejects_mismatched_stream_length(
+    client, monkeypatch, body
+):
+    """Interrupted or overflowing license streams never reach the device."""
+    write = AsyncMock()
+    monkeypatch.setattr(server.operations, "manage_application_license", write)
+    request = MagicMock()
+    request.headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Package": "app",
+        "X-Axis-Confirmed": "true",
+    }
+    request.content_length = 3
+
+    async def chunks(size):
+        yield body
+
+    request.content.iter_chunked = chunks
+    route = next(
+        route
+        for route in client.server.app.router.routes()
+        if route.resource.canonical == "/api/application-license"
+    )
+    assert (await route.handler(request)).status == 400
+    write.assert_not_awaited()
+
+
+async def test_license_upload_busy_and_errors(client, monkeypatch):
+    """Reject simultaneous uploads and retain safe errors and unknown outcomes."""
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Package": "app",
+        "X-Axis-Confirmed": "true",
+    }
+    started, finish = asyncio.Event(), asyncio.Event()
+
+    async def upload(*args, **kwargs):
+        started.set()
+        await finish.wait()
+        msg = "Check license before retrying."
+        raise OperationError(msg, outcome_unknown=True)
+
+    monkeypatch.setattr(server.operations, "manage_application_license", upload)
+    first = asyncio.create_task(
+        client.post("/api/application-license", headers=headers, data=b"key")
+    )
+    await started.wait()
+    assert (
+        await client.post("/api/application-license", headers=headers, data=b"key")
+    ).status == 409
+    finish.set()
+    response = await first
+    assert response.status == 400
+    assert (await response.json())["error"]["outcome_unknown"] is True
+    monkeypatch.setattr(server, "TemporaryFile", MagicMock(side_effect=OSError()))
+    response = await client.post(
+        "/api/application-license", headers=headers, data=b"key"
+    )
+    assert response.status == 400
+    assert "Could not receive" in (await response.json())["error"]["message"]
+
+
+async def test_application_upload_authentication_and_validation(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only authenticated, confirmed, bounded packages reach a saved device."""
+    upload = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_application", upload)
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    for changed in (
+        {"Origin": "http://attacker.example"},
+        {"X-Axis-Token": "wrong"},
+        {"Host": "attacker.example"},
+    ):
+        response = await client.post(
+            "/api/application-upload", headers={**headers, **changed}, data=b"abc"
+        )
+        assert response.status == 403
+    for changed in (
+        {"X-Axis-Confirmed": "false"},
+        {"X-Axis-Filename": "../example.eap"},
+        {"X-Axis-Filename": "example.txt"},
+        {"X-Axis-Device": ""},
+        {"X-Axis-Device": "%FF"},
+        {"X-Axis-Device": "missing"},
+    ):
+        response = await client.post(
+            "/api/application-upload", headers={**headers, **changed}, data=b"abc"
+        )
+        assert response.status == 400
+    response = await client.post("/api/application-upload", headers=headers, data=b"")
+    assert response.status == 400
+    assert server.MAX_APPLICATION_PACKAGE_SIZE == 1024 * 1024 * 1024
+    monkeypatch.setattr(server, "MAX_APPLICATION_PACKAGE_SIZE", 3)
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"abcd"
+    )
+    assert response.status == 400
+    upload.assert_not_awaited()
+
+    captured = []
+
+    async def install(record, package, *, confirmed):
+        captured.append((record.serial, package.read(), confirmed, package))
+
+    upload.side_effect = install
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"abc"
+    )
+    assert response.status == 200
+    assert await response.json() == {"result": None}
+    assert captured[0][:3] == ("SERIAL", b"abc", True)
+    assert captured[0][3].closed
+
+    monkeypatch.setattr(server, "MAX_APPLICATION_PACKAGE_SIZE", 20000)
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"x" * 20000
+    )
+    assert response.status == 200
+    assert len(captured[1][1]) == 20000
+
+
+@pytest.mark.parametrize("body", [b"ab", b"abcd"])
+async def test_application_upload_rejects_mismatched_stream_length(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, body: bytes
+) -> None:
+    """Reject interrupted or overflowing request streams before device dispatch."""
+    upload = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_application", upload)
+    request = MagicMock()
+    request.headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    request.content_length = 3
+
+    async def chunks(size):
+        yield body
+
+    request.content.iter_chunked = chunks
+    route = next(
+        route
+        for route in client.server.app.router.routes()
+        if route.resource.canonical == "/api/application-upload"
+    )
+    response = await route.handler(request)
+    assert response.status == 400
+    upload.assert_not_awaited()
+
+
+async def test_application_upload_reports_temporary_storage_failure(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A full or unavailable temporary filesystem does not dispatch a write."""
+    upload = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_application", upload)
+    monkeypatch.setattr(server, "TemporaryFile", MagicMock(side_effect=OSError()))
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"abc"
+    )
+    assert response.status == 400
+    assert "Could not receive" in (await response.json())["error"]["message"]
+    upload.assert_not_awaited()
+
+
+async def test_application_upload_busy_and_unknown_outcome(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reject concurrent uploads and preserve uncertain write results."""
+    started = asyncio.Event()
+    finish = asyncio.Event()
+
+    async def install(*args, **kwargs):
+        started.set()
+        await finish.wait()
+        msg = "Check applications before trying again."
+        raise OperationError(msg, outcome_unknown=True)
+
+    monkeypatch.setattr(server.operations, "install_application", install)
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    first = asyncio.create_task(
+        client.post("/api/application-upload", headers=headers, data=b"abc")
+    )
+    await started.wait()
+    second = await client.post("/api/application-upload", headers=headers, data=b"abc")
+    assert second.status == 409
+    finish.set()
+    response = await first
+    assert response.status == 400
+    assert (await response.json())["error"]["outcome_unknown"] is True
+
+
 async def test_static_assets_and_host_guard(client: TestClient) -> None:
     """Assets require the expected host and are shipped with security headers."""
     response = await client.get("/", headers={"Host": HOST})
@@ -127,6 +567,20 @@ async def test_list_returns_only_safe_json(
     assert "private-password" not in str(response)
     assert "root" not in str(response)
     await socket.close()
+
+
+async def test_architecture_command_reads_saved_device(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Expose the reported architecture through the authenticated protocol."""
+    read = AsyncMock(return_value="armv7hf")
+    monkeypatch.setattr(server.operations, "read_architecture", read)
+    socket = await connect(client)
+    assert await command(socket, type="device/architecture", device="SERIAL") == {
+        "id": 1,
+        "result": "armv7hf",
+    }
+    assert read.await_args.args[0].serial == "SERIAL"
 
 
 async def test_settings_only_change_the_alias_without_contacting_device(
@@ -287,6 +741,174 @@ async def test_streams_discovery_without_authorizing_provisional_devices(
     finish.set()
     assert await socket.receive_json(timeout=2) == {"id": 2, "result": [entry]}
     await socket.close()
+
+
+async def test_web_network_settings_control_discovery(
+    client: TestClient, registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Persist choices and scan only available selected IPv4 addresses."""
+    adapters = [
+        NetworkInterface("lan", "Ethernet", ("192.0.2.10", "192.0.2.11"), True),
+        NetworkInterface("vpn", "VPN", ("192.0.2.30",), False),
+        NetworkInterface("other", "Other", ("192.0.2.20",), True),
+    ]
+    monkeypatch.setattr(server, "network_interfaces", lambda: adapters)
+    discover = AsyncMock(return_value=[])
+    monkeypatch.setattr(server, "discover_axis_devices", discover)
+    socket = await connect(client)
+    assert (await command(socket, type="server/settings"))["result"]["selected"] is None
+    for invalid in (
+        {},
+        {"interfaces": []},
+        {"interfaces": ["other", "other"]},
+        {"interfaces": ["unknown"]},
+        {"interfaces": [None]},
+    ):
+        response = await command(socket, type="server/configure", **invalid)
+        assert response["error"]["code"] == "invalid_request"
+    response = await command(socket, type="server/configure", interfaces=["lan", "vpn"])
+    assert response["result"]["selected"] == ["lan", "vpn"]
+    assert DeviceRegistry(registry.path).web_discovery_interfaces() == ["lan", "vpn"]
+    await socket.send_json({"id": 2, "type": "devices/discover", "stream": True})
+    warning = await socket.receive_json(timeout=2)
+    assert warning["type"] == "discovery/warning"
+    assert "vpn" in warning["message"]
+    assert await socket.receive_json(timeout=2) == {"id": 2, "result": []}
+    assert discover.call_args.kwargs["interfaces"] == ["192.0.2.10", "192.0.2.11"]
+
+    adapters[:] = [adapters[1]]
+    settings = (await command(socket, type="server/settings"))["result"]
+    assert any(
+        item["name"] == "lan" and item["addresses"] == []
+        for item in settings["interfaces"]
+    )
+    await socket.send_json({"id": 3, "type": "devices/discover", "stream": True})
+    assert (await socket.receive_json(timeout=2))["type"] == "discovery/warning"
+    assert (await socket.receive_json(timeout=2))["error"]["message"] == (
+        "No selected network interface is up with an IPv4 address."
+    )
+    assert discover.await_count == 1
+    assert (await command(socket, type="server/configure", interfaces=None))["result"][
+        "selected"
+    ] is None
+    assert registry.web_discovery_interfaces() is None
+    await command(socket, type="devices/discover")
+    discover.assert_awaited_with()
+    await socket.close()
+
+
+async def test_network_settings_report_inventory_failures(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep local interface errors distinct from device connection errors."""
+    monkeypatch.setattr(
+        server,
+        "network_interfaces",
+        MagicMock(
+            side_effect=OperationError(
+                "Cannot list local network interfaces.", kind=ErrorKind.CONNECTION
+            )
+        ),
+    )
+    socket = await connect(client)
+    response = await command(socket, type="server/settings")
+    assert response["error"]["message"] == "Cannot list local network interfaces."
+    await socket.close()
+
+
+async def test_changed_network_settings_do_not_reuse_startup_scan(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A first client scan uses new settings, not an earlier in-flight scan."""
+    started, finish = asyncio.Event(), asyncio.Event()
+
+    async def discover(
+        *,
+        on_device: Callable[[dict[str, str]], Awaitable[None]] | None = None,
+        interfaces: list[str] | None = None,
+    ) -> list[dict[str, str]]:
+        if interfaces is None:
+            started.set()
+            await finish.wait()
+        return []
+
+    mock = AsyncMock(side_effect=discover)
+    monkeypatch.setattr(server, "discover_axis_devices", mock)
+    monkeypatch.setattr(
+        server,
+        "network_interfaces",
+        lambda: [NetworkInterface("lan", "LAN", ("192.0.2.10",), True)],
+    )
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    await asyncio.wait_for(started.wait(), 2)
+    socket = await connect(client)
+    await command(socket, type="server/configure", interfaces=["lan"])
+    assert await command(socket, type="devices/discover", stream=True) == {
+        "id": 1,
+        "result": [],
+    }
+    assert mock.call_args.kwargs["interfaces"] == ["192.0.2.10"]
+    finish.set()
+    await socket.close()
+
+
+async def test_startup_warning_is_replayed_to_late_client(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An authenticated late client receives the startup scan warning."""
+    registry.update_web_discovery_interfaces(["lan", "vpn"])
+    monkeypatch.setattr(
+        server,
+        "network_interfaces",
+        lambda: [NetworkInterface("lan", "LAN", ("192.0.2.10",), True)],
+    )
+    done = asyncio.Event()
+
+    async def discover(**kwargs: object) -> list[dict[str, str]]:
+        done.set()
+        return []
+
+    monkeypatch.setattr(server, "discover_axis_devices", discover)
+    client = await aiohttp_client(
+        server.create_app(registry, TOKEN, 8765, startup_discovery=True)
+    )
+    await asyncio.wait_for(done.wait(), 2)
+    socket = await connect(client)
+    await socket.send_json({"id": 2, "type": "devices/discover", "stream": True})
+    assert (await socket.receive_json(timeout=2))["message"].endswith("vpn")
+    assert await socket.receive_json(timeout=2) == {"id": 2, "result": []}
+    await socket.close()
+
+
+async def test_startup_warning_is_streamed_to_waiting_client(
+    registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deliver warnings raised after an authenticated client subscribes."""
+    release = asyncio.Event()
+
+    async def discover(
+        selected: list[str] | None,
+        publish: Callable[[dict[str, str]], Awaitable[None]],
+        warn: Callable[[str], Awaitable[None]],
+    ) -> list[dict[str, str]]:
+        await release.wait()
+        await warn("An interface is unavailable.")
+        return []
+
+    monkeypatch.setattr(server, "_web_discovery", discover)
+    startup = server._StartupDiscovery(registry)
+    warn = AsyncMock()
+    waiting = asyncio.create_task(startup.results(AsyncMock(), warn))
+    await asyncio.sleep(0)
+    release.set()
+    assert await waiting == []
+    warn.assert_awaited_once_with("An interface is unavailable.")
 
 
 async def test_startup_discovery_is_shared_and_authorized_per_socket(

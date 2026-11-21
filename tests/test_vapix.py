@@ -18,6 +18,7 @@ from axis.errors import (
     Unauthorized,
 )
 from axis.interfaces.api_handler import HandlerGroup
+from axis.interfaces.vapix import InterfaceInspectionError
 from axis.models.api import BytesResponse
 from axis.models.api_discovery import ListApisRequest
 from axis.models.applications.application import (
@@ -280,6 +281,52 @@ async def test_inspect_interfaces_returns_structured_truth(vapix: Vapix) -> None
     assert state.items == 2
     assert state.probe_attempted is True
     assert state.probe_succeeded is True
+
+
+@pytest.mark.parametrize("stage", ["api_discovery", "example"])
+async def test_inspect_interfaces_identifies_failed_probe(
+    vapix: Vapix, stage: str
+) -> None:
+    """Keep the original error while identifying which probe failed."""
+    handler = MagicMock()
+    handler.supported = False
+    handler.initialized = False
+    handler.update = AsyncMock(side_effect=KeyError("private-device-data"))
+    vapix.api_discovery.update = AsyncMock(
+        side_effect=KeyError("private-device-data")
+        if stage == "api_discovery"
+        else None,
+        return_value=True,
+    )
+    vapix.interfaces = MagicMock(return_value={"example": handler})
+    with pytest.raises(InterfaceInspectionError) as raised:
+        await vapix.inspect_interfaces(probe=True)
+    assert raised.value.interface == stage
+    assert isinstance(raised.value.__cause__, KeyError)
+    assert "private-device-data" not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    ("status", "should_probe"),
+    [
+        (None, False),
+        (ApplicationStatus.STOPPED, False),
+        (ApplicationStatus.RUNNING, True),
+    ],
+)
+async def test_inspect_interfaces_only_probes_running_applications(
+    vapix: Vapix, status: ApplicationStatus | None, should_probe: bool
+) -> None:
+    """Stopped or absent applications must not be queried as running services."""
+    handler = vapix.object_analytics
+    if status is not None:
+        vapix.applications.update_items({handler.app_name: MagicMock(status=status)})
+    handler.update = AsyncMock(return_value=True)
+    vapix.interfaces = MagicMock(return_value={"object_analytics": handler})
+    states = await vapix.inspect_interfaces(refresh_discovery=False, probe=True)
+    assert handler.update.await_count == int(should_probe)
+    assert states["object_analytics"].probe_attempted is should_probe
+    assert states["object_analytics"].probe_succeeded is should_probe
 
 
 async def test_initialize(http_route_mock, mock_vapix_request, vapix: Vapix):

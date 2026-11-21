@@ -6,6 +6,8 @@ import {
   fetchHealth,
   fetchInterfaces,
   readInterface,
+  restartDevice,
+  controlApplication,
 } from "../src/data/devices";
 import wireResults from "./fixtures/websocket.json";
 
@@ -52,6 +54,119 @@ beforeEach(() => {
   vi.stubGlobal("WebSocket", MockSocket);
   vi.stubGlobal("location", { host: "axis.test" });
 });
+
+test.each(["disconnect", "timeout"])(
+  "warns that a restart outcome is unknown on %s",
+  async (interruption) => {
+    const { connection, socket } = connect();
+    socket.message({ type: "ready" });
+    const failure = expect(restartDevice(connection, "A")).rejects.toThrow(
+      "Restart outcome is unknown. Check the device before trying again.",
+    );
+    expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+      id: 1,
+      type: "device/restart",
+      device: "A",
+      confirmed: true,
+    });
+    if (interruption === "disconnect") socket.serverClose();
+    else await vi.advanceTimersByTimeAsync(65000);
+    await failure;
+    connection.disconnect();
+  },
+);
+
+test("uploads the selected file with the private token in a header", async () => {
+  const { connection, socket } = connect();
+  const file = new File(["package"], "my app.eap");
+  await expect(connection.installApplication("A", file)).rejects.toThrow(
+    "Not connected.",
+  );
+  socket.message({ type: "ready" });
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ result: null }),
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  await connection.installApplication("A", file);
+  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/application-upload",
+    expect.objectContaining({
+      method: "POST",
+      body: file,
+      headers: expect.objectContaining({
+        "X-Axis-Token": "private-token",
+        "X-Axis-Device": "A",
+        "X-Axis-Filename": "my%20app.eap",
+        "X-Axis-Confirmed": "true",
+      }),
+    }),
+  );
+  connection.disconnect();
+});
+
+test("does not retry or report success for interrupted or invalid upload responses", async () => {
+  const { connection, socket } = connect();
+  socket.message({ type: "ready" });
+  const file = new File(["package"], "app.eap");
+  const fetchMock = vi.fn().mockRejectedValueOnce(new Error("network"));
+  vi.stubGlobal("fetch", fetchMock);
+  await expect(connection.installApplication("A", file)).rejects.toThrow(
+    "Installation outcome is unknown",
+  );
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+  await expect(connection.installApplication("A", file)).rejects.toThrow(
+    "Installation outcome is unknown",
+  );
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    json: async () => ({ error: { message: "Check applications." } }),
+  });
+  await expect(connection.installApplication("A", file)).rejects.toThrow(
+    "Check applications.",
+  );
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+  connection.disconnect();
+});
+
+test.each(["disconnect", "timeout"])(
+  "warns that an application action outcome is unknown on %s",
+  async (interruption) => {
+    const { connection, socket } = connect();
+    socket.message({ type: "ready" });
+    const app = {
+      id: "example",
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1",
+      vendor: "",
+      application_id: null,
+      configuration_page: null,
+      license_status: "None",
+      license_name: "",
+      license_expiration_date: "",
+    };
+    const failure = expect(
+      controlApplication(connection, "A", app, "remove"),
+    ).rejects.toThrow(
+      "Application action outcome is unknown. Check the application before trying again.",
+    );
+    expect(JSON.parse(socket.sent.at(-1)!)).toMatchObject({
+      type: "device/application-action",
+      package: "example",
+      version: "1",
+      status: "Running",
+      action: "remove",
+      confirmed: true,
+    });
+    if (interruption === "disconnect") socket.serverClose();
+    else await vi.advanceTimersByTimeAsync(65000);
+    await failure;
+    connection.disconnect();
+  },
+);
 
 afterEach(() => {
   vi.useRealTimers();

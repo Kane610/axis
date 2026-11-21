@@ -12,7 +12,7 @@ from dataclasses import fields, is_dataclass, replace
 from datetime import UTC, datetime
 from enum import Enum
 import re
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Literal
 from urllib.parse import quote, quote_plus
 
 from aiohttp import ClientSession, TCPConnector
@@ -30,6 +30,8 @@ from axis.application.errors import ErrorKind, OperationError, _failure
 from axis.application.records import ConnectionSettings, DeviceRecord, HealthSnapshot
 from axis.device import AxisDevice
 from axis.errors import AxisException
+from axis.interfaces.vapix import InterfaceInspectionError, UploadDigestError
+from axis.models.applications.application import ApplicationControlError
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 from axis.rtsp import Signal
 
@@ -41,22 +43,29 @@ __all__ = [
     "OperationError",
     "apply_account_change",
     "change_account",
+    "control_application",
     "health",
     "identify",
+    "install_application",
     "list_accounts",
     "list_apis",
+    "list_applications",
     "list_events",
     "list_interfaces",
     "listen",
     "normalize_payload",
     "parameters",
     "prepare_account_change",
+    "read_architecture",
     "read_health",
     "read_interface",
+    "restart_device",
     "validate_account_username",
 ]
 
 STARTUP_TIMEOUT = 30.0
+RESTART_PREFLIGHT_TIMEOUT = 20.0
+RESTART_REQUEST_TIMEOUT = 30.0
 _SENSITIVE = (
     "password",
     "passwd",
@@ -229,6 +238,23 @@ async def read_health(record: DeviceRecord) -> HealthSnapshot:
         )
 
 
+async def read_architecture(record: DeviceRecord) -> str:
+    """Read the architecture of the saved device using its identity endpoints."""
+    async with _device(record.config) as device:
+        await _identity(device)
+        if device.vapix.serial_number.strip() != record.serial:
+            msg = "Connected device identity differs from the saved target."
+            raise OperationError(msg, kind=ErrorKind.CONFLICT)
+        if device.vapix.basic_device_info.initialized:
+            architecture = device.vapix.basic_device_info["0"].architecture
+        else:
+            architecture = device.vapix.params.property_handler["0"].system_architecture
+        if not isinstance(architecture, str) or not architecture.strip():
+            msg = "The device did not report its hardware architecture."
+            raise OperationError(msg, kind=ErrorKind.RESPONSE)
+        return _text(architecture.strip(), device.config.password)
+
+
 async def health(record: DeviceRecord) -> dict[str, object]:
     """Return serial, model, product, and firmware in the CLI's existing dictionary format."""
     snapshot = await read_health(record)
@@ -252,12 +278,291 @@ async def list_apis(record: DeviceRecord) -> list[dict[str, object]]:
         ]
 
 
+async def list_applications(record: DeviceRecord) -> list[dict[str, object]]:
+    """Read installed applications without initializing unrelated interfaces."""
+    async with _device(record.config) as device:
+        applications = await device.vapix.applications.list_applications()
+        return [_row(app, device.config.password) for app in applications.values()]
+
+
+async def control_application(
+    record: DeviceRecord,
+    action: Literal["start", "stop", "restart", "remove"],
+    package: str,
+    version: str,
+    status: str,
+    *,
+    confirmed: bool = False,
+) -> None:
+    """Apply one confirmed action to a verified device and reviewed application."""
+    if (
+        action not in {"start", "stop", "restart", "remove"}
+        or not isinstance(package, str)
+        or not package
+        or not isinstance(version, str)
+        or not isinstance(status, str)
+        or confirmed is not True
+    ):
+        msg = "Application actions require a valid target and explicit confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            await _identity(device)
+            if device.vapix.serial_number.strip() != record.serial:
+                msg = "Connected device identity differs from the saved target."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            applications = await device.vapix.applications.list_applications()
+            app = applications.get(package)
+            if app is None or app.version != version or app.status != status:
+                msg = "Application changed. Refresh the list before trying again."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+        try:
+            async with asyncio.timeout(RESTART_REQUEST_TIMEOUT):
+                await device.vapix.applications.control_application(action, package)
+        except ApplicationControlError as exc:
+            if exc.code not in {8, 15}:
+                msg = f"The device rejected the application action (code {exc.code})."
+                raise OperationError(msg, kind=ErrorKind.OPERATION) from None
+            msg = "Application action outcome is unknown. Check the application before trying again."
+            raise OperationError(msg, outcome_unknown=True) from None
+        except Exception as exc:  # noqa: BLE001 - write outcome can be uncertain
+            failure = _failure(exc, outcome_unknown=True)
+            if failure.outcome_unknown:
+                msg = "Application action outcome is unknown. Check the application before trying again."
+                raise OperationError(
+                    msg, kind=failure.kind, outcome_unknown=True
+                ) from None
+            if failure.kind == ErrorKind.AUTHENTICATION:
+                msg = "Device authentication failed. Check the saved credentials."
+                raise OperationError(msg, kind=failure.kind) from None
+            if failure.kind == ErrorKind.PERMISSION:
+                msg = "Administrator permission is required to manage applications."
+                raise OperationError(msg, kind=failure.kind) from None
+            raise failure from None
+
+
+async def application_sdks(record: DeviceRecord) -> list[str]:
+    """Read the SDKs supported by the saved device."""
+    async with _device(record.config) as device:
+        return [
+            _text(sdk, device.config.password)
+            for sdk in await device.vapix.applications.supported_sdks()
+        ]
+
+
+async def application_policy(record: DeviceRecord) -> bool:
+    """Read the device's actual unsigned-application policy."""
+    async with _device(record.config) as device:
+        return await device.vapix.applications.allow_unsigned()
+
+
+async def set_application_policy(
+    record: DeviceRecord, previous: bool, value: bool, *, confirmed: bool = False
+) -> None:
+    """Change a reviewed policy on the verified saved device once."""
+    if type(previous) is not bool or type(value) is not bool or confirmed is not True:
+        msg = "Policy changes require confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            await _identity(device)
+            if device.vapix.serial_number.strip() != record.serial:
+                msg = "Connected device identity differs from the saved target."
+                raise OperationError(
+                    msg,
+                    kind=ErrorKind.CONFLICT,
+                )
+            if await device.vapix.applications.allow_unsigned() != previous:
+                msg = "Application policy changed. Refresh before trying again."
+                raise OperationError(
+                    msg,
+                    kind=ErrorKind.CONFLICT,
+                )
+        try:
+            async with asyncio.timeout(RESTART_REQUEST_TIMEOUT):
+                result = await device.vapix.applications.set_allow_unsigned(value)
+                if result != value:
+                    msg = "Unexpected policy value."
+                    raise ValueError(msg)
+        except Exception as exc:  # noqa: BLE001 - write outcome can be uncertain
+            failure = _failure(exc, outcome_unknown=True)
+            if failure.outcome_unknown or isinstance(exc, ValueError):
+                msg = "Policy change outcome is unknown. Check the policy before trying again."
+                raise OperationError(
+                    msg,
+                    kind=failure.kind,
+                    outcome_unknown=True,
+                ) from None
+            raise failure from None
+
+
+_LICENSE_ERRORS = {
+    21: "The license key file is invalid.",
+    22: "The device could not save the license key.",
+    23: "The device could not remove the license key.",
+    24: "The application is not installed.",
+    25: "The license key is for a different application.",
+    26: "The license key is incompatible with this application version.",
+    30: "The license key is for a different device.",
+    31: "The license key has expired.",
+}
+
+
+async def manage_application_license(
+    record: DeviceRecord,
+    package: str,
+    version: str,
+    status: str,
+    license_status: str,
+    license_file: IO[bytes] | None = None,
+    *,
+    confirmed: bool = False,
+) -> None:
+    """Upload or remove a license on a verified, unchanged application."""
+    if (
+        confirmed is not True
+        or not isinstance(package, str)
+        or not package
+        or not all(
+            isinstance(value, str) for value in (version, status, license_status)
+        )
+    ):
+        msg = "License changes require confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            await _identity(device)
+            if device.vapix.serial_number.strip() != record.serial:
+                msg = "Connected device identity differs from the saved target."
+                raise OperationError(
+                    msg,
+                    kind=ErrorKind.CONFLICT,
+                )
+            app = (await device.vapix.applications.list_applications()).get(package)
+            if (
+                app is None
+                or app.version != version
+                or app.status != status
+                or app.license_status != license_status
+            ):
+                msg = "Application changed. Refresh the list before trying again."
+                raise OperationError(
+                    msg,
+                    kind=ErrorKind.CONFLICT,
+                )
+        try:
+            async with asyncio.timeout(RESTART_REQUEST_TIMEOUT):
+                if license_file is None:
+                    await device.vapix.applications.remove_license(package)
+                else:
+                    await device.vapix.applications.upload_license(
+                        package, license_file
+                    )
+        except ApplicationControlError as exc:
+            if exc.code != 15:
+                raise OperationError(
+                    _LICENSE_ERRORS.get(
+                        exc.code, f"Device rejected the license (error {exc.code})."
+                    ),
+                    kind=ErrorKind.OPERATION,
+                ) from None
+            msg = "License change outcome is unknown. Check the application before trying again."
+            raise OperationError(
+                msg,
+                outcome_unknown=True,
+            ) from None
+        except Exception as exc:  # noqa: BLE001 - write outcome can be uncertain
+            failure = _failure(exc, outcome_unknown=True)
+            if failure.outcome_unknown:
+                msg = "License change outcome is unknown. Check the application before trying again."
+                raise OperationError(
+                    msg,
+                    kind=failure.kind,
+                    outcome_unknown=True,
+                ) from None
+            raise failure from None
+
+
+_UPLOAD_ERRORS = {
+    1: "The application package is invalid.",
+    2: "Package verification failed (error 2): its signature is missing or invalid. Obtain a correctly signed package and check applications before trying again.",
+    3: "The package is too large or the device disk is full.",
+    5: "The package is incompatible with this device.",
+    10: "Installation failed; inspect the device system log.",
+    12: "Another application upload is in progress.",
+    13: "The package requires a user or group that is not allowed.",
+    14: "An application with the same name but different capitalization exists.",
+    15: "The installation timed out and its outcome is unknown.",
+    27: "The package vendor does not match the installed application.",
+    29: "The package manifest or configuration is invalid.",
+    51: "The developer-mode serial number does not match this device.",
+    52: "The developer-mode vendor changed; the upgrade is not allowed.",
+    53: "The application vendor does not match the developer-mode vendor.",
+    54: "The developer-mode policy does not allow this manifest.",
+}
+
+
+async def install_application(
+    record: DeviceRecord, package: IO[bytes], *, confirmed: bool = False
+) -> None:
+    """Upload one confirmed package to the verified saved device."""
+    if confirmed is not True:
+        msg = "Application installation requires explicit confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            await _identity(device)
+            if device.vapix.serial_number.strip() != record.serial:
+                msg = "Connected device identity differs from the saved target."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+        try:
+            await device.vapix.applications.upload_application(package)
+        except UploadDigestError:
+            msg = (
+                "The device requires digest auth-int, which cannot stream this package. "
+                "Check applications before trying again."
+            )
+            raise OperationError(
+                msg, kind=ErrorKind.UNSUPPORTED, outcome_unknown=True
+            ) from None
+        except ApplicationControlError as exc:
+            detail = _UPLOAD_ERRORS.get(exc.code, f"Device reported error {exc.code}.")
+            msg = (
+                detail
+                if exc.code == 2
+                else f"{detail} Check applications before trying again."
+            )
+            raise OperationError(msg, outcome_unknown=True) from None
+        except Exception as exc:  # noqa: BLE001 - device write may have begun
+            failure = _failure(exc, outcome_unknown=True)
+            if failure.outcome_unknown:
+                msg = "Installation outcome is unknown. Check applications before trying again."
+                raise OperationError(
+                    msg, kind=failure.kind, outcome_unknown=True
+                ) from None
+            if failure.kind == ErrorKind.AUTHENTICATION:
+                msg = "Device authentication failed. Check the saved credentials."
+                raise OperationError(msg, kind=failure.kind) from None
+            if failure.kind == ErrorKind.PERMISSION:
+                msg = "Administrator permission is required to install applications."
+                raise OperationError(msg, kind=failure.kind) from None
+            raise failure from None
+
+
 async def list_interfaces(record: DeviceRecord) -> list[dict[str, object]]:
     """Check which library handlers the device advertises or responds to."""
     async with _device(record.config) as device:
-        states = await device.vapix.inspect_interfaces(
-            refresh_discovery=True, probe=True
-        )
+        try:
+            states = await device.vapix.inspect_interfaces(
+                refresh_discovery=True, probe=True
+            )
+        except InterfaceInspectionError as exc:
+            cause = exc.cause
+            failure = _failure(cause)
+            msg = (
+                f"Could not inspect interface {exc.interface} ({type(cause).__name__})."
+            )
+            raise OperationError(msg, kind=failure.kind) from None
         return [_row(state, device.config.password) for state in states.values()]
 
 
@@ -294,6 +599,43 @@ async def read_interface(
             raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
         payload = normalize_payload(dict(handler.items()), device.config.password)
         return _traverse(payload, path) if path else payload
+
+
+async def restart_device(record: DeviceRecord, *, confirmed: bool = False) -> None:
+    """Restart a verified saved device once, using its advertised reboot API."""
+    if confirmed is not True:
+        msg = "Device restart requires explicit confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            await _identity(device)
+            if device.vapix.serial_number.strip() != record.serial:
+                msg = "Connected device identity differs from the saved target."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            discovered = await device.vapix.api_discovery.update()
+            use_firmware = discovered and device.vapix.firmware_management.supported
+        try:
+            async with asyncio.timeout(RESTART_REQUEST_TIMEOUT):
+                if use_firmware:
+                    await device.vapix.firmware_management.reboot()
+                else:
+                    await device.vapix.restart_cgi.restart()
+        except Exception as exc:  # noqa: BLE001 - write outcome can be uncertain
+            failure = _failure(exc, outcome_unknown=True)
+            if failure.outcome_unknown:
+                msg = (
+                    "Restart outcome is unknown. Check the device before trying again."
+                )
+                raise OperationError(
+                    msg, kind=failure.kind, outcome_unknown=True
+                ) from None
+            if failure.kind == ErrorKind.AUTHENTICATION:
+                msg = "Device authentication failed. Check the saved credentials."
+                raise OperationError(msg, kind=failure.kind) from None
+            if failure.kind == ErrorKind.PERMISSION:
+                msg = "Administrator permission is required to restart this device."
+                raise OperationError(msg, kind=failure.kind) from None
+            raise failure from None
 
 
 async def parameters(record: DeviceRecord) -> object:

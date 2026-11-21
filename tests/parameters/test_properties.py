@@ -252,7 +252,21 @@ async def test_property_handler(
     assert properties.ptz is True
     # assert params[f"{PROPERTIES}.Sensor.PIR"] == "yes"
     assert properties.system_serial_number == "ACCC12345678"
+    assert properties.system_architecture == "armv7hf"
     assert properties.virtual_input is True
+
+
+async def test_property_handler_without_architecture(
+    aiohttp_mock_server, property_handler: PropertyParameterHandler
+) -> None:
+    """Keep legacy property responses without architecture usable."""
+    await _setup_param_route(
+        aiohttp_mock_server,
+        property_handler,
+        PROPERTY_RESPONSE.replace("root.Properties.System.Architecture=armv7hf\n", ""),
+    )
+    await property_handler.update()
+    assert property_handler["0"].system_architecture == ""
 
 
 @pytest.mark.parametrize(

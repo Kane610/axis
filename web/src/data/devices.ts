@@ -36,7 +36,35 @@ export type DeviceConnection = {
 export type SaveDevice = DeviceConnection & { alias: string };
 
 export type DeviceSettings = { device: Device; username: string };
+export type ApplicationAction = "start" | "stop" | "restart" | "remove";
+export type Application = {
+  id: string;
+  name: string;
+  nice_name: string;
+  status: string;
+  version: string;
+  vendor: string;
+  application_id: string | null;
+  configuration_page: string | null;
+  license_status: string;
+  license_name: string;
+  license_expiration_date: string;
+  bundled?: string | null;
+  signature_status?: string | null;
+  resources?: { name?: string; used?: string }[];
+  compatible_os_versions?: { Min?: string; Max?: string }[];
+};
 export type ConfiguredDevice = { device: Device; connection_changed: boolean };
+
+export type ServerSettings = {
+  selected: string[] | null;
+  interfaces: {
+    name: string;
+    label: string;
+    addresses: string[];
+    up: boolean | null;
+  }[];
+};
 
 export type Device = {
   alias: string;
@@ -84,7 +112,14 @@ export const fetchDevices = (connection: AxisConnection) =>
 export const discoverDevices = (
   connection: AxisConnection,
   onDiscovered: (device: DiscoveredDevice) => void,
-) => connection.callWS("devices/discover", { stream: true }, onDiscovered);
+  onWarning: (message: string) => void,
+) =>
+  connection.callWS(
+    "devices/discover",
+    { stream: true },
+    onDiscovered,
+    onWarning,
+  );
 
 export const saveDevice = (connection: AxisConnection, settings: SaveDevice) =>
   connection.callWS("devices/save", settings);
@@ -103,6 +138,9 @@ export const configureDevice = (
 export const fetchHealth = (connection: AxisConnection, device: string) =>
   connection.callWS("device/health", { device });
 
+export const fetchArchitecture = (connection: AxisConnection, device: string) =>
+  connection.callWS("device/architecture", { device });
+
 export const fetchApis = (connection: AxisConnection, device: string) =>
   connection.callWS("device/apis", { device });
 
@@ -114,3 +152,74 @@ export const readInterface = (
   device: string,
   name: string,
 ) => connection.callWS("device/read", { device, name });
+
+export const restartDevice = (connection: AxisConnection, device: string) =>
+  connection.callWS("device/restart", { device, confirmed: true });
+
+export const fetchApplications = (connection: AxisConnection, device: string) =>
+  connection.callWS("device/applications", { device });
+
+export const fetchApplicationSdks = (
+  connection: AxisConnection,
+  device: string,
+) => connection.callWS("device/application-sdks", { device });
+
+export const fetchApplicationPolicy = (
+  connection: AxisConnection,
+  device: string,
+) => connection.callWS("device/application-policy", { device });
+
+export const setApplicationPolicy = (
+  connection: AxisConnection,
+  device: string,
+  previous: boolean,
+  value: boolean,
+) =>
+  connection.callWS("device/application-policy-set", {
+    device,
+    previous,
+    value,
+    confirmed: true,
+  });
+
+export const removeApplicationLicense = (
+  connection: AxisConnection,
+  device: string,
+  app: Application,
+) =>
+  connection.callWS("device/application-license-remove", {
+    device,
+    package: app.name,
+    version: app.version,
+    status: app.status,
+    license_status: app.license_status,
+    confirmed: true,
+  });
+
+export const uploadApplicationLicense = (
+  connection: AxisConnection,
+  device: string,
+  app: Application,
+  file: File,
+) => connection.uploadLicense(device, app, file);
+
+export const installApplication = (
+  connection: AxisConnection,
+  device: string,
+  file: File,
+) => connection.installApplication(device, file);
+
+export const controlApplication = (
+  connection: AxisConnection,
+  device: string,
+  app: Application,
+  action: ApplicationAction,
+) =>
+  connection.callWS("device/application-action", {
+    device,
+    action,
+    package: app.name,
+    version: app.version,
+    status: app.status,
+    confirmed: true,
+  });

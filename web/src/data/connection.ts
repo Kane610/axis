@@ -1,5 +1,7 @@
 import type {
   ConfiguredDevice,
+  Application,
+  ApplicationAction,
   Device,
   DeviceApi,
   DeviceConnection,
@@ -8,6 +10,7 @@ import type {
   DiscoveredDevice,
   Health,
   SaveDevice,
+  ServerSettings,
 } from "./devices";
 
 type Commands = {
@@ -15,6 +18,11 @@ type Commands = {
   "devices/discover": {
     args: { stream: true };
     result: DiscoveredDevice[];
+  };
+  "server/settings": { args: Record<string, never>; result: ServerSettings };
+  "server/configure": {
+    args: { interfaces: string[] | null };
+    result: ServerSettings;
   };
   "devices/save": { args: SaveDevice; result: string };
   "devices/test-connection": { args: DeviceConnection; result: string };
@@ -28,9 +36,45 @@ type Commands = {
     result: ConfiguredDevice;
   };
   "device/health": { args: { device: string }; result: Health };
+  "device/architecture": { args: { device: string }; result: string };
   "device/apis": { args: { device: string }; result: DeviceApi[] };
   "device/interfaces": { args: { device: string }; result: DeviceInterface[] };
   "device/read": { args: { device: string; name: string }; result: unknown };
+  "device/restart": { args: { device: string; confirmed: true }; result: null };
+  "device/applications": { args: { device: string }; result: Application[] };
+  "device/application-sdks": { args: { device: string }; result: string[] };
+  "device/application-policy": { args: { device: string }; result: boolean };
+  "device/application-policy-set": {
+    args: {
+      device: string;
+      previous: boolean;
+      value: boolean;
+      confirmed: true;
+    };
+    result: null;
+  };
+  "device/application-license-remove": {
+    args: {
+      device: string;
+      package: string;
+      version: string;
+      status: string;
+      license_status: string;
+      confirmed: true;
+    };
+    result: null;
+  };
+  "device/application-action": {
+    args: {
+      device: string;
+      action: ApplicationAction;
+      package: string;
+      version: string;
+      status: string;
+      confirmed: true;
+    };
+    result: null;
+  };
 };
 
 type Response = {
@@ -38,6 +82,7 @@ type Response = {
   type?: string;
   result?: unknown;
   device?: DiscoveredDevice;
+  message?: string;
   error?: { code: string; message: string };
 };
 
@@ -46,7 +91,20 @@ type Pending = {
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
   onDiscovered?: (device: DiscoveredDevice) => void;
+  onWarning?: (message: string) => void;
+  unknownMessage?: string;
 };
+
+const RESTART_UNKNOWN =
+  "Restart outcome is unknown. Check the device before trying again.";
+const APPLICATION_UNKNOWN =
+  "Application action outcome is unknown. Check the application before trying again.";
+const INSTALL_UNKNOWN =
+  "Installation outcome is unknown. Check applications before trying again.";
+const POLICY_UNKNOWN =
+  "Policy change outcome is unknown. Check the policy before trying again.";
+const LICENSE_UNKNOWN =
+  "License change outcome is unknown. Check the application before trying again.";
 
 export type ConnectionStatus =
   "connecting" | "connected" | "reconnecting" | "denied";
@@ -54,6 +112,7 @@ export type ConnectionStatus =
 export class AxisConnection {
   private socket: WebSocket | null = null;
   private connected = false;
+  private token = "";
   private nextId = 0;
   private pending = new Map<number, Pending>();
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -67,6 +126,7 @@ export class AxisConnection {
   }
 
   private openSocket(token: string): void {
+    this.token = token;
     const socket = new WebSocket(`ws://${location.host}/api/websocket`);
     this.socket = socket;
     socket.onopen = () => {
@@ -85,6 +145,10 @@ export class AxisConnection {
       if (!pending) return;
       if (message.type === "discovery/device") {
         if (message.device) pending.onDiscovered?.(message.device);
+        return;
+      }
+      if (message.type === "discovery/warning") {
+        if (message.message) pending.onWarning?.(message.message);
         return;
       }
       clearTimeout(pending.timer);
@@ -109,34 +173,122 @@ export class AxisConnection {
     const socket = this.socket;
     this.socket = null;
     this.connected = false;
+    this.token = "";
     socket?.close();
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);
-      pending.reject(new Error("Connection lost. Try again once reconnected."));
+      pending.reject(
+        new Error(
+          pending.unknownMessage ??
+            "Connection lost. Try again once reconnected.",
+        ),
+      );
     }
     this.pending.clear();
+  }
+
+  async installApplication(device: string, file: File): Promise<void> {
+    return this.uploadFile(
+      "/api/application-upload",
+      device,
+      file,
+      {
+        "X-Axis-Filename": encodeURIComponent(file.name),
+      },
+      INSTALL_UNKNOWN,
+    );
+  }
+
+  async uploadLicense(
+    device: string,
+    app: Application,
+    file: File,
+  ): Promise<void> {
+    return this.uploadFile(
+      "/api/application-license",
+      device,
+      file,
+      {
+        "X-Axis-Package": encodeURIComponent(app.name),
+        "X-Axis-Version": encodeURIComponent(app.version),
+        "X-Axis-Status": encodeURIComponent(app.status),
+        "X-Axis-License-Status": encodeURIComponent(app.license_status),
+      },
+      LICENSE_UNKNOWN,
+    );
+  }
+
+  private async uploadFile(
+    path: string,
+    device: string,
+    file: File,
+    extraHeaders: Record<string, string>,
+    unknownMessage: string,
+  ): Promise<void> {
+    if (!this.connected || !this.token) throw new Error("Not connected.");
+    let response: globalThis.Response;
+    try {
+      response = await fetch(path, {
+        method: "POST",
+        redirect: "error",
+        headers: {
+          "X-Axis-Token": this.token,
+          "X-Axis-Device": encodeURIComponent(device),
+          ...extraHeaders,
+          "X-Axis-Confirmed": "true",
+          "Content-Type": "application/octet-stream",
+        },
+        body: file,
+      });
+    } catch {
+      throw new Error(unknownMessage);
+    }
+    let payload: { result?: unknown; error?: { message?: unknown } };
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      throw new Error(unknownMessage);
+    }
+    if (!response.ok) {
+      const message = payload?.error?.message;
+      throw new Error(typeof message === "string" ? message : unknownMessage);
+    }
+    if (payload?.result !== null) throw new Error(unknownMessage);
   }
 
   callWS<T extends keyof Commands>(
     type: T,
     args: Commands[T]["args"],
     onDiscovered?: (device: DiscoveredDevice) => void,
+    onWarning?: (message: string) => void,
   ): Promise<Commands[T]["result"]> {
     const socket = this.socket;
     if (socket?.readyState !== WebSocket.OPEN || !this.connected) {
       return Promise.reject(new Error("Not connected."));
     }
     const id = ++this.nextId;
+    const unknownMessage =
+      type === "device/restart"
+        ? RESTART_UNKNOWN
+        : type === "device/application-action"
+          ? APPLICATION_UNKNOWN
+          : type === "device/application-policy-set"
+            ? POLICY_UNKNOWN
+            : type === "device/application-license-remove"
+              ? LICENSE_UNKNOWN
+              : undefined;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error("Request timed out."));
+        reject(new Error(unknownMessage ?? "Request timed out."));
       }, 65000);
       this.pending.set(id, {
         resolve: (value) => resolve(value as Commands[T]["result"]),
         reject,
         timer,
         onDiscovered,
+        onWarning,
+        unknownMessage,
       });
       socket.send(JSON.stringify({ id, type, ...args }));
     });
