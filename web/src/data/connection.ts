@@ -2,6 +2,9 @@ import type {
   ConfiguredDevice,
   Application,
   ApplicationAction,
+  AcapCandidate,
+  AcapCatalog,
+  AcapUpdate,
   Device,
   DeviceApi,
   DeviceConnection,
@@ -20,10 +23,20 @@ type Commands = {
     result: DiscoveredDevice[];
   };
   "server/settings": { args: Record<string, never>; result: ServerSettings };
+  "server/browse-folders": {
+    args: { path: string | null };
+    result: {
+      path: string;
+      parent: string | null;
+      directories: { name: string; path: string }[];
+    };
+  };
   "server/configure": {
-    args: { interfaces: string[] | null };
+    args: { interfaces: string[] | null; acap_folder?: string | null };
     result: ServerSettings;
   };
+  "acap/catalog": { args: Record<string, never>; result: AcapCatalog };
+  "acap/scan": { args: Record<string, never>; result: AcapCatalog };
   "devices/save": { args: SaveDevice; result: string };
   "devices/test-connection": { args: DeviceConnection; result: string };
   "device/test-connection": {
@@ -42,6 +55,11 @@ type Commands = {
   "device/read": { args: { device: string; name: string }; result: unknown };
   "device/restart": { args: { device: string; confirmed: true }; result: null };
   "device/applications": { args: { device: string }; result: Application[] };
+  "device/acap-updates": { args: { device: string }; result: AcapUpdate[] };
+  "device/acap-install-candidates": {
+    args: { device: string };
+    result: AcapCandidate[];
+  };
   "device/application-sdks": { args: { device: string }; result: string[] };
   "device/application-policy": { args: { device: string }; result: boolean };
   "device/application-policy-set": {
@@ -218,11 +236,70 @@ export class AxisConnection {
     );
   }
 
+  async updateApplication(
+    device: string,
+    app: Application,
+    candidate: AcapCandidate,
+  ): Promise<void> {
+    return this.requestWrite(
+      "/api/application-update",
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        device,
+        filename: candidate.package.filename,
+        digest: candidate.package.digest,
+        version: app.version,
+        status: app.status,
+        vendor: app.vendor,
+        warnings: candidate.warnings,
+        confirmed: true,
+      }),
+      INSTALL_UNKNOWN,
+    );
+  }
+
+  async installCatalogApplication(
+    device: string,
+    candidate: AcapCandidate,
+  ): Promise<void> {
+    return this.requestWrite(
+      "/api/application-catalog-install",
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        device,
+        filename: candidate.package.filename,
+        digest: candidate.package.digest,
+        warnings: candidate.warnings,
+        confirmed: true,
+      }),
+      INSTALL_UNKNOWN,
+    );
+  }
+
   private async uploadFile(
     path: string,
     device: string,
     file: File,
     extraHeaders: Record<string, string>,
+    unknownMessage: string,
+  ): Promise<void> {
+    return this.requestWrite(
+      path,
+      {
+        "X-Axis-Device": encodeURIComponent(device),
+        ...extraHeaders,
+        "X-Axis-Confirmed": "true",
+        "Content-Type": "application/octet-stream",
+      },
+      file,
+      unknownMessage,
+    );
+  }
+
+  private async requestWrite(
+    path: string,
+    headers: Record<string, string>,
+    body: BodyInit,
     unknownMessage: string,
   ): Promise<void> {
     if (!this.connected || !this.token) throw new Error("Not connected.");
@@ -233,12 +310,9 @@ export class AxisConnection {
         redirect: "error",
         headers: {
           "X-Axis-Token": this.token,
-          "X-Axis-Device": encodeURIComponent(device),
-          ...extraHeaders,
-          "X-Axis-Confirmed": "true",
-          "Content-Type": "application/octet-stream",
+          ...headers,
         },
-        body: file,
+        body,
       });
     } catch {
       throw new Error(unknownMessage);

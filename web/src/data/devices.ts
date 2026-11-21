@@ -58,12 +58,48 @@ export type ConfiguredDevice = { device: Device; connection_changed: boolean };
 
 export type ServerSettings = {
   selected: string[] | null;
+  acap_folder: string | null;
   interfaces: {
     name: string;
     label: string;
     addresses: string[];
     up: boolean | null;
   }[];
+};
+
+export type AcapPackage = {
+  filename: string;
+  digest: string;
+  size: number;
+  name: string;
+  friendly_name: string;
+  version: string;
+  architecture: string;
+  vendor: string;
+  vendor_id: string;
+  os_ranges: [string, string][];
+  sdk: string;
+  signature: "present_unverified" | "not_detected" | "unknown";
+};
+
+export type AcapCatalog = {
+  folder: string | null;
+  packages: AcapPackage[];
+  errors: { filename: string; message: string }[];
+  error: string;
+};
+
+export type AcapUpdate = {
+  name: string;
+  version: string;
+  status: string;
+  candidates: AcapCandidate[];
+};
+
+export type AcapCandidate = {
+  package: AcapPackage;
+  warnings: string[];
+  downgrade: boolean;
 };
 
 export type Device = {
@@ -158,6 +194,27 @@ export const restartDevice = (connection: AxisConnection, device: string) =>
 
 export const fetchApplications = (connection: AxisConnection, device: string) =>
   connection.callWS("device/applications", { device });
+
+export const fetchAcapUpdates = (connection: AxisConnection, device: string) =>
+  connection.callWS("device/acap-updates", { device });
+
+export const fetchAcapInstallCandidates = (
+  connection: AxisConnection,
+  device: string,
+) => connection.callWS("device/acap-install-candidates", { device });
+
+export const installCatalogApplication = (
+  connection: AxisConnection,
+  device: string,
+  candidate: AcapCandidate,
+) => connection.installCatalogApplication(device, candidate);
+
+export const updateApplication = (
+  connection: AxisConnection,
+  device: string,
+  app: Application,
+  candidate: AcapCandidate,
+) => connection.updateApplication(device, app, candidate);
 
 export const fetchApplicationSdks = (
   connection: AxisConnection,

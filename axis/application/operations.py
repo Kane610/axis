@@ -12,11 +12,18 @@ from dataclasses import fields, is_dataclass, replace
 from datetime import UTC, datetime
 from enum import Enum
 import re
-from typing import IO, TYPE_CHECKING, Literal
+from typing import IO, TYPE_CHECKING, Any, Literal
 from urllib.parse import quote, quote_plus
 
 from aiohttp import ClientSession, TCPConnector
 
+from axis.application.acap_catalog import (
+    Package,
+    UpdateAssessment,
+    assess_install,
+    assess_update,
+    version_key,
+)
 from axis.application.accounts import (
     _PRIVILEGES,
     AccountChange,
@@ -29,7 +36,13 @@ from axis.application.accounts import (
 from axis.application.errors import ErrorKind, OperationError, _failure
 from axis.application.records import ConnectionSettings, DeviceRecord, HealthSnapshot
 from axis.device import AxisDevice
-from axis.errors import AxisException
+from axis.errors import (
+    AxisException,
+    Forbidden,
+    MethodNotAllowed,
+    PathNotFound,
+    ResponseError,
+)
 from axis.interfaces.vapix import InterfaceInspectionError, UploadDigestError
 from axis.models.applications.application import ApplicationControlError
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
@@ -515,38 +528,214 @@ async def install_application(
             if device.vapix.serial_number.strip() != record.serial:
                 msg = "Connected device identity differs from the saved target."
                 raise OperationError(msg, kind=ErrorKind.CONFLICT)
-        try:
-            await device.vapix.applications.upload_application(package)
-        except UploadDigestError:
-            msg = (
-                "The device requires digest auth-int, which cannot stream this package. "
-                "Check applications before trying again."
+        await _upload_application(device, package)
+
+
+async def _upload_application(device: AxisDevice, package: IO[bytes]) -> None:
+    try:
+        await device.vapix.applications.upload_application(package)
+    except UploadDigestError:
+        msg = (
+            "The device requires digest auth-int, which cannot stream this package. "
+            "Check applications before trying again."
+        )
+        raise OperationError(
+            msg, kind=ErrorKind.UNSUPPORTED, outcome_unknown=True
+        ) from None
+    except ApplicationControlError as exc:
+        detail = _UPLOAD_ERRORS.get(exc.code, f"Device reported error {exc.code}.")
+        msg = (
+            detail
+            if exc.code == 2
+            else f"{detail} Check applications before trying again."
+        )
+        raise OperationError(msg, outcome_unknown=True) from None
+    except Exception as exc:  # noqa: BLE001 - device write may have begun
+        failure = _failure(exc, outcome_unknown=True)
+        if failure.outcome_unknown:
+            msg = "Installation outcome is unknown. Check applications before trying again."
+            raise OperationError(msg, kind=failure.kind, outcome_unknown=True) from None
+        if failure.kind == ErrorKind.AUTHENTICATION:
+            msg = "Device authentication failed. Check the saved credentials."
+            raise OperationError(msg, kind=failure.kind) from None
+        if failure.kind == ErrorKind.PERMISSION:
+            msg = "Administrator permission is required to install applications."
+            raise OperationError(msg, kind=failure.kind) from None
+        raise failure from None
+
+
+async def _acap_device_info(
+    device: AxisDevice, record: DeviceRecord
+) -> tuple[str, str, bool | None]:
+    await _identity(device)
+    if device.vapix.serial_number.strip() != record.serial:
+        msg = "Connected device identity differs from the saved target."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+    if device.vapix.basic_device_info.initialized:
+        architecture = device.vapix.basic_device_info["0"].architecture
+    else:
+        architecture = device.vapix.params.property_handler["0"].system_architecture
+    firmware = device.vapix.firmware_version
+    try:
+        policy = await device.vapix.applications.allow_unsigned()
+    except Forbidden, MethodNotAllowed, PathNotFound, ResponseError:
+        policy = None
+    return architecture.strip(), firmware.strip(), policy
+
+
+async def application_updates(
+    record: DeviceRecord, packages: list[Package]
+) -> list[dict[str, object]]:
+    """Compare local packages with installed applications on a verified device."""
+    if not packages:
+        return []
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            architecture, firmware, policy = await _acap_device_info(device, record)
+            installed = await device.vapix.applications.list_applications()
+        results: list[dict[str, object]] = []
+        for app in installed.values():
+            candidates: list[tuple[Package, UpdateAssessment]] = []
+            for package in packages:
+                if package.name != app.name:
+                    continue
+                assessment = assess_update(
+                    package,
+                    app.name,
+                    app.version,
+                    architecture,
+                    firmware,
+                    policy,
+                    app.vendor,
+                )
+                if assessment is None:
+                    continue
+                candidates.append((package, assessment))
+            if candidates:
+                results.append(
+                    {
+                        "name": _text(app.name, device.config.password),
+                        "version": _text(app.version, device.config.password),
+                        "status": app.status.value,
+                        "candidates": _rank_acap_candidates(candidates),
+                    }
+                )
+        return results
+
+
+def _rank_acap_candidates(
+    candidates: list[tuple[Package, UpdateAssessment]],
+) -> list[dict[str, Any]]:
+    candidates.sort(
+        key=lambda item: (
+            not item[1].downgrade,
+            -item[1].severity,
+            -len(item[1].warnings),
+            version_key(item[0].version) or (-1,),
+        ),
+        reverse=True,
+    )
+    return [
+        {
+            "package": package.public(),
+            "warnings": assessment.warnings,
+            "downgrade": assessment.downgrade,
+        }
+        for package, assessment in candidates
+    ]
+
+
+async def application_install_candidates(
+    record: DeviceRecord, packages: list[Package]
+) -> list[dict[str, Any]]:
+    """Find catalog packages that do not target an installed application."""
+    if not packages:
+        return []
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            architecture, firmware, policy = await _acap_device_info(device, record)
+            installed = await device.vapix.applications.list_applications()
+        candidates = []
+        for package in packages:
+            if package.name in installed:
+                continue
+            assessment = assess_install(package, architecture, firmware, policy)
+            if assessment is not None:
+                candidates.append((package, assessment))
+        return _rank_acap_candidates(candidates)
+
+
+async def install_catalog_application(
+    record: DeviceRecord,
+    stream: IO[bytes],
+    package: Package,
+    *,
+    confirmed: bool = False,
+    reviewed_warnings: tuple[str, ...] = (),
+) -> None:
+    """Install a reviewed catalog package only if it is still a new application."""
+    if confirmed is not True:
+        msg = "Application installation requires explicit confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            architecture, firmware, policy = await _acap_device_info(device, record)
+            installed = await device.vapix.applications.list_applications()
+            if package.name in installed:
+                msg = "Application is already installed. Refresh before continuing."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            assessment = assess_install(package, architecture, firmware, policy)
+            if assessment is None:
+                msg = "Package identity or architecture is no longer applicable."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            if assessment.warnings != reviewed_warnings:
+                msg = "Compatibility warnings changed. Refresh before installing."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+        await _upload_application(device, stream)
+
+
+async def update_application(
+    record: DeviceRecord,
+    stream: IO[bytes],
+    package: Package,
+    version: str,
+    status: str,
+    *,
+    confirmed: bool = False,
+    reviewed_warnings: tuple[str, ...] = (),
+    reviewed_vendor: str,
+) -> None:
+    """Update an existing, unchanged application using an inspected snapshot."""
+    if confirmed is not True:
+        msg = "Application updates require explicit confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            architecture, firmware, policy = await _acap_device_info(device, record)
+            applications = await device.vapix.applications.list_applications()
+            app = applications.get(package.name)
+            if app is None or app.version != version or app.status != status:
+                msg = "Application changed. Refresh the list before trying again."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            if _text(app.vendor, device.config.password) != reviewed_vendor:
+                msg = "Application vendor changed. Refresh before updating."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            assessment = assess_update(
+                package,
+                app.name,
+                app.version,
+                architecture,
+                firmware,
+                policy,
+                app.vendor,
             )
-            raise OperationError(
-                msg, kind=ErrorKind.UNSUPPORTED, outcome_unknown=True
-            ) from None
-        except ApplicationControlError as exc:
-            detail = _UPLOAD_ERRORS.get(exc.code, f"Device reported error {exc.code}.")
-            msg = (
-                detail
-                if exc.code == 2
-                else f"{detail} Check applications before trying again."
-            )
-            raise OperationError(msg, outcome_unknown=True) from None
-        except Exception as exc:  # noqa: BLE001 - device write may have begun
-            failure = _failure(exc, outcome_unknown=True)
-            if failure.outcome_unknown:
-                msg = "Installation outcome is unknown. Check applications before trying again."
-                raise OperationError(
-                    msg, kind=failure.kind, outcome_unknown=True
-                ) from None
-            if failure.kind == ErrorKind.AUTHENTICATION:
-                msg = "Device authentication failed. Check the saved credentials."
-                raise OperationError(msg, kind=failure.kind) from None
-            if failure.kind == ErrorKind.PERMISSION:
-                msg = "Administrator permission is required to install applications."
-                raise OperationError(msg, kind=failure.kind) from None
-            raise failure from None
+            if assessment is None:
+                msg = "Architecture or application no longer matches the package."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            if assessment.warnings != reviewed_warnings:
+                msg = "Compatibility warnings changed. Refresh before updating."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+        await _upload_application(device, stream)
 
 
 async def list_interfaces(record: DeviceRecord) -> list[dict[str, object]]:

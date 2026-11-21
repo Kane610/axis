@@ -25,6 +25,9 @@ async function openApp(
   holdInitialDiscovery = false,
   architecture = "armv7hf",
   holdPolicy = false,
+  catalog = { folder: null, packages: [], errors: [], error: "" },
+  updates = [],
+  installCandidates = [],
 ) {
   const requests = [];
   const automaticScans = [];
@@ -72,6 +75,14 @@ async function openApp(
       } else if (message.type === "device/application-sdks") {
         socket.send(
           JSON.stringify({ id: message.id, result: ["acap4-native"] }),
+        );
+      } else if (message.type === "acap/catalog") {
+        socket.send(JSON.stringify({ id: message.id, result: catalog }));
+      } else if (message.type === "device/acap-updates") {
+        socket.send(JSON.stringify({ id: message.id, result: updates }));
+      } else if (message.type === "device/acap-install-candidates") {
+        socket.send(
+          JSON.stringify({ id: message.id, result: installCandidates }),
         );
       } else if (message.type === "device/application-policy" && !holdPolicy) {
         socket.send(JSON.stringify({ id: message.id, result: false }));
@@ -849,6 +860,497 @@ test("server settings select discovery interfaces and show warnings", async ({
   await expect(
     page.getByRole("status").filter({ hasText: "vpn" }),
   ).toBeVisible();
+});
+
+test("server settings save the ACAP folder and show catalog metadata", async ({
+  page,
+}) => {
+  const catalog = {
+    folder: "/srv/acaps",
+    error: "",
+    errors: [{ filename: "bad.eap", message: "Invalid package." }],
+    packages: [
+      {
+        filename: "example.eap",
+        name: "example",
+        friendly_name: "Example",
+        version: "2.0.0",
+        architecture: "armv7hf",
+        vendor: "Vendor",
+        vendor_id: "123",
+        sdk: "3.0",
+        size: 1024,
+        os_ranges: [["12.10", "13"]],
+        signature: "present_unverified",
+      },
+    ],
+  };
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    catalog,
+  );
+  await page.getByRole("button", { name: "Server settings" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], {
+    selected: null,
+    interfaces: [],
+    acap_folder: "/srv/acaps",
+  });
+  const dialog = page.getByRole("dialog", { name: "Server settings" });
+  await expect(
+    dialog
+      .locator("p")
+      .filter({ hasText: /signature\s+present, not verified/ }),
+  ).toBeVisible();
+  await expect(
+    dialog.locator("p").filter({ hasText: "vendor ID 123" }),
+  ).toContainText("SDK 3.0");
+  await expect(
+    dialog.locator("p").filter({ hasText: "vendor ID 123" }),
+  ).toContainText("size 1024 bytes");
+  await expect(dialog.getByRole("alert")).toContainText("bad.eap");
+  await dialog.getByLabel("Server folder").fill("/srv/other");
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    type: "server/configure",
+    interfaces: null,
+    acap_folder: "/srv/other",
+  });
+  await respond(page, requests[1], { selected: null, interfaces: [] });
+});
+
+test("browse server folders and save the selected path", async ({ page }) => {
+  const { requests } = await openApp(page);
+  await page.getByRole("button", { name: "Server settings" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], {
+    selected: null,
+    interfaces: [],
+    acap_folder: null,
+  });
+  const dialog = page.getByRole("dialog", { name: "Server settings" });
+  await dialog.getByRole("button", { name: "Browse folders" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    type: "server/browse-folders",
+    path: null,
+  });
+  await respond(page, requests[1], {
+    path: "/home/user",
+    parent: "/home",
+    directories: [{ name: "ACAPs", path: "/home/user/ACAPs" }],
+  });
+  const browser = dialog.getByRole("region", { name: "Browse server folders" });
+  await browser.getByRole("button", { name: "Open ACAPs" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({ path: "/home/user/ACAPs" });
+  await respond(page, requests[2], {
+    path: "/home/user/ACAPs",
+    parent: "/home/user",
+    directories: [],
+  });
+  await expect(browser).toContainText("Current folder: /home/user/ACAPs");
+  await expect(browser).toContainText("No subfolders.");
+  await browser.getByRole("button", { name: "Parent folder" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({ path: "/home/user" });
+  await respond(page, requests[3], undefined, {
+    message: "Cannot browse this folder; check its path and permissions.",
+  });
+  await expect(browser.getByRole("alert")).toContainText("Cannot browse");
+  await browser.getByRole("button", { name: "Select this folder" }).click();
+  await expect(dialog.getByLabel("Server folder")).toHaveValue(
+    "/home/user/ACAPs",
+  );
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(5);
+  expect(requests[4]).toMatchObject({
+    type: "server/configure",
+    acap_folder: "/home/user/ACAPs",
+  });
+  await respond(page, requests[4], { selected: null, interfaces: [] });
+});
+
+test("cancelling folder browsing ignores an obsolete response", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await page.getByRole("button", { name: "Server settings" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], {
+    selected: null,
+    interfaces: [],
+    acap_folder: null,
+  });
+  const dialog = page.getByRole("dialog", { name: "Server settings" });
+  await dialog.getByRole("button", { name: "Browse folders" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await expect(
+    dialog.getByRole("button", { name: "Save settings" }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel browsing" }).click();
+  await dialog.getByRole("button", { name: "Browse folders" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], {
+    path: "/new",
+    parent: "/",
+    directories: [],
+  });
+  await respond(page, requests[1], {
+    path: "/old",
+    parent: "/",
+    directories: [],
+  });
+  const browser = dialog.getByRole("region", { name: "Browse server folders" });
+  await expect(browser).toContainText("Current folder: /new");
+  await browser.getByRole("button", { name: "Cancel browsing" }).click();
+  await expect(dialog.getByLabel("Server folder")).toHaveValue("");
+});
+
+test("catalog updates require confirmation and send the reviewed package", async ({
+  page,
+}) => {
+  const packageFile = {
+    filename: "example.eap",
+    digest: "a".repeat(64),
+    version: "2.0.0",
+    signature: "present_unverified",
+  };
+  const catalog = {
+    folder: "/srv/acaps",
+    packages: [packageFile],
+    errors: [],
+    error: "",
+  };
+  const updates = [
+    {
+      name: "example",
+      version: "1.0.0",
+      status: "Running",
+      candidates: [{ package: packageFile, warnings: [], downgrade: false }],
+    },
+  ];
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    catalog,
+    updates,
+  );
+  let write = null;
+  await page.route("http://axis.test/api/application-update", async (route) => {
+    write = route.request().postDataJSON();
+    await route.fulfill({ json: { result: null } });
+  });
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    {
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+      configuration_page: null,
+    },
+  ]);
+  await expect(
+    dialog.getByRole("button", { name: "Update to 2.0.0" }),
+  ).toHaveCount(0);
+  await dialog.getByRole("button", { name: "View versions (1)" }).click();
+  const versions = page.getByRole("dialog", {
+    name: "Application versions: Example",
+  });
+  await versions.getByRole("button", { name: "Update to 2.0.0" }).click();
+  await expect(
+    versions.locator("p").filter({ hasText: /remove\s+both\s+versions/ }),
+  ).toBeVisible();
+  expect(write).toBeNull();
+  await versions.getByRole("button", { name: "Confirm update" }).click();
+  await expect
+    .poll(() => write)
+    .toMatchObject({
+      device: "A",
+      filename: "example.eap",
+      digest: "a".repeat(64),
+      version: "1.0.0",
+      status: "Running",
+      confirmed: true,
+      warnings: [],
+    });
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], []);
+});
+
+test("shows five ranked versions and confirms warnings and downgrades", async ({
+  page,
+}) => {
+  const candidates = [
+    ...["9.0.0", "8.0.0", "7.0.0", "6.0.0", "5.0.0"].map((version) => ({
+      package: {
+        filename: `${version}.eap`,
+        digest: "a".repeat(64),
+        version,
+        signature: "present_unverified",
+      },
+      warnings: [],
+      downgrade: false,
+    })),
+    {
+      package: {
+        filename: "uncertain.eap",
+        digest: "b".repeat(64),
+        version: "4.0.0",
+        signature: "unknown",
+      },
+      warnings: ["Vendor differs from the installed application."],
+      downgrade: false,
+    },
+    {
+      package: {
+        filename: "old.eap",
+        digest: "c".repeat(64),
+        version: "1.0.0",
+        signature: "present_unverified",
+      },
+      warnings: ["This is a downgrade."],
+      downgrade: true,
+    },
+  ];
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    {
+      folder: "/srv/acaps",
+      packages: [candidates[0].package],
+      errors: [],
+      error: "",
+    },
+    [{ name: "example", version: "2.0.0", status: "Stopped", candidates }],
+  );
+  let write = null;
+  await page.route("http://axis.test/api/application-update", async (route) => {
+    write = route.request().postDataJSON();
+    await route.fulfill({ json: { result: null } });
+  });
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    {
+      name: "example",
+      nice_name: "Example",
+      status: "Stopped",
+      version: "2.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+      configuration_page: null,
+    },
+  ]);
+  await dialog.getByRole("button", { name: "View versions (7)" }).click();
+  const versions = page.getByRole("dialog", {
+    name: "Application versions: Example",
+  });
+  await expect(
+    versions.getByRole("button", { name: "Update to 9.0.0" }),
+  ).toBeVisible();
+  await expect(
+    versions.getByRole("button", { name: "Update to 5.0.0" }),
+  ).toBeVisible();
+  await expect(
+    versions.getByRole("button", { name: /^Update to / }),
+  ).toHaveCount(5);
+  await expect(
+    versions.getByRole("button", { name: "Update to 4.0.0" }),
+  ).toHaveCount(0);
+  await versions.getByRole("button", { name: "Show 2 more versions" }).click();
+  await expect(
+    versions.getByText(
+      "Warning: Vendor differs from the installed application.",
+    ),
+  ).toBeVisible();
+  await versions.getByRole("button", { name: "Update to 4.0.0" }).click();
+  await expect(
+    versions.getByText(
+      "Warning: Vendor differs from the installed application.",
+    ),
+  ).toBeVisible();
+  await expect(
+    versions.getByText("Confirming overrides these warnings.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  expect(write).toBeNull();
+  await versions.getByRole("button", { name: "Cancel update" }).click();
+  await versions.getByRole("button", { name: "Downgrade to 1.0.0" }).click();
+  await expect(
+    versions.getByText("Warning: This is a downgrade."),
+  ).toBeVisible();
+  await versions.getByRole("button", { name: "Confirm update" }).click();
+  await expect
+    .poll(() => write)
+    .toMatchObject({
+      filename: "old.eap",
+      status: "Stopped",
+      confirmed: true,
+      warnings: ["This is a downgrade."],
+    });
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], []);
+});
+
+test("installs a reviewed new application from the server catalog", async ({
+  page,
+}) => {
+  const candidates = Array.from({ length: 6 }, (_, index) => ({
+    package: {
+      filename: `new${index}.eap`,
+      name: `new${index}`,
+      friendly_name: `New ${index}`,
+      version: "1.0.0",
+      digest: "a".repeat(64),
+      signature: "present_unverified",
+      vendor: "Vendor",
+      os_ranges: [["12", "13"]],
+    },
+    warnings: [
+      "Vendor identity cannot be compared to an installed application.",
+      ...(index === 5 ? ["AXIS OS compatibility is unknown."] : []),
+    ],
+    downgrade: false,
+  }));
+  for (const version of ["2.0.0", "3.0.0", "4.0.0", "5.0.0", "6.0.0"]) {
+    candidates.push({
+      ...candidates[0],
+      package: {
+        ...candidates[0].package,
+        version,
+        filename: `new0-${version}.eap`,
+      },
+    });
+  }
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    {
+      folder: "/srv/acaps",
+      packages: candidates.map((item) => item.package),
+      errors: [],
+      error: "",
+    },
+    [],
+    candidates,
+  );
+  let write = null;
+  await page.route(
+    "http://axis.test/api/application-catalog-install",
+    async (route) => {
+      write = route.request().postDataJSON();
+      await route.fulfill({ json: { result: null } });
+    },
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], []);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  await expect(install.getByRole("group")).toHaveCount(5);
+  await expect(install.getByRole("button", { name: /^Select / })).toHaveCount(
+    0,
+  );
+  const first = install.getByRole("group", { name: "New 0 (new0)" });
+  await expect(
+    first.getByRole("button", { name: "View versions (6)" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  await first.getByRole("button", { name: "View versions (6)" }).click();
+  await expect(
+    first.getByRole("button", { name: "Hide versions (6)" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(first.getByRole("button", { name: /^Select / })).toHaveCount(5);
+  await first.getByRole("button", { name: "Show 1 more version" }).click();
+  await expect(first.getByRole("button", { name: /^Select / })).toHaveCount(6);
+  await first.getByRole("button", { name: "Select 1.0.0" }).click();
+  await expect(
+    first.getByRole("button", { name: "Selected 1.0.0" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  const drop = install.getByRole("region", {
+    name: "Application package drop area",
+  });
+  await expect(drop.getByRole("status")).toContainText("New 0");
+  await expect(drop.getByRole("status")).toContainText("new0.eap");
+  await install.locator('input[type="file"]').setInputFiles({
+    name: "local.eap",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("package"),
+  });
+  await expect(drop.getByRole("status")).toHaveText("Selected: local.eap");
+  await expect(
+    first.getByRole("button", { name: "Select 1.0.0" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await install
+    .getByRole("button", { name: "Show 1 more application" })
+    .click();
+  const last = install.getByRole("group", { name: "New 5 (new5)" });
+  await last.getByRole("button", { name: "View versions (1)" }).click();
+  await expect(
+    first.getByRole("button", { name: "View versions (6)" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  await last.getByRole("button", { name: "Select 1.0.0" }).click();
+  await expect(drop.getByRole("status")).toContainText("New 5");
+  await expect(drop.getByRole("status")).toContainText("new5.eap");
+  await expect(
+    install.getByText("Warning: AXIS OS compatibility is unknown."),
+  ).toHaveCount(2);
+  expect(write).toBeNull();
+  await install.getByRole("button", { name: "Confirm installation" }).click();
+  await expect
+    .poll(() => write)
+    .toMatchObject({
+      device: "A",
+      filename: "new5.eap",
+      confirmed: true,
+      warnings: [
+        "Vendor identity cannot be compared to an installed application.",
+        "AXIS OS compatibility is unknown.",
+      ],
+    });
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], []);
 });
 
 test("dialog controls respond to hover in both themes", async ({ page }) => {

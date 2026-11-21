@@ -26,6 +26,8 @@ from axis.models.api_discovery import Api, ApiStatus
 from axis.web import network, server
 from axis.web.network import NetworkInterface
 
+from tests.application.test_acap_catalog import create_package
+
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
     from typing import Any
@@ -794,6 +796,248 @@ async def test_web_network_settings_control_discovery(
     assert registry.web_discovery_interfaces() is None
     await command(socket, type="devices/discover")
     discover.assert_awaited_with()
+    await socket.close()
+
+
+async def test_acap_folder_settings_and_catalog(
+    client: TestClient, registry: DeviceRegistry, tmp_path: Path
+) -> None:
+    """Persist and scan a server-side folder without changing discovery settings."""
+    folder = tmp_path / "acaps"
+    folder.mkdir()
+    create_package(folder / "package.eap", signed=True)
+    socket = await connect(client)
+    response = await command(
+        socket, type="server/configure", interfaces=None, acap_folder=str(folder)
+    )
+    assert response["result"]["acap_folder"] == str(folder)
+    assert DeviceRegistry(registry.path).web_acap_folder() == str(folder)
+    response = await command(socket, type="acap/scan")
+    assert response["result"]["packages"][0]["signature"] == "present_unverified"
+    assert response["result"]["packages"][0]["name"] == "example"
+    response = await command(
+        socket, type="server/configure", interfaces=None, acap_folder="relative"
+    )
+    assert response["error"]["code"] == "invalid_request"
+    assert registry.web_acap_folder() == str(folder)
+    response = await command(
+        socket,
+        type="server/configure",
+        interfaces=None,
+        acap_folder=str(tmp_path / "missing"),
+    )
+    assert response["error"]["message"] == (
+        "ACAP folder does not exist or is not a directory."
+    )
+    assert registry.web_acap_folder() == str(folder)
+    response = await command(
+        socket, type="server/configure", interfaces=None, acap_folder=None
+    )
+    assert response["result"]["acap_folder"] is None
+    await socket.close()
+
+
+async def test_browse_server_folders(client: TestClient, tmp_path: Path) -> None:
+    """Browse directories without including files or changing saved settings."""
+    (tmp_path / "Zebra").mkdir()
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "file.eap").write_bytes(b"package")
+    (tmp_path / "link").symlink_to(tmp_path / "alpha", target_is_directory=True)
+    resolved = await asyncio.to_thread(tmp_path.resolve)
+    socket = await connect(client)
+    result = await command(socket, type="server/browse-folders", path=str(tmp_path))
+    assert result["result"] == {
+        "path": str(resolved),
+        "parent": str(resolved.parent),
+        "directories": [
+            {"name": name, "path": str(resolved / name)}
+            for name in ("alpha", "link", "Zebra")
+        ],
+    }
+    result = await command(
+        socket, type="server/browse-folders", path=str(tmp_path / "alpha")
+    )
+    assert result["result"]["parent"] == str(resolved)
+    assert result["result"]["directories"] == []
+    result = await command(socket, type="server/browse-folders", path="relative")
+    assert result["error"]["code"] == "invalid_request"
+    result = await command(
+        socket, type="server/browse-folders", path=str(tmp_path / "missing")
+    )
+    assert result["error"]["message"] == (
+        "Cannot browse this folder; check its path and permissions."
+    )
+    result = await command(socket, type="server/browse-folders", path=None)
+    assert result["result"]["path"] == str(Path.home().resolve())
+    await socket.close()
+
+
+def test_folder_browser_reports_limits_and_permission_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Report oversized and inaccessible directories instead of hiding entries."""
+    (tmp_path / "one").mkdir()
+    (tmp_path / "two").mkdir()
+    monkeypatch.setattr(server, "MAX_FOLDER_ENTRIES", 1)
+    with pytest.raises(OperationError, match="too many entries"):
+        server._browse_folders(str(tmp_path))
+    monkeypatch.setattr(server.os, "scandir", MagicMock(side_effect=PermissionError))
+    with pytest.raises(OperationError, match="check its path and permissions"):
+        server._browse_folders(str(tmp_path))
+
+
+async def test_acap_updates_require_auth_confirmation_and_unchanged_file(
+    client: TestClient,
+    registry: DeviceRegistry,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only hand the reviewed package snapshot to the verified update operation."""
+    folder = tmp_path / "acaps"
+    folder.mkdir()
+    path = folder / "package.eap"
+    create_package(path, signed=True)
+    registry.update_web_settings(None, str(folder))
+    socket = await connect(client)
+    result = await command(socket, type="acap/scan")
+    digest = result["result"]["packages"][0]["digest"]
+    check = AsyncMock(return_value=[])
+    monkeypatch.setattr(server.operations, "application_updates", check)
+    assert await command(socket, type="device/acap-updates", device="SERIAL") == {
+        "id": 1,
+        "result": [],
+    }
+    assert check.await_args.args[1][0].digest == digest
+    update = AsyncMock()
+    monkeypatch.setattr(server.operations, "update_application", update)
+    headers = {**HEADERS, "X-Axis-Token": TOKEN}
+    body = {
+        "device": "SERIAL",
+        "filename": path.name,
+        "digest": digest,
+        "version": "1.0.0",
+        "status": "Running",
+        "vendor": "Vendor",
+        "confirmed": True,
+        "warnings": ["Vendor differs from the installed application."],
+    }
+    response = await client.post("/api/application-update", json=body, headers=HEADERS)
+    assert response.status == 403
+    response = await client.post(
+        "/api/application-update", json={**body, "confirmed": False}, headers=headers
+    )
+    assert response.status == 400
+    response = await client.post(
+        "/api/application-update", json={**body, "warnings": "ignored"}, headers=headers
+    )
+    assert response.status == 400
+    response = await client.post(
+        "/api/application-update",
+        json={**body, "filename": "../package.eap"},
+        headers=headers,
+    )
+    assert response.status == 400
+    update.assert_not_awaited()
+    response = await client.post("/api/application-update", json=body, headers=headers)
+    assert response.status == 200
+    assert update.await_args.args[0].serial == "SERIAL"
+    assert update.await_args.args[2].digest == digest
+    assert update.await_args.kwargs["reviewed_warnings"] == (
+        "Vendor differs from the installed application.",
+    )
+    assert update.await_args.kwargs["reviewed_vendor"] == "Vendor"
+    response = await client.post(
+        "/api/application-update", json={**body, "version": ""}, headers=headers
+    )
+    assert response.status == 200
+    assert update.await_args.args[3] == ""
+    update.side_effect = OperationError(
+        "Installation outcome is unknown. Check applications before trying again.",
+        outcome_unknown=True,
+    )
+    response = await client.post("/api/application-update", json=body, headers=headers)
+    assert response.status == 400
+    assert (await response.json())["error"]["outcome_unknown"] is True
+    assert update.await_count == 3
+    create_package(path)
+    response = await client.post("/api/application-update", json=body, headers=headers)
+    assert response.status == 400
+    assert "changed" in (await response.json())["error"]["message"]
+    assert update.await_count == 3
+    await socket.close()
+
+
+async def test_acap_scan_reports_folder_failure(
+    client: TestClient, registry: DeviceRegistry, tmp_path: Path
+) -> None:
+    """Expose a disappeared folder rather than reporting an empty catalog."""
+    registry.update_web_settings(None, str(tmp_path / "missing"))
+    socket = await connect(client)
+    result = await command(socket, type="acap/scan")
+    assert "Cannot read ACAP folder" in result["result"]["error"]
+    result = await command(socket, type="device/acap-updates", device="SERIAL")
+    assert result["error"]["code"] == "operation"
+    await socket.close()
+
+
+async def test_catalog_install_uses_reviewed_snapshot_and_confirmation(
+    client: TestClient,
+    registry: DeviceRegistry,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Require authentication, confirmation, and an unchanged package for catalog installs."""
+    folder = tmp_path / "acaps"
+    folder.mkdir()
+    path = folder / "package.eap"
+    create_package(path, signed=True)
+    registry.update_web_settings(None, str(folder))
+    socket = await connect(client)
+    digest = (await command(socket, type="acap/scan"))["result"]["packages"][0][
+        "digest"
+    ]
+    check = AsyncMock(return_value=[])
+    monkeypatch.setattr(server.operations, "application_install_candidates", check)
+    assert (
+        await command(socket, type="device/acap-install-candidates", device="SERIAL")
+    )["result"] == []
+    assert check.await_args.args[1][0].digest == digest
+    install = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_catalog_application", install)
+    body = {
+        "device": "SERIAL",
+        "filename": path.name,
+        "digest": digest,
+        "confirmed": True,
+        "warnings": ["AXIS OS compatibility is unknown."],
+    }
+    headers = {**HEADERS, "X-Axis-Token": TOKEN}
+    response = await client.post(
+        "/api/application-catalog-install", json=body, headers=HEADERS
+    )
+    assert response.status == 403
+    response = await client.post(
+        "/api/application-catalog-install",
+        json={**body, "confirmed": False},
+        headers=headers,
+    )
+    assert response.status == 400
+    install.assert_not_awaited()
+    response = await client.post(
+        "/api/application-catalog-install", json=body, headers=headers
+    )
+    assert response.status == 200
+    assert install.await_args.args[2].digest == digest
+    assert install.await_args.kwargs["reviewed_warnings"] == (
+        "AXIS OS compatibility is unknown.",
+    )
+    create_package(path)
+    response = await client.post(
+        "/api/application-catalog-install", json=body, headers=headers
+    )
+    assert response.status == 400
+    assert "changed" in (await response.json())["error"]["message"]
+    install.assert_awaited_once()
     await socket.close()
 
 

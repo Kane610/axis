@@ -137,7 +137,11 @@ may use a different format. License contents are not sent over the WebSocket.
 If a license change has an unknown outcome, check the app before retrying.
 
 To install an application, open **Install application**, choose or drag and drop
-an `.eap` package (up to 1024 MB / 1 GiB), and confirm. The device's reported
+an `.eap` package (up to 1024 MB / 1 GiB), or select an applicable package
+from the configured server catalog, and confirm. Expand an application's
+versions to choose a catalog package; the selection appears in the file
+selection area. Catalog installation lists only apps not already installed, and
+rechecks that before upload. The device's reported
 hardware architecture and supported SDKs are shown to help select a compatible package; other
 application requirements still apply.
 The **Allow unsigned applications (AllowUnsigned)** toggle reflects the actual
@@ -154,6 +158,36 @@ Signed-package verification may temporarily require approximately twice the
 package size in available device RAM.
 Upload error 2 means the package signature is missing or invalid; obtain a
 correctly signed package from the application vendor.
+
+In **Server settings**, browse for a folder or enter its absolute path on the
+computer running the web server to catalog local `.eap` files. Browsing shows
+directories accessible to the server, not folders on a remote browser's computer.
+Select the folder and save the settings. The server scans the
+folder at startup, every five minutes, and on request; it does not scan
+subdirectories. The settings view shows available package metadata and scan
+errors. Inspection is limited to 1 GiB per file and 256 MiB of expanded archive
+data; packages exceeding these limits are reported rather than installed.
+
+The Applications view checks the catalog for versions of installed apps.
+Use **View versions** on an app to review its candidates in a dialog.
+Packages with a different application name or known architecture mismatch are
+hidden. Candidates are ordered by confidence, with downgrades last; the first
+five are shown initially. Unknown or incompatible vendor, architecture, AXIS
+OS, version, or unsigned-app policy information is highlighted as a warning.
+You can explicitly confirm a package despite warnings or choose a downgrade,
+but the device may reject it. Version comparisons use semantic versions; an
+unrecognized version may be a downgrade.
+An observed appended signature is reported as present but **not verified**;
+other signature formats may be unknown. SDK metadata is displayed but not
+compared automatically. The device makes the final signature, vendor ID, and
+compatibility checks. Updates are never installed automatically:
+review and confirm each update. The server rechecks the saved device, installed
+version, warnings and package contents before sending a private snapshot. New
+catalog installations also recheck that the application is not already installed
+and that its warnings remain unchanged. If
+the warnings change, refresh and review them again. As with other
+upgrades, a failure can remove both versions; check the device before retrying
+an unknown outcome.
 
 The line under **Axis devices** indicates the web app's connection to the local
 server. It is green when connected, pulses orange while connecting or retrying,
