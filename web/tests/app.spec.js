@@ -2249,13 +2249,17 @@ test("keeps device details scrollable without extending the list page", async ({
   const dialog = page.getByRole("dialog", { name: "Camera A" });
   const devicesBox = page.locator("axis-device-list");
   const expectAligned = async () => {
-    const dialogTop = await dialog.evaluate(
-      (element) => element.getBoundingClientRect().top,
-    );
-    const devicesTop = await devicesBox.evaluate(
-      (element) => element.getBoundingClientRect().top + window.scrollY,
-    );
-    expect(dialogTop).toBeCloseTo(devicesTop);
+    await expect
+      .poll(async () => {
+        const dialogTop = await dialog.evaluate(
+          (element) => element.getBoundingClientRect().top,
+        );
+        const devicesTop = await devicesBox.evaluate(
+          (element) => element.getBoundingClientRect().top + window.scrollY,
+        );
+        return dialogTop - devicesTop;
+      })
+      .toBeCloseTo(0);
   };
   await expectAligned();
   await respond(page, requests[0], health("Camera"));
