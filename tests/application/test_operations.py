@@ -4,13 +4,14 @@ import asyncio
 from base64 import b64encode
 from dataclasses import FrozenInstanceError, asdict, dataclass, replace
 from datetime import UTC, datetime
+from io import BytesIO
 import json
 from ssl import SSLError
 from typing import TYPE_CHECKING, get_type_hints
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import quote, quote_plus
 
-from aiohttp import ClientConnectionError, ClientPayloadError
+from aiohttp import ClientConnectionError, ClientPayloadError, web
 import pytest
 
 from axis.application import operations
@@ -25,7 +26,12 @@ from axis.errors import (
     ResponseError,
     Unauthorized,
 )
-from axis.interfaces.vapix import InterfaceState
+from axis.interfaces.vapix import (
+    InterfaceInspectionError,
+    InterfaceState,
+    UploadDigestError,
+)
+from axis.models.applications.application import ApplicationControlError
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 from axis.models.event import Event, EventOperation, EventTopic
 from axis.models.pwdgrp_cgi import SecondaryGroup, User
@@ -95,6 +101,238 @@ def device(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 
     monkeypatch.setattr(operations, "AxisDevice", construct)
     return instance
+
+
+@pytest.mark.parametrize(
+    ("discovered", "supported", "firmware"),
+    [(True, True, True), (True, False, False), (False, True, False)],
+)
+async def test_restart_selects_one_method(
+    record: DeviceRecord,
+    device: MagicMock,
+    discovered: bool,
+    supported: bool,
+    firmware: bool,
+) -> None:
+    """Verify identity before choosing exactly one advertised or legacy command."""
+    device.vapix.serial_number = record.serial
+    device.vapix.api_discovery.update.return_value = discovered
+    device.vapix.firmware_management.supported = supported
+    device.vapix.firmware_management.reboot = AsyncMock()
+    device.vapix.restart_cgi.restart = AsyncMock()
+    await operations.restart_device(record, confirmed=True)
+    device.vapix.basic_device_info.update.assert_awaited_once()
+    assert device.vapix.firmware_management.reboot.await_count == int(firmware)
+    assert device.vapix.restart_cgi.restart.await_count == int(not firmware)
+
+
+async def test_restart_requires_confirmation_and_matching_identity(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """No device command is sent without confirmation and matching serial."""
+    device.vapix.firmware_management.reboot = AsyncMock()
+    device.vapix.restart_cgi.restart = AsyncMock()
+    with pytest.raises(OperationError, match="confirmation"):
+        await operations.restart_device(record)
+    device.vapix.basic_device_info.update.assert_not_awaited()
+    with pytest.raises(OperationError, match="identity differs"):
+        await operations.restart_device(record, confirmed=True)
+    device.vapix.api_discovery.update.assert_not_awaited()
+    device.vapix.firmware_management.reboot.assert_not_awaited()
+    device.vapix.restart_cgi.restart.assert_not_awaited()
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_read_architecture_uses_device_identity(
+    record: DeviceRecord, device: MagicMock, legacy: bool
+) -> None:
+    """Read the architecture from modern or legacy identity data."""
+    device.vapix.serial_number = record.serial
+    device.vapix.basic_device_info.update.return_value = not legacy
+    device.vapix.basic_device_info.initialized = not legacy
+    device.vapix.basic_device_info.__getitem__.return_value = MagicMock(
+        architecture="armv7hf"
+    )
+    device.vapix.params.property_handler.__getitem__.return_value = MagicMock(
+        system_architecture="crisv32"
+    )
+    assert await operations.read_architecture(record) == (
+        "crisv32" if legacy else "armv7hf"
+    )
+
+
+async def test_read_architecture_reports_missing_or_wrong_device(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Do not show architecture for an unverified device or a missing value."""
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info.__getitem__.return_value = MagicMock(
+        architecture="  "
+    )
+    with pytest.raises(OperationError, match="identity differs"):
+        await operations.read_architecture(record)
+    device.vapix.serial_number = record.serial
+    with pytest.raises(OperationError, match="did not report"):
+        await operations.read_architecture(record)
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_read_architecture_through_real_handlers(
+    record: DeviceRecord, aiohttp_mock_server, legacy: bool
+) -> None:
+    """Read the real VAPIX models, including legacy param.cgi fallback."""
+    properties = dict.fromkeys(
+        (
+            "Architecture",
+            "Brand",
+            "BuildDate",
+            "Version",
+            "HardwareID",
+            "ProdFullName",
+            "ProdNbr",
+            "ProdShortName",
+            "ProdType",
+            "ProdVariant",
+            "Soc",
+            "SocSerialNumber",
+            "WebURL",
+        ),
+        "",
+    )
+    properties["SerialNumber"] = record.serial
+    properties["Architecture"] = "armv7hf"
+
+    async def basic(request: web.Request) -> web.Response:
+        if legacy:
+            return web.Response(status=404)
+        return web.json_response(
+            {"apiVersion": "1.1", "context": "", "data": {"propertyList": properties}}
+        )
+
+    async def params(request: web.Request) -> web.Response:
+        if (await request.post()).get("group") == "root.Brand":
+            return web.Response(status=404)
+        return web.Response(
+            text=(
+                "root.Properties.API.HTTP.Version=3\n"
+                "root.Properties.Firmware.BuildDate=date\n"
+                "root.Properties.Firmware.BuildNumber=1\n"
+                "root.Properties.Firmware.Version=1\n"
+                "root.Properties.System.SerialNumber=SERIAL\n"
+                "root.Properties.System.Architecture=crisv32\n"
+            )
+        )
+
+    mock_server, _ = await aiohttp_mock_server(
+        {"/axis-cgi/basicdeviceinfo.cgi": basic, "/axis-cgi/param.cgi": params}
+    )
+    record.config.host = "127.0.0.1"
+    record.config.port = mock_server.port
+    record.config.auth_scheme = "basic"
+    assert await operations.read_architecture(record) == (
+        "crisv32" if legacy else "armv7hf"
+    )
+
+
+@pytest.mark.parametrize(
+    ("error", "kind", "unknown"),
+    [
+        (RequestError("secret"), ErrorKind.CONNECTION, True),
+        (TimeoutError(), ErrorKind.TIMEOUT, True),
+        (ResponseError("secret"), ErrorKind.RESPONSE, True),
+        (Forbidden("secret"), ErrorKind.PERMISSION, False),
+        (Unauthorized("secret"), ErrorKind.AUTHENTICATION, False),
+        (PathNotFound("secret"), ErrorKind.UNSUPPORTED, False),
+    ],
+)
+async def test_restart_failure_never_falls_back(
+    record: DeviceRecord,
+    device: MagicMock,
+    error: Exception,
+    kind: ErrorKind,
+    unknown: bool,
+) -> None:
+    """A dispatched reboot is never repeated; failures do not expose secrets."""
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_management.supported = True
+    device.vapix.firmware_management.reboot = AsyncMock(side_effect=error)
+    device.vapix.restart_cgi.restart = AsyncMock()
+    with pytest.raises(OperationError) as raised:
+        await operations.restart_device(record, confirmed=True)
+    assert raised.value.kind == kind
+    assert raised.value.outcome_unknown is unknown
+    assert "secret" not in str(raised.value)
+    if unknown:
+        assert "Restart outcome is unknown" in str(raised.value)
+    elif kind == ErrorKind.PERMISSION:
+        assert "Administrator permission" in str(raised.value)
+    elif kind == ErrorKind.AUTHENTICATION:
+        assert "authentication failed" in str(raised.value)
+    device.vapix.firmware_management.reboot.assert_awaited_once()
+    device.vapix.restart_cgi.restart.assert_not_awaited()
+
+
+@pytest.mark.parametrize("advertised", [True, False])
+async def test_restart_through_real_handlers(
+    record: DeviceRecord,
+    axis_device: AxisDevice,
+    http_route_mock: HttpRouteMock,
+    advertised: bool,
+) -> None:
+    """Mock HTTP endpoints and exercise real identity, discovery, and dispatch."""
+    record.config.host = axis_device.config.host
+    record.config.port = axis_device.config.port
+    record.config.auth_scheme = "basic"
+    properties = dict.fromkeys(
+        (
+            "Architecture",
+            "Brand",
+            "BuildDate",
+            "Version",
+            "HardwareID",
+            "ProdFullName",
+            "ProdNbr",
+            "ProdShortName",
+            "ProdType",
+            "ProdVariant",
+            "Soc",
+            "SocSerialNumber",
+            "WebURL",
+        ),
+        "",
+    )
+    properties["SerialNumber"] = record.serial
+    identity = http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi")
+    assert isinstance(identity, Route)
+    identity.respond(
+        json={"apiVersion": "1.0", "context": "", "data": {"propertyList": properties}}
+    )
+    discovery = http_route_mock.post("/axis-cgi/apidiscovery.cgi")
+    assert isinstance(discovery, Route)
+    discovery.respond(
+        json={
+            "apiVersion": "1.0",
+            "context": "",
+            "method": "getApiList",
+            "data": {
+                "apiList": (
+                    [{"id": "fwmgr", "name": "Firmware Management", "version": "1.0"}]
+                    if advertised
+                    else []
+                )
+            },
+        }
+    )
+    firmware = http_route_mock.post("/axis-cgi/firmwaremanagement.cgi")
+    legacy = http_route_mock.get("/axis-cgi/restart.cgi")
+    assert isinstance(firmware, Route)
+    assert isinstance(legacy, Route)
+    firmware.respond(json={"data": {}})
+    legacy.respond()
+    await operations.restart_device(record, confirmed=True)
+    assert identity.call_count == discovery.call_count == 1
+    assert firmware.call_count == int(advertised)
+    assert legacy.call_count == int(not advertised)
 
 
 async def test_identify_preserves_configuration_and_owns_session(
@@ -335,6 +573,375 @@ async def test_list_interfaces(record: DeviceRecord, device: MagicMock) -> None:
     device.vapix.inspect_interfaces.assert_awaited_once_with(
         refresh_discovery=True, probe=True
     )
+
+
+async def test_list_applications_uses_direct_read(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Application listing does not initialize unrelated handlers."""
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={"example": {"name": "example", "status": "Stopped"}}
+    )
+    assert await operations.list_applications(record) == [
+        {"name": "example", "status": "Stopped"}
+    ]
+    device.vapix.initialize.assert_not_awaited()
+
+
+@pytest.mark.parametrize("action", ["start", "stop", "restart", "remove"])
+async def test_application_action_checks_identity_and_reviewed_state(
+    record: DeviceRecord, device: MagicMock, action: str
+) -> None:
+    """Send exactly one action only after checking the selected device and app."""
+    device.vapix.serial_number = record.serial
+    app = MagicMock(version="1.0", status="Stopped")
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={"example": app}
+    )
+    device.vapix.applications.control_application = AsyncMock()
+    await operations.control_application(
+        record, action, "example", "1.0", "Stopped", confirmed=True
+    )
+    device.vapix.basic_device_info.update.assert_awaited_once()
+    device.vapix.applications.control_application.assert_awaited_once_with(
+        action, "example"
+    )
+
+
+@pytest.mark.parametrize("failure", ["confirmation", "identity", "missing", "changed"])
+async def test_application_action_rejects_unsafe_preflight(
+    record: DeviceRecord, device: MagicMock, failure: str
+) -> None:
+    """Unconfirmed, wrong-device, or stale application actions send nothing."""
+    device.vapix.serial_number = "different" if failure == "identity" else record.serial
+    app = MagicMock(version="new" if failure == "changed" else "1.0", status="Stopped")
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={} if failure == "missing" else {"example": app}
+    )
+    device.vapix.applications.control_application = AsyncMock()
+    with pytest.raises(OperationError):
+        await operations.control_application(
+            record,
+            "start",
+            "example",
+            "1.0",
+            "Stopped",
+            confirmed=failure != "confirmation",
+        )
+    device.vapix.applications.control_application.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("error", "unknown"),
+    [
+        (ApplicationControlError(4), False),
+        (ApplicationControlError(8), True),
+        (ApplicationControlError(15), True),
+        (RequestError("secret"), True),
+        (Forbidden("secret"), False),
+        (Unauthorized("secret"), False),
+        (PathNotFound("secret"), False),
+    ],
+)
+async def test_application_action_never_retries_uncertain_write(
+    record: DeviceRecord, device: MagicMock, error: Exception, unknown: bool
+) -> None:
+    """Device errors and transport failures are safe and never replayed."""
+    device.vapix.serial_number = record.serial
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={"example": MagicMock(version="1.0", status="Running")}
+    )
+    device.vapix.applications.control_application = AsyncMock(side_effect=error)
+    with pytest.raises(OperationError) as raised:
+        await operations.control_application(
+            record, "remove", "example", "1.0", "Running", confirmed=True
+        )
+    assert raised.value.outcome_unknown is unknown
+    assert "secret" not in str(raised.value)
+    device.vapix.applications.control_application.assert_awaited_once()
+
+
+async def test_application_action_through_real_handlers(
+    record: DeviceRecord, axis_device: AxisDevice, http_route_mock: HttpRouteMock
+) -> None:
+    """Verify identity, list and dispatch the documented POST over mocked HTTP."""
+    record.config.host = axis_device.config.host
+    record.config.port = axis_device.config.port
+    record.config.auth_scheme = "basic"
+    properties = dict.fromkeys(
+        (
+            "Architecture",
+            "Brand",
+            "BuildDate",
+            "Version",
+            "HardwareID",
+            "ProdFullName",
+            "ProdNbr",
+            "ProdShortName",
+            "ProdType",
+            "ProdVariant",
+            "Soc",
+            "SocSerialNumber",
+            "WebURL",
+        ),
+        "",
+    )
+    properties["SerialNumber"] = record.serial
+    identity = http_route_mock.post("/axis-cgi/basicdeviceinfo.cgi")
+    assert isinstance(identity, Route)
+    identity.respond(
+        json={"apiVersion": "1.0", "context": "", "data": {"propertyList": properties}}
+    )
+    listing = http_route_mock.post("/axis-cgi/applications/list.cgi")
+    assert isinstance(listing, Route)
+    listing.respond(
+        text='<reply result="ok"><application Name="example" NiceName="Example" '
+        'Vendor="Axis" Version="1.0" License="None" Status="Stopped" /></reply>'
+    )
+    control = http_route_mock.post("/axis-cgi/applications/control.cgi")
+    assert isinstance(control, Route)
+    control.respond(text="OK")
+    await operations.control_application(
+        record, "start", "example", "1.0", "Stopped", confirmed=True
+    )
+    assert identity.call_count == listing.call_count == control.call_count == 1
+    assert control.calls.last.request.url.params == {
+        "action": "start",
+        "package": "example",
+    }
+
+
+@pytest.mark.parametrize("failure", ["confirmation", "identity", "stale"])
+async def test_application_policy_preflight_blocks_writes(record, device, failure):
+    """Unconfirmed, wrong-device, or stale policy changes never dispatch."""
+    device.vapix.serial_number = "other" if failure == "identity" else record.serial
+    device.vapix.applications.allow_unsigned = AsyncMock(
+        return_value=failure == "stale"
+    )
+    write = device.vapix.applications.set_allow_unsigned = AsyncMock()
+    with pytest.raises(OperationError):
+        await operations.set_application_policy(
+            record, False, True, confirmed=failure != "confirmation"
+        )
+    write.assert_not_awaited()
+
+
+async def test_read_application_information(record, device):
+    """Expose SDKs and the current policy without leaking credentials."""
+    device.vapix.applications.supported_sdks = AsyncMock(return_value=["acap4-native"])
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    assert await operations.application_sdks(record) == ["acap4-native"]
+    assert await operations.application_policy(record) is False
+
+
+@pytest.mark.parametrize("result", [True, False, TimeoutError(), Forbidden("private")])
+async def test_application_policy_write_once(record, device, result):
+    """Send one policy change and report uncertain results without replay."""
+    device.vapix.serial_number = record.serial
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    write = device.vapix.applications.set_allow_unsigned = AsyncMock(
+        side_effect=result if isinstance(result, Exception) else None,
+        return_value=result,
+    )
+    if result is True:
+        await operations.set_application_policy(record, False, True, confirmed=True)
+    else:
+        with pytest.raises(OperationError) as raised:
+            await operations.set_application_policy(record, False, True, confirmed=True)
+        assert raised.value.outcome_unknown is not isinstance(result, Forbidden)
+        assert "private" not in str(raised.value)
+    write.assert_awaited_once_with(True)
+
+
+@pytest.mark.parametrize(
+    "failure", ["confirmation", "identity", "version", "status", "license", "missing"]
+)
+async def test_license_preflight_blocks_writes(record, device, failure):
+    """Recheck identity and all reviewed application state before a license change."""
+    device.vapix.serial_number = "other" if failure == "identity" else record.serial
+    app = MagicMock(
+        version="2" if failure == "version" else "1",
+        status="Running" if failure == "status" else "Stopped",
+        license_status="Valid" if failure == "license" else "Missing",
+    )
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={} if failure == "missing" else {"app": app}
+    )
+    remove = device.vapix.applications.remove_license = AsyncMock()
+    with pytest.raises(OperationError):
+        await operations.manage_application_license(
+            record,
+            "app",
+            "1",
+            "Stopped",
+            "Missing",
+            confirmed=failure != "confirmation",
+        )
+    remove.assert_not_awaited()
+
+
+@pytest.mark.parametrize("upload", [False, True])
+async def test_license_write_once(record, device, upload):
+    """Dispatch the selected license operation exactly once."""
+    device.vapix.serial_number = record.serial
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={
+            "app": MagicMock(version="1", status="Stopped", license_status="Missing")
+        }
+    )
+    device.vapix.applications.upload_license = AsyncMock()
+    device.vapix.applications.remove_license = AsyncMock()
+    with BytesIO(b"private license") as file:
+        await operations.manage_application_license(
+            record,
+            "app",
+            "1",
+            "Stopped",
+            "Missing",
+            file if upload else None,
+            confirmed=True,
+        )
+        if upload:
+            device.vapix.applications.upload_license.assert_awaited_once_with(
+                "app", file
+            )
+        else:
+            device.vapix.applications.remove_license.assert_awaited_once_with("app")
+
+
+@pytest.mark.parametrize(
+    ("error", "unknown"),
+    [
+        (ApplicationControlError(21), False),
+        (ApplicationControlError(15), True),
+        (TimeoutError(), True),
+        (Forbidden("private"), False),
+    ],
+)
+async def test_license_write_error_is_safe_and_not_replayed(
+    record, device, error, unknown
+):
+    """Preserve uncertainty and keep device errors private."""
+    device.vapix.serial_number = record.serial
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={
+            "app": MagicMock(version="1", status="Stopped", license_status="Missing")
+        }
+    )
+    write = device.vapix.applications.remove_license = AsyncMock(side_effect=error)
+    with pytest.raises(OperationError) as raised:
+        await operations.manage_application_license(
+            record, "app", "1", "Stopped", "Missing", confirmed=True
+        )
+    assert raised.value.outcome_unknown is unknown
+    assert "private" not in str(raised.value)
+    write.assert_awaited_once()
+
+
+async def test_install_requires_confirmation_and_matching_device(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Do not upload to an unconfirmed or different device."""
+    device.vapix.applications.upload_application = AsyncMock()
+    with BytesIO(b"package") as package:
+        with pytest.raises(OperationError, match="confirmation"):
+            await operations.install_application(record, package)
+        with pytest.raises(OperationError, match="identity differs"):
+            await operations.install_application(record, package, confirmed=True)
+        device.vapix.applications.upload_application.assert_not_awaited()
+        device.vapix.serial_number = record.serial
+        await operations.install_application(record, package, confirmed=True)
+        device.vapix.applications.upload_application.assert_awaited_once_with(package)
+
+
+@pytest.mark.parametrize(
+    ("error", "unknown"),
+    [
+        (ApplicationControlError(4), True),
+        (ApplicationControlError(15), True),
+        (UploadDigestError("secret"), True),
+        (TimeoutError(), True),
+        (ResponseError("secret"), True),
+        (Forbidden("secret"), False),
+        (Unauthorized("secret"), False),
+        (PathNotFound("secret"), False),
+    ],
+)
+async def test_install_does_not_retry_write_failures(
+    record: DeviceRecord, device: MagicMock, error: Exception, unknown: bool
+) -> None:
+    """Report uncertainty after dispatch without leaking device errors."""
+    device.vapix.serial_number = record.serial
+    upload = device.vapix.applications.upload_application = AsyncMock(side_effect=error)
+    with BytesIO(b"package") as package, pytest.raises(OperationError) as raised:
+        await operations.install_application(record, package, confirmed=True)
+    assert raised.value.outcome_unknown is unknown
+    assert "secret" not in str(raised.value)
+    upload.assert_awaited_once()
+
+
+async def test_install_reports_package_signature_verification_failure(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Explain upload error 2 without retrying a potentially destructive upgrade."""
+    device.vapix.serial_number = record.serial
+    upload = device.vapix.applications.upload_application = AsyncMock(
+        side_effect=ApplicationControlError(2)
+    )
+    with BytesIO(b"package") as package, pytest.raises(OperationError) as raised:
+        await operations.install_application(record, package, confirmed=True)
+    assert "signature is missing or invalid" in str(raised.value)
+    assert "check applications before trying again" in str(raised.value)
+    assert raised.value.outcome_unknown
+    upload.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("code", "detail"),
+    [
+        (1, "invalid"),
+        (3, "disk"),
+        (5, "incompatible"),
+        (10, "system log"),
+        (12, "in progress"),
+        (13, "user or group"),
+        (14, "capitalization"),
+        (15, "outcome is unknown"),
+        (27, "vendor"),
+        (29, "manifest"),
+        (51, "serial number"),
+        (52, "vendor changed"),
+        (53, "vendor"),
+        (54, "manifest"),
+        (99, "error 99"),
+    ],
+)
+async def test_install_explains_device_errors(record, device, code, detail):
+    """Provide documented diagnostics while warning against blind retries."""
+    device.vapix.serial_number = record.serial
+    upload = device.vapix.applications.upload_application = AsyncMock(
+        side_effect=ApplicationControlError(code)
+    )
+    with BytesIO(b"package") as package, pytest.raises(OperationError) as raised:
+        await operations.install_application(record, package, confirmed=True)
+    assert detail in str(raised.value)
+    assert "Check applications before trying again" in str(raised.value)
+    assert raised.value.outcome_unknown
+    upload.assert_awaited_once()
+
+
+async def test_interface_failure_identifies_probe_without_leaking_response(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Report the failed handler and error type, but not device data."""
+    device.vapix.inspect_interfaces.side_effect = InterfaceInspectionError(
+        "light_control", KeyError("private-device-data")
+    )
+    with pytest.raises(OperationError) as raised:
+        await operations.list_interfaces(record)
+    assert str(raised.value) == "Could not inspect interface light_control (KeyError)."
+    assert raised.value.kind == ErrorKind.OPERATION
+    assert "private-device-data" not in str(raised.value)
 
 
 async def test_list_events(record: DeviceRecord, device: MagicMock) -> None:

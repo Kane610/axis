@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from io import BytesIO
 import json
 from pathlib import Path
 import socket
@@ -121,6 +122,406 @@ async def command(socket: ClientWebSocketResponse, **message: object) -> dict[st
     return await socket.receive_json()
 
 
+async def test_restart_requires_confirmation_and_reports_unknown(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The authenticated command requires confirmation and preserves uncertainty."""
+    restart = AsyncMock()
+    monkeypatch.setattr(server.operations, "restart_device", restart)
+    socket = await connect(client)
+    for confirmation in (None, False, 1, "true"):
+        result = await command(
+            socket, type="device/restart", device="SERIAL", confirmed=confirmation
+        )
+        assert result["error"]["code"] == "validation"
+    restart.assert_not_awaited()
+    result = await command(
+        socket, type="device/restart", device="SERIAL", confirmed=True
+    )
+    assert result == {"id": 1, "result": None}
+    assert restart.await_args.args[0].serial == "SERIAL"
+    assert restart.await_args.kwargs == {"confirmed": True}
+    restart.side_effect = OperationError(
+        "Restart outcome is unknown. Check the device before trying again.",
+        kind=ErrorKind.CONNECTION,
+        outcome_unknown=True,
+    )
+    result = await command(
+        socket, type="device/restart", device="SERIAL", confirmed=True
+    )
+    assert result["error"] == {
+        "code": "connection",
+        "message": "Restart outcome is unknown. Check the device before trying again.",
+        "outcome_unknown": True,
+    }
+
+
+async def test_application_action_requires_confirmation(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only explicit confirmed application actions reach the device operation."""
+    action = AsyncMock()
+    monkeypatch.setattr(server.operations, "control_application", action)
+    socket = await connect(client)
+    request = {
+        "type": "device/application-action",
+        "device": "SERIAL",
+        "action": "remove",
+        "package": "example",
+        "version": "1.0",
+        "status": "Stopped",
+    }
+    for confirmed in (False, 1, None):
+        response = await command(socket, **request, confirmed=confirmed)
+        assert response["error"]["code"] == "validation"
+    action.assert_not_awaited()
+    assert await command(socket, **request, confirmed=True) == {"id": 1, "result": None}
+    assert action.await_args.args[1:] == ("remove", "example", "1.0", "Stopped")
+    assert action.await_args.kwargs == {"confirmed": True}
+
+
+async def test_application_policy_and_license_commands(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Require confirmation for policy and license writes over the authenticated socket."""
+    policy = AsyncMock()
+    license_write = AsyncMock()
+    monkeypatch.setattr(server.operations, "set_application_policy", policy)
+    monkeypatch.setattr(server.operations, "manage_application_license", license_write)
+    monkeypatch.setattr(
+        server.operations, "application_sdks", AsyncMock(return_value=["acap3"])
+    )
+    monkeypatch.setattr(
+        server.operations, "application_policy", AsyncMock(return_value=False)
+    )
+    socket = await connect(client)
+    assert await command(socket, type="device/application-sdks", device="SERIAL") == {
+        "id": 1,
+        "result": ["acap3"],
+    }
+    assert await command(socket, type="device/application-policy", device="SERIAL") == {
+        "id": 1,
+        "result": False,
+    }
+    policy_request = {
+        "type": "device/application-policy-set",
+        "device": "SERIAL",
+        "previous": False,
+        "value": True,
+    }
+    license_request = {
+        "type": "device/application-license-remove",
+        "device": "SERIAL",
+        "package": "app",
+        "version": "1",
+        "status": "Stopped",
+        "license_status": "Valid",
+    }
+    for request in (policy_request, license_request):
+        assert (await command(socket, **request, confirmed=False))["error"][
+            "code"
+        ] == "validation"
+        assert await command(socket, **request, confirmed=True) == {
+            "id": 1,
+            "result": None,
+        }
+    policy.assert_awaited_once()
+    license_write.assert_awaited_once()
+    assert (await command(socket, **{**policy_request, "previous": 1}, confirmed=True))[
+        "error"
+    ]["code"] == "validation"
+
+
+async def test_license_upload_authentication_validation_and_contents(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only authenticated, confirmed, bounded license files reach the operation."""
+    contents = []
+
+    async def upload(
+        record, package, version, status, license_status, file, *, confirmed
+    ):
+        contents.append(
+            (
+                record.serial,
+                package,
+                version,
+                status,
+                license_status,
+                file.read(),
+                confirmed,
+            )
+        )
+
+    monkeypatch.setattr(server.operations, "manage_application_license", upload)
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Package": "my%20app",
+        "X-Axis-Version": "1",
+        "X-Axis-Status": "Stopped",
+        "X-Axis-License-Status": "Missing",
+        "X-Axis-Confirmed": "true",
+    }
+    for changes in ({"Origin": "http://attacker"}, {"X-Axis-Token": "bad"}):
+        assert (
+            await client.post(
+                "/api/application-license", headers={**headers, **changes}, data=b"key"
+            )
+        ).status == 403
+    for changes in ({"X-Axis-Confirmed": "false"}, {"X-Axis-Package": ""}):
+        assert (
+            await client.post(
+                "/api/application-license", headers={**headers, **changes}, data=b"key"
+            )
+        ).status == 400
+    assert (
+        await client.post("/api/application-license", headers=headers, data=b"")
+    ).status == 400
+    assert (
+        await client.post(
+            "/api/application-license",
+            headers={**headers, "X-Axis-Device": "unknown"},
+            data=b"key",
+        )
+    ).status == 400
+    assert (
+        await client.post(
+            "/api/application-license",
+            headers=headers,
+            data=BytesIO(b"x" * (1024 * 1024 + 1)),
+        )
+    ).status == 400
+    assert not contents
+    response = await client.post(
+        "/api/application-license", headers=headers, data=b"private key"
+    )
+    assert response.status == 200
+    assert contents == [
+        ("SERIAL", "my app", "1", "Stopped", "Missing", b"private key", True)
+    ]
+
+
+@pytest.mark.parametrize("body", [b"ab", b"abcd"])
+async def test_license_upload_rejects_mismatched_stream_length(
+    client, monkeypatch, body
+):
+    """Interrupted or overflowing license streams never reach the device."""
+    write = AsyncMock()
+    monkeypatch.setattr(server.operations, "manage_application_license", write)
+    request = MagicMock()
+    request.headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Package": "app",
+        "X-Axis-Confirmed": "true",
+    }
+    request.content_length = 3
+
+    async def chunks(size):
+        yield body
+
+    request.content.iter_chunked = chunks
+    route = next(
+        route
+        for route in client.server.app.router.routes()
+        if route.resource.canonical == "/api/application-license"
+    )
+    assert (await route.handler(request)).status == 400
+    write.assert_not_awaited()
+
+
+async def test_license_upload_busy_and_errors(client, monkeypatch):
+    """Reject simultaneous uploads and retain safe errors and unknown outcomes."""
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Package": "app",
+        "X-Axis-Confirmed": "true",
+    }
+    started, finish = asyncio.Event(), asyncio.Event()
+
+    async def upload(*args, **kwargs):
+        started.set()
+        await finish.wait()
+        msg = "Check license before retrying."
+        raise OperationError(msg, outcome_unknown=True)
+
+    monkeypatch.setattr(server.operations, "manage_application_license", upload)
+    first = asyncio.create_task(
+        client.post("/api/application-license", headers=headers, data=b"key")
+    )
+    await started.wait()
+    assert (
+        await client.post("/api/application-license", headers=headers, data=b"key")
+    ).status == 409
+    finish.set()
+    response = await first
+    assert response.status == 400
+    assert (await response.json())["error"]["outcome_unknown"] is True
+    monkeypatch.setattr(server, "TemporaryFile", MagicMock(side_effect=OSError()))
+    response = await client.post(
+        "/api/application-license", headers=headers, data=b"key"
+    )
+    assert response.status == 400
+    assert "Could not receive" in (await response.json())["error"]["message"]
+
+
+async def test_application_upload_authentication_and_validation(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only authenticated, confirmed, bounded packages reach a saved device."""
+    upload = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_application", upload)
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    for changed in (
+        {"Origin": "http://attacker.example"},
+        {"X-Axis-Token": "wrong"},
+        {"Host": "attacker.example"},
+    ):
+        response = await client.post(
+            "/api/application-upload", headers={**headers, **changed}, data=b"abc"
+        )
+        assert response.status == 403
+    for changed in (
+        {"X-Axis-Confirmed": "false"},
+        {"X-Axis-Filename": "../example.eap"},
+        {"X-Axis-Filename": "example.txt"},
+        {"X-Axis-Device": ""},
+        {"X-Axis-Device": "%FF"},
+        {"X-Axis-Device": "missing"},
+    ):
+        response = await client.post(
+            "/api/application-upload", headers={**headers, **changed}, data=b"abc"
+        )
+        assert response.status == 400
+    response = await client.post("/api/application-upload", headers=headers, data=b"")
+    assert response.status == 400
+    assert server.MAX_APPLICATION_PACKAGE_SIZE == 1024 * 1024 * 1024
+    monkeypatch.setattr(server, "MAX_APPLICATION_PACKAGE_SIZE", 3)
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"abcd"
+    )
+    assert response.status == 400
+    upload.assert_not_awaited()
+
+    captured = []
+
+    async def install(record, package, *, confirmed):
+        captured.append((record.serial, package.read(), confirmed, package))
+
+    upload.side_effect = install
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"abc"
+    )
+    assert response.status == 200
+    assert await response.json() == {"result": None}
+    assert captured[0][:3] == ("SERIAL", b"abc", True)
+    assert captured[0][3].closed
+
+    monkeypatch.setattr(server, "MAX_APPLICATION_PACKAGE_SIZE", 20000)
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"x" * 20000
+    )
+    assert response.status == 200
+    assert len(captured[1][1]) == 20000
+
+
+@pytest.mark.parametrize("body", [b"ab", b"abcd"])
+async def test_application_upload_rejects_mismatched_stream_length(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, body: bytes
+) -> None:
+    """Reject interrupted or overflowing request streams before device dispatch."""
+    upload = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_application", upload)
+    request = MagicMock()
+    request.headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    request.content_length = 3
+
+    async def chunks(size):
+        yield body
+
+    request.content.iter_chunked = chunks
+    route = next(
+        route
+        for route in client.server.app.router.routes()
+        if route.resource.canonical == "/api/application-upload"
+    )
+    response = await route.handler(request)
+    assert response.status == 400
+    upload.assert_not_awaited()
+
+
+async def test_application_upload_reports_temporary_storage_failure(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A full or unavailable temporary filesystem does not dispatch a write."""
+    upload = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_application", upload)
+    monkeypatch.setattr(server, "TemporaryFile", MagicMock(side_effect=OSError()))
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    response = await client.post(
+        "/api/application-upload", headers=headers, data=b"abc"
+    )
+    assert response.status == 400
+    assert "Could not receive" in (await response.json())["error"]["message"]
+    upload.assert_not_awaited()
+
+
+async def test_application_upload_busy_and_unknown_outcome(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reject concurrent uploads and preserve uncertain write results."""
+    started = asyncio.Event()
+    finish = asyncio.Event()
+
+    async def install(*args, **kwargs):
+        started.set()
+        await finish.wait()
+        msg = "Check applications before trying again."
+        raise OperationError(msg, outcome_unknown=True)
+
+    monkeypatch.setattr(server.operations, "install_application", install)
+    headers = {
+        **HEADERS,
+        "X-Axis-Token": TOKEN,
+        "X-Axis-Device": "SERIAL",
+        "X-Axis-Filename": "example.eap",
+        "X-Axis-Confirmed": "true",
+    }
+    first = asyncio.create_task(
+        client.post("/api/application-upload", headers=headers, data=b"abc")
+    )
+    await started.wait()
+    second = await client.post("/api/application-upload", headers=headers, data=b"abc")
+    assert second.status == 409
+    finish.set()
+    response = await first
+    assert response.status == 400
+    assert (await response.json())["error"]["outcome_unknown"] is True
+
+
 async def test_static_assets_and_host_guard(client: TestClient) -> None:
     """Assets require the expected host and are shipped with security headers."""
     response = await client.get("/", headers={"Host": HOST})
@@ -166,6 +567,20 @@ async def test_list_returns_only_safe_json(
     assert "private-password" not in str(response)
     assert "root" not in str(response)
     await socket.close()
+
+
+async def test_architecture_command_reads_saved_device(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Expose the reported architecture through the authenticated protocol."""
+    read = AsyncMock(return_value="armv7hf")
+    monkeypatch.setattr(server.operations, "read_architecture", read)
+    socket = await connect(client)
+    assert await command(socket, type="device/architecture", device="SERIAL") == {
+        "id": 1,
+        "result": "armv7hf",
+    }
+    assert read.await_args.args[0].serial == "SERIAL"
 
 
 async def test_settings_only_change_the_alias_without_contacting_device(

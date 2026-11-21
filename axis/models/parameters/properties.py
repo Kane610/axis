@@ -95,7 +95,7 @@ class PropertyPtzParamT(TypedDict):
 class PropertySystemParamT(TypedDict):
     """Hardware and system identity fields from the Properties group."""
 
-    Architecture: str
+    Architecture: NotRequired[str]
     HardwareID: str
     Language: str
     LanguageType: str
@@ -184,6 +184,9 @@ class PropertyParam(ParamItem):
     virtual_input: bool
     """Whether the device supports virtual input ports."""
 
+    system_architecture: str = ""
+    """Device architecture, when reported by param.cgi."""
+
     @classmethod
     def decode(cls, data: PropertyParamT) -> Self:
         """Convert the Properties group into normalized version and capability fields."""
@@ -211,4 +214,5 @@ class PropertyParam(ParamItem):
             digital_ptz=data.get("PTZ", {}).get("DigitalPTZ", False),
             system_serial_number=data["System"]["SerialNumber"],
             virtual_input=data.get("VirtualInput", {}).get("VirtualInput", False),
+            system_architecture=data["System"].get("Architecture", ""),
         )

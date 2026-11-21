@@ -3,16 +3,17 @@
 import asyncio
 from dataclasses import dataclass
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import aiohttp
 
-from ..errors import RequestError, raise_error
+from ..errors import AxisException, RequestError, ResponseError, raise_error
 from ..models.configuration import AuthScheme
 from ..models.pwdgrp_cgi import SecondaryGroup
 from .api_discovery import ApiDiscoveryHandler
 from .api_handler import ApiHandler, HandlerGroup
 from .applications import ApplicationsHandler
+from .applications.application_handler import ApplicationHandler
 from .applications.fence_guard import FenceGuardHandler
 from .applications.loitering_guard import LoiteringGuardHandler
 from .applications.motion_guard import MotionGuardHandler
@@ -39,6 +40,8 @@ from .virtual_input import VirtualInputHandler
 if TYPE_CHECKING:
     from collections.abc import Awaitable
 
+    from yarl import URL
+
     from ..device import AxisDevice
     from ..models.api import ApiRequest
     from ..models.stream_profile import StreamProfile
@@ -46,6 +49,36 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 TIME_OUT = 15
+
+
+class UploadDigestError(ResponseError):
+    """The device requires digest authentication that cannot stream a package."""
+
+
+class _StreamingDigestAuthMiddleware(aiohttp.DigestAuthMiddleware):
+    """Avoid aiohttp's full-body buffering for multipart digest authentication."""
+
+    async def _encode(
+        self, method: str, url: URL, body: aiohttp.payload.Payload | Literal[b""]
+    ) -> str:
+        if isinstance(body, aiohttp.MultipartWriter):
+            qops = {qop.strip() for qop in self._challenge.get("qop", "").split(",")}
+            if "auth-int" in qops:
+                if "auth" not in qops:
+                    msg = "Digest auth-int cannot stream an application package."
+                    raise UploadDigestError(msg)
+                self._challenge["qop"] = "auth"
+        return await super()._encode(method, url, body)
+
+
+class InterfaceInspectionError(AxisException):
+    """Identify a failed interface probe without including device data."""
+
+    def __init__(self, interface: str, cause: Exception) -> None:
+        """Store the name of the interface that could not be inspected."""
+        self.interface = interface
+        self.cause = cause
+        super().__init__(interface)
 
 
 @dataclass(frozen=True)
@@ -239,38 +272,68 @@ class Vapix:
         Args:
             refresh_discovery: Refresh API discovery before evaluation.
             probe: Best-effort update of non-initialized handlers to determine
-                practical support and current item counts.
+                practical support and current item counts. Application handlers
+                are probed only when their application is known to be running.
 
         """
         if refresh_discovery:
-            await self.api_discovery.update()
+            await self._inspect_update("api_discovery", self.api_discovery)
 
         states: dict[str, InterfaceState] = {}
         for name, handler in sorted(self.interfaces().items()):
-            listed = handler.supported
-            probe_attempted = False
-            probe_succeeded = False
+            try:
+                listed = handler.supported
+                probe_attempted = False
+                probe_succeeded = False
 
-            if probe and not handler.initialized:
-                probe_attempted = True
-                probe_succeeded = await handler.update()
+                if (
+                    probe
+                    and not handler.initialized
+                    and (
+                        not isinstance(handler, ApplicationHandler)
+                        or handler.listed_in_applications
+                    )
+                ):
+                    probe_attempted = True
+                    probe_succeeded = await handler.update()
 
-            items = len(handler)
-            initialized = handler.initialized
-            supported = bool(listed or probe_succeeded or initialized or items > 0)
-            states[name] = InterfaceState(
-                name=name,
-                api_id=str(getattr(handler.api_id, "value", "") or ""),
-                api_version=handler.api_version,
-                listed=listed,
-                probe_attempted=probe_attempted,
-                probe_succeeded=probe_succeeded,
-                supported=supported,
-                initialized=initialized,
-                items=items,
-            )
+                items = len(handler)
+                initialized = handler.initialized
+                supported = bool(listed or probe_succeeded or initialized or items > 0)
+                states[name] = InterfaceState(
+                    name=name,
+                    api_id=str(getattr(handler.api_id, "value", "") or ""),
+                    api_version=handler.api_version,
+                    listed=listed,
+                    probe_attempted=probe_attempted,
+                    probe_succeeded=probe_succeeded,
+                    supported=supported,
+                    initialized=initialized,
+                    items=items,
+                )
+            except (
+                AxisException,
+                AttributeError,
+                LookupError,
+                TypeError,
+                ValueError,
+            ) as err:
+                raise InterfaceInspectionError(name, err) from err
 
         return states
+
+    async def _inspect_update(self, name: str, handler: ApiHandler[Any]) -> bool:
+        """Add safe context to an unsuccessful discovery or interface probe."""
+        try:
+            return await handler.update()
+        except (
+            AxisException,
+            AttributeError,
+            LookupError,
+            TypeError,
+            ValueError,
+        ) as err:
+            raise InterfaceInspectionError(name, err) from err
 
     async def _initialize_handlers(self, group: HandlerGroup) -> None:
         """Initialize handlers in a group."""
@@ -369,6 +432,29 @@ class Vapix:
         decoder = api_request.response_type
         return decoder.decode(bytes_data)
 
+    async def api_request_once[ApiResponseT](
+        self, api_request: ApiRequest[ApiResponseT]
+    ) -> ApiResponseT:
+        """Send a write without redirects or automatic Basic authentication retries."""
+        params = api_request.params or {}
+        if self.device.config.is_companion and api_request.supports_companion_param:
+            params["Axis-Orig-Sw"] = "true"
+        status, _headers, content = await self._perform_request(
+            method=api_request.method,
+            url=self.device.config.url + api_request.path,
+            content=api_request.content,
+            data=api_request.data,
+            headers=api_request.headers,
+            params=params,
+            allow_redirects=False,
+        )
+        if status >= 400:
+            raise_error(status)
+        if status >= 300:
+            msg = "Unexpected device write redirect."
+            raise ResponseError(msg)
+        return api_request.response_type.decode(content)
+
     async def request(
         self,
         method: str,
@@ -463,12 +549,15 @@ class Vapix:
         method: str,
         url: str,
         content: bytes | None,
-        data: dict[str, str] | None,
+        data: dict[str, str] | aiohttp.FormData | None,
         headers: dict[str, str] | None,
         params: dict[str, str] | None,
+        *,
+        request_timeout: float = TIME_OUT,
+        allow_redirects: bool = True,
     ) -> tuple[int, dict[str, str], bytes]:
         """Execute request with the configured HTTP session."""
-        request_data: bytes | dict[str, str] | None = (
+        request_data: bytes | dict[str, str] | aiohttp.FormData | None = (
             content if content is not None else data
         )
         session = self.device.config.session
@@ -483,14 +572,42 @@ class Vapix:
             "data": request_data,
             "headers": request_headers,
             "params": params,
-            "timeout": TIME_OUT,
+            "timeout": request_timeout,
         }
+        if not allow_redirects:
+            request_kwargs["allow_redirects"] = False
         if self._aiohttp_digest_middleware is not None:
             request_kwargs["middlewares"] = (self._aiohttp_digest_middleware,)
 
         async with session.request(method, url, **request_kwargs) as response:
             response_content = await response.read()
             return response.status, dict(response.headers), response_content
+
+    async def upload_multipart(
+        self,
+        path: str,
+        data: aiohttp.FormData,
+        *,
+        request_timeout: float,
+        params: dict[str, str] | None = None,
+    ) -> bytes:
+        """Send one multipart request without redirect or automatic Basic retry."""
+        status, _headers, content = await self._perform_request(
+            method="post",
+            url=self.device.config.url + path,
+            content=None,
+            data=data,
+            headers=None,
+            params=params,
+            request_timeout=request_timeout,
+            allow_redirects=False,
+        )
+        if status >= 400:
+            raise_error(status)
+        if status >= 300:
+            msg = "Unexpected upload redirect."
+            raise ResponseError(msg)
+        return content
 
     def _aiohttp_digest_middleware_obj(self) -> Any | None:
         """Create aiohttp digest middleware when available and relevant."""
@@ -502,7 +619,7 @@ class Vapix:
             LOGGER.debug("aiohttp DigestAuthMiddleware unavailable, digest disabled")
             return None
 
-        return middleware_cls(
+        return _StreamingDigestAuthMiddleware(
             login=self.device.config.username,
             password=self.device.config.password,
         )

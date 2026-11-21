@@ -23,6 +23,8 @@ async function openApp(
   savedDevices = devices,
   ready = () => true,
   holdInitialDiscovery = false,
+  architecture = "armv7hf",
+  holdPolicy = false,
 ) {
   const requests = [];
   const automaticScans = [];
@@ -56,6 +58,23 @@ async function openApp(
         if (ready()) socket.send(JSON.stringify({ type: "ready", version: 1 }));
       } else if (message.type === "devices/list") {
         socket.send(JSON.stringify({ id: message.id, result: savedDevices }));
+      } else if (message.type === "device/architecture") {
+        socket.send(
+          JSON.stringify(
+            architecture === null
+              ? {
+                  id: message.id,
+                  error: { message: "Architecture unavailable." },
+                }
+              : { id: message.id, result: architecture },
+          ),
+        );
+      } else if (message.type === "device/application-sdks") {
+        socket.send(
+          JSON.stringify({ id: message.id, result: ["acap4-native"] }),
+        );
+      } else if (message.type === "device/application-policy" && !holdPolicy) {
+        socket.send(JSON.stringify({ id: message.id, result: false }));
       } else if (message.type === "devices/discover" && firstDiscovery) {
         firstDiscovery = false;
         automaticScans.push({ ...message, socket });
@@ -857,6 +876,1015 @@ test("dialog controls respond to hover in both themes", async ({ page }) => {
   );
   await settings.hover();
   await expect(settings).toHaveCSS("background-color", disabledBackground);
+});
+
+test("applications present details, configuration links, and confirmed controls", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page, [
+    { ...devices[0], web_proto: "https", port: 0 },
+    devices[1],
+  ]);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect(dialog).toHaveAccessibleName("Applications");
+  await expect(dialog.getByRole("button", { name: "Back" })).toBeFocused();
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({
+    type: "device/applications",
+    device: "A",
+  });
+  const apps = [
+    {
+      name: "objectanalytics",
+      nice_name: "Object Analytics",
+      status: "Stopped",
+      version: "2.0",
+      vendor: "Axis",
+      license_status: "None",
+      configuration_page: "local/objectanalytics/index.html",
+    },
+    {
+      name: "other",
+      nice_name: "Other",
+      status: "Running",
+      version: "1.0",
+      vendor: "Axis",
+      license_status: "Valid",
+      configuration_page: "//evil.example/",
+    },
+  ];
+  await respond(page, requests[2], apps);
+  const app = dialog
+    .locator("axis-card")
+    .filter({ has: page.getByRole("heading", { name: "Object Analytics" }) })
+    .last();
+  await expect(app).toContainText("Stopped");
+  await expect(app).toContainText("2.0");
+  const disabledConfiguration = app.getByRole("button", {
+    name: "Open configuration",
+  });
+  await expect(disabledConfiguration).toBeDisabled();
+  await expect(
+    app.getByRole("link", { name: "Open configuration" }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("link", { name: "Open configuration" }),
+  ).toHaveCount(0);
+  await app.getByRole("button", { name: "Start" }).click();
+  await expect(app.getByText("Start Object Analytics?")).toBeVisible();
+  await app.getByRole("button", { name: "Cancel" }).click();
+  expect(requests).toHaveLength(3);
+  await app.getByRole("button", { name: "Start" }).click();
+  await app.getByRole("button", { name: "Confirm start" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({
+    type: "device/application-action",
+    device: "A",
+    action: "start",
+    package: "objectanalytics",
+    version: "2.0",
+    status: "Stopped",
+    confirmed: true,
+  });
+  await expect(dialog.getByRole("button", { name: "Back" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await respond(page, requests[3], null);
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], [
+    { ...apps[0], status: "Running" },
+    apps[1],
+  ]);
+  await expect(app.getByRole("button", { name: "Stop" })).toBeVisible();
+  const link = app.getByRole("link", { name: "Open configuration" });
+  await expect(link).toHaveAttribute(
+    "href",
+    "https://camera-a/local/objectanalytics/index.html",
+  );
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  await app.getByRole("button", { name: "Uninstall" }).click();
+  await expect(
+    app.getByText("Uninstall Object Analytics and remove its data?"),
+  ).toBeVisible();
+  await app.getByRole("button", { name: "Cancel" }).click();
+  expect(requests).toHaveLength(5);
+  await app.getByRole("button", { name: "Uninstall" }).click();
+  await app.getByRole("button", { name: "Confirm uninstall" }).click();
+  await expect.poll(() => requests.length).toBe(6);
+  expect(requests[5]).toMatchObject({
+    type: "device/application-action",
+    action: "remove",
+    package: "objectanalytics",
+    status: "Running",
+    confirmed: true,
+  });
+  await respond(page, requests[5], null);
+  await expect.poll(() => requests.length).toBe(7);
+  await respond(page, requests[6], [apps[1]]);
+  await expect(
+    dialog.getByRole("heading", { name: "Object Analytics" }),
+  ).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Back" }).click();
+  await expect.poll(() => requests.length).toBe(8);
+  expect(requests[7]).toMatchObject({ type: "device/interfaces" });
+});
+
+test("license management offers removal only for an installed license", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(
+    page,
+    requests[2],
+    ["Valid", "Invalid", "Missing", "None", "Custom", "Unknown"].map(
+      (status) => ({
+        name: status,
+        nice_name: status,
+        status: "Stopped",
+        version: "1",
+        license_status: status,
+      }),
+    ),
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Remove license" }),
+  ).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Manage licenses" }).click();
+  const license = page.getByRole("dialog", { name: "Manage licenses" });
+  const selector = license.getByLabel("Application");
+  await expect(
+    license.getByRole("button", { name: "Remove license" }),
+  ).toHaveCount(0);
+  for (const status of [
+    "Valid",
+    "Invalid",
+    "Missing",
+    "None",
+    "Custom",
+    "Unknown",
+  ]) {
+    await selector.selectOption(status);
+    await expect(license.getByText(`License status: ${status}`)).toBeVisible();
+    const remove = license.getByRole("button", { name: "Remove license" });
+    if (status === "Valid" || status === "Invalid") {
+      await expect(remove).toBeVisible();
+    } else {
+      await expect(remove).toHaveCount(0);
+    }
+  }
+  await selector.selectOption("Valid");
+  await license.getByRole("button", { name: "Remove license" }).click();
+  await expect(
+    license.getByText("Remove the license for Valid?"),
+  ).toBeVisible();
+  await selector.selectOption("Invalid");
+  await expect(
+    license.getByRole("button", { name: "Confirm license removal" }),
+  ).toHaveCount(0);
+  await license.getByRole("button", { name: "Remove license" }).click();
+  await license.getByRole("button", { name: "Cancel removal" }).click();
+  expect(requests).toHaveLength(3);
+});
+
+test("application policy applies immediately while restart and license changes require confirmation", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page, [
+    { ...devices[0], host: "192.0.2.1", port: 80, web_proto: "http" },
+  ]);
+  await select(page, "A", requests, 1);
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  const app = {
+    name: "example",
+    nice_name: "Example",
+    version: "1",
+    status: "Running",
+    vendor: "Vendor",
+    license_status: "Valid",
+    bundled: "Yes",
+    signature_status: "Signed",
+    resources: [{ name: "camera", used: "yes" }],
+    compatible_os_versions: [{ Min: "11", Max: "12" }],
+  };
+  await respond(page, requests[2], [app]);
+  await expect(dialog.getByText("Signed", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("camera: yes")).toBeVisible();
+  await expect(dialog.getByText("11 – 12")).toBeVisible();
+  await dialog.getByRole("button", { name: "Restart", exact: true }).click();
+  await expect(dialog.getByText("Restart Example?")).toBeVisible();
+  await dialog.getByRole("button", { name: "Confirm restart" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({
+    type: "device/application-action",
+    action: "restart",
+    confirmed: true,
+  });
+  await respond(page, requests[3], null);
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], [app]);
+
+  const policy = dialog.getByRole("switch", {
+    name: /Allow unsigned applications/,
+  });
+  await expect(policy).not.toBeChecked();
+  await policy.click();
+  await expect(policy).not.toBeChecked();
+  await expect(policy).toBeDisabled();
+  await expect(dialog.getByText(/weakens application security/)).toHaveCount(0);
+  await expect.poll(() => requests.length).toBe(6);
+  await expect(
+    dialog.getByRole("button", { name: "Confirm policy change" }),
+  ).toHaveCount(0);
+  expect(requests[5]).toMatchObject({
+    type: "device/application-policy-set",
+    previous: false,
+    value: true,
+    confirmed: true,
+  });
+  await respond(page, requests[5], null);
+  await expect(policy).toBeChecked();
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  await expect(install.getByText("Supported SDKs: acap4-native")).toBeVisible();
+  await expect(
+    install.getByText("Unsigned applications: Allowed"),
+  ).toBeVisible();
+  await install.getByRole("button", { name: "Close" }).click();
+
+  const uploads = [];
+  await page.route("**/api/application-license", async (route) => {
+    uploads.push(route.request());
+    await route.fulfill({ json: { result: null } });
+  });
+  await dialog.getByRole("button", { name: "Manage licenses" }).click();
+  const license = page.getByRole("dialog", { name: "Manage licenses" });
+  await license.getByLabel("Application").selectOption("example");
+  await license.locator("input[type=file]").setInputFiles({
+    name: "key.xml",
+    mimeType: "text/xml",
+    buffer: Buffer.from("<license/>"),
+  });
+  expect(uploads).toHaveLength(0);
+  await license.getByRole("button", { name: "Confirm license upload" }).click();
+  await expect.poll(() => uploads.length).toBe(1);
+  expect(uploads[0].headers()["x-axis-package"]).toBe("example");
+  expect(uploads[0].headers()["x-axis-confirmed"]).toBe("true");
+  expect(uploads[0].postData()).toBe("<license/>");
+  await expect.poll(() => requests.length).toBe(7);
+  await respond(page, requests[6], [app]);
+  await dialog.getByRole("button", { name: "Manage licenses" }).click();
+  await license.getByLabel("Application").selectOption("example");
+  await license.getByRole("button", { name: "Remove license" }).click();
+  await expect(
+    license.getByText("Remove the license for Example?"),
+  ).toBeVisible();
+  await license.getByRole("button", { name: "Cancel removal" }).click();
+  expect(requests).toHaveLength(7);
+  await license.getByRole("button", { name: "Remove license" }).click();
+  await license
+    .getByRole("button", { name: "Confirm license removal" })
+    .click();
+  await expect.poll(() => requests.length).toBe(8);
+  await expect(
+    license.getByRole("button", { name: "Confirm license removal" }),
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(license).toBeVisible();
+  expect(requests[7]).toMatchObject({
+    type: "device/application-license-remove",
+    license_status: "Valid",
+    confirmed: true,
+  });
+  await respond(page, requests[7], null);
+  await expect.poll(() => requests.length).toBe(9);
+  await respond(page, requests[8], [{ ...app, license_status: "Missing" }]);
+  await expect(license).toBeHidden();
+  await dialog.getByRole("button", { name: "Manage licenses" }).click();
+  await license.getByLabel("Application").selectOption("example");
+  await expect(
+    license.getByRole("button", { name: "Remove license" }),
+  ).toHaveCount(0);
+});
+
+test("license removal failure remains visible without retry", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    {
+      name: "example",
+      nice_name: "Example",
+      version: "1",
+      status: "Stopped",
+      license_status: "Valid",
+    },
+  ]);
+  await dialog.getByRole("button", { name: "Manage licenses" }).click();
+  const license = page.getByRole("dialog", { name: "Manage licenses" });
+  await license.getByLabel("Application").selectOption("example");
+  await license.getByRole("button", { name: "Remove license" }).click();
+  await license
+    .getByRole("button", { name: "Confirm license removal" })
+    .click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], undefined, {
+    message:
+      "License change outcome is unknown. Check the application before trying again.",
+  });
+  await expect(license.getByRole("alert")).toContainText("outcome is unknown");
+  await expect(
+    license.getByRole("button", { name: "Remove license" }),
+  ).toHaveCount(0);
+  await expect(
+    license.getByRole("button", { name: "Confirm license upload" }),
+  ).toBeDisabled();
+  expect(requests).toHaveLength(4);
+});
+
+test("license modal validates drops and blocks navigation during upload", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  const apps = ["first", "second"].map((name) => ({
+    name,
+    nice_name: name,
+    version: "1",
+    status: "Stopped",
+    license_status: "Missing",
+  }));
+  await respond(page, requests[2], apps);
+  const trigger = dialog.getByRole("button", { name: "Manage licenses" });
+  await trigger.click();
+  const license = page.getByRole("dialog", { name: "Manage licenses" });
+  const box = await license.boundingBox();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(375);
+  expect(
+    await license
+      .locator(".dialog-content")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  const confirm = license.getByRole("button", {
+    name: "Confirm license upload",
+  });
+  const dropzone = license.getByRole("region", {
+    name: "License file drop area",
+  });
+  await expect(confirm).toBeDisabled();
+  const drop = async (files) => {
+    const dataTransfer = await page.evaluateHandle((entries) => {
+      const transfer = new DataTransfer();
+      for (const [name, content] of entries)
+        transfer.items.add(new File([content], name));
+      return transfer;
+    }, files);
+    await dropzone.dispatchEvent("dragover", { dataTransfer });
+    await expect(dropzone).toHaveAttribute("data-dragging", "");
+    await dropzone.dispatchEvent("drop", { dataTransfer });
+    await expect(dropzone).not.toHaveAttribute("data-dragging", "");
+    await dataTransfer.dispose();
+  };
+  await drop([
+    ["a.xml", "a"],
+    ["b.xml", "b"],
+  ]);
+  await expect(license.getByRole("alert")).toHaveText(
+    "Choose one license file.",
+  );
+  await drop([["empty.xml", ""]]);
+  await expect(license.getByRole("alert")).toContainText("non-empty");
+  await drop([["large.xml", "x".repeat(1024 * 1024 + 1)]]);
+  await expect(license.getByRole("alert")).toContainText("1 MiB");
+  await drop([["key.xml", "<license/>"]]);
+  await expect(license.getByText("Selected: key.xml")).toBeVisible();
+  await expect(confirm).toBeDisabled();
+  await license.getByLabel("Application").selectOption("second");
+  await expect(confirm).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await expect(license).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await expect(confirm).toBeDisabled();
+  await license.getByLabel("Application").selectOption("second");
+  await drop([["key.xml", "<license/>"]]);
+  let release;
+  const waiting = new Promise((resolve) => (release = resolve));
+  const uploads = [];
+  await page.route("**/api/application-license", async (route) => {
+    uploads.push(route.request());
+    await waiting;
+    await route.fulfill({ json: { result: null } });
+  });
+  await confirm.click();
+  await expect.poll(() => uploads.length).toBe(1);
+  expect(uploads[0].headers()["x-axis-package"]).toBe("second");
+  expect(uploads[0].postData()).toBe("<license/>");
+  await expect(confirm).toBeDisabled();
+  await expect(license.getByRole("button", { name: "Close" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(license).toBeVisible();
+  expect(uploads).toHaveLength(1);
+  release();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], apps);
+  await expect(license).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(dialog.getByText("License change accepted.")).toBeVisible();
+});
+
+test("unavailable unsigned policy disables the switch until refreshed", async ({
+  page,
+}) => {
+  const { requests } = await openApp(
+    page,
+    [devices[0]],
+    undefined,
+    false,
+    "armv7hf",
+    true,
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[2], undefined, {
+    message: "Policy unsupported.",
+  });
+  await respond(page, requests[3], []);
+  const policy = dialog.getByRole("switch", {
+    name: /Allow unsigned applications/,
+  });
+  await expect(policy).toBeDisabled();
+  await expect(
+    dialog.getByText("Policy: Unavailable: Policy unsupported."),
+  ).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Refresh application information" })
+    .click();
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], true);
+  await expect(policy).toBeChecked();
+  await expect(policy).toBeEnabled();
+  await policy.click();
+  await expect(policy).toBeChecked();
+  await expect(policy).toBeDisabled();
+  await expect.poll(() => requests.length).toBe(6);
+  expect(requests[5]).toMatchObject({
+    type: "device/application-policy-set",
+    previous: true,
+    value: false,
+    confirmed: true,
+  });
+  await respond(page, requests[5], null);
+  await expect(policy).not.toBeChecked();
+  await policy.click();
+  await expect.poll(() => requests.length).toBe(7);
+  await respond(page, requests[6], undefined, {
+    message:
+      "Policy change outcome is unknown. Check the policy before trying again.",
+  });
+  await expect(policy).toBeDisabled();
+  await expect(
+    dialog.getByText(/Policy change outcome is unknown/),
+  ).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Refresh application information" })
+    .click();
+  await expect.poll(() => requests.length).toBe(8);
+  await respond(page, requests[7], true);
+  await expect(policy).toBeChecked();
+  await expect(policy).toBeEnabled();
+});
+
+test("license upload errors remain in the modal without retrying", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    {
+      name: "example",
+      nice_name: "Example",
+      version: "1",
+      status: "Stopped",
+      license_status: "Missing",
+    },
+  ]);
+  let uploads = 0;
+  await page.route("**/api/application-license", async (route) => {
+    uploads++;
+    await route.fulfill({
+      status: 400,
+      json: {
+        error: {
+          message:
+            "License change outcome is unknown. Check the application before trying again.",
+        },
+      },
+    });
+  });
+  await dialog.getByRole("button", { name: "Manage licenses" }).click();
+  const license = page.getByRole("dialog", { name: "Manage licenses" });
+  await license.getByLabel("Application").selectOption("example");
+  await license.locator("input[type=file]").setInputFiles({
+    name: "key.xml",
+    mimeType: "text/xml",
+    buffer: Buffer.from("key"),
+  });
+  await license.getByRole("button", { name: "Confirm license upload" }).click();
+  await expect(license.getByRole("alert")).toContainText("outcome is unknown");
+  await expect(
+    license.getByRole("button", { name: "Confirm license upload" }),
+  ).toBeDisabled();
+  expect(uploads).toBe(1);
+});
+
+test("ignores an older unsigned-policy read after a toggle change", async ({
+  page,
+}) => {
+  const { requests } = await openApp(
+    page,
+    [devices[0]],
+    undefined,
+    false,
+    "armv7hf",
+    true,
+  );
+  await select(page, "A", requests, 1);
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[2].type).toBe("device/application-policy");
+  await respond(page, requests[3], []);
+  await dialog
+    .getByRole("button", { name: "Refresh application information" })
+    .click();
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], false);
+  await dialog
+    .getByRole("switch", { name: /Allow unsigned applications/ })
+    .click();
+  await expect.poll(() => requests.length).toBe(6);
+  await respond(page, requests[5], null);
+  await respond(page, requests[2], false);
+  await expect(
+    dialog.getByRole("switch", { name: /Allow unsigned applications/ }),
+  ).toBeChecked();
+});
+
+test("configuration is available only for running applications", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page, [
+    { ...devices[0], web_proto: "http", port: 80 },
+    devices[1],
+  ]);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(
+    page,
+    requests[2],
+    ["Running", "Stopped", "Idle", "Unknown"].map((status) => ({
+      name: status,
+      nice_name: status,
+      status,
+      version: "1",
+      vendor: "Axis",
+      license_status: "None",
+      configuration_page: "local/example/index.html",
+    })),
+  );
+  await expect(
+    dialog.getByRole("link", { name: "Open configuration" }),
+  ).toHaveCount(1);
+  const disabled = dialog.getByRole("button", { name: "Open configuration" });
+  await expect(disabled).toHaveCount(3);
+  for (const button of await disabled.all())
+    await expect(button).toBeDisabled();
+});
+
+test("application installation is confirmed and blocks navigation while pending", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], []);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  await expect(
+    install.getByText("Hardware architecture: armv7hf"),
+  ).toBeVisible();
+  await expect(install.getByText(/upgraded or downgraded/)).toBeVisible();
+  await expect(install.getByText(/both versions may be removed/)).toBeVisible();
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeDisabled();
+
+  let release;
+  const pending = new Promise((resolve) => (release = resolve));
+  const uploads = [];
+  await page.route("**/api/application-upload", async (route) => {
+    uploads.push(route.request());
+    await pending;
+    await route.fulfill({ json: { result: null } });
+  });
+  const choose = async () => {
+    const chooser = page.waitForEvent("filechooser");
+    await install.getByRole("button", { name: "Choose file" }).click();
+    await (
+      await chooser
+    ).setFiles({
+      name: "example.eap",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from("package"),
+    });
+  };
+  await choose();
+  await expect(install.getByText("Selected: example.eap")).toBeVisible();
+  await install.getByRole("button", { name: "Cancel" }).click();
+  await expect(install).toBeHidden();
+  await expect(
+    dialog.getByRole("button", { name: "Install application" }),
+  ).toBeFocused();
+  expect(uploads).toHaveLength(0);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  await choose();
+  await install.getByRole("button", { name: "Confirm installation" }).click();
+  await expect.poll(() => uploads.length).toBe(1);
+  expect(uploads[0].headers()["x-axis-confirmed"]).toBe("true");
+  await expect(install.getByRole("button", { name: "Close" })).toBeDisabled();
+  await expect(install.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeDisabled();
+  const unexpected = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(["other"], "other.eap"));
+    return transfer;
+  });
+  await install
+    .getByRole("region", { name: "Application package drop area" })
+    .dispatchEvent("drop", { dataTransfer: unexpected });
+  await unexpected.dispose();
+  await expect(install.getByText("Selected: example.eap")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(install).toBeVisible();
+  release();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], []);
+  await expect(install).toBeHidden();
+  await expect(dialog.getByText("Application installed.")).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Install application" }),
+  ).toBeFocused();
+  expect(uploads).toHaveLength(1);
+});
+
+test("architecture lookup failure is visible without blocking application installation", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page, devices, undefined, false, null);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], []);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  await expect(
+    install.getByText(
+      "Hardware architecture: Unavailable: Architecture unavailable.",
+    ),
+  ).toBeVisible();
+  await expect(
+    install.getByRole("button", { name: "Choose file" }),
+  ).toBeEnabled();
+});
+
+test("drag and drop validates packages before confirmed installation", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Applications" });
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Interfaces" })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "applications" })
+    .click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], []);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  const dropzone = install.getByRole("region", {
+    name: "Application package drop area",
+  });
+  expect(
+    await page.evaluate(() => {
+      const event = new DragEvent("drop", { bubbles: true, cancelable: true });
+      return !document.body.dispatchEvent(event);
+    }),
+  ).toBe(true);
+  const drop = async (files) => {
+    const dataTransfer = await page.evaluateHandle((entries) => {
+      const transfer = new DataTransfer();
+      for (const [name, content] of entries)
+        transfer.items.add(new File([content], name));
+      return transfer;
+    }, files);
+    await dropzone.dispatchEvent("dragover", { dataTransfer });
+    await expect(dropzone).toHaveAttribute("data-dragging", "");
+    await dropzone.dispatchEvent("drop", { dataTransfer });
+    await expect(dropzone).not.toHaveAttribute("data-dragging", "");
+    await dataTransfer.dispose();
+  };
+  await drop([["example.eap", "package"]]);
+  await expect(install.getByText("Selected: example.eap")).toBeVisible();
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeEnabled();
+  await drop([["wrong.txt", "package"]]);
+  await expect(install.getByRole("alert")).toContainText("non-empty .eap");
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeDisabled();
+  await drop([
+    ["one.eap", "one"],
+    ["two.eap", "two"],
+  ]);
+  await expect(install.getByRole("alert")).toHaveText(
+    "Choose one application package.",
+  );
+  await drop([["empty.eap", ""]]);
+  await expect(install.getByRole("alert")).toContainText("non-empty .eap");
+  await drop([["example.eap", "package"]]);
+
+  const uploads = [];
+  await page.route("**/api/application-upload", async (route) => {
+    uploads.push(route.request());
+    await route.fulfill({ json: { result: null } });
+  });
+  await page.keyboard.press("Escape");
+  await expect(install).toBeHidden();
+  expect(uploads).toHaveLength(0);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeDisabled();
+  await drop([["example.eap", "package"]]);
+  await install.getByRole("button", { name: "Confirm installation" }).click();
+  await expect.poll(() => uploads.length).toBe(1);
+  expect(uploads[0].postData()).toBe("package");
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], []);
+  await expect(dialog.getByText("Application installed.")).toBeVisible();
+});
+
+test("installation dialog fits a narrow screen", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Interfaces" })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "applications" })
+    .click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], []);
+  await page.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  const box = await install.boundingBox();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(375);
+  expect(
+    await install
+      .locator(".dialog-content")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  await expect(
+    install.getByRole("button", { name: "Choose file" }),
+  ).toBeVisible();
+});
+
+test("installation errors remain visible in the modal and do not retry", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Interfaces" })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "applications" })
+    .click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], []);
+  await page.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  let uploads = 0;
+  await page.route("**/api/application-upload", async (route) => {
+    uploads++;
+    await route.fulfill({
+      status: 400,
+      json: {
+        error: {
+          message:
+            "Installation outcome is unknown. Check applications before trying again.",
+        },
+      },
+    });
+  });
+  await install.locator('input[type="file"]').setInputFiles({
+    name: "example.eap",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("package"),
+  });
+  await install.getByRole("button", { name: "Confirm installation" }).click();
+  await expect(install.getByRole("alert")).toContainText(
+    "Installation outcome is unknown",
+  );
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeDisabled();
+  expect(uploads).toBe(1);
+});
+
+test("application action interruption warns before retry", async ({ page }) => {
+  const { requests, sockets } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog.getByRole("button", { name: "applications" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    {
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1",
+      vendor: "Axis",
+      license_status: "None",
+      configuration_page: null,
+    },
+  ]);
+  await dialog.getByRole("button", { name: "Stop" }).click();
+  await dialog.getByRole("button", { name: "Confirm stop" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  sockets[0].close({ code: 1001 });
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "Application action outcome is unknown. Check the application before trying again.",
+  );
+  expect(
+    requests.filter((item) => item.type === "device/application-action"),
+  ).toHaveLength(1);
+});
+
+test("restart requires confirmation and prevents duplicate or conflicting actions", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  await views.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [
+    { name: "basic_device_info", supported: true },
+  ]);
+  await dialog.getByRole("button", { name: "Restart device" }).click();
+  await expect(dialog.getByText("Restart Camera A (A)?")).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  expect(requests).toHaveLength(2);
+  await dialog.getByRole("button", { name: "Restart device" }).click();
+  await dialog.getByRole("button", { name: "Confirm restart" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({
+    type: "device/restart",
+    device: "A",
+    confirmed: true,
+  });
+  await expect(
+    dialog.getByRole("button", { name: "Confirm restart" }),
+  ).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeDisabled();
+  await expect(views.getByRole("button", { name: "Health" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await respond(page, requests[2], null);
+  await expect(dialog.getByRole("status")).toHaveText("Restart requested.");
+  await views.getByRole("button", { name: "Health" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({ type: "device/health", device: "A" });
+});
+
+test("restart interruption warns against blind retry", async ({ page }) => {
+  const { requests, sockets } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], []);
+  await dialog.getByRole("button", { name: "Restart device" }).click();
+  await dialog.getByRole("button", { name: "Confirm restart" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  sockets[0].close({ code: 1001 });
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "Restart outcome is unknown. Check the device before trying again.",
+  );
+  expect(
+    requests.filter((request) => request.type === "device/restart"),
+  ).toHaveLength(1);
 });
 
 test("keyboard selection and typed API commands work through the component boundaries", async ({
