@@ -124,10 +124,16 @@ export type Health = {
 };
 
 export type DeviceApi = {
+  doc_link: string;
   id: string;
   name: string;
   status: string;
   version: string;
+};
+
+export type ApplicationSupport = {
+  apis: DeviceApi[] | null;
+  supported: boolean;
 };
 
 export type DeviceInterface = {
@@ -194,6 +200,11 @@ export const restartDevice = (connection: AxisConnection, device: string) =>
 
 export const fetchApplications = (connection: AxisConnection, device: string) =>
   connection.callWS("device/applications", { device });
+
+export const fetchApplicationSupport = (
+  connection: AxisConnection,
+  device: string,
+) => connection.callWS("device/application-support", { device });
 
 export const fetchAcapUpdates = (connection: AxisConnection, device: string) =>
   connection.callWS("device/acap-updates", { device });

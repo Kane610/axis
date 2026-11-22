@@ -554,6 +554,98 @@ async def test_list_apis(record: DeviceRecord, device: MagicMock) -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("discovered", "listed", "fallback", "supported"),
+    [(True, True, True, True), (True, False, True, True), (False, False, True, False)],
+)
+async def test_application_support(
+    record: DeviceRecord,
+    device: MagicMock,
+    discovered: bool,
+    listed: bool,
+    fallback: bool,
+    supported: bool,
+) -> None:
+    """Discovery is reused, and parameter support is checked only when needed."""
+    device.vapix.api_discovery.update.return_value = discovered
+    device.vapix.applications.listed_in_api_discovery = listed
+    device.vapix.applications.supported = supported
+    device.vapix.params.property_handler.update.return_value = fallback
+    assert await operations.application_support(record) == {
+        "apis": [] if discovered else None,
+        "supported": supported,
+    }
+    assert device.vapix.params.property_handler.update.await_count == int(not listed)
+    device.vapix.inspect_interfaces.assert_not_awaited()
+    device.vapix.initialize.assert_not_awaited()
+
+
+async def test_application_support_unknown(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """An unavailable fallback is not reported as lack of device support."""
+    device.vapix.api_discovery.update.return_value = False
+    device.vapix.applications.listed_in_api_discovery = False
+    device.vapix.params.property_handler.update.return_value = False
+    with pytest.raises(OperationError, match="support could not be determined"):
+        await operations.application_support(record)
+
+
+@pytest.mark.parametrize(
+    ("listed", "version", "supported"),
+    [(True, "0.0", True), (False, "1.20", True), (False, "1.19", False)],
+)
+async def test_application_support_through_real_handlers(
+    record: DeviceRecord,
+    aiohttp_mock_server,
+    listed: bool,
+    version: str,
+    supported: bool,
+) -> None:
+    """Discovery and the legacy property fallback exercise real handler parsing."""
+    parameter_calls = 0
+
+    async def discovery(request: web.Request) -> web.Response:
+        apis = (
+            [{"id": "application", "name": "Application", "version": "1.0"}]
+            if listed
+            else []
+        )
+        return web.json_response(
+            {
+                "apiVersion": "1.0",
+                "context": "",
+                "method": "getApiList",
+                "data": {"apiList": apis},
+            }
+        )
+
+    async def params(request: web.Request) -> web.Response:
+        nonlocal parameter_calls
+        parameter_calls += 1
+        return web.Response(
+            text=(
+                "root.Properties.API.HTTP.Version=3\n"
+                "root.Properties.Firmware.BuildDate=date\n"
+                "root.Properties.Firmware.BuildNumber=1\n"
+                "root.Properties.Firmware.Version=1\n"
+                "root.Properties.System.SerialNumber=SERIAL\n"
+                f"root.Properties.EmbeddedDevelopment.Version={version}\n"
+            )
+        )
+
+    mock_server, _ = await aiohttp_mock_server(
+        {"/axis-cgi/apidiscovery.cgi": discovery, "/axis-cgi/param.cgi": params}
+    )
+    record.config.host = "127.0.0.1"
+    record.config.port = mock_server.port
+    record.config.auth_scheme = "basic"
+    result = await operations.application_support(record)
+    assert result["supported"] is supported
+    assert len(result["apis"]) == int(listed)
+    assert parameter_calls == int(not listed)
+
+
 async def test_list_interfaces(record: DeviceRecord, device: MagicMock) -> None:
     """Interface support comes directly from inspect_interfaces, not heuristics."""
     device.vapix.inspect_interfaces.return_value = {

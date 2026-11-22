@@ -12,6 +12,7 @@ import {
   fetchAcapUpdates,
   fetchApplicationPolicy,
   fetchApplicationSdks,
+  fetchApplicationSupport,
   fetchDevices,
   fetchDeviceSettings,
   fetchHealth,
@@ -46,7 +47,7 @@ import "./components/axis-card";
 import "./components/axis-device-health";
 import { macKey, type DiscoveryState } from "./components/axis-device-list";
 
-const DEVICE_VIEWS = ["Health", "APIs", "Interfaces"] as const;
+const DEVICE_VIEWS = ["Health", "Applications", "APIs", "Interfaces"] as const;
 type DeviceView = (typeof DEVICE_VIEWS)[number];
 
 const CONNECTION_LABELS = {
@@ -82,11 +83,33 @@ function connectionDraft(
   };
 }
 
+function documentationUrl(value: string): URL | null {
+  try {
+    const url = new URL(value);
+    if (
+      (url.protocol === "https:" || url.protocol === "http:") &&
+      !url.username &&
+      !url.password
+    )
+      return url;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 type DeviceViewData = {
   health?: Health;
   apis?: DeviceApi[];
   interfaces?: DeviceInterface[];
   interfaceResults?: ReadonlyMap<string, unknown>;
+};
+
+type DeviceCapabilities = {
+  firmware: string;
+  apis?: DeviceApi[];
+  applicationSupported?: boolean;
+  interfaces?: DeviceInterface[];
 };
 
 class AxisApp extends LitElement {
@@ -127,6 +150,8 @@ class AxisApp extends LitElement {
     restartMessage: { state: true },
     restartFailed: { state: true },
     applicationsOpen: { state: true },
+    applicationSupported: { state: true },
+    applicationSupportError: { state: true },
     applications: { state: true },
     applicationLoading: { state: true },
     applicationPending: { state: true },
@@ -493,6 +518,7 @@ class AxisApp extends LitElement {
   private selected = "";
   private deviceView: DeviceView = "Health";
   private viewData: DeviceViewData = {};
+  private readonly capabilities = new Map<string, DeviceCapabilities>();
   private selectedInterface: string | null = null;
   private error = "";
   private loading: "view" | "interface" | null = null;
@@ -533,6 +559,13 @@ class AxisApp extends LitElement {
   private restartMessage = "";
   private restartFailed = false;
   private applicationsOpen = false;
+  private applicationSupported: boolean | null = null;
+  private applicationSupportError = "";
+  private applicationSupportRequest = 0;
+  private applicationSupportPending: {
+    serial: string;
+    promise: Promise<void>;
+  } | null = null;
   private applications: Application[] | null = null;
   private applicationLoading = false;
   private applicationPending = false;
@@ -697,9 +730,12 @@ class AxisApp extends LitElement {
     this.restartConfirming = false;
     this.restartMessage = "";
     this.applicationsOpen = false;
+    this.resetApplicationSupport();
     this.applications = null;
     this.clearApplicationUpdates();
     ++this.architectureRequest;
+    ++this.applicationInfoRequest;
+    ++this.applicationPolicyRequest;
     this.applicationArchitecture = "";
     this.applicationSdks = "";
     this.applicationPolicy = null;
@@ -734,15 +770,30 @@ class AxisApp extends LitElement {
       void this.refreshDevices();
       void this.scanLocalNetwork();
       if (this.applicationsOpen && this.selected) {
-        void this.loadArchitecture(this.selected);
-        void this.loadAcapUpdates(this.selected);
-        if (this.installationOpen)
-          void this.loadInstallCandidates(this.selected);
+        const serial = this.selected;
+        void this.ensureApplicationSupport(serial).then(() => {
+          if (
+            !this.applicationsOpen ||
+            this.selected !== serial ||
+            this.applicationSupported !== true ||
+            this.applicationPending
+          )
+            return;
+          void this.loadApplicationInfo(serial);
+          void this.loadApplications(serial);
+          if (this.installationOpen) {
+            void this.loadArchitecture(serial);
+            void this.loadApplicationSdks(serial);
+            void this.loadInstallCandidates(serial);
+          }
+        });
       }
       return;
     }
     ++this.operation;
     ++this.refreshId;
+    this.capabilities.clear();
+    this.resetApplicationSupport();
     if (this.discovery)
       this.discovery = {
         status: "interrupted",
@@ -762,6 +813,9 @@ class AxisApp extends LitElement {
     }
     this.loading = null;
     this.applicationLoading = false;
+    ++this.architectureRequest;
+    ++this.applicationInfoRequest;
+    ++this.applicationPolicyRequest;
     this.clearApplicationUpdates();
     ++this.installCandidatesRequest;
     this.installCandidatesLoading = false;
@@ -777,12 +831,15 @@ class AxisApp extends LitElement {
       const devices = await fetchDevices(this.connection);
       if (this.refreshId !== refreshId) return;
       this.devices = devices;
+      for (const serial of this.capabilities.keys())
+        if (!devices.some((device) => device.serial === serial))
+          this.capabilities.delete(serial);
       this.error = "";
       if (
         this.selected &&
         this.devices.some((device) => device.serial === this.selected)
       ) {
-        if (!this.applicationPending)
+        if (!this.applicationPending && !this.applicationsOpen)
           await this.showDeviceView(this.selected, this.deviceView);
       } else if (!this.applicationPending) {
         ++this.operation;
@@ -939,6 +996,9 @@ class AxisApp extends LitElement {
     view: DeviceView,
     refresh = false,
   ): Promise<void> {
+    if (this.applicationPending) return;
+    if (view === "Applications") return this.openApplications(serial, refresh);
+    if (this.applicationsOpen) this.closeApplications(false);
     if (this.deviceView !== view) {
       const content = this.renderRoot.querySelector(".dialog-content");
       if (content) content.scrollTop = 0;
@@ -958,7 +1018,52 @@ class AxisApp extends LitElement {
       return this.browse(
         () => fetchHealth(this.connection, serial),
         (health) => {
-          this.viewData = { ...this.viewData, health };
+          const previous = this.viewData.health;
+          const firmware = health.firmware_version.trim();
+          const valid =
+            health.serial === serial &&
+            !!firmware &&
+            !["unknown", "<unknown>", "none", "n/a"].includes(
+              firmware.toLowerCase(),
+            );
+          let cached = this.capabilities.get(serial);
+          if (
+            !valid ||
+            (cached && cached.firmware !== health.firmware_version)
+          ) {
+            this.capabilities.delete(serial);
+            cached = undefined;
+            this.resetApplicationSupport();
+          }
+          if (
+            !valid ||
+            (previous &&
+              (previous.serial !== health.serial ||
+                previous.firmware_version !== health.firmware_version))
+          ) {
+            this.viewData = {};
+            this.resetApplicationSupport();
+          }
+          if (valid && !cached) {
+            cached = { firmware: health.firmware_version };
+            this.capabilities.set(serial, cached);
+          }
+          if (cached?.applicationSupported !== undefined)
+            this.applicationSupported = cached.applicationSupported;
+          else if (cached && this.applicationSupported !== null)
+            cached.applicationSupported = this.applicationSupported;
+          this.viewData = {
+            ...this.viewData,
+            health,
+            ...(!this.viewData.apis && cached?.apis
+              ? { apis: cached.apis }
+              : {}),
+            ...(!this.viewData.interfaces && cached?.interfaces
+              ? { interfaces: cached.interfaces }
+              : {}),
+          };
+          if (this.applicationSupported === null)
+            void this.ensureApplicationSupport(serial);
         },
       );
     }
@@ -967,12 +1072,28 @@ class AxisApp extends LitElement {
         () => fetchApis(this.connection, serial),
         (apis) => {
           this.viewData = { ...this.viewData, apis };
+          const cached = this.capabilities.get(serial);
+          if (
+            cached &&
+            this.viewData.health?.serial === serial &&
+            this.viewData.health.firmware_version === cached.firmware
+          )
+            cached.apis = apis;
+          else if (cached) delete cached.apis;
         },
       );
     return this.browse(
       () => fetchInterfaces(this.connection, serial),
       (interfaces) => {
         this.viewData = { ...this.viewData, interfaces };
+        const cached = this.capabilities.get(serial);
+        if (
+          cached &&
+          this.viewData.health?.serial === serial &&
+          this.viewData.health.firmware_version === cached.firmware
+        )
+          cached.interfaces = interfaces;
+        else if (cached) delete cached.interfaces;
         if (refresh) this.selectedInterface = null;
       },
     );
@@ -980,24 +1101,13 @@ class AxisApp extends LitElement {
 
   private async showInterface(serial: string, name: string): Promise<void> {
     if (name === "applications") {
-      this.applicationsOpen = true;
-      this.restartConfirming = false;
-      this.applications = null;
-      this.error = "";
-      this.applicationMessage = "";
-      this.applicationConfirmation = null;
-      this.installationOpen = false;
-      this.installationFile = null;
-      this.installationError = "";
-      void this.loadArchitecture(serial);
-      void this.loadApplicationInfo(serial);
+      const opening = this.openApplications(serial);
       void this.updateComplete.then(() =>
         this.renderRoot
           .querySelector<HTMLButtonElement>(".application-back")
           ?.focus(),
       );
-      await this.loadApplications(serial);
-      return;
+      return opening;
     }
     const refresh = this.selectedInterface === name;
     this.selectedInterface = name;
@@ -1014,6 +1124,93 @@ class AxisApp extends LitElement {
       },
       "interface",
     );
+  }
+
+  private resetApplicationSupport(): void {
+    ++this.applicationSupportRequest;
+    this.applicationSupportPending = null;
+    this.applicationSupported = null;
+    this.applicationSupportError = "";
+  }
+
+  private async ensureApplicationSupport(serial: string): Promise<void> {
+    if (this.applicationSupported !== null) return;
+    if (this.applicationSupportPending?.serial === serial)
+      return this.applicationSupportPending.promise;
+    const request = ++this.applicationSupportRequest;
+    this.applicationSupportError = "";
+    const promise = fetchApplicationSupport(this.connection, serial)
+      .then(
+        ({ apis, supported }) => {
+          if (
+            request !== this.applicationSupportRequest ||
+            this.selected !== serial
+          )
+            return;
+          this.applicationSupported = supported;
+          const useApis = apis !== null && !this.viewData.apis;
+          if (apis && useApis) this.viewData = { ...this.viewData, apis };
+          const cached = this.capabilities.get(serial);
+          if (
+            cached &&
+            this.viewData.health?.serial === serial &&
+            this.viewData.health.firmware_version === cached.firmware
+          ) {
+            cached.applicationSupported = supported;
+            if (apis && useApis && !cached.apis) cached.apis = apis;
+          }
+        },
+        (error: Error) => {
+          if (
+            request === this.applicationSupportRequest &&
+            this.selected === serial
+          )
+            this.applicationSupportError = error.message;
+        },
+      )
+      .finally(() => {
+        if (request === this.applicationSupportRequest) {
+          this.applicationSupportPending = null;
+          this.requestUpdate();
+        }
+      });
+    this.applicationSupportPending = { serial, promise };
+    return promise;
+  }
+
+  private async openApplications(
+    serial: string,
+    refresh = false,
+  ): Promise<void> {
+    if (this.applicationPending) return;
+    const operation = ++this.operation;
+    this.loading = null;
+    this.applicationsOpen = true;
+    this.restartConfirming = false;
+    this.applications = null;
+    this.error = "";
+    this.applicationMessage = "";
+    this.applicationConfirmation = null;
+    this.installationOpen = false;
+    this.installationFile = null;
+    this.installationError = "";
+    if (refresh && this.applicationSupported !== true)
+      this.resetApplicationSupport();
+    await this.ensureApplicationSupport(serial);
+    if (
+      this.operation !== operation ||
+      !this.applicationsOpen ||
+      this.selected !== serial
+    )
+      return;
+    if (this.applicationSupported !== true) return;
+    void this.loadApplicationInfo(serial);
+    await this.loadApplications(serial);
+  }
+
+  private invalidateDeviceViews(serial: string): void {
+    this.capabilities.delete(serial);
+    this.viewData = {};
   }
 
   private async loadApplications(serial: string): Promise<void> {
@@ -1097,49 +1294,39 @@ class AxisApp extends LitElement {
   }
 
   private async loadApplicationInfo(serial: string): Promise<void> {
-    const request = this.architectureRequest;
-    const infoRequest = ++this.applicationInfoRequest;
     const policyRequest = ++this.applicationPolicyRequest;
-    this.applicationSdks = "Loading…";
     this.applicationPolicy = null;
     this.applicationPolicyError = "Loading…";
-    void fetchApplicationSdks(this.connection, serial).then(
-      (sdks) => {
-        if (
-          request === this.architectureRequest &&
-          infoRequest === this.applicationInfoRequest &&
-          this.applicationsOpen
-        )
-          this.applicationSdks = sdks.length
-            ? sdks.join(", ")
-            : "None reported";
-      },
-      (error: Error) => {
-        if (
-          request === this.architectureRequest &&
-          infoRequest === this.applicationInfoRequest &&
-          this.applicationsOpen
-        )
-          this.applicationSdks = `Unavailable: ${error.message}`;
-      },
-    );
     try {
       const policy = await fetchApplicationPolicy(this.connection, serial);
       if (
-        request === this.architectureRequest &&
         policyRequest === this.applicationPolicyRequest &&
-        this.applicationsOpen
+        this.applicationsOpen &&
+        this.selected === serial
       ) {
         this.applicationPolicy = policy;
         this.applicationPolicyError = "";
       }
     } catch (error) {
       if (
-        request === this.architectureRequest &&
         policyRequest === this.applicationPolicyRequest &&
-        this.applicationsOpen
+        this.applicationsOpen &&
+        this.selected === serial
       )
         this.applicationPolicyError = `Unavailable: ${(error as Error).message}`;
+    }
+  }
+
+  private async loadApplicationSdks(serial: string): Promise<void> {
+    const request = ++this.applicationInfoRequest;
+    this.applicationSdks = "Loading…";
+    try {
+      const sdks = await fetchApplicationSdks(this.connection, serial);
+      if (request === this.applicationInfoRequest && this.installationOpen)
+        this.applicationSdks = sdks.length ? sdks.join(", ") : "None reported";
+    } catch (error) {
+      if (request === this.applicationInfoRequest && this.installationOpen)
+        this.applicationSdks = `Unavailable: ${(error as Error).message}`;
     }
   }
 
@@ -1191,7 +1378,7 @@ class AxisApp extends LitElement {
       this.licenseFile = null;
       this.applicationFailed = false;
       this.applicationMessage = "License change accepted.";
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
       await this.loadApplications(device.serial);
     } catch (error) {
       this.licenseSelection = null;
@@ -1201,7 +1388,7 @@ class AxisApp extends LitElement {
       this.applicationFailed = true;
       this.applicationMessage = (error as Error).message;
       this.applications = null;
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
     } finally {
       this.applicationPending = false;
       if (!this.licenseOpen)
@@ -1267,7 +1454,7 @@ class AxisApp extends LitElement {
       this.licenseAppName = "";
       this.applicationFailed = false;
       this.applicationMessage = "License change accepted.";
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
       await this.loadApplications(device.serial);
     } catch (error) {
       this.licenseFile = null;
@@ -1276,7 +1463,7 @@ class AxisApp extends LitElement {
       this.applicationFailed = true;
       this.applicationMessage = (error as Error).message;
       this.applications = null;
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
     } finally {
       this.applicationPending = false;
       if (!this.licenseOpen)
@@ -1288,12 +1475,14 @@ class AxisApp extends LitElement {
     }
   }
 
-  private closeApplications(): void {
+  private closeApplications(restore = true): void {
     if (this.applicationPending) return;
     ++this.operation;
     this.applicationsOpen = false;
     this.clearApplicationUpdates();
     ++this.architectureRequest;
+    ++this.applicationInfoRequest;
+    ++this.applicationPolicyRequest;
     this.applicationArchitecture = "";
     this.applicationSdks = "";
     this.applicationPolicy = null;
@@ -1310,20 +1499,18 @@ class AxisApp extends LitElement {
     this.installationError = "";
     this.installationDragging = false;
     this.applicationMessage = "";
-    void this.updateComplete.then(() =>
-      (
-        this.renderRoot.querySelector<HTMLElement>(".application-trigger") ??
-        this.renderRoot.querySelector<HTMLElement>(
-          ".device-views axis-button.active",
-        )
-      )?.focus(),
-    );
-    if (
-      this.selected &&
-      !this.viewData.interfaces &&
-      this.status === "connected"
-    )
-      void this.showDeviceView(this.selected, "Interfaces");
+    if (restore) {
+      void this.updateComplete.then(() =>
+        (
+          this.renderRoot.querySelector<HTMLElement>(".application-trigger") ??
+          this.renderRoot.querySelector<HTMLElement>(
+            ".device-views axis-button.active",
+          )
+        )?.focus(),
+      );
+      if (this.selected && this.status === "connected")
+        void this.showDeviceView(this.selected, this.deviceView);
+    }
   }
 
   private async applyApplicationAction(device: Device): Promise<void> {
@@ -1341,14 +1528,14 @@ class AxisApp extends LitElement {
       this.applicationConfirmation = null;
       this.applicationFailed = false;
       this.applicationMessage = "Application action accepted.";
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
       await this.loadApplications(device.serial);
     } catch (error) {
       this.applicationConfirmation = null;
       this.applicationFailed = true;
       this.applicationMessage = (error as Error).message;
       this.applications = null;
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
     } finally {
       this.applicationPending = false;
     }
@@ -1376,7 +1563,7 @@ class AxisApp extends LitElement {
       this.updateApp = null;
       this.applicationFailed = false;
       this.applicationMessage = "Application updated.";
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
       await this.loadApplications(device.serial);
     } catch (error) {
       this.updateConfirmation = null;
@@ -1384,7 +1571,7 @@ class AxisApp extends LitElement {
       this.applicationMessage = (error as Error).message;
       this.applications = null;
       this.clearApplicationUpdates();
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
     } finally {
       this.applicationPending = false;
     }
@@ -1438,6 +1625,8 @@ class AxisApp extends LitElement {
     this.installAppsExpanded = false;
     this.installExpandedApp = "";
     this.installCandidatesExpanded = false;
+    void this.loadArchitecture(serial);
+    void this.loadApplicationSdks(serial);
     void this.loadInstallCandidates(serial);
   }
 
@@ -1445,6 +1634,8 @@ class AxisApp extends LitElement {
     event?.preventDefault();
     event?.stopPropagation();
     if (this.applicationPending) return;
+    ++this.architectureRequest;
+    ++this.applicationInfoRequest;
     this.installationOpen = false;
     this.installationFile = null;
     ++this.installCandidatesRequest;
@@ -1510,7 +1701,7 @@ class AxisApp extends LitElement {
       ++this.installCandidatesRequest;
       this.applicationFailed = false;
       this.applicationMessage = "Application installed.";
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
       await this.loadApplications(device.serial);
     } catch (error) {
       this.installationFile = null;
@@ -1519,7 +1710,7 @@ class AxisApp extends LitElement {
       this.applicationMessage = (error as Error).message;
       this.installationError = (error as Error).message;
       this.applications = null;
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
     } finally {
       this.applicationPending = false;
       if (!this.installationOpen)
@@ -1553,6 +1744,26 @@ class AxisApp extends LitElement {
   }
 
   private renderApplications(device: Device, connected: boolean) {
+    if (this.applicationSupported !== true)
+      return html`<axis-card>
+        <h3>Installed applications</h3>
+        ${
+          this.applicationSupportError
+            ? html`<p role="alert">${this.applicationSupportError}</p>`
+            : this.applicationSupported === false
+              ? html`<p>Applications are not supported by this device.</p>`
+              : html`<p role="status">Checking application support…</p>`
+        }
+        ${
+          this.applicationSupportError || this.applicationSupported === false
+            ? html`<axis-button
+                ?disabled=${!connected || this.applicationSupportPending !== null}
+                @click=${() => this.openApplications(device.serial, true)}
+                >Retry support check</axis-button
+              >`
+            : nothing
+        }
+      </axis-card>`;
     const controlsDisabled =
       !connected ||
       this.applicationLoading ||
@@ -1562,7 +1773,8 @@ class AxisApp extends LitElement {
       this.updateConfirmation !== null ||
       this.licenseSelection !== null ||
       this.installationOpen ||
-      this.licenseOpen;
+      this.licenseOpen ||
+      this.applicationSupported !== true;
     return html`
       <axis-card>
         <div class="application-heading">
@@ -2357,7 +2569,7 @@ class AxisApp extends LitElement {
       this.restartMessage = (error as Error).message;
       this.restartFailed = true;
     } finally {
-      this.viewData = {};
+      this.invalidateDeviceViews(device.serial);
       this.selectedInterface = null;
       this.restartConfirming = false;
       this.restartPending = false;
@@ -2469,6 +2681,35 @@ class AxisApp extends LitElement {
               </div>`
             : nothing
         }
+        ${
+          this.deviceView === "APIs" && apis?.some((api) => api.doc_link)
+            ? html`
+                <section aria-label="API documentation">
+                  <h4>API documentation</h4>
+                  <ul>
+                    ${apis
+                      .filter((api) => api.doc_link)
+                      .map((api) => {
+                        const url = documentationUrl(api.doc_link);
+                        return html`<li>
+                          ${
+                            url
+                              ? html`<a
+                                  href=${url.href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  >${api.name || api.id} — ${url.host}</a
+                                >`
+                              : html`${api.name || api.id}: documentation link
+                                unavailable`
+                          }
+                        </li>`;
+                      })}
+                  </ul>
+                </section>
+              `
+            : nothing
+        }
         ${data !== undefined ? html`<pre>${JSON.stringify(data, null, 2)}</pre>` : nothing}
       </axis-card>
     `;
@@ -2535,7 +2776,8 @@ class AxisApp extends LitElement {
       this.settingsPending = false;
       void this.closeSettings();
       if (result.connection_changed) {
-        this.viewData = {};
+        this.invalidateDeviceViews(target.serial);
+        this.resetApplicationSupport();
         this.selectedInterface = null;
         void this.showDeviceView(target.serial, this.deviceView);
       }
@@ -3269,7 +3511,7 @@ class AxisApp extends LitElement {
                       type="button"
                       class="application-back"
                       ?disabled=${this.applicationPending}
-                      @click=${this.closeApplications}
+                      @click=${() => this.closeApplications()}
                     >
                       Back
                     </button>`
@@ -3296,7 +3538,7 @@ class AxisApp extends LitElement {
             </div>
           </header>
           ${
-            device && !this.applicationsOpen
+            device
               ? html`<nav
                   class="actions device-views"
                   aria-label="Device views"
@@ -3304,14 +3546,18 @@ class AxisApp extends LitElement {
                   ${DEVICE_VIEWS.map(
                     (view) => html`
                       <axis-button
-                        class=${!this.settings && this.deviceView === view ? "active" : ""}
+                        class=${!this.settings && (view === "Applications" ? this.applicationsOpen : !this.applicationsOpen && this.deviceView === view) ? "active" : ""}
                         variant="neutral"
-                        .pressed=${!this.settings && this.deviceView === view}
-                        .busy=${this.loading === "view" && this.deviceView === view}
-                        ?disabled=${!connected || this.settingsPending || this.restartPending}
+                        .pressed=${!this.settings && (view === "Applications" ? this.applicationsOpen : !this.applicationsOpen && this.deviceView === view)}
+                        .busy=${view === "Applications" ? this.applicationsOpen && (this.applicationLoading || this.applicationSupportPending !== null) : this.loading === "view" && this.deviceView === view}
+                        ?disabled=${!connected || this.settingsPending || this.restartPending || this.applicationPending}
                         @click=${() => {
                           const refresh =
-                            !this.settings && this.deviceView === view;
+                            !this.settings &&
+                            (view === "Applications"
+                              ? this.applicationsOpen
+                              : !this.applicationsOpen &&
+                                this.deviceView === view);
                           this.settings = null;
                           this.connectionTest = null;
                           this.restartConfirming = false;

@@ -552,6 +552,7 @@ async def _saved_operation(  # noqa: PLR0911 - each command returns its own resp
             "device/applications",
             "device/application-action",
             "device/application-sdks",
+            "device/application-support",
             "device/application-policy",
             "device/application-policy-set",
             "device/application-license-remove",
@@ -561,6 +562,8 @@ async def _saved_operation(  # noqa: PLR0911 - each command returns its own resp
     ):
         raise ValueError
     record = registry.resolve(identifier)
+    if command == "device/application-support":
+        return await operations.application_support(record)
     if command == "device/application-action":
         action = message.get("action")
         package = message.get("package")

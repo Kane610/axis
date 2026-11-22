@@ -2,6 +2,7 @@ import type {
   ConfiguredDevice,
   Application,
   ApplicationAction,
+  ApplicationSupport,
   AcapCandidate,
   AcapCatalog,
   AcapUpdate,
@@ -55,6 +56,10 @@ type Commands = {
   "device/read": { args: { device: string; name: string }; result: unknown };
   "device/restart": { args: { device: string; confirmed: true }; result: null };
   "device/applications": { args: { device: string }; result: Application[] };
+  "device/application-support": {
+    args: { device: string };
+    result: ApplicationSupport;
+  };
   "device/acap-updates": { args: { device: string }; result: AcapUpdate[] };
   "device/acap-install-candidates": {
     args: { device: string };

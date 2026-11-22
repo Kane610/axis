@@ -120,7 +120,8 @@ serial and uses firmware management when advertised, otherwise `restart.cgi`.
 “Restart requested” does not confirm the reboot completed. If the outcome is
 unknown, check the device before trying again.
 
-Select **applications** in Interfaces to view installed apps and their status,
+Select **Applications** in the device navigation (or **applications** in
+Interfaces) to view installed apps and their status,
 version, vendor, license, signature, bundled status, resources, and compatible
 OS versions when reported. When available and the app is running, its
 configuration page opens on the device in a separate tab and may require a separate
@@ -233,11 +234,23 @@ or red on failure without changing its label or moving the form. A successful
 test is required to register a device or save changed connection settings.
 Editing a connection field clears the result; changing only the alias does not
 require a test.
-The saved-device modal opens on **Health**. Use **APIs** or
+The saved-device modal opens on **Health**. Use **Applications**, **APIs**, or
 **Interfaces** below the device name to switch views; individual interface
-buttons are inside **Interfaces**. While the modal is open, switching back to
+buttons are inside **Interfaces**. The APIs view links to documentation when
+the device provides an HTTP or HTTPS documentation URL; the link displays its
+destination host. While the modal is open, switching back to
 a view or interface reuses its last successful result. Select the active button
-again to refresh it. A moving dashed outline marks the button while it loads
+again to refresh it. API and interface inspection results are also kept in
+browser memory when the modal is closed, and reused after a fresh health read
+confirms the saved serial and unchanged AXIS OS version. Application support
+is checked using API Discovery, with legacy device properties as a fallback;
+installed apps load only when Applications is opened, and installation
+compatibility details load when the installation dialog is opened. Interface inspection
+includes a snapshot of probe results and item counts; refresh it to check for
+changes made elsewhere. Application and license changes, a device restart,
+connection-setting changes, or a server disconnection discard these capability
+snapshots. Installed applications and individual interface data are not retained
+across modal sessions. A moving dashed outline marks the button while it loads
 without moving the existing content. The modal starts at the top of the
 **Devices** box and scrolls independently. Use **Close** or click outside the
 modal to return to the list. **Esc** returns from Settings to the current view,
@@ -621,6 +634,8 @@ Vapix initialization is phase-based and driven by handler metadata:
 - `APPLICATION`: handlers initialized after applications are loaded.
 
 Handlers declare phase membership through `handler_groups` and may customize phase eligibility through `should_initialize_in_group`.
+The applications handler recognizes the `application` API Discovery entry or,
+for older devices, the `Properties.EmbeddedDevelopment.Version` parameter.
 
 ## Request and response typing
 

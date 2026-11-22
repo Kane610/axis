@@ -182,6 +182,25 @@ async def test_application_action_requires_confirmation(
     assert action.await_args.kwargs == {"confirmed": True}
 
 
+async def test_application_support_command(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Return lightweight support results and propagate unavailable discovery."""
+    support = AsyncMock(return_value={"apis": [], "supported": True})
+    monkeypatch.setattr(server.operations, "application_support", support)
+    socket = await connect(client)
+    assert await command(
+        socket, type="device/application-support", device="SERIAL"
+    ) == {"id": 1, "result": {"apis": [], "supported": True}}
+    assert support.await_args.args[0].serial == "SERIAL"
+    support.side_effect = OperationError(
+        "Application support could not be determined.", kind=ErrorKind.UNSUPPORTED
+    )
+    result = await command(socket, type="device/application-support", device="SERIAL")
+    assert result["error"]["code"] == "unsupported"
+    assert result["error"]["message"] == "Application support could not be determined."
+
+
 async def test_application_policy_and_license_commands(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1513,6 +1532,7 @@ async def test_health_and_api_reads(
     device.vapix.api_discovery.update = AsyncMock(return_value=True)
     device.vapix.api_discovery.values.return_value = [
         Api(
+            doc_link="https://developer.axis.com/vapix/network-video/light-control/",
             id="light-control",
             name="Light control",
             status=ApiStatus.OFFICIAL,

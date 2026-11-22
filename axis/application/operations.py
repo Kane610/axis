@@ -291,6 +291,27 @@ async def list_apis(record: DeviceRecord) -> list[dict[str, object]]:
         ]
 
 
+async def application_support(record: DeviceRecord) -> dict[str, object]:
+    """Discover the application API, falling back to legacy device properties."""
+    async with _device(record.config) as device:
+        discovered = await device.vapix.api_discovery.update()
+        apis = (
+            [
+                _row(api, device.config.password)
+                for api in device.vapix.api_discovery.values()
+            ]
+            if discovered
+            else None
+        )
+        if (
+            not device.vapix.applications.listed_in_api_discovery
+            and not await device.vapix.params.property_handler.update()
+        ):
+            msg = "Application support could not be determined."
+            raise OperationError(msg, kind=ErrorKind.UNSUPPORTED)
+        return {"apis": apis, "supported": device.vapix.applications.supported}
+
+
 async def list_applications(record: DeviceRecord) -> list[dict[str, object]]:
     """Read installed applications without initializing unrelated interfaces."""
     async with _device(record.config) as device:

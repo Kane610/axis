@@ -125,7 +125,7 @@ class ErrorDataT(TypedDict):
 class ApiDescriptionT(TypedDict):
     """One API's identifier, display name, version, status, and documentation link."""
 
-    docLink: str
+    docLink: NotRequired[str]
     id: str
     name: str
     status: NotRequired[str]
@@ -182,6 +182,7 @@ class Api(ApiItem):
     name: str
     status: ApiStatus
     version: str
+    doc_link: str = ""
 
     @property
     def api_id(self) -> ApiId:
@@ -192,6 +193,7 @@ class Api(ApiItem):
     def decode(cls, data: ApiDescriptionT) -> Self:
         """Convert an API Discovery catalog entry to an Api."""
         return cls(
+            doc_link=data.get("docLink", ""),
             id=data["id"],
             name=data["name"],
             status=ApiStatus(data.get("status", "")),

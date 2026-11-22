@@ -6,6 +6,7 @@ pytest --cov-report term-missing --cov=axis.api_discovery tests/test_api_discove
 import json
 
 from axis.models.api_discovery import (
+    Api,
     ApiId,
     ApiStatus,
     GetSupportedVersionsRequest,
@@ -48,6 +49,13 @@ async def test_get_api_list(mock_api_request, axis_device):
     assert item.name == "API Discovery Service"
     assert item.status == ApiStatus.UNKNOWN
     assert item.version == "1.0"
+    assert item.doc_link == "https://www.axis.com/partner_pages/vapix_library/#/"
+
+
+def test_api_without_documentation_link():
+    """Devices that omit the optional documentation link remain supported."""
+    api = Api.decode({"id": "application", "name": "Application", "version": "1.0"})
+    assert api.doc_link == ""
 
 
 async def test_get_supported_versions(mock_api_request, axis_device):
