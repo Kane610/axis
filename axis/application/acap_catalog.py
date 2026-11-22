@@ -11,7 +11,7 @@ import re
 import shlex
 import stat
 import tarfile
-from typing import IO, Any, Protocol
+from typing import IO, Any, Literal, Protocol
 import zlib
 
 MAX_PACKAGE_SIZE = 1024 * 1024 * 1024
@@ -43,6 +43,7 @@ class Package:
     os_ranges: tuple[tuple[str, str], ...]
     sdk: str
     signature: str
+    schema_version: str | None = ""
 
     def public(self) -> dict[str, Any]:
         """Return JSON-compatible metadata."""
@@ -205,20 +206,24 @@ def _legacy(data: bytes | None) -> dict[str, str]:
 
 def _metadata(
     manifest: bytes | None, legacy_data: bytes | None
-) -> tuple[dict[str, Any], tuple[tuple[str, str], ...]]:
+) -> tuple[dict[str, Any], tuple[tuple[str, str], ...], str | None]:
     if manifest is None:
         legacy = _legacy(legacy_data)
-        return {
-            "appName": legacy.get("APPNAME", ""),
-            "friendlyName": legacy.get("PACKAGENAME", ""),
-            "version": ".".join(
-                legacy.get(key, "")
-                for key in ("APPMAJORVERSION", "APPMINORVERSION", "APPMICROVERSION")
-            ),
-            "architecture": legacy.get("APPTYPE", ""),
-            "vendor": legacy.get("VENDOR", ""),
-            "embeddedSdkVersion": legacy.get("REQEMBDEVVERSION", ""),
-        }, ()
+        return (
+            {
+                "appName": legacy.get("APPNAME", ""),
+                "friendlyName": legacy.get("PACKAGENAME", ""),
+                "version": ".".join(
+                    legacy.get(key, "")
+                    for key in ("APPMAJORVERSION", "APPMINORVERSION", "APPMICROVERSION")
+                ),
+                "architecture": legacy.get("APPTYPE", ""),
+                "vendor": legacy.get("VENDOR", ""),
+                "embeddedSdkVersion": legacy.get("REQEMBDEVVERSION", ""),
+            },
+            (),
+            None,
+        )
     data = json.loads(manifest)
     if not isinstance(data, dict) or not isinstance(data.get("acapPackageConf"), dict):
         msg = "Invalid ACAP manifest."
@@ -250,7 +255,7 @@ def _metadata(
             msg = "Invalid compatible OS versions."
             raise PackageError(msg)
         versions.append((_field(item, "min"), _field(item, "max")))
-    return setup, tuple(versions)
+    return setup, tuple(versions), _field(data, "schemaVersion")
 
 
 def inspect_package(package: IO[bytes], filename: str) -> Package:
@@ -265,7 +270,7 @@ def inspect_package(package: IO[bytes], filename: str) -> Package:
         if manifest is None and legacy is None:
             msg = "No ACAP manifest or package.conf found."
             raise PackageError(msg)
-        setup, ranges = _metadata(manifest, legacy)
+        setup, ranges, schema_version = _metadata(manifest, legacy)
         package.seek(0)
         hasher = hashlib.sha256()
         while chunk := package.read(262144):
@@ -292,6 +297,7 @@ def inspect_package(package: IO[bytes], filename: str) -> Package:
             os_ranges=ranges,
             sdk=_field(setup, "embeddedSdkVersion"),
             signature=signature,
+            schema_version=schema_version,
         )
     except (
         OSError,
@@ -387,12 +393,29 @@ def _os_version(
 
 
 @dataclass(frozen=True)
+class AssessmentFinding:
+    """A compatibility finding and how much is known about it."""
+
+    kind: Literal["incompatible", "unknown", "not_checked", "review"]
+    message: str
+
+
+@dataclass(frozen=True)
 class UpdateAssessment:
     """Warnings and ordering for a manually confirmed package change."""
 
-    warnings: tuple[str, ...]
+    findings: tuple[AssessmentFinding, ...]
     severity: int
     downgrade: bool
+
+    @property
+    def warnings(self) -> tuple[str, ...]:
+        """Return findings that must be acknowledged when confirming a write."""
+        return tuple(
+            finding.message
+            for finding in self.findings
+            if finding.kind != "not_checked"
+        )
 
 
 def _assess_environment(
@@ -412,44 +435,105 @@ def _assess_environment(
     ):
         return None
 
-    warnings = []
+    findings: list[AssessmentFinding] = []
     severity = 0
     if not architecture or not package.architecture:
-        warnings.append("Architecture compatibility is unknown.")
+        findings.append(
+            AssessmentFinding("unknown", "Architecture compatibility is unknown.")
+        )
         severity = max(severity, 1)
     device_os = _os_version(os_version)
     bounds = [
         (_os_version(low), _os_version(high, upper=True))
         for low, high in package.os_ranges
     ]
-    if (
-        not bounds
-        or device_os is None
-        or any(low is None or high is None for low, high in bounds)
+    schema = version_key(package.schema_version) if package.schema_version else None
+    schema_major = schema[0] if schema else None
+    if schema_major == 2 and not re.fullmatch(r"[0-9a-fA-F]{10}", package.vendor_id):
+        findings.append(
+            AssessmentFinding(
+                "incompatible",
+                "Manifest schema 2 requires a vendor ID of ten hexadecimal characters.",
+            )
+        )
+        severity = 2
+    if schema_major != 2:
+        reason = (
+            "legacy package metadata does not declare OS ranges"
+            if package.schema_version is None
+            else "manifest schema 1 does not declare OS ranges"
+            if schema_major == 1
+            else "the manifest schema is missing or not recognized"
+        )
+        findings.append(
+            AssessmentFinding("unknown", f"AXIS OS compatibility is unknown: {reason}.")
+        )
+        severity = max(severity, 1)
+        if package.schema_version is None or schema_major == 1:
+            findings.append(
+                AssessmentFinding(
+                    "not_checked", "Legacy SDK compatibility has not been checked."
+                )
+            )
+    elif not bounds or any(
+        low is None or high is None or low > high for low, high in bounds
     ):
-        warnings.append("AXIS OS compatibility is unknown.")
+        findings.append(
+            AssessmentFinding(
+                "incompatible",
+                "Manifest schema 2 requires valid AXIS OS version ranges.",
+            )
+        )
+        severity = 2
+    elif device_os is None:
+        findings.append(
+            AssessmentFinding(
+                "unknown",
+                "AXIS OS compatibility is unknown: the device version is unavailable or unrecognized.",
+            )
+        )
         severity = max(severity, 1)
     elif not any(
         low <= device_os <= high
         for low, high in bounds
         if low is not None and high is not None
     ):
-        warnings.append("AXIS OS version is outside the package ranges.")
+        message = "AXIS OS version is outside the package's declared ranges."
+        if device_os >= (12, 10, 0):
+            message += " The device is expected to reject installation."
+        findings.append(AssessmentFinding("incompatible", message))
         severity = 2
     if package.signature != "present_unverified":
-        warnings.append(
-            "No signature was detected."
-            if package.signature == "not_detected"
-            else "Package signature format is unknown."
+        findings.append(
+            AssessmentFinding(
+                "unknown",
+                "No supported signature was detected."
+                if package.signature == "not_detected"
+                else "Package signature format is unknown.",
+            )
         )
         severity = max(severity, 1)
+    else:
+        findings.append(
+            AssessmentFinding(
+                "not_checked",
+                "Package signature is present but has not been verified locally.",
+            )
+        )
     if allow_unsigned is None:
-        warnings.append("Unsigned application policy is unknown.")
+        findings.append(
+            AssessmentFinding("unknown", "Unsigned application policy is unknown.")
+        )
         severity = max(severity, 1)
     elif not allow_unsigned and package.signature != "present_unverified":
-        warnings.append("Unsigned applications are disabled on the device.")
+        findings.append(
+            AssessmentFinding(
+                "review",
+                "Unsigned applications are disabled; the device may reject this package.",
+            )
+        )
         severity = 2
-    return UpdateAssessment(tuple(warnings), severity, False)
+    return UpdateAssessment(tuple(findings), severity, False)
 
 
 def assess_update(
@@ -467,28 +551,41 @@ def assess_update(
     environment = _assess_environment(package, architecture, os_version, allow_unsigned)
     if environment is None:
         return None
-    warnings = []
+    findings: list[AssessmentFinding] = []
     severity = 0
     current, candidate = version_key(version), version_key(package.version)
     downgrade = current is not None and candidate is not None and candidate < current
     if current is None or candidate is None:
-        warnings.append(
-            "Application version cannot be compared; this may be a downgrade."
+        findings.append(
+            AssessmentFinding(
+                "unknown",
+                "Application version cannot be compared; this may be a downgrade.",
+            )
         )
         severity = 2
     elif candidate == current:
         return None
     elif downgrade:
-        warnings.append("This is a downgrade.")
+        findings.append(AssessmentFinding("review", "This is a downgrade."))
 
     if not vendor.strip() or not package.vendor.strip():
-        warnings.append("Vendor identity cannot be compared.")
+        findings.append(AssessmentFinding("unknown", "Vendor name cannot be compared."))
         severity = max(severity, 1)
     elif vendor.strip().casefold() != package.vendor.strip().casefold():
-        warnings.append("Vendor differs from the installed application.")
+        findings.append(
+            AssessmentFinding(
+                "review", "Vendor differs from the installed application."
+            )
+        )
         severity = 2
+    findings.append(
+        AssessmentFinding(
+            "not_checked",
+            "The installed application's vendor ID is unavailable; the device may reject the upgrade even if vendor names match.",
+        )
+    )
     return UpdateAssessment(
-        tuple(warnings) + environment.warnings,
+        tuple(findings) + environment.findings,
         max(severity, environment.severity),
         downgrade,
     )
@@ -503,13 +600,24 @@ def assess_install(
     environment = _assess_environment(package, architecture, os_version, allow_unsigned)
     if environment is None:
         return None
-    warnings = ["Vendor identity cannot be compared to an installed application."]
+    findings = [
+        AssessmentFinding(
+            "not_checked", "Package vendor identity has not been verified."
+        )
+    ]
+    severity = 0
     if not package.vendor.strip():
-        warnings.append("Package vendor is unknown.")
+        findings.append(AssessmentFinding("unknown", "Package vendor is unknown."))
+        severity = 1
     if version_key(package.version) is None:
-        warnings.append("Package version is unknown or cannot be interpreted.")
+        findings.append(
+            AssessmentFinding(
+                "unknown", "Package version is unknown or cannot be interpreted."
+            )
+        )
+        severity = 1
     return UpdateAssessment(
-        tuple(warnings) + environment.warnings,
-        max(int(bool(warnings)), environment.severity),
+        tuple(findings) + environment.findings,
+        max(severity, environment.severity),
         False,
     )

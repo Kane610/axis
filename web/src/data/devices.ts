@@ -80,6 +80,7 @@ export type AcapPackage = {
   os_ranges: [string, string][];
   sdk: string;
   signature: "present_unverified" | "not_detected" | "unknown";
+  schema_version: string | null;
 };
 
 export type AcapCatalog = {
@@ -99,7 +100,15 @@ export type AcapUpdate = {
 export type AcapCandidate = {
   package: AcapPackage;
   warnings: string[];
+  findings: {
+    kind: "incompatible" | "unknown" | "not_checked" | "review";
+    message: string;
+  }[];
   downgrade: boolean;
+  replacement?: {
+    warnings: string[];
+    findings: AcapCandidate["findings"];
+  };
 };
 
 export type Device = {

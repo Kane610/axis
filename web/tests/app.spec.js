@@ -18,6 +18,15 @@ const devices = [
   },
 ];
 
+function assessedCandidate(candidate) {
+  return {
+    ...candidate,
+    findings:
+      candidate.findings ??
+      candidate.warnings.map((message) => ({ kind: "review", message })),
+  };
+}
+
 async function openApp(
   page,
   savedDevices = devices,
@@ -85,10 +94,21 @@ async function openApp(
       } else if (message.type === "acap/catalog") {
         socket.send(JSON.stringify({ id: message.id, result: catalog }));
       } else if (message.type === "device/acap-updates") {
-        socket.send(JSON.stringify({ id: message.id, result: updates }));
+        socket.send(
+          JSON.stringify({
+            id: message.id,
+            result: updates.map((update) => ({
+              ...update,
+              candidates: update.candidates.map(assessedCandidate),
+            })),
+          }),
+        );
       } else if (message.type === "device/acap-install-candidates") {
         socket.send(
-          JSON.stringify({ id: message.id, result: installCandidates }),
+          JSON.stringify({
+            id: message.id,
+            result: installCandidates.map(assessedCandidate),
+          }),
         );
       } else if (message.type === "device/application-policy" && !holdPolicy) {
         socket.send(JSON.stringify({ id: message.id, result: false }));
@@ -1154,6 +1174,136 @@ test("cancelling folder browsing ignores an obsolete response", async ({
   await expect(dialog.getByLabel("Server folder")).toHaveValue("");
 });
 
+test("application overview only flags warning-free upgrades and opens details", async ({
+  page,
+}) => {
+  const candidates = [
+    { package: { version: "2.0.0" }, warnings: [], downgrade: false },
+    {
+      package: { version: "3.0.0" },
+      warnings: ["Vendor differs."],
+      downgrade: false,
+    },
+    {
+      package: { version: "0.5.0" },
+      warnings: ["This is a downgrade."],
+      downgrade: true,
+    },
+  ];
+  const { requests } = await openApp(
+    page,
+    devices,
+    undefined,
+    false,
+    undefined,
+    false,
+    {
+      folder: "/catalog",
+      packages: [candidates[0].package],
+      errors: [],
+      error: "",
+    },
+    ["trusted", "warning", "downgrade"].map((name, index) => ({
+      name,
+      version: "1.0.0",
+      status: "Stopped",
+      candidates: [candidates[index]],
+    })),
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const overview = page.getByRole("dialog");
+  await overview
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(
+    page,
+    requests[1],
+    ["trusted", "warning", "downgrade"].map((name) => ({
+      name,
+      nice_name: name,
+      version: "1.0.0",
+      status: "Stopped",
+      vendor: "Vendor",
+      license_status: "Valid",
+      signature_status: "Signed",
+    })),
+  );
+  const rows = overview.getByRole("list", { name: "Applications" });
+  const trusted = rows.getByRole("button", { name: /^trusted/ });
+  await expect(trusted).toHaveAccessibleName(/Update available: 2\.0\.0/);
+  await expect(trusted).toHaveAccessibleName(/Signature: Signed/);
+  await expect(
+    rows.getByRole("button", { name: /^warning/ }),
+  ).not.toHaveAccessibleName(/Update available/);
+  await expect(
+    rows.getByRole("button", { name: /^downgrade/ }),
+  ).not.toHaveAccessibleName(/Update available/);
+  await expect(overview.getByRole("button", { name: "Start" })).toHaveCount(0);
+  await trusted.click();
+  const details = page.getByRole("dialog", { name: "trusted" });
+  await expect(
+    details.getByRole("definition").filter({ hasText: "Vendor" }),
+  ).toBeVisible();
+  await expect(details.getByRole("button", { name: "Start" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(details).toBeHidden();
+  await expect(trusted).toBeFocused();
+});
+
+test("application details require fresh support and state after reconnect", async ({
+  page,
+}) => {
+  const { requests, supportRequests, sockets } = await openApp(
+    page,
+    devices,
+    undefined,
+    false,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    null,
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  await expect.poll(() => supportRequests.length).toBe(1);
+  await respond(page, supportRequests[0], { apis: null, supported: true });
+  const overview = page.getByRole("dialog");
+  await overview
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  const app = {
+    name: "example",
+    nice_name: "Example",
+    version: "1",
+    status: "Stopped",
+    license_status: "None",
+  };
+  await respond(page, requests[1], [app]);
+  await overview.getByRole("button", { name: /^Example/ }).click();
+  const details = page.getByRole("dialog", { name: "Example" });
+  await details.getByRole("button", { name: "Start" }).click();
+  await expect(
+    details.getByRole("button", { name: "Confirm start" }),
+  ).toBeVisible();
+  sockets[0].close({ code: 1001 });
+  await expect.poll(() => sockets.length).toBe(2);
+  await expect.poll(() => supportRequests.length).toBe(2);
+  await expect(details.getByRole("button", { name: "Start" })).toBeDisabled();
+  await expect(
+    details.getByRole("button", { name: "Confirm start" }),
+  ).toHaveCount(0);
+  await respond(page, supportRequests[1], { apis: null, supported: true });
+  await expect.poll(() => requests.length).toBe(3);
+  await expect(details.getByRole("button", { name: "Start" })).toBeDisabled();
+  await respond(page, requests[2], [{ ...app, status: "Running" }]);
+  await expect(details.getByRole("button", { name: "Stop" })).toBeEnabled();
+});
+
 test("catalog updates require confirmation and send the reviewed package", async ({
   page,
 }) => {
@@ -1174,7 +1324,25 @@ test("catalog updates require confirmation and send the reviewed package", async
       name: "example",
       version: "1.0.0",
       status: "Running",
-      candidates: [{ package: packageFile, warnings: [], downgrade: false }],
+      candidates: [
+        {
+          package: packageFile,
+          warnings: [],
+          findings: [
+            {
+              kind: "not_checked",
+              message:
+                "The installed application's vendor ID is unavailable; the device may reject the upgrade even if vendor names match.",
+            },
+            {
+              kind: "not_checked",
+              message:
+                "Package signature is present but has not been verified locally.",
+            },
+          ],
+          downgrade: false,
+        },
+      ],
     },
   ];
   const { requests } = await openApp(
@@ -1216,11 +1384,33 @@ test("catalog updates require confirmation and send the reviewed package", async
   await expect(
     dialog.getByRole("button", { name: "Update to 2.0.0" }),
   ).toHaveCount(0);
-  await dialog.getByRole("button", { name: "View versions (1)" }).click();
+  await expect(
+    dialog.getByRole("button", { name: /^Example/ }),
+  ).toHaveAccessibleName(/Update candidate: 2\.0\.0 — verification incomplete/);
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  await page
+    .getByRole("dialog", { name: "Example" })
+    .getByRole("button", { name: "View versions (1)" })
+    .click();
   const versions = page.getByRole("dialog", {
     name: "Application versions: Example",
   });
+  await expect(
+    versions.getByText(
+      "Not checked: The installed application's vendor ID is unavailable; the device may reject the upgrade even if vendor names match.",
+    ),
+  ).toBeVisible();
+  await expect(
+    versions.getByText(
+      "Not checked: Package signature is present but has not been verified locally.",
+    ),
+  ).toBeVisible();
   await versions.getByRole("button", { name: "Update to 2.0.0" }).click();
+  await expect(
+    versions.getByText(
+      "Not checked: Package signature is present but has not been verified locally.",
+    ),
+  ).toBeVisible();
   await expect(
     versions.locator("p").filter({ hasText: /remove\s+both\s+versions/ }),
   ).toBeVisible();
@@ -1240,6 +1430,195 @@ test("catalog updates require confirmation and send the reviewed package", async
   await expect.poll(() => requests.length).toBe(4);
   await respond(page, requests[3], []);
 });
+
+for (const state of [
+  "installed",
+  "missing",
+  "other error",
+  "changed",
+  "replacement failed",
+]) {
+  test(`failed upgrade retains the app and offers safe recovery: ${state}`, async ({
+    page,
+  }) => {
+    const app = {
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+    };
+    const packageFile = {
+      filename: "example.eap",
+      digest: "a".repeat(64),
+      version: "2.0.0",
+      signature: "present_unverified",
+    };
+    const candidate = {
+      package: packageFile,
+      warnings: [],
+      findings: [],
+      downgrade: false,
+      replacement: {
+        warnings: ["Installation warning."],
+        findings: [{ kind: "review", message: "Installation warning." }],
+      },
+    };
+    const { requests } = await openApp(
+      page,
+      devices,
+      undefined,
+      false,
+      undefined,
+      false,
+      { folder: "/catalog", packages: [packageFile], errors: [], error: "" },
+      [
+        {
+          name: app.name,
+          version: app.version,
+          status: app.status,
+          candidates: [candidate],
+        },
+      ],
+    );
+    await page.route("http://axis.test/api/application-update", (route) =>
+      route.fulfill({
+        status: 400,
+        json: {
+          error: {
+            message: "Upgrade failed.",
+            device_code: state === "other error" ? 5 : 27,
+            outcome_unknown: true,
+          },
+        },
+      }),
+    );
+    let replacement = null;
+    await page.route("http://axis.test/api/application-replace", (route) => {
+      replacement = route.request().postDataJSON();
+      return state === "replacement failed"
+        ? route.fulfill({
+            status: 400,
+            json: {
+              error: {
+                message: "Removal was accepted, but installation failed.",
+                outcome_unknown: true,
+              },
+            },
+          })
+        : route.fulfill({ json: { result: null } });
+    });
+    await select(page, "A", requests, 1);
+    await respond(page, requests[0], health("Camera"));
+    const overview = page.getByRole("dialog");
+    await overview
+      .getByRole("button", { name: "Applications", exact: true })
+      .click();
+    await expect.poll(() => requests.length).toBe(2);
+    await respond(page, requests[1], [app]);
+    await overview.getByRole("button", { name: /^Example/ }).click();
+    await page
+      .getByRole("dialog", { name: "Example" })
+      .getByRole("button", { name: "View versions (1)" })
+      .click();
+    const versions = page.getByRole("dialog", {
+      name: "Application versions: Example",
+    });
+    await versions.getByRole("button", { name: "Update to 2.0.0" }).click();
+    await versions.getByRole("button", { name: "Confirm update" }).click();
+    await expect(versions.getByRole("alert")).toContainText("Upgrade failed.");
+    await expect.poll(() => requests.length).toBe(3);
+    await expect(overview.locator(".application-list")).toContainText(
+      "Example",
+    );
+
+    if (state === "installed") {
+      await respond(page, requests[2], null, { message: "Read failed." });
+      await expect(
+        versions.getByText(
+          "Could not check installed applications: Read failed.",
+        ),
+      ).toBeVisible();
+      await expect(
+        versions.getByRole("button", { name: "Remove and install" }),
+      ).toHaveCount(0);
+      await versions
+        .getByRole("button", { name: "Check applications" })
+        .click();
+      await expect.poll(() => requests.length).toBe(4);
+      await respond(page, requests[3], [app]);
+    } else {
+      await respond(
+        page,
+        requests[2],
+        state === "missing"
+          ? []
+          : [state === "changed" ? { ...app, status: "Stopped" } : app],
+      );
+    }
+
+    if (state === "other error" || state === "changed") {
+      if (state === "changed")
+        await expect(
+          versions.getByText(/The application changed/),
+        ).toBeVisible();
+      await expect(
+        versions.getByRole("button", { name: "Remove and install" }),
+      ).toHaveCount(0);
+      await expect(
+        versions.getByRole("button", { name: "Install", exact: true }),
+      ).toHaveCount(0);
+      return;
+    }
+    const remove = state !== "missing";
+    await versions
+      .getByRole("button", {
+        name: remove ? "Remove and install" : "Install",
+        exact: true,
+      })
+      .click();
+    if (remove)
+      await expect(
+        versions.getByText(
+          /Removal deletes the application's data and settings/,
+        ),
+      ).toBeVisible();
+    await expect(
+      versions.getByText("Review: Installation warning."),
+    ).toBeVisible();
+    expect(replacement).toBeNull();
+    await versions
+      .getByRole("button", {
+        name: remove ? "Confirm remove and install" : "Confirm install",
+      })
+      .click();
+    await expect
+      .poll(() => replacement)
+      .toMatchObject({
+        filename: "example.eap",
+        digest: "a".repeat(64),
+        remove,
+        confirmed: true,
+        install_warnings: ["Installation warning."],
+      });
+    const refreshIndex = state === "installed" ? 4 : 3;
+    await expect.poll(() => requests.length).toBe(refreshIndex + 1);
+    if (state === "replacement failed") {
+      await respond(page, requests[refreshIndex], []);
+      await expect(versions.getByRole("alert")).toContainText(
+        "Removal was accepted, but installation failed.",
+      );
+      await expect(
+        versions.getByRole("button", { name: "Install", exact: true }),
+      ).toBeVisible();
+      return;
+    }
+    await respond(page, requests[refreshIndex], [
+      { ...app, version: "2.0.0", status: "Stopped" },
+    ]);
+  });
+}
 
 test("shows five ranked versions and confirms warnings and downgrades", async ({
   page,
@@ -1262,7 +1641,22 @@ test("shows five ranked versions and confirms warnings and downgrades", async ({
         version: "4.0.0",
         signature: "unknown",
       },
-      warnings: ["Vendor differs from the installed application."],
+      warnings: [
+        "Vendor differs from the installed application.",
+        "Package signature format is unknown.",
+        "The package's declared OS range excludes this device.",
+      ],
+      findings: [
+        {
+          kind: "review",
+          message: "Vendor differs from the installed application.",
+        },
+        { kind: "unknown", message: "Package signature format is unknown." },
+        {
+          kind: "incompatible",
+          message: "The package's declared OS range excludes this device.",
+        },
+      ],
       downgrade: false,
     },
     {
@@ -1317,7 +1711,11 @@ test("shows five ranked versions and confirms warnings and downgrades", async ({
       configuration_page: null,
     },
   ]);
-  await dialog.getByRole("button", { name: "View versions (7)" }).click();
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  await page
+    .getByRole("dialog", { name: "Example" })
+    .getByRole("button", { name: "View versions (7)" })
+    .click();
   const versions = page.getByRole("dialog", {
     name: "Application versions: Example",
   });
@@ -1336,17 +1734,25 @@ test("shows five ranked versions and confirms warnings and downgrades", async ({
   await versions.getByRole("button", { name: "Show 2 more versions" }).click();
   await expect(
     versions.getByText(
-      "Warning: Vendor differs from the installed application.",
+      "Review: Vendor differs from the installed application.",
+    ),
+  ).toBeVisible();
+  await expect(
+    versions.getByText("Unknown: Package signature format is unknown."),
+  ).toBeVisible();
+  await expect(
+    versions.getByText(
+      "Incompatible: The package's declared OS range excludes this device.",
     ),
   ).toBeVisible();
   await versions.getByRole("button", { name: "Update to 4.0.0" }).click();
   await expect(
     versions.getByText(
-      "Warning: Vendor differs from the installed application.",
+      "Review: Vendor differs from the installed application.",
     ),
   ).toBeVisible();
   await expect(
-    versions.getByText("Confirming overrides these warnings.", {
+    versions.getByText("Confirming acknowledges these findings;", {
       exact: false,
     }),
   ).toBeVisible();
@@ -1354,7 +1760,7 @@ test("shows five ranked versions and confirms warnings and downgrades", async ({
   await versions.getByRole("button", { name: "Cancel update" }).click();
   await versions.getByRole("button", { name: "Downgrade to 1.0.0" }).click();
   await expect(
-    versions.getByText("Warning: This is a downgrade."),
+    versions.getByText("Review: This is a downgrade."),
   ).toBeVisible();
   await versions.getByRole("button", { name: "Confirm update" }).click();
   await expect
@@ -1383,9 +1789,15 @@ test("installs a reviewed new application from the server catalog", async ({
       vendor: "Vendor",
       os_ranges: [["12", "13"]],
     },
-    warnings: [
-      "Vendor identity cannot be compared to an installed application.",
-      ...(index === 5 ? ["AXIS OS compatibility is unknown."] : []),
+    warnings: index === 5 ? ["AXIS OS compatibility is unknown."] : [],
+    findings: [
+      {
+        kind: "not_checked",
+        message: "Package vendor identity has not been verified.",
+      },
+      ...(index === 5
+        ? [{ kind: "unknown", message: "AXIS OS compatibility is unknown." }]
+        : []),
     ],
     downgrade: false,
   }));
@@ -1481,8 +1893,13 @@ test("installs a reviewed new application from the server catalog", async ({
   await expect(drop.getByRole("status")).toContainText("New 5");
   await expect(drop.getByRole("status")).toContainText("new5.eap");
   await expect(
-    install.getByText("Warning: AXIS OS compatibility is unknown."),
+    install.getByText("Unknown: AXIS OS compatibility is unknown."),
   ).toHaveCount(2);
+  await expect(
+    drop.getByText(
+      "Not checked: Package vendor identity has not been verified.",
+    ),
+  ).toBeVisible();
   expect(write).toBeNull();
   await install.getByRole("button", { name: "Confirm installation" }).click();
   await expect
@@ -1491,10 +1908,7 @@ test("installs a reviewed new application from the server catalog", async ({
       device: "A",
       filename: "new5.eap",
       confirmed: true,
-      warnings: [
-        "Vendor identity cannot be compared to an installed application.",
-        "AXIS OS compatibility is unknown.",
-      ],
+      warnings: ["AXIS OS compatibility is unknown."],
     });
   await expect.poll(() => requests.length).toBe(4);
   await respond(page, requests[3], []);
@@ -1571,12 +1985,14 @@ test("applications present details, configuration links, and confirmed controls"
     },
   ];
   await respond(page, requests[2], apps);
-  const app = dialog
-    .locator("axis-card")
-    .filter({ has: page.getByRole("heading", { name: "Object Analytics" }) })
-    .last();
-  await expect(app).toContainText("Stopped");
-  await expect(app).toContainText("2.0");
+  const row = dialog.getByRole("button", { name: /^Object Analytics/ });
+  await expect(row).toHaveAccessibleName(/Stopped/);
+  await expect(row).toHaveAccessibleName(/Version 2\.0/);
+  await expect(row).toHaveAccessibleName(/Signature: Unknown/);
+  await expect(dialog.getByText("Vendor", { exact: true })).toHaveCount(0);
+  await row.click();
+  const app = page.getByRole("dialog", { name: "Object Analytics" });
+  await expect(app.getByText("Axis", { exact: true })).toBeVisible();
   const disabledConfiguration = app.getByRole("button", {
     name: "Open configuration",
   });
@@ -1603,10 +2019,9 @@ test("applications present details, configuration links, and confirmed controls"
     status: "Stopped",
     confirmed: true,
   });
-  await expect(dialog.getByRole("button", { name: "Back" })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close" })).toBeDisabled();
+  await expect(app.getByRole("button", { name: "Close" })).toBeDisabled();
   await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
+  await expect(app).toBeVisible();
   await respond(page, requests[3], null);
   await expect.poll(() => requests.length).toBe(5);
   await respond(page, requests[4], [
@@ -1641,7 +2056,7 @@ test("applications present details, configuration links, and confirmed controls"
   await expect.poll(() => requests.length).toBe(7);
   await respond(page, requests[6], [apps[1]]);
   await expect(
-    dialog.getByRole("heading", { name: "Object Analytics" }),
+    dialog.getByRole("button", { name: /^Object Analytics/ }),
   ).toHaveCount(0);
   await dialog.getByRole("button", { name: "Back" }).click();
   await expect.poll(() => requests.length).toBe(8);
@@ -1750,12 +2165,17 @@ test("application policy applies immediately while restart and license changes r
     compatible_os_versions: [{ Min: "11", Max: "12" }],
   };
   await respond(page, requests[2], [app]);
-  await expect(dialog.getByText("Signed", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("camera: yes")).toBeVisible();
-  await expect(dialog.getByText("11 – 12")).toBeVisible();
-  await dialog.getByRole("button", { name: "Restart", exact: true }).click();
-  await expect(dialog.getByText("Restart Example?")).toBeVisible();
-  await dialog.getByRole("button", { name: "Confirm restart" }).click();
+  await expect(
+    dialog.getByRole("button", { name: /^Example/ }),
+  ).toHaveAccessibleName(/Signature: Signed/);
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  const details = page.getByRole("dialog", { name: "Example" });
+  await expect(details.getByText("Signed", { exact: true })).toBeVisible();
+  await expect(details.getByText("camera: yes")).toBeVisible();
+  await expect(details.getByText("11 – 12")).toBeVisible();
+  await details.getByRole("button", { name: "Restart", exact: true }).click();
+  await expect(details.getByText("Restart Example?")).toBeVisible();
+  await details.getByRole("button", { name: "Confirm restart" }).click();
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3]).toMatchObject({
     type: "device/application-action",
@@ -1765,6 +2185,7 @@ test("application policy applies immediately while restart and license changes r
   await respond(page, requests[3], null);
   await expect.poll(() => requests.length).toBe(5);
   await respond(page, requests[4], [app]);
+  await details.getByRole("button", { name: "Close" }).click();
 
   const policy = dialog.getByRole("switch", {
     name: /Allow unsigned applications/,
@@ -2186,13 +2607,21 @@ test("configuration is available only for running applications", async ({
       configuration_page: "local/example/index.html",
     })),
   );
-  await expect(
-    dialog.getByRole("link", { name: "Open configuration" }),
-  ).toHaveCount(1);
-  const disabled = dialog.getByRole("button", { name: "Open configuration" });
-  await expect(disabled).toHaveCount(3);
-  for (const button of await disabled.all())
-    await expect(button).toBeDisabled();
+  for (const status of ["Running", "Stopped", "Idle", "Unknown"]) {
+    await dialog
+      .getByRole("button", { name: new RegExp(`^${status} `) })
+      .click();
+    const details = page.getByRole("dialog", { name: status });
+    if (status === "Running")
+      await expect(
+        details.getByRole("link", { name: "Open configuration" }),
+      ).toBeVisible();
+    else
+      await expect(
+        details.getByRole("button", { name: "Open configuration" }),
+      ).toBeDisabled();
+    await details.getByRole("button", { name: "Close" }).click();
+  }
 });
 
 test("application installation is confirmed and blocks navigation while pending", async ({
@@ -2496,8 +2925,10 @@ test("application action interruption warns before retry", async ({ page }) => {
       configuration_page: null,
     },
   ]);
-  await dialog.getByRole("button", { name: "Stop" }).click();
-  await dialog.getByRole("button", { name: "Confirm stop" }).click();
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  const details = page.getByRole("dialog", { name: "Example" });
+  await details.getByRole("button", { name: "Stop" }).click();
+  await details.getByRole("button", { name: "Confirm stop" }).click();
   await expect.poll(() => requests.length).toBe(4);
   sockets[0].close({ code: 1001 });
   await expect(dialog.getByRole("alert")).toHaveText(

@@ -44,7 +44,7 @@ from axis.errors import (
     ResponseError,
 )
 from axis.interfaces.vapix import InterfaceInspectionError, UploadDigestError
-from axis.models.applications.application import ApplicationControlError
+from axis.models.applications.application import Application, ApplicationControlError
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 from axis.rtsp import Signal
 
@@ -350,29 +350,35 @@ async def control_application(
             if app is None or app.version != version or app.status != status:
                 msg = "Application changed. Refresh the list before trying again."
                 raise OperationError(msg, kind=ErrorKind.CONFLICT)
-        try:
-            async with asyncio.timeout(RESTART_REQUEST_TIMEOUT):
-                await device.vapix.applications.control_application(action, package)
-        except ApplicationControlError as exc:
-            if exc.code not in {8, 15}:
-                msg = f"The device rejected the application action (code {exc.code})."
-                raise OperationError(msg, kind=ErrorKind.OPERATION) from None
+        await _control_application(device, action, package)
+
+
+async def _control_application(
+    device: AxisDevice,
+    action: Literal["start", "stop", "restart", "remove"],
+    package: str,
+) -> None:
+    try:
+        async with asyncio.timeout(RESTART_REQUEST_TIMEOUT):
+            await device.vapix.applications.control_application(action, package)
+    except ApplicationControlError as exc:
+        if exc.code not in {8, 15}:
+            msg = f"The device rejected the application action (code {exc.code})."
+            raise OperationError(msg, kind=ErrorKind.OPERATION) from None
+        msg = "Application action outcome is unknown. Check the application before trying again."
+        raise OperationError(msg, outcome_unknown=True) from None
+    except Exception as exc:  # noqa: BLE001 - write outcome can be uncertain
+        failure = _failure(exc, outcome_unknown=True)
+        if failure.outcome_unknown:
             msg = "Application action outcome is unknown. Check the application before trying again."
-            raise OperationError(msg, outcome_unknown=True) from None
-        except Exception as exc:  # noqa: BLE001 - write outcome can be uncertain
-            failure = _failure(exc, outcome_unknown=True)
-            if failure.outcome_unknown:
-                msg = "Application action outcome is unknown. Check the application before trying again."
-                raise OperationError(
-                    msg, kind=failure.kind, outcome_unknown=True
-                ) from None
-            if failure.kind == ErrorKind.AUTHENTICATION:
-                msg = "Device authentication failed. Check the saved credentials."
-                raise OperationError(msg, kind=failure.kind) from None
-            if failure.kind == ErrorKind.PERMISSION:
-                msg = "Administrator permission is required to manage applications."
-                raise OperationError(msg, kind=failure.kind) from None
-            raise failure from None
+            raise OperationError(msg, kind=failure.kind, outcome_unknown=True) from None
+        if failure.kind == ErrorKind.AUTHENTICATION:
+            msg = "Device authentication failed. Check the saved credentials."
+            raise OperationError(msg, kind=failure.kind) from None
+        if failure.kind == ErrorKind.PERMISSION:
+            msg = "Administrator permission is required to manage applications."
+            raise OperationError(msg, kind=failure.kind) from None
+        raise failure from None
 
 
 async def application_sdks(record: DeviceRecord) -> list[str]:
@@ -527,7 +533,7 @@ _UPLOAD_ERRORS = {
     13: "The package requires a user or group that is not allowed.",
     14: "An application with the same name but different capitalization exists.",
     15: "The installation timed out and its outcome is unknown.",
-    27: "The package vendor does not match the installed application.",
+    27: "The device rejected the upgrade (error 27): the package vendor ID does not match the installed application's vendor ID. Obtain an upgrade from the original application vendor.",
     29: "The package manifest or configuration is invalid.",
     51: "The developer-mode serial number does not match this device.",
     52: "The developer-mode vendor changed; the upgrade is not allowed.",
@@ -570,7 +576,7 @@ async def _upload_application(device: AxisDevice, package: IO[bytes]) -> None:
             if exc.code == 2
             else f"{detail} Check applications before trying again."
         )
-        raise OperationError(msg, outcome_unknown=True) from None
+        raise OperationError(msg, outcome_unknown=True, device_code=exc.code) from None
     except Exception as exc:  # noqa: BLE001 - device write may have begun
         failure = _failure(exc, outcome_unknown=True)
         if failure.outcome_unknown:
@@ -617,6 +623,7 @@ async def application_updates(
         results: list[dict[str, object]] = []
         for app in installed.values():
             candidates: list[tuple[Package, UpdateAssessment]] = []
+            replacements: dict[str, UpdateAssessment] = {}
             for package in packages:
                 if package.name != app.name:
                     continue
@@ -631,14 +638,22 @@ async def application_updates(
                 )
                 if assessment is None:
                     continue
+                replacement = assess_install(package, architecture, firmware, policy)
+                if replacement is not None:
+                    replacements[package.digest] = replacement
                 candidates.append((package, assessment))
             if candidates:
+                ranked = _rank_acap_candidates(candidates)
+                for candidate in ranked:
+                    replacement = replacements.get(candidate["package"]["digest"])
+                    if replacement is not None:
+                        candidate["replacement"] = _assessment_details(replacement)
                 results.append(
                     {
                         "name": _text(app.name, device.config.password),
                         "version": _text(app.version, device.config.password),
                         "status": app.status.value,
-                        "candidates": _rank_acap_candidates(candidates),
+                        "candidates": ranked,
                     }
                 )
         return results
@@ -659,11 +674,21 @@ def _rank_acap_candidates(
     return [
         {
             "package": package.public(),
-            "warnings": assessment.warnings,
+            **_assessment_details(assessment),
             "downgrade": assessment.downgrade,
         }
         for package, assessment in candidates
     ]
+
+
+def _assessment_details(assessment: UpdateAssessment) -> dict[str, Any]:
+    return {
+        "warnings": assessment.warnings,
+        "findings": [
+            {"kind": finding.kind, "message": finding.message}
+            for finding in assessment.findings
+        ],
+    }
 
 
 async def application_install_candidates(
@@ -734,29 +759,140 @@ async def update_application(
         async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
             architecture, firmware, policy = await _acap_device_info(device, record)
             applications = await device.vapix.applications.list_applications()
-            app = applications.get(package.name)
-            if app is None or app.version != version or app.status != status:
-                msg = "Application changed. Refresh the list before trying again."
-                raise OperationError(msg, kind=ErrorKind.CONFLICT)
-            if _text(app.vendor, device.config.password) != reviewed_vendor:
-                msg = "Application vendor changed. Refresh before updating."
-                raise OperationError(msg, kind=ErrorKind.CONFLICT)
-            assessment = assess_update(
+            _check_update(
+                device,
+                applications,
                 package,
-                app.name,
-                app.version,
+                version,
+                status,
+                reviewed_vendor,
+                reviewed_warnings,
                 architecture,
                 firmware,
                 policy,
-                app.vendor,
             )
-            if assessment is None:
-                msg = "Architecture or application no longer matches the package."
-                raise OperationError(msg, kind=ErrorKind.CONFLICT)
-            if assessment.warnings != reviewed_warnings:
-                msg = "Compatibility warnings changed. Refresh before updating."
-                raise OperationError(msg, kind=ErrorKind.CONFLICT)
         await _upload_application(device, stream)
+
+
+def _check_update(
+    device: AxisDevice,
+    applications: Mapping[str, Application],
+    package: Package,
+    version: str,
+    status: str,
+    vendor: str,
+    warnings: tuple[str, ...],
+    architecture: str,
+    firmware: str,
+    policy: bool | None,
+) -> None:
+    app = applications.get(package.name)
+    if app is None or app.version != version or app.status != status:
+        msg = "Application changed. Refresh the list before trying again."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+    if _text(app.vendor, device.config.password) != vendor:
+        msg = "Application vendor changed. Refresh before updating."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+    assessment = assess_update(
+        package, app.name, app.version, architecture, firmware, policy, app.vendor
+    )
+    if assessment is None:
+        msg = "Architecture or application no longer matches the package."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+    if assessment.warnings != warnings:
+        msg = "Compatibility warnings changed. Refresh before updating."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+
+
+async def replace_catalog_application(
+    record: DeviceRecord,
+    stream: IO[bytes],
+    package: Package,
+    version: str,
+    status: str,
+    *,
+    remove: bool,
+    confirmed: bool = False,
+    reviewed_vendor: str,
+    reviewed_warnings: tuple[str, ...],
+    reviewed_install_warnings: tuple[str, ...],
+) -> None:
+    """Replace a reviewed application or install its package if already absent."""
+    if confirmed is not True or type(remove) is not bool:
+        msg = "Replacement requires explicit confirmation."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION)
+    async with _device(record.config) as device:
+        async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+            architecture, firmware, policy = await _acap_device_info(device, record)
+            applications = await device.vapix.applications.list_applications()
+            if remove:
+                _check_update(
+                    device,
+                    applications,
+                    package,
+                    version,
+                    status,
+                    reviewed_vendor,
+                    reviewed_warnings,
+                    architecture,
+                    firmware,
+                    policy,
+                )
+            elif package.name in applications:
+                msg = "Application is installed. Refresh before continuing."
+                raise OperationError(msg, kind=ErrorKind.CONFLICT)
+            _check_install_assessment(
+                package, architecture, firmware, policy, reviewed_install_warnings
+            )
+        if remove:
+            await _control_application(device, "remove", package.name)
+            try:
+                async with asyncio.timeout(RESTART_PREFLIGHT_TIMEOUT):
+                    architecture, firmware, policy = await _acap_device_info(
+                        device, record
+                    )
+                    applications = await device.vapix.applications.list_applications()
+                    if package.name in applications:
+                        msg = "Application is still installed."
+                        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+                    _check_install_assessment(
+                        package,
+                        architecture,
+                        firmware,
+                        policy,
+                        reviewed_install_warnings,
+                    )
+            except Exception as exc:  # noqa: BLE001 - removal was already requested
+                failure = _failure(exc)
+                msg = "Removal was accepted, but installation was not started. Check applications and review the package before continuing."
+                raise OperationError(
+                    msg, kind=failure.kind, outcome_unknown=True
+                ) from None
+        try:
+            await _upload_application(device, stream)
+        except OperationError as exc:
+            if not remove:
+                raise
+            msg = f"Removal was accepted, but installation failed: {exc}"
+            raise OperationError(
+                msg, kind=exc.kind, outcome_unknown=exc.outcome_unknown
+            ) from None
+
+
+def _check_install_assessment(
+    package: Package,
+    architecture: str,
+    firmware: str,
+    policy: bool | None,
+    warnings: tuple[str, ...],
+) -> None:
+    assessment = assess_install(package, architecture, firmware, policy)
+    if assessment is None:
+        msg = "Package identity or architecture is no longer applicable."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+    if assessment.warnings != warnings:
+        msg = "Compatibility warnings changed. Refresh before installing."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
 
 
 async def list_interfaces(record: DeviceRecord) -> list[dict[str, object]]:

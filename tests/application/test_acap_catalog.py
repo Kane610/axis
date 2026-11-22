@@ -34,7 +34,7 @@ def create_package(
                     "version": "2.0.0",
                     "architecture": "armv7hf",
                     "vendor": "Vendor",
-                    "vendorId": "123",
+                    "vendorId": "0123456789",
                     "compatibleOsVersions": [{"min": "12.10", "max": "13"}],
                 }
             },
@@ -76,6 +76,7 @@ def test_inspects_signed_unsigned_and_plain_packages(tmp_path: Path) -> None:
     assert result.architecture == "armv7hf"
     assert result.os_ranges == (("12.10", "13"),)
     assert result.signature == "present_unverified"
+    assert result.schema_version == "2.1.0"
     assert read(unsigned).signature == "not_detected"
     assert read(plain).signature == "unknown"
     assert result.digest != read(unsigned).digest
@@ -103,6 +104,7 @@ def test_scans_legacy_and_reports_invalid_and_symlink(
     result = catalog.scan_folder(str(tmp_path))
     assert result["packages"][0]["name"] == "legacy"
     assert result["packages"][0]["version"] == "1.2.3"
+    assert result["packages"][0]["schema_version"] is None
     assert {error["filename"] for error in result["errors"]} == {"bad.eap", "link.eap"}
     with pytest.raises(catalog.PackageError, match="filename"):
         catalog.open_package(str(tmp_path), "../legacy.eap")
@@ -292,9 +294,9 @@ def test_semver_and_device_compatibility(tmp_path: Path) -> None:
         "Application version cannot be compared; this may be a downgrade.",
         "Vendor differs from the installed application.",
         "Architecture compatibility is unknown.",
-        "AXIS OS compatibility is unknown.",
-        "No signature was detected.",
-        "Unsigned applications are disabled on the device.",
+        "Manifest schema 2 requires valid AXIS OS version ranges.",
+        "No supported signature was detected.",
+        "Unsigned applications are disabled; the device may reject this package.",
     )
     assessment = catalog.assess_update(
         package, "example", "3.0.0", "armv7hf", "14.0", None
@@ -302,8 +304,11 @@ def test_semver_and_device_compatibility(tmp_path: Path) -> None:
     assert assessment is not None
     assert assessment.downgrade
     assert "This is a downgrade." in assessment.warnings
-    assert "Vendor identity cannot be compared." in assessment.warnings
-    assert "AXIS OS version is outside the package ranges." in assessment.warnings
+    assert "Vendor name cannot be compared." in assessment.warnings
+    assert (
+        "AXIS OS version is outside the package's declared ranges. The device is expected to reject installation."
+        in assessment.warnings
+    )
     assert "Unsigned application policy is unknown." in assessment.warnings
 
 
@@ -316,8 +321,10 @@ def test_new_install_assessment_does_not_assume_an_existing_version(
     package = read(path)
     assessment = catalog.assess_install(package, "armv7hf", "12.10", False)
     assert assessment is not None
-    assert assessment.warnings == (
-        "Vendor identity cannot be compared to an installed application.",
+    assert assessment.warnings == ()
+    assert any(
+        finding.kind == "not_checked" and "vendor" in finding.message
+        for finding in assessment.findings
     )
     assessment = catalog.assess_install(
         replace(package, version="", vendor="", signature="unknown"),
@@ -327,7 +334,6 @@ def test_new_install_assessment_does_not_assume_an_existing_version(
     )
     assert assessment is not None
     assert assessment.warnings == (
-        "Vendor identity cannot be compared to an installed application.",
         "Package vendor is unknown.",
         "Package version is unknown or cannot be interpreted.",
         "Architecture compatibility is unknown.",
@@ -339,3 +345,126 @@ def test_new_install_assessment_does_not_assume_an_existing_version(
         is None
     )
     assert catalog.assess_install(package, "aarch64", "12.10", False) is None
+
+
+@pytest.mark.parametrize(
+    ("schema", "ranges", "device_os", "kind", "message"),
+    [
+        (
+            "1.11.0",
+            (("12", "13"),),
+            "12.10",
+            "unknown",
+            "schema 1 does not declare OS ranges",
+        ),
+        (None, (), "12.10", "unknown", "legacy package metadata"),
+        ("", (), "12.10", "unknown", "schema is missing or not recognized"),
+        (
+            "3.0.0",
+            (("12", "13"),),
+            "12.10",
+            "unknown",
+            "schema is missing or not recognized",
+        ),
+        ("2.1.0", (), "12.10", "incompatible", "requires valid AXIS OS version ranges"),
+        (
+            "2.1.0",
+            (("13", "12"),),
+            "12.10",
+            "incompatible",
+            "requires valid AXIS OS version ranges",
+        ),
+        ("2.1.0", (("12", "13"),), "unknown", "unknown", "device version"),
+        (
+            "2.1.0",
+            (("12.10", "13"),),
+            "12.9",
+            "incompatible",
+            "outside the package's declared ranges",
+        ),
+        (
+            "2.1.0",
+            (("12.10", "13"),),
+            "14.0",
+            "incompatible",
+            "expected to reject installation",
+        ),
+    ],
+)
+def test_schema_aware_os_findings(
+    tmp_path: Path,
+    schema: str | None,
+    ranges: tuple[tuple[str, str], ...],
+    device_os: str,
+    kind: str,
+    message: str,
+) -> None:
+    """Distinguish unsupported, missing, and unenforceable OS compatibility evidence."""
+    path = tmp_path / "package.eap"
+    create_package(path, signed=True)
+    package = replace(read(path), schema_version=schema, os_ranges=ranges)
+    assessment = catalog.assess_install(package, "armv7hf", device_os, False)
+    assert assessment is not None
+    finding = next(
+        finding for finding in assessment.findings if message in finding.message
+    )
+    assert finding.kind == kind
+    assert finding.message in assessment.warnings
+    if schema is None or schema == "1.11.0":
+        assert any(
+            finding.kind == "not_checked" and "SDK" in finding.message
+            for finding in assessment.findings
+        )
+
+
+@pytest.mark.parametrize("device_os", ["12.10.0", "12.10.99", "13.99.999"])
+def test_schema_v2_inclusive_os_ranges(tmp_path: Path, device_os: str) -> None:
+    """Major-only and minor-only range endpoints include all their subversions."""
+    path = tmp_path / "package.eap"
+    create_package(path, signed=True)
+    assessment = catalog.assess_install(read(path), "armv7hf", device_os, False)
+    assert assessment is not None
+    assert not any(
+        "AXIS OS compatibility" in finding.message for finding in assessment.findings
+    )
+    assert not any(finding.kind == "incompatible" for finding in assessment.findings)
+
+
+def test_schema_vendor_and_signature_findings(tmp_path: Path) -> None:
+    """Do not mistake declared identity and detected signatures for verification."""
+    path = tmp_path / "package.eap"
+    create_package(path, signed=True)
+    package = read(path)
+    assessment = catalog.assess_update(
+        package, "example", "1.0.0", "armv7hf", "12.10", False, "Vendor"
+    )
+    assert assessment is not None
+    assert assessment.warnings == ()
+    assert {finding.kind for finding in assessment.findings} == {"not_checked"}
+    assert any(
+        "vendor ID is unavailable" in finding.message
+        and "even if vendor names match" in finding.message
+        for finding in assessment.findings
+    )
+    assert any("signature" in finding.message for finding in assessment.findings)
+    assessment = catalog.assess_install(
+        replace(package, vendor_id="invalid"), "armv7hf", "12.10", False
+    )
+    assert assessment is not None
+    assert any(
+        finding.kind == "incompatible" and "vendor ID" in finding.message
+        for finding in assessment.findings
+    )
+
+
+@pytest.mark.parametrize("schema", ["1.11.0", "2.1.0", ""])
+def test_manifest_schema_is_preserved(tmp_path: Path, schema: str) -> None:
+    """Assessments use the actual manifest schema, including an omitted value."""
+    manifest = {
+        "acapPackageConf": {"setup": {"appName": "example", "version": "1.0.0"}},
+    }
+    if schema:
+        manifest["schemaVersion"] = schema
+    path = tmp_path / "package.eap"
+    create_package(path, entries=[("manifest.json", json.dumps(manifest).encode())])
+    assert read(path).schema_version == schema

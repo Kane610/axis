@@ -1,6 +1,10 @@
 import { LitElement, css, html, nothing } from "lit";
 import { keyed } from "lit/directives/keyed.js";
-import { AxisConnection, type ConnectionStatus } from "./data/connection";
+import {
+  ApplicationWriteError,
+  AxisConnection,
+  type ConnectionStatus,
+} from "./data/connection";
 import {
   configureDevice,
   controlApplication,
@@ -153,6 +157,8 @@ class AxisApp extends LitElement {
     applicationSupported: { state: true },
     applicationSupportError: { state: true },
     applications: { state: true },
+    applicationsStale: { state: true },
+    selectedApplication: { state: true },
     applicationLoading: { state: true },
     applicationPending: { state: true },
     applicationConfirmation: { state: true },
@@ -161,6 +167,7 @@ class AxisApp extends LitElement {
     updateApp: { state: true },
     expandedUpdates: { state: true },
     updateConfirmation: { state: true },
+    updateRecovery: { state: true },
     installationOpen: { state: true },
     installationFile: { state: true },
     installationError: { state: true },
@@ -274,6 +281,7 @@ class AxisApp extends LitElement {
         background: rgb(0 0 0 / 55%);
       }
       dialog.installation-dialog,
+      dialog.application-dialog,
       dialog.update-dialog,
       dialog.license-dialog {
         inline-size: min(36rem, calc(100% - var(--axis-space-4)));
@@ -372,7 +380,34 @@ class AxisApp extends LitElement {
       }
       .application-list {
         display: grid;
-        gap: var(--axis-space-3);
+        gap: var(--axis-space-2);
+        list-style: none;
+        margin-block: var(--axis-space-2) 0;
+        padding: 0;
+      }
+      .application-list li {
+        min-inline-size: 0;
+      }
+      .application-list axis-button {
+        display: block;
+        inline-size: 100%;
+      }
+      .application-list axis-button::part(base) {
+        justify-content: flex-start;
+        text-align: start;
+      }
+      .application-info {
+        display: grid;
+        gap: var(--axis-space-1);
+        min-inline-size: 0;
+      }
+      .application-meta {
+        font-size: 0.875rem;
+        font-weight: 400;
+        opacity: 0.9;
+      }
+      .application-update {
+        color: var(--axis-color-success);
       }
       .application-heading {
         display: flex;
@@ -434,7 +469,7 @@ class AxisApp extends LitElement {
       .update-warning {
         color: var(--axis-color-warning);
       }
-      .application-list dl {
+      .application-dialog dl {
         margin-block: var(--axis-space-2);
       }
       .device-views axis-button::part(base) {
@@ -567,6 +602,8 @@ class AxisApp extends LitElement {
     promise: Promise<void>;
   } | null = null;
   private applications: Application[] | null = null;
+  private applicationsStale = false;
+  private selectedApplication: Application | null = null;
   private applicationLoading = false;
   private applicationPending = false;
   private applicationConfirmation: {
@@ -580,6 +617,15 @@ class AxisApp extends LitElement {
   private updateConfirmation: {
     app: Application;
     candidate: AcapCandidate;
+  } | null = null;
+  private updateRecovery: {
+    app: Application;
+    candidate: AcapCandidate;
+    message: string;
+    eligible: boolean;
+    status: "checking" | "installed" | "missing" | "changed" | "unavailable";
+    confirming: boolean;
+    refreshError: string;
   } | null = null;
   private updatesRequest = 0;
   private updatesTimer: ReturnType<typeof setTimeout> | undefined;
@@ -691,6 +737,15 @@ class AxisApp extends LitElement {
       else if (!this.installationOpen && installation.open)
         installation.close();
     }
+    const application = this.renderRoot.querySelector<HTMLDialogElement>(
+      ".application-dialog",
+    );
+    if (application) {
+      if (this.selectedApplication && !application.open)
+        application.showModal();
+      else if (!this.selectedApplication && application.open)
+        application.close();
+    }
     const update =
       this.renderRoot.querySelector<HTMLDialogElement>(".update-dialog");
     if (update) {
@@ -732,6 +787,8 @@ class AxisApp extends LitElement {
     this.applicationsOpen = false;
     this.resetApplicationSupport();
     this.applications = null;
+    this.applicationsStale = false;
+    this.selectedApplication = null;
     this.clearApplicationUpdates();
     ++this.architectureRequest;
     ++this.applicationInfoRequest;
@@ -780,7 +837,8 @@ class AxisApp extends LitElement {
           )
             return;
           void this.loadApplicationInfo(serial);
-          void this.loadApplications(serial);
+          if (this.updateRecovery) void this.refreshUpdateRecovery(serial);
+          else void this.loadApplications(serial);
           if (this.installationOpen) {
             void this.loadArchitecture(serial);
             void this.loadApplicationSdks(serial);
@@ -813,10 +871,19 @@ class AxisApp extends LitElement {
     }
     this.loading = null;
     this.applicationLoading = false;
+    this.applicationConfirmation = null;
     ++this.architectureRequest;
     ++this.applicationInfoRequest;
     ++this.applicationPolicyRequest;
-    this.clearApplicationUpdates();
+    if (this.updateRecovery) {
+      this.applicationsStale = true;
+      this.updateRecovery = {
+        ...this.updateRecovery,
+        status: "unavailable",
+        confirming: false,
+      };
+    } else if (!this.applicationPending || !this.updateConfirmation)
+      this.clearApplicationUpdates();
     ++this.installCandidatesRequest;
     this.installCandidatesLoading = false;
     this.installCandidate = null;
@@ -1188,6 +1255,8 @@ class AxisApp extends LitElement {
     this.applicationsOpen = true;
     this.restartConfirming = false;
     this.applications = null;
+    this.applicationsStale = false;
+    this.selectedApplication = null;
     this.error = "";
     this.applicationMessage = "";
     this.applicationConfirmation = null;
@@ -1220,11 +1289,18 @@ class AxisApp extends LitElement {
       const applications = await fetchApplications(this.connection, serial);
       if (this.operation === operation && this.applicationsOpen) {
         this.applications = applications;
+        this.applicationsStale = false;
+        if (this.selectedApplication)
+          this.selectedApplication =
+            applications.find(
+              (app) => app.name === this.selectedApplication?.name,
+            ) ?? null;
         void this.loadAcapUpdates(serial);
       }
     } catch (error) {
       if (this.operation === operation && this.applicationsOpen) {
         this.applicationFailed = true;
+        this.selectedApplication = null;
         this.applicationMessage = this.applicationMessage
           ? `${this.applicationMessage} Refresh failed: ${(error as Error).message}`
           : (error as Error).message;
@@ -1242,6 +1318,7 @@ class AxisApp extends LitElement {
     this.updateApp = null;
     this.expandedUpdates = false;
     this.updateConfirmation = null;
+    this.updateRecovery = null;
   }
 
   private async loadAcapUpdates(serial: string): Promise<void> {
@@ -1493,6 +1570,7 @@ class AxisApp extends LitElement {
     this.licenseError = "";
     this.licenseDragging = false;
     this.applicationLoading = false;
+    this.selectedApplication = null;
     this.applicationConfirmation = null;
     this.installationOpen = false;
     this.installationFile = null;
@@ -1532,6 +1610,7 @@ class AxisApp extends LitElement {
       await this.loadApplications(device.serial);
     } catch (error) {
       this.applicationConfirmation = null;
+      this.selectedApplication = null;
       this.applicationFailed = true;
       this.applicationMessage = (error as Error).message;
       this.applications = null;
@@ -1567,20 +1646,124 @@ class AxisApp extends LitElement {
       await this.loadApplications(device.serial);
     } catch (error) {
       this.updateConfirmation = null;
-      this.applicationFailed = true;
-      this.applicationMessage = (error as Error).message;
-      this.applications = null;
-      this.clearApplicationUpdates();
+      this.applicationsStale = true;
+      this.updateRecovery = {
+        ...selection,
+        message: (error as Error).message,
+        eligible:
+          error instanceof ApplicationWriteError && error.deviceCode === 27,
+        status: this.status === "connected" ? "checking" : "unavailable",
+        confirming: false,
+        refreshError: "",
+      };
       this.invalidateDeviceViews(device.serial);
     } finally {
       this.applicationPending = false;
     }
+    if (this.updateRecovery) await this.refreshUpdateRecovery(device.serial);
+  }
+
+  private async refreshUpdateRecovery(serial: string): Promise<void> {
+    if (!this.updateRecovery || this.status !== "connected") return;
+    this.applicationsStale = true;
+    const recovery = (this.updateRecovery = {
+      ...this.updateRecovery,
+      status: "checking",
+      confirming: false,
+      refreshError: "",
+    });
+    const operation = ++this.operation;
+    this.applicationLoading = true;
+    try {
+      const applications = await fetchApplications(this.connection, serial);
+      if (this.operation !== operation || this.updateRecovery !== recovery)
+        return;
+      const app = applications.find((item) => item.name === recovery.app.name);
+      this.applications = applications;
+      this.applicationsStale = false;
+      this.updateRecovery = {
+        ...recovery,
+        status: !app
+          ? "missing"
+          : app.version === recovery.app.version &&
+              app.status === recovery.app.status &&
+              app.vendor === recovery.app.vendor
+            ? "installed"
+            : "changed",
+      };
+    } catch (error) {
+      if (this.operation === operation && this.updateRecovery === recovery)
+        this.updateRecovery = {
+          ...recovery,
+          status: "unavailable",
+          refreshError: (error as Error).message,
+        };
+    } finally {
+      if (this.operation === operation) this.applicationLoading = false;
+    }
+  }
+
+  private async applyApplicationReplacement(device: Device): Promise<void> {
+    const recovery = this.updateRecovery;
+    if (
+      !recovery ||
+      !recovery.confirming ||
+      !recovery.eligible ||
+      !recovery.candidate.replacement ||
+      !["installed", "missing"].includes(recovery.status) ||
+      this.applicationPending ||
+      this.status !== "connected" ||
+      this.applicationsStale
+    )
+      return;
+    this.applicationPending = true;
+    try {
+      await this.connection.replaceApplication(
+        device.serial,
+        recovery.app,
+        recovery.candidate,
+        recovery.status === "installed",
+      );
+      this.updateRecovery = null;
+      this.updateApp = null;
+      this.applicationFailed = false;
+      this.applicationMessage = "Application installed.";
+      this.invalidateDeviceViews(device.serial);
+      await this.loadApplications(device.serial);
+    } catch (error) {
+      this.updateRecovery = {
+        ...recovery,
+        message: (error as Error).message,
+        status: this.status === "connected" ? "checking" : "unavailable",
+        confirming: false,
+        refreshError: "",
+      };
+      this.applicationsStale = true;
+      this.invalidateDeviceViews(device.serial);
+    } finally {
+      this.applicationPending = false;
+    }
+    if (this.updateRecovery) await this.refreshUpdateRecovery(device.serial);
   }
 
   private closeUpdateDialog(event?: Event): void {
     event?.preventDefault();
     event?.stopPropagation();
     if (this.applicationPending) return;
+    if (
+      this.updateRecovery &&
+      !this.applicationsStale &&
+      !this.applications?.some(
+        (app) => app.name === this.updateRecovery?.app.name,
+      )
+    )
+      this.selectedApplication = null;
+    else if (this.updateRecovery && !this.applicationsStale)
+      this.selectedApplication =
+        this.applications?.find(
+          (app) => app.name === this.updateRecovery?.app.name,
+        ) ?? null;
+    this.updateRecovery = null;
     this.updateApp = null;
     this.updateConfirmation = null;
     this.expandedUpdates = false;
@@ -1766,6 +1949,7 @@ class AxisApp extends LitElement {
       </axis-card>`;
     const controlsDisabled =
       !connected ||
+      this.applicationsStale ||
       this.applicationLoading ||
       this.applicationPending ||
       this.applicationConfirmation !== null ||
@@ -1832,185 +2016,301 @@ class AxisApp extends LitElement {
               </p>`
             : nothing
         }
+        ${
+          this.applicationsStale
+            ? html`<p role="status">Application list may be out of date.</p>
+                <axis-button
+                  ?disabled=${!connected || this.applicationLoading || this.applicationPending || this.updateApp !== null}
+                  @click=${() => this.loadApplications(device.serial)}
+                  >Refresh applications</axis-button
+                >`
+            : nothing
+        }
         ${this.applications?.length === 0 ? html`<p>No applications installed.</p>` : nothing}
         ${this.applicationUpdatesError ? html`<p role="alert">Update check failed: ${this.applicationUpdatesError}</p>` : nothing}
-        <div class="application-list">
+        <ul class="application-list" aria-label="Applications">
           ${this.applications?.map((app) => {
-            const confirmation = this.applicationConfirmation;
             const update = this.applicationUpdates.find(
               (item) =>
                 item.name === app.name &&
                 item.version === app.version &&
                 item.status === app.status,
             );
-            const url = this.applicationUrl(device, app);
-            const canOpenConfiguration =
-              app.status === "Running" && connected && !controlsDisabled;
+            const upgrade = update?.candidates.find(
+              (candidate) =>
+                !candidate.downgrade && candidate.warnings.length === 0,
+            );
+            const incomplete = upgrade?.findings.some(
+              (finding) => finding.kind === "not_checked",
+            );
             return html`
-              <axis-card>
-                <div class="application-heading">
-                  <h4>${app.nice_name || app.name}</h4>
+              <li>
+                <axis-button
+                  ?disabled=${controlsDisabled}
+                  @click=${() => {
+                    this.applicationMessage = "";
+                    this.selectedApplication = app;
+                  }}
+                >
+                  <span class="application-info">
+                    <span>${app.nice_name || app.name}</span>
+                    <span class="application-meta">
+                      ${app.status || "Unknown"} — Version
+                      ${app.version || "Unknown"} — Signature:
+                      ${app.signature_status || "Unknown"}
+                    </span>
+                    ${upgrade ? html`<span class="application-meta ${incomplete ? "update-warning" : "application-update"}">${incomplete ? "Update candidate" : "Update available"}: ${upgrade.package.version}${incomplete ? " — verification incomplete" : ""}</span>` : nothing}
+                  </span>
+                </axis-button>
+              </li>
+            `;
+          })}
+        </ul>
+      </axis-card>
+    `;
+  }
+
+  private closeApplicationDialog(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (this.applicationPending) return;
+    this.selectedApplication = null;
+    this.applicationConfirmation = null;
+  }
+
+  private renderApplicationDialog(device: Device, connected: boolean) {
+    const app = this.selectedApplication;
+    const confirmation = this.applicationConfirmation;
+    const update = this.applicationUpdates.find(
+      (item) =>
+        item.name === app?.name &&
+        item.version === app.version &&
+        item.status === app.status,
+    );
+    const controlsDisabled =
+      !connected ||
+      this.applicationsStale ||
+      this.applicationSupported !== true ||
+      this.applicationLoading ||
+      this.applicationPending ||
+      this.updateApp !== null;
+    const url = app ? this.applicationUrl(device, app) : null;
+    const canOpenConfiguration = app?.status === "Running" && !controlsDisabled;
+    return html`
+      <dialog
+        class="application-dialog"
+        aria-labelledby="application-dialog-title"
+        @cancel=${this.closeApplicationDialog}
+      >
+        <div class="dialog-header">
+          <header class="dialog-heading">
+            <h2 id="application-dialog-title">
+              ${app?.nice_name || app?.name || ""}
+            </h2>
+            <div class="dialog-controls">
+              <button
+                type="button"
+                ?disabled=${this.applicationPending}
+                @click=${this.closeApplicationDialog}
+              >
+                Close
+              </button>
+            </div>
+          </header>
+        </div>
+        <div class="dialog-content">
+          ${
+            app
+              ? html`
                   <span class="application-status" data-status=${app.status}
                     >${app.status}</span
                   >
-                </div>
-                <dl>
-                  <dt>Package</dt>
-                  <dd>${app.name}</dd>
-                  <dt>Version</dt>
-                  <dd>${app.version || "Unknown"}</dd>
-                  <dt>Vendor</dt>
-                  <dd>${app.vendor || "Unknown"}</dd>
-                  <dt>License</dt>
-                  <dd>${app.license_status}</dd>
+                  ${this.applicationMessage ? html`<p role=${this.applicationFailed ? "alert" : "status"}>${this.applicationMessage}</p>` : nothing}
                   ${
-                    app.bundled
-                      ? html`<dt>Bundled</dt>
-                          <dd>${app.bundled}</dd>`
-                      : nothing
-                  }
-                  ${
-                    app.signature_status
-                      ? html`<dt>Signature</dt>
-                          <dd>${app.signature_status}</dd>`
-                      : nothing
-                  }
-                  ${
-                    app.resources?.length
-                      ? html`<dt>Resources</dt>
-                          <dd>
-                            ${app.resources.map((resource) => `${resource.name || "Unknown"}: ${resource.used || "Unknown"}`).join(", ")}
-                          </dd>`
-                      : nothing
-                  }
-                  ${
-                    app.compatible_os_versions?.length
-                      ? html`<dt>Compatible OS versions</dt>
-                          <dd>
-                            ${app.compatible_os_versions.map((range) => `${range.Min || "Any"} – ${range.Max || "Any"}`).join(", ")}
-                          </dd>`
-                      : nothing
-                  }
-                  ${
-                    app.application_id
-                      ? html`<dt>Application ID</dt>
-                          <dd>${app.application_id}</dd>`
-                      : nothing
-                  }
-                  ${
-                    app.license_expiration_date
-                      ? html`<dt>License expires</dt>
-                          <dd>${app.license_expiration_date}</dd>`
-                      : nothing
-                  }
-                </dl>
-                ${
-                  update
-                    ? html`<axis-button
-                        ?disabled=${controlsDisabled}
-                        @click=${() => {
-                          this.applicationMessage = "";
-                          this.updateApp = app;
-                          this.expandedUpdates = false;
-                        }}
-                        >View versions
-                        (${update.candidates.length})</axis-button
-                      >`
-                    : nothing
-                }
-                ${
-                  confirmation?.app === app
-                    ? html` <p>
-                          ${
-                            confirmation.action === "remove"
-                              ? `Uninstall ${app.nice_name || app.name} and remove its data?`
-                              : `${confirmation.action === "start" ? "Start" : confirmation.action === "restart" ? "Restart" : "Stop"} ${app.nice_name || app.name}?`
-                          }
-                        </p>
-                        <div class="actions">
+                    this.applicationsStale
+                      ? html`<p role="status">
+                            Application details may be out of date.
+                          </p>
                           <axis-button
-                            variant=${confirmation.action === "remove" ? "danger" : "brand"}
-                            .busy=${this.applicationPending}
-                            ?disabled=${!connected || this.applicationPending}
-                            @click=${() => this.applyApplicationAction(device)}
-                            >Confirm
-                            ${confirmation.action === "remove" ? "uninstall" : confirmation.action}</axis-button
-                          >
-                          <axis-button
-                            ?disabled=${this.applicationPending}
-                            @click=${() => (this.applicationConfirmation = null)}
-                            >Cancel</axis-button
-                          >
-                        </div>`
-                    : html` <div class="actions">
-                        ${
-                          app.status === "Running" || app.status === "Stopped"
-                            ? html`<axis-button
-                                ?disabled=${controlsDisabled}
-                                @click=${() => {
-                                  this.applicationMessage = "";
-                                  this.applicationConfirmation = {
-                                    app,
-                                    action:
-                                      app.status === "Running"
-                                        ? "stop"
-                                        : "start",
-                                  };
-                                }}
-                                >${app.status === "Running" ? "Stop" : "Start"}</axis-button
-                              >`
-                            : nothing
-                        }
-                        ${
-                          app.status === "Running"
-                            ? html`<axis-button
-                                ?disabled=${controlsDisabled}
-                                @click=${() => {
-                                  this.applicationMessage = "";
-                                  this.applicationConfirmation = {
-                                    app,
-                                    action: "restart",
-                                  };
-                                }}
-                                >Restart</axis-button
-                              >`
-                            : nothing
-                        }
-                        ${
-                          url
-                            ? html`<axis-button
-                                href=${canOpenConfiguration ? url : nothing}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                ?disabled=${!canOpenConfiguration}
-                                >Open configuration</axis-button
-                              >`
-                            : app.configuration_page
-                              ? html`<span
-                                  >Configuration link unavailable</span
-                                >`
-                              : nothing
-                        }
-                        <axis-button
-                          variant="danger"
+                            ?disabled=${!connected || this.applicationLoading || this.applicationPending || this.updateApp !== null}
+                            @click=${() => this.loadApplications(device.serial)}
+                            >Refresh applications</axis-button
+                          >`
+                      : nothing
+                  }
+                  ${this.applicationSupportError ? html`<p role="alert">${this.applicationSupportError} Close this dialog to retry the support check.</p>` : this.applicationSupported === false ? html`<p role="alert">Applications are not supported by this device. Close this dialog to retry the support check.</p>` : nothing}
+                  <dl>
+                    <dt>Package</dt>
+                    <dd>${app.name}</dd>
+                    <dt>Version</dt>
+                    <dd>${app.version || "Unknown"}</dd>
+                    <dt>Vendor</dt>
+                    <dd>${app.vendor || "Unknown"}</dd>
+                    <dt>License</dt>
+                    <dd>${app.license_status}</dd>
+                    ${
+                      app.bundled
+                        ? html`<dt>Bundled</dt>
+                            <dd>${app.bundled}</dd>`
+                        : nothing
+                    }
+                    ${
+                      app.signature_status
+                        ? html`<dt>Signature</dt>
+                            <dd>${app.signature_status}</dd>`
+                        : nothing
+                    }
+                    ${
+                      app.resources?.length
+                        ? html`<dt>Resources</dt>
+                            <dd>
+                              ${app.resources.map((resource) => `${resource.name || "Unknown"}: ${resource.used || "Unknown"}`).join(", ")}
+                            </dd>`
+                        : nothing
+                    }
+                    ${
+                      app.compatible_os_versions?.length
+                        ? html`<dt>Compatible OS versions</dt>
+                            <dd>
+                              ${app.compatible_os_versions.map((range) => `${range.Min || "Any"} – ${range.Max || "Any"}`).join(", ")}
+                            </dd>`
+                        : nothing
+                    }
+                    ${
+                      app.application_id
+                        ? html`<dt>Application ID</dt>
+                            <dd>${app.application_id}</dd>`
+                        : nothing
+                    }
+                    ${
+                      app.license_expiration_date
+                        ? html`<dt>License expires</dt>
+                            <dd>${app.license_expiration_date}</dd>`
+                        : nothing
+                    }
+                  </dl>
+                  ${
+                    update
+                      ? html`<axis-button
                           ?disabled=${controlsDisabled}
                           @click=${() => {
                             this.applicationMessage = "";
-                            this.applicationConfirmation = {
-                              app,
-                              action: "remove",
-                            };
+                            this.updateApp = app;
+                            this.expandedUpdates = false;
                           }}
-                          >Uninstall</axis-button
-                        >
-                      </div>`
-                }
-              </axis-card>
-            `;
-          })}
+                          >View versions
+                          (${update.candidates.length})</axis-button
+                        >`
+                      : nothing
+                  }
+                  ${
+                    confirmation?.app === app
+                      ? html` <p>
+                            ${
+                              confirmation.action === "remove"
+                                ? `Uninstall ${app.nice_name || app.name} and remove its data?`
+                                : `${confirmation.action === "start" ? "Start" : confirmation.action === "restart" ? "Restart" : "Stop"} ${app.nice_name || app.name}?`
+                            }
+                          </p>
+                          <div class="actions">
+                            <axis-button
+                              variant=${confirmation.action === "remove" ? "danger" : "brand"}
+                              .busy=${this.applicationPending}
+                              ?disabled=${controlsDisabled}
+                              @click=${() => this.applyApplicationAction(device)}
+                              >Confirm
+                              ${confirmation.action === "remove" ? "uninstall" : confirmation.action}</axis-button
+                            >
+                            <axis-button
+                              ?disabled=${this.applicationPending}
+                              @click=${() => (this.applicationConfirmation = null)}
+                              >Cancel</axis-button
+                            >
+                          </div>`
+                      : html` <div class="actions">
+                          ${
+                            app.status === "Running" || app.status === "Stopped"
+                              ? html`<axis-button
+                                  ?disabled=${controlsDisabled}
+                                  @click=${() => {
+                                    this.applicationMessage = "";
+                                    this.applicationConfirmation = {
+                                      app,
+                                      action:
+                                        app.status === "Running"
+                                          ? "stop"
+                                          : "start",
+                                    };
+                                  }}
+                                  >${app.status === "Running" ? "Stop" : "Start"}</axis-button
+                                >`
+                              : nothing
+                          }
+                          ${
+                            app.status === "Running"
+                              ? html`<axis-button
+                                  ?disabled=${controlsDisabled}
+                                  @click=${() => {
+                                    this.applicationMessage = "";
+                                    this.applicationConfirmation = {
+                                      app,
+                                      action: "restart",
+                                    };
+                                  }}
+                                  >Restart</axis-button
+                                >`
+                              : nothing
+                          }
+                          ${
+                            url
+                              ? html`<axis-button
+                                  href=${canOpenConfiguration ? url : nothing}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  ?disabled=${!canOpenConfiguration}
+                                  >Open configuration</axis-button
+                                >`
+                              : app.configuration_page
+                                ? html`<span
+                                    >Configuration link unavailable</span
+                                  >`
+                                : nothing
+                          }
+                          <axis-button
+                            variant="danger"
+                            ?disabled=${controlsDisabled}
+                            @click=${() => {
+                              this.applicationMessage = "";
+                              this.applicationConfirmation = {
+                                app,
+                                action: "remove",
+                              };
+                            }}
+                            >Uninstall</axis-button
+                          >
+                        </div>`
+                  }
+                `
+              : nothing
+          }
         </div>
-      </axis-card>
+      </dialog>
     `;
+  }
+
+  private renderAcapFindings(candidate: AcapCandidate) {
+    const labels = {
+      incompatible: "Incompatible",
+      unknown: "Unknown",
+      not_checked: "Not checked",
+      review: "Review",
+    };
+    return candidate.findings.map(
+      (finding) =>
+        html`<p class=${finding.kind === "not_checked" ? "" : "update-warning"}>
+          ${labels[finding.kind]}: ${finding.message}
+        </p>`,
+    );
   }
 
   private renderAcapCandidates(
@@ -2035,10 +2335,7 @@ class AxisApp extends LitElement {
               Package vendor: ${candidate.package.vendor || "Unknown"}; AXIS OS:
               ${candidate.package.os_ranges?.length ? candidate.package.os_ranges.map(([min, max]) => `${min || "?"}–${max || "?"}`).join(", ") : "Unknown"}.
             </p>
-            ${candidate.warnings.map(
-              (warning) =>
-                html`<p class="update-warning">Warning: ${warning}</p>`,
-            )}
+            ${this.renderAcapFindings(candidate)}
             <axis-button
               ?disabled=${disabled}
               .pressed=${mode === "install" ? candidate === selected : undefined}
@@ -2070,6 +2367,7 @@ class AxisApp extends LitElement {
   private renderUpdateDialog(device: Device, connected: boolean) {
     const app = this.updateApp;
     const selection = this.updateConfirmation;
+    const recovery = this.updateRecovery;
     const update = this.applicationUpdates.find(
       (item) =>
         item.name === app?.name &&
@@ -2100,49 +2398,119 @@ class AxisApp extends LitElement {
         </div>
         <div class="dialog-content">
           ${
-            selection && app
+            recovery
               ? html`
+                  <p role="alert">${recovery.message}</p>
                   <p>
-                    Change ${app.nice_name || app.name} from
-                    ${app.version || "unknown version"} to
-                    ${selection.candidate.package.version || "unknown version"}
-                    using ${selection.candidate.package.filename}? An
-                    interrupted or failed upgrade can remove both versions.
-                    Signature status:
-                    ${selection.candidate.package.signature === "present_unverified" ? "present, not verified" : selection.candidate.package.signature === "not_detected" ? "not detected" : "unknown"}.
-                    The device makes the final vendor ID and signature checks.
+                    Package: ${recovery.candidate.package.filename}
+                    (${recovery.candidate.package.version || "unknown version"})
                   </p>
-                  ${selection.candidate.warnings.map((warning) => html`<p class="update-warning">Warning: ${warning}</p>`)}
-                  ${selection.candidate.warnings.length ? html`<p>Confirming overrides these warnings. The device may still reject the package.</p>` : nothing}
-                  <div class="actions">
-                    <axis-button
-                      variant="brand"
-                      .busy=${this.applicationPending}
-                      ?disabled=${!connected || this.applicationPending}
-                      @click=${() => this.applyApplicationUpdate(device)}
-                      >Confirm update</axis-button
-                    >
-                    <axis-button
-                      ?disabled=${this.applicationPending}
-                      @click=${() => (this.updateConfirmation = null)}
-                      >Cancel update</axis-button
-                    >
-                  </div>
+                  ${
+                    recovery.status === "checking"
+                      ? html`<p role="status">
+                          Checking installed applications…
+                        </p>`
+                      : recovery.status === "unavailable"
+                        ? html`<p role="alert">
+                              Could not check installed
+                              applications${recovery.refreshError ? `: ${recovery.refreshError}` : "."}
+                            </p>
+                            <axis-button
+                              ?disabled=${!connected || this.applicationPending}
+                              @click=${() => this.refreshUpdateRecovery(device.serial)}
+                              >Check applications</axis-button
+                            >`
+                        : recovery.status === "changed"
+                          ? html`<p role="alert">
+                              The application changed. Close this dialog and
+                              review its current state before continuing.
+                            </p>`
+                          : recovery.status === "missing"
+                            ? html`<p>
+                                The application is no longer installed.
+                              </p>`
+                            : html`<p>The application is still installed.</p>`
+                  }
+                  ${
+                    recovery.eligible &&
+                    recovery.candidate.replacement &&
+                    (recovery.status === "installed" ||
+                      recovery.status === "missing")
+                      ? recovery.confirming
+                        ? html` <p>
+                              ${recovery.status === "installed" ? `Remove ${recovery.app.nice_name || recovery.app.name} ${recovery.app.version || "unknown version"} and install ${recovery.candidate.package.version || "unknown version"}? Removal deletes the application's data and settings. The new installation may fail.` : `Install ${recovery.candidate.package.version || "unknown version"}? The device will make the final compatibility and signature checks.`}
+                            </p>
+                            ${this.renderAcapFindings({ ...recovery.candidate, ...recovery.candidate.replacement })}
+                            <div class="actions">
+                              <axis-button
+                                variant=${recovery.status === "installed" ? "danger" : "brand"}
+                                .busy=${this.applicationPending}
+                                ?disabled=${!connected || this.applicationPending}
+                                @click=${() => this.applyApplicationReplacement(device)}
+                                >Confirm
+                                ${recovery.status === "installed" ? "remove and install" : "install"}</axis-button
+                              >
+                              <axis-button
+                                ?disabled=${this.applicationPending}
+                                @click=${() => (this.updateRecovery = { ...recovery, confirming: false })}
+                                >Cancel</axis-button
+                              >
+                            </div>`
+                        : html` <p>
+                              ${recovery.status === "installed" ? "The device rejected this upgrade because the vendor IDs differ. Removing the existing application allows you to try installing this package instead." : "You can install the reviewed package now that the application is absent."}
+                            </p>
+                            <axis-button
+                              variant=${recovery.status === "installed" ? "danger" : "brand"}
+                              ?disabled=${!connected || this.applicationPending}
+                              @click=${() => (this.updateRecovery = { ...recovery, confirming: true })}
+                              >${recovery.status === "installed" ? "Remove and install" : "Install"}</axis-button
+                            >`
+                      : nothing
+                  }
                 `
-              : update && app
-                ? this.renderAcapCandidates(
-                    update.candidates,
-                    this.expandedUpdates,
-                    !connected || this.applicationPending,
-                    "update",
-                    (candidate) =>
-                      (this.updateConfirmation = { app, candidate }),
-                    () => (this.expandedUpdates = !this.expandedUpdates),
-                  )
-                : html`<p>
-                    Versions are no longer available. Close and refresh the
-                    application list.
-                  </p>`
+              : selection && app
+                ? html`
+                    <p>
+                      Change ${app.nice_name || app.name} from
+                      ${app.version || "unknown version"} to
+                      ${selection.candidate.package.version || "unknown version"}
+                      using ${selection.candidate.package.filename}? An
+                      interrupted or failed upgrade can remove both versions.
+                      Signature status:
+                      ${selection.candidate.package.signature === "present_unverified" ? "present, not verified" : selection.candidate.package.signature === "not_detected" ? "not detected" : "unknown"}.
+                      The device makes the final vendor ID and signature checks.
+                    </p>
+                    ${this.renderAcapFindings(selection.candidate)}
+                    ${selection.candidate.warnings.length ? html`<p>Confirming acknowledges these findings; the device may still reject the package.</p>` : nothing}
+                    <div class="actions">
+                      <axis-button
+                        variant="brand"
+                        .busy=${this.applicationPending}
+                        ?disabled=${!connected || this.applicationPending}
+                        @click=${() => this.applyApplicationUpdate(device)}
+                        >Confirm update</axis-button
+                      >
+                      <axis-button
+                        ?disabled=${this.applicationPending}
+                        @click=${() => (this.updateConfirmation = null)}
+                        >Cancel update</axis-button
+                      >
+                    </div>
+                  `
+                : update && app
+                  ? this.renderAcapCandidates(
+                      update.candidates,
+                      this.expandedUpdates,
+                      !connected || this.applicationPending,
+                      "update",
+                      (candidate) =>
+                        (this.updateConfirmation = { app, candidate }),
+                      () => (this.expandedUpdates = !this.expandedUpdates),
+                    )
+                  : html`<p>
+                      Versions are no longer available. Close and refresh the
+                      application list.
+                    </p>`
           }
         </div>
       </dialog>
@@ -2352,8 +2720,8 @@ class AxisApp extends LitElement {
                         The device makes the final vendor ID and signature
                         checks.
                       </p>
-                      ${this.installCandidate.warnings.map((warning) => html`<p class="update-warning">Warning: ${warning}</p>`)}
-                      ${this.installCandidate.warnings.length ? html`<p>Confirming overrides these warnings. The device may still reject the package.</p>` : nothing}
+                      ${this.renderAcapFindings(this.installCandidate)}
+                      ${this.installCandidate.warnings.length ? html`<p>Confirming acknowledges these findings; the device may still reject the package.</p>` : nothing}
                     `
                   : nothing
               }
@@ -3583,6 +3951,7 @@ class AxisApp extends LitElement {
         </div>
       </dialog>
       ${device && this.applicationsOpen ? this.renderInstallationDialog(device, connected) : nothing}
+      ${device && this.applicationsOpen ? this.renderApplicationDialog(device, connected) : nothing}
       ${device && this.applicationsOpen ? this.renderUpdateDialog(device, connected) : nothing}
       ${device && this.applicationsOpen ? this.renderLicenseDialog(device, connected) : nothing}
     `;

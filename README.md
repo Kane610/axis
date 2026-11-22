@@ -121,9 +121,10 @@ serial and uses firmware management when advertised, otherwise `restart.cgi`.
 unknown, check the device before trying again.
 
 Select **Applications** in the device navigation (or **applications** in
-Interfaces) to view installed apps and their status,
-version, vendor, license, signature, bundled status, resources, and compatible
-OS versions when reported. When available and the app is running, its
+Interfaces) for an overview of installed apps, their status, version, signature,
+and confidently assessed updates. Select an app to see its vendor, license,
+bundled status, resources, compatible OS versions, and controls when reported.
+When available and the app is running, its
 configuration page opens on the device in a separate tab and may require a separate
 login. Starting, stopping, restarting,
 or uninstalling requires confirmation and administrator credentials. Uninstalling
@@ -159,6 +160,17 @@ Signed-package verification may temporarily require approximately twice the
 package size in available device RAM.
 Upload error 2 means the package signature is missing or invalid; obtain a
 correctly signed package from the application vendor.
+Upload error 27 means the package and installed application have different
+vendor IDs; obtain an upgrade from the original application vendor. Check the
+installed application before retrying. In a catalog upgrade, the versions
+dialog checks whether the application is still present. If it is, **Remove
+and install** offers an explicitly confirmed replacement; removal deletes the
+application's data and settings, and installation can still fail. If the
+failed upgrade already removed it, the dialog offers installation instead.
+The server checks the reviewed device, application, package snapshot, and
+installation warnings before removal, then verifies absence and rechecks
+compatibility before upload. If removal or the verification has an uncertain
+outcome, installation stops and the application state must be checked.
 
 In **Server settings**, browse for a folder or enter its absolute path on the
 computer running the web server to catalog local `.eap` files. Browsing shows
@@ -170,17 +182,26 @@ errors. Inspection is limited to 1 GiB per file and 256 MiB of expanded archive
 data; packages exceeding these limits are reported rather than installed.
 
 The Applications view checks the catalog for versions of installed apps.
-Use **View versions** on an app to review its candidates in a dialog.
+The overview marks updates only when the assessment reports no warnings, and
+labels them as candidates when verification is incomplete. This does not verify
+signatures or guarantee compatibility. Open an app and use
+**View versions** to review all its candidates in a dialog.
+For field definitions and schema differences, see the
+[Axis manifest schema documentation](https://developer.axis.com/acap/reference/manifest-schemas/general-info/).
 Packages with a different application name or known architecture mismatch are
 hidden. Candidates are ordered by confidence, with downgrades last; the first
-five are shown initially. Unknown or incompatible vendor, architecture, AXIS
-OS, version, or unsigned-app policy information is highlighted as a warning.
-You can explicitly confirm a package despite warnings or choose a downgrade,
-but the device may reject it. Version comparisons use semantic versions; an
-unrecognized version may be a downgrade.
+five are shown initially. Assessments distinguish declared incompatibilities,
+unknown information, items for review, and checks not performed. Schema v2
+declares compatible AXIS OS ranges and a vendor ID; older or unknown schemas
+cannot establish OS compatibility from those fields. AXIS OS 12.10 and later
+are expected to reject installations outside declared ranges. You can explicitly
+confirm a package despite findings or choose a downgrade, but confirmation
+cannot override the device's checks. Version comparisons use semantic versions;
+an unrecognized version may be a downgrade.
 An observed appended signature is reported as present but **not verified**;
-other signature formats may be unknown. SDK metadata is displayed but not
-compared automatically. The device makes the final signature, vendor ID, and
+other signature formats may be unknown. A matching vendor name does not verify
+vendor identity, and the installed application's vendor ID is not available for
+comparison. SDK metadata is displayed but not compared automatically. The device makes the final signature, vendor ID, and
 compatibility checks. Updates are never installed automatically:
 review and confirm each update. The server rechecks the saved device, installed
 version, warnings and package contents before sending a private snapshot. New

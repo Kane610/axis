@@ -978,11 +978,37 @@ async def test_acap_updates_require_auth_confirmation_and_unchanged_file(
     assert response.status == 400
     assert (await response.json())["error"]["outcome_unknown"] is True
     assert update.await_count == 3
+    update.side_effect = OperationError(
+        "Vendor ID mismatch.", outcome_unknown=True, device_code=27
+    )
+    response = await client.post("/api/application-update", json=body, headers=headers)
+    assert (await response.json())["error"]["device_code"] == 27
+    replace_app = AsyncMock()
+    monkeypatch.setattr(server.operations, "replace_catalog_application", replace_app)
+    replace_body = {**body, "remove": True, "install_warnings": []}
+    response = await client.post(
+        "/api/application-replace",
+        json={**replace_body, "remove": "yes"},
+        headers=headers,
+    )
+    assert response.status == 400
+    replace_app.assert_not_awaited()
+    response = await client.post(
+        "/api/application-replace", json=replace_body, headers=headers
+    )
+    assert response.status == 200
+    assert replace_app.await_args.kwargs["remove"] is True
+    assert replace_app.await_args.kwargs["reviewed_install_warnings"] == ()
     create_package(path)
     response = await client.post("/api/application-update", json=body, headers=headers)
     assert response.status == 400
     assert "changed" in (await response.json())["error"]["message"]
-    assert update.await_count == 3
+    assert update.await_count == 4
+    response = await client.post(
+        "/api/application-replace", json=replace_body, headers=headers
+    )
+    assert response.status == 400
+    assert replace_app.await_count == 1
     await socket.close()
 
 

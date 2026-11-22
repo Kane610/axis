@@ -948,6 +948,7 @@ def create_app(  # noqa: C901
 
     async def catalog_application(request: web.Request) -> web.Response:
         installing = request.path == "/api/application-catalog-install"
+        replacing = request.path == "/api/application-replace"
         supplied = request.headers.get("X-Axis-Token", "")
         if (
             request.headers.get("Origin") != origin
@@ -967,6 +968,8 @@ def create_app(  # noqa: C901
                 data.get("status"),
             )
             warnings = data.get("warnings")
+            install_warnings = data.get("install_warnings")
+            remove = data.get("remove")
             vendor = data.get("vendor")
             if (
                 not isinstance(device_id, str)
@@ -994,6 +997,19 @@ def create_app(  # noqa: C901
                 ):
                     raise ValueError
                 update_details = version, status, vendor
+            replacement_details: tuple[bool, tuple[str, ...]] | None = None
+            if replacing:
+                if (
+                    not isinstance(remove, bool)
+                    or not isinstance(install_warnings, list)
+                    or len(install_warnings) > 10
+                    or any(
+                        not isinstance(warning, str) or len(warning) > 256
+                        for warning in install_warnings
+                    )
+                ):
+                    raise ValueError
+                replacement_details = remove, tuple(install_warnings)
             folder = registry.web_acap_folder()
             if folder is None:
                 msg = "No ACAP folder is configured."
@@ -1028,16 +1044,31 @@ def create_app(  # noqa: C901
                         )
                     else:
                         version, status, vendor = update_details
-                        await operations.update_application(
-                            record,
-                            snapshot,
-                            package,
-                            version,
-                            status,
-                            confirmed=True,
-                            reviewed_warnings=tuple(warnings),
-                            reviewed_vendor=vendor,
-                        )
+                        if replacement_details is not None:
+                            remove, reviewed_install_warnings = replacement_details
+                            await operations.replace_catalog_application(
+                                record,
+                                snapshot,
+                                package,
+                                version,
+                                status,
+                                remove=remove,
+                                confirmed=True,
+                                reviewed_warnings=tuple(warnings),
+                                reviewed_install_warnings=reviewed_install_warnings,
+                                reviewed_vendor=vendor,
+                            )
+                        else:
+                            await operations.update_application(
+                                record,
+                                snapshot,
+                                package,
+                                version,
+                                status,
+                                confirmed=True,
+                                reviewed_warnings=tuple(warnings),
+                                reviewed_vendor=vendor,
+                            )
             except (PackageError, StorageError) as exc:
                 return web.json_response({"error": {"message": str(exc)}}, status=400)
             except OperationError as exc:
@@ -1046,6 +1077,7 @@ def create_app(  # noqa: C901
                         "error": {
                             "message": str(exc),
                             "outcome_unknown": exc.outcome_unknown,
+                            "device_code": exc.device_code,
                         }
                     },
                     status=400,
@@ -1229,6 +1261,7 @@ def create_app(  # noqa: C901
     app.router.add_get("/api/websocket", websocket)
     app.router.add_post("/api/application-upload", upload_application)
     app.router.add_post("/api/application-update", catalog_application)
+    app.router.add_post("/api/application-replace", catalog_application)
     app.router.add_post("/api/application-catalog-install", catalog_application)
     app.router.add_post("/api/application-license", upload_license)
     app.on_shutdown.append(shutdown)

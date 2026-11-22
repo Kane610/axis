@@ -17,6 +17,16 @@ import type {
   ServerSettings,
 } from "./devices";
 
+export class ApplicationWriteError extends Error {
+  constructor(
+    message: string,
+    readonly deviceCode: number | null,
+    readonly outcomeUnknown: boolean,
+  ) {
+    super(message);
+  }
+}
+
 type Commands = {
   "devices/list": { args: Record<string, never>; result: Device[] };
   "devices/discover": {
@@ -263,6 +273,33 @@ export class AxisConnection {
     );
   }
 
+  async replaceApplication(
+    device: string,
+    app: Application,
+    candidate: AcapCandidate,
+    remove: boolean,
+  ): Promise<void> {
+    if (!candidate.replacement)
+      throw new Error("Installation review is unavailable.");
+    return this.requestWrite(
+      "/api/application-replace",
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        device,
+        filename: candidate.package.filename,
+        digest: candidate.package.digest,
+        version: app.version,
+        status: app.status,
+        vendor: app.vendor,
+        warnings: candidate.warnings,
+        install_warnings: candidate.replacement.warnings,
+        remove,
+        confirmed: true,
+      }),
+      INSTALL_UNKNOWN,
+    );
+  }
+
   async installCatalogApplication(
     device: string,
     candidate: AcapCandidate,
@@ -322,7 +359,14 @@ export class AxisConnection {
     } catch {
       throw new Error(unknownMessage);
     }
-    let payload: { result?: unknown; error?: { message?: unknown } };
+    let payload: {
+      result?: unknown;
+      error?: {
+        message?: unknown;
+        device_code?: unknown;
+        outcome_unknown?: unknown;
+      };
+    };
     try {
       payload = (await response.json()) as typeof payload;
     } catch {
@@ -330,7 +374,13 @@ export class AxisConnection {
     }
     if (!response.ok) {
       const message = payload?.error?.message;
-      throw new Error(typeof message === "string" ? message : unknownMessage);
+      throw new ApplicationWriteError(
+        typeof message === "string" ? message : unknownMessage,
+        typeof payload.error?.device_code === "number"
+          ? payload.error.device_code
+          : null,
+        payload.error?.outcome_unknown === true,
+      );
     }
     if (payload?.result !== null) throw new Error(unknownMessage);
   }
