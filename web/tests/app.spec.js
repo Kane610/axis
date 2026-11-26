@@ -177,6 +177,7 @@ test("opens Applications directly using lightweight discovery and reuses its API
   await views
     .getByRole("button", { name: "Applications", exact: true })
     .click();
+  await expect(dialog).toHaveAccessibleName("Camera A");
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1]).toMatchObject({
     type: "device/applications",
@@ -189,6 +190,64 @@ test("opens Applications directly using lightweight discovery and reuses its API
   await views.getByRole("button", { name: "APIs", exact: true }).click();
   await expect(dialog.locator("pre")).toContainText("application");
   expect(requests).toHaveLength(2);
+});
+
+test("settings remain available from Applications and return to it", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  await dialog
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], []);
+  const settings = dialog.getByRole("button", {
+    name: "Settings",
+    exact: true,
+  });
+  await settings.click();
+  await expect.poll(() => requests.length).toBe(3);
+  const device = {
+    ...devices[0],
+    web_proto: "https",
+    port: 0,
+    verify_ssl: true,
+  };
+  await respond(page, requests[2], { device, username: "operator" });
+  await expect(
+    dialog.getByRole("heading", { name: "Device settings" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeFocused();
+  await expect(
+    dialog.getByRole("heading", { name: "Installed applications" }),
+  ).toBeVisible();
+
+  await settings.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], { device, username: "operator" });
+  await dialog.getByLabel("Address").fill("camera-new");
+  await dialog.getByRole("button", { name: "Test connection" }).click();
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], "A");
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(6);
+  await respond(page, requests[5], {
+    device: { ...device, host: "camera-new" },
+    connection_changed: true,
+  });
+  await expect.poll(() => requests.length).toBe(7);
+  expect(requests[6]).toMatchObject({
+    type: "device/applications",
+    device: "A",
+  });
+  await respond(page, requests[6], []);
+  await expect(
+    dialog.getByRole("heading", { name: "Installed applications" }),
+  ).toBeVisible();
 });
 
 test("retries an inconclusive application support check", async ({ page }) => {
@@ -1957,8 +2016,12 @@ test("applications present details, configuration links, and confirmed controls"
   await dialog
     .getByRole("button", { name: "applications", exact: true })
     .click();
-  await expect(dialog).toHaveAccessibleName("Applications");
-  await expect(dialog.getByRole("button", { name: "Back" })).toBeFocused();
+  await expect(dialog).toHaveAccessibleName("Camera A");
+  await expect(
+    dialog
+      .getByRole("navigation", { name: "Device views" })
+      .getByRole("button", { name: "Applications" }),
+  ).toBeFocused();
   await expect.poll(() => requests.length).toBe(3);
   expect(requests[2]).toMatchObject({
     type: "device/applications",
@@ -2058,7 +2121,7 @@ test("applications present details, configuration links, and confirmed controls"
   await expect(
     dialog.getByRole("button", { name: /^Object Analytics/ }),
   ).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Back" }).click();
+  await page.keyboard.press("Escape");
   await expect.poll(() => requests.length).toBe(8);
   expect(requests[7]).toMatchObject({ type: "device/interfaces" });
   await respond(page, requests[7], [{ name: "applications", supported: true }]);
@@ -2743,7 +2806,7 @@ test("drag and drop validates packages before confirmed installation", async ({
   const { requests } = await openApp(page);
   await select(page, "A", requests, 1);
   await respond(page, requests[0], health("Camera"));
-  const dialog = page.getByRole("dialog", { name: "Applications" });
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Interfaces" })

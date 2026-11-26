@@ -1171,7 +1171,7 @@ class AxisApp extends LitElement {
       const opening = this.openApplications(serial);
       void this.updateComplete.then(() =>
         this.renderRoot
-          .querySelector<HTMLButtonElement>(".application-back")
+          .querySelector<HTMLElement>(".device-views axis-button.active")
           ?.focus(),
       );
       return opening;
@@ -3147,7 +3147,10 @@ class AxisApp extends LitElement {
         this.invalidateDeviceViews(target.serial);
         this.resetApplicationSupport();
         this.selectedInterface = null;
-        void this.showDeviceView(target.serial, this.deviceView);
+        void this.showDeviceView(
+          target.serial,
+          this.applicationsOpen ? "Applications" : this.deviceView,
+        );
       }
     } catch (error) {
       if (this.settings === target)
@@ -3854,46 +3857,37 @@ class AxisApp extends LitElement {
           this.backdropPressed = false;
         }}
         @cancel=${(event: Event) => {
+          if (this.settings) {
+            event.preventDefault();
+            if (!this.settingsPending) void this.closeSettings();
+            return;
+          }
           if (this.applicationsOpen) {
             event.preventDefault();
             this.closeApplications();
             return;
           }
-          if (!this.settings) {
-            this.dismissDevice(event);
-            return;
-          }
-          event.preventDefault();
-          if (!this.settingsPending) void this.closeSettings();
+          this.dismissDevice(event);
         }}
       >
         <div class="dialog-header">
           <header class="dialog-heading">
             <h2 id="device-dialog-title">
-              ${this.serverSettingsOpen ? "Server settings" : this.registration ? this.registration.name.trim() || this.registration.host : this.applicationsOpen ? "Applications" : device ? deviceName(device) : "Device details"}
+              ${this.serverSettingsOpen ? "Server settings" : this.registration ? this.registration.name.trim() || this.registration.host : device ? deviceName(device) : "Device details"}
             </h2>
             <div class="dialog-controls">
               ${
-                device && this.applicationsOpen
+                device
                   ? html`<button
                       type="button"
-                      class="application-back"
-                      ?disabled=${this.applicationPending}
-                      @click=${() => this.closeApplications()}
+                      class="settings-trigger"
+                      aria-pressed=${String(this.settings !== null)}
+                      ?disabled=${!connected || this.settingsPending || this.restartPending || this.applicationPending}
+                      @click=${() => (this.settings ? this.closeSettings() : this.openSettings(device.serial))}
                     >
-                      Back
+                      Settings
                     </button>`
-                  : device
-                    ? html`<button
-                        type="button"
-                        class="settings-trigger"
-                        aria-pressed=${String(this.settings !== null)}
-                        ?disabled=${!connected || this.settingsPending || this.restartPending}
-                        @click=${() => (this.settings ? this.closeSettings() : this.openSettings(device.serial))}
-                      >
-                        Settings
-                      </button>`
-                    : nothing
+                  : nothing
               }
               <button
                 type="button"
