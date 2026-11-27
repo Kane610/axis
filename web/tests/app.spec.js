@@ -1523,6 +1523,15 @@ test("catalog updates require confirmation and send the reviewed package", async
   ).toHaveCount(0);
   await versions.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
   await expect(
+    versions.getByText("Server catalog", { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(versions).toBeVisible();
+  await expect(
+    versions.getByRole("button", { name: /^Version 2\.0\.0 / }),
+  ).toBeFocused();
+  await versions.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
+  await expect(
     versions.getByText(
       "Not checked: Package signature is present but has not been verified locally.",
     ),
@@ -1897,12 +1906,15 @@ test("sorts shuffled update versions and confirms warnings and downgrades", asyn
     }),
   ).toBeVisible();
   expect(write).toBeNull();
-  await versions.getByRole("button", { name: "Cancel update" }).click();
+  await versions.getByRole("button", { name: "Back to versions" }).click();
+  await expect(
+    versions.getByRole("button", { name: /^Version 4\.0\.0 / }),
+  ).toBeFocused();
   await versions.getByRole("button", { name: /^Version 1\.0\.0 / }).click();
   await expect(
     versions.getByText("Review: This is a downgrade."),
   ).toBeVisible();
-  await versions.getByRole("button", { name: "Confirm update" }).click();
+  await versions.getByRole("button", { name: "Confirm downgrade" }).click();
   await expect
     .poll(() => write)
     .toMatchObject({
@@ -2036,6 +2048,10 @@ test("installs a reviewed new application from the server catalog", async ({
   const versionRow = first.getByRole("button", { name: /^Version 1\.0\.0 / });
   await versionRow.click();
   const detail = page.getByRole("dialog", { name: "New 0 — 1.0.0" });
+  await expect(
+    detail.getByText("Server catalog", { exact: true }),
+  ).toBeVisible();
+  await detail.getByText("Technical details", { exact: true }).click();
   await expect(detail.getByText("new0.eap", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(detail).toBeHidden();
@@ -2043,18 +2059,34 @@ test("installs a reviewed new application from the server catalog", async ({
   await versionRow.click();
   await detail.getByRole("button", { name: "Select package" }).click();
   await expect(detail).toBeHidden();
-  await expect(versionRow).toHaveAttribute("aria-pressed", "true");
-  const drop = install.getByRole("region", {
-    name: "Application package drop area",
+  const selection = install.getByRole("region", {
+    name: "Selected application",
   });
-  await expect(drop.getByRole("status")).toContainText("New 0");
-  await expect(drop.getByRole("status")).toContainText("new0.eap");
+  await expect(selection).toBeFocused();
+  await expect(install.locator(".installation-drop")).not.toContainText(
+    "Selected server package",
+  );
+  await expect(selection).toContainText("New 0, 1.0.0");
+  await selection.getByRole("button", { name: "Change selection" }).click();
+  await expect(versionRow).toBeFocused();
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeDisabled();
+  await versionRow.click();
+  await detail.getByRole("button", { name: "Select package" }).click();
+  await expect(versionRow).toHaveAttribute("aria-pressed", "true");
+  await expect(selection.getByRole("status")).toContainText("New 0");
+  await expect(selection.getByRole("status")).toContainText("new0.eap");
   await install.locator('input[type="file"]').setInputFiles({
     name: "local.eap",
     mimeType: "application/octet-stream",
     buffer: Buffer.from("package"),
   });
-  await expect(drop.getByRole("status")).toHaveText("Selected: local.eap");
+  await expect(selection.getByRole("status")).toHaveText("Selected: local.eap");
+  await expect(selection).toContainText("Source: Uploaded file");
+  await expect(selection).toContainText(
+    "compatibility have not been checked locally",
+  );
   await expect(versionRow).toHaveAttribute("aria-pressed", "false");
   await install
     .getByRole("button", { name: "Show 1 more application" })
@@ -2082,13 +2114,13 @@ test("installs a reviewed new application from the server catalog", async ({
     lastDetail.getByText("Unknown: AXIS OS compatibility is unknown."),
   ).toBeVisible();
   await lastDetail.getByRole("button", { name: "Select package" }).click();
-  await expect(drop.getByRole("status")).toContainText("New 5");
-  await expect(drop.getByRole("status")).toContainText("new5.eap");
+  await expect(selection.getByRole("status")).toContainText("New 5");
+  await expect(selection.getByRole("status")).toContainText("new5.eap");
   await expect(
     install.getByText("Unknown: AXIS OS compatibility is unknown."),
   ).toHaveCount(1);
   await expect(
-    drop.getByText(
+    selection.getByText(
       "Not checked: Package vendor identity has not been verified.",
     ),
   ).toBeVisible();

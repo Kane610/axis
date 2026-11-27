@@ -143,8 +143,11 @@ an `.eap` package (up to 1024 MB / 1 GiB), or select an applicable package
 from the configured server catalog, and confirm. Suggested applications use
 compact list rows showing vendor, version, signature information, and any need
 for review. Select an application row to see its versions, then select a
-version row to open package details and choose it; the selection appears in the file
-selection area. Catalog installation lists only apps not already installed, and
+version row to open package details and choose it. Installation and updates share
+the same package details, with technical metadata available on expansion.
+A separate **Selected application** summary identifies the selected catalog
+package or uploaded file and offers **Change selection**. Uploaded files are
+not inspected locally for compatibility. Catalog installation lists only apps not already installed, and
 rechecks that before upload. The device's reported
 hardware architecture and supported SDKs are shown to help select a compatible package; other
 application requirements still apply.

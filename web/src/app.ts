@@ -1821,6 +1821,10 @@ class AxisApp extends LitElement {
     event?.preventDefault();
     event?.stopPropagation();
     if (this.applicationPending) return;
+    if (event?.type === "cancel" && this.updateConfirmation) {
+      this.backToUpdateVersions();
+      return;
+    }
     if (
       this.updateRecovery &&
       !this.applicationsStale &&
@@ -1838,6 +1842,20 @@ class AxisApp extends LitElement {
     this.updateApp = null;
     this.updateConfirmation = null;
     this.expandedUpdates = false;
+  }
+
+  private backToUpdateVersions(): void {
+    const filename = this.updateConfirmation?.candidate.package.filename;
+    this.updateConfirmation = null;
+    void this.updateComplete.then(() =>
+      Array.from(
+        this.renderRoot.querySelectorAll<HTMLElement>(
+          ".update-dialog axis-button[data-package-file]",
+        ),
+      )
+        .find((row) => row.getAttribute("data-package-file") === filename)
+        ?.focus(),
+    );
   }
 
   private async loadInstallCandidates(serial: string): Promise<void> {
@@ -2403,6 +2421,7 @@ class AxisApp extends LitElement {
           (candidate) =>
             html`<li>
               <axis-button
+                data-package-file=${candidate.package.filename}
                 ?disabled=${disabled}
                 .pressed=${mode === "install" ? candidate === selected : undefined}
                 @click=${() => select(candidate)}
@@ -2430,6 +2449,48 @@ class AxisApp extends LitElement {
     this.installDetail = null;
   }
 
+  private renderPackageDetails(candidate: AcapCandidate) {
+    const packageFile = candidate.package;
+    return html`
+      <dl>
+        <dt>Application</dt>
+        <dd>${packageFile.friendly_name || packageFile.name || "Unknown"}</dd>
+        <dt>Version</dt>
+        <dd>${packageFile.version || "Unknown"}</dd>
+        <dt>Source</dt>
+        <dd>Server catalog</dd>
+        <dt>Vendor</dt>
+        <dd>${packageFile.vendor || "Unknown"}</dd>
+        <dt>Signature</dt>
+        <dd>
+          ${packageFile.signature === "present_unverified" ? "Present, not verified" : packageFile.signature === "not_detected" ? "Not detected" : "Unknown"}
+        </dd>
+        <dt>Compatible AXIS OS</dt>
+        <dd>
+          ${packageFile.os_ranges?.length ? packageFile.os_ranges.map(([min, max]) => `${min || "?"}–${max || "?"}`).join(", ") : "Unknown"}
+        </dd>
+      </dl>
+      ${this.renderAcapFindings(candidate)}
+      <details>
+        <summary>Technical details</summary>
+        <dl>
+          <dt>File</dt>
+          <dd>${packageFile.filename}</dd>
+          <dt>Vendor ID</dt>
+          <dd>${packageFile.vendor_id || "Unknown"}</dd>
+          <dt>Architecture</dt>
+          <dd>${packageFile.architecture || "Unknown"}</dd>
+          <dt>SDK</dt>
+          <dd>${packageFile.sdk || "Unknown"}</dd>
+          <dt>Size</dt>
+          <dd>
+            ${packageFile.size === undefined ? "Unknown" : `${packageFile.size} bytes`}
+          </dd>
+        </dl>
+      </details>
+    `;
+  }
+
   private renderInstallDetail(connected: boolean) {
     const candidate = this.installDetail;
     const packageFile = candidate?.package;
@@ -2455,29 +2516,7 @@ class AxisApp extends LitElement {
         ${
           candidate && packageFile
             ? html`
-                <dl>
-                  <dt>File</dt>
-                  <dd>${packageFile.filename}</dd>
-                  <dt>Vendor</dt>
-                  <dd>${packageFile.vendor || "Unknown"}</dd>
-                  <dt>Vendor ID</dt>
-                  <dd>${packageFile.vendor_id || "Unknown"}</dd>
-                  <dt>Architecture</dt>
-                  <dd>${packageFile.architecture || "Unknown"}</dd>
-                  <dt>Signature</dt>
-                  <dd>
-                    ${packageFile.signature === "present_unverified" ? "Present, not verified" : packageFile.signature === "not_detected" ? "Not detected" : "Unknown"}
-                  </dd>
-                  <dt>SDK</dt>
-                  <dd>${packageFile.sdk || "Unknown"}</dd>
-                  <dt>Size</dt>
-                  <dd>${packageFile.size ?? "Unknown"} bytes</dd>
-                  <dt>Compatible AXIS OS</dt>
-                  <dd>
-                    ${packageFile.os_ranges?.length ? packageFile.os_ranges.map(([min, max]) => `${min || "?"}–${max || "?"}`).join(", ") : "Unknown"}
-                  </dd>
-                </dl>
-                ${this.renderAcapFindings(candidate)}
+                ${this.renderPackageDetails(candidate)}
                 <axis-button
                   variant="brand"
                   ?disabled=${!connected || this.applicationPending || !this.installCandidates?.includes(candidate)}
@@ -2489,7 +2528,7 @@ class AxisApp extends LitElement {
                     void this.updateComplete.then(() =>
                       this.renderRoot
                         .querySelector<HTMLElement>(".installation-selection")
-                        ?.scrollIntoView({ block: "nearest" }),
+                        ?.focus(),
                     );
                   }}
                   >Select package</axis-button
@@ -2607,6 +2646,7 @@ class AxisApp extends LitElement {
                 `
               : selection && app
                 ? html`
+                    ${this.renderPackageDetails(selection.candidate)}
                     <p>
                       Change ${app.nice_name || app.name} from
                       ${app.version || "unknown version"} to
@@ -2617,7 +2657,6 @@ class AxisApp extends LitElement {
                       ${selection.candidate.package.signature === "present_unverified" ? "present, not verified" : selection.candidate.package.signature === "not_detected" ? "not detected" : "unknown"}.
                       The device makes the final vendor ID and signature checks.
                     </p>
-                    ${this.renderAcapFindings(selection.candidate)}
                     ${selection.candidate.warnings.length ? html`<p>Confirming acknowledges these findings; the device may still reject the package.</p>` : nothing}
                     <div class="actions">
                       <axis-button
@@ -2625,12 +2664,13 @@ class AxisApp extends LitElement {
                         .busy=${this.applicationPending}
                         ?disabled=${!connected || this.applicationPending}
                         @click=${() => this.applyApplicationUpdate(device)}
-                        >Confirm update</axis-button
+                        >Confirm
+                        ${selection.candidate.downgrade ? "downgrade" : "update"}</axis-button
                       >
                       <axis-button
                         ?disabled=${this.applicationPending}
-                        @click=${() => (this.updateConfirmation = null)}
-                        >Cancel update</axis-button
+                        @click=${() => this.backToUpdateVersions()}
+                        >Back to versions</axis-button
                       >
                     </div>
                   `
@@ -2825,6 +2865,7 @@ class AxisApp extends LitElement {
             <p>Drag and drop an application package here</p>
             <span>or</span>
             <axis-button
+              class="choose-file"
               ?disabled=${!connected || this.applicationPending}
               .expanded=${this.installAppsExpanded}
               @click=${() =>
@@ -2845,36 +2886,79 @@ class AxisApp extends LitElement {
                 input.value = "";
               }}
             />
-            <div class="installation-selection">
-              <p role="status">
-                ${
-                  this.installCandidate
-                    ? html`<strong>Selected server package:</strong>
-                        ${this.installCandidate.package.friendly_name || this.installCandidate.package.name},
-                        ${this.installCandidate.package.version || "unknown version"}
-                        (${this.installCandidate.package.filename})`
-                    : this.installationFile
-                      ? html`<strong>Selected:</strong>
-                          ${this.installationFile.name}`
-                      : "No application package selected."
-                }
-              </p>
+          </div>
+          <section
+            class="installation-selection"
+            aria-label="Selected application"
+            tabindex="-1"
+          >
+            <h3>Selected application</h3>
+            <p role="status">
               ${
                 this.installCandidate
-                  ? html`
-                      <p>
-                        Signature:
-                        ${this.installCandidate.package.signature === "present_unverified" ? "present, not verified" : this.installCandidate.package.signature === "not_detected" ? "not detected" : "unknown"}.
-                        The device makes the final vendor ID and signature
-                        checks.
-                      </p>
-                      ${this.renderAcapFindings(this.installCandidate)}
-                      ${this.installCandidate.warnings.length ? html`<p>Confirming acknowledges these findings; the device may still reject the package.</p>` : nothing}
-                    `
-                  : nothing
+                  ? html`<strong>Selected server package:</strong>
+                      ${this.installCandidate.package.friendly_name || this.installCandidate.package.name},
+                      ${this.installCandidate.package.version || "unknown version"}
+                      (${this.installCandidate.package.filename})`
+                  : this.installationFile
+                    ? html`<strong>Selected:</strong>
+                        ${this.installationFile.name}`
+                    : "No application package selected."
               }
-            </div>
-          </div>
+            </p>
+            ${
+              this.installCandidate || this.installationFile
+                ? html`
+                    <p>
+                      Source:
+                      ${this.installCandidate ? "Server catalog" : "Uploaded file"}
+                    </p>
+                    ${this.installationFile ? html`<p>Package metadata and compatibility have not been checked locally. The device validates the uploaded package.</p>` : nothing}
+                    <axis-button
+                      ?disabled=${!connected || this.applicationPending}
+                      @click=${() => {
+                        const filename =
+                          this.installCandidate?.package.filename;
+                        this.installCandidate = null;
+                        this.installationFile = null;
+                        this.installationError = "";
+                        void this.updateComplete.then(() => {
+                          const row = Array.from(
+                            this.renderRoot.querySelectorAll<HTMLElement>(
+                              ".installation-dialog axis-button[data-package-file]",
+                            ),
+                          ).find(
+                            (item) =>
+                              item.getAttribute("data-package-file") ===
+                              filename,
+                          );
+                          (
+                            row ??
+                            this.renderRoot.querySelector<HTMLElement>(
+                              ".installation-dialog .choose-file",
+                            )
+                          )?.focus();
+                        });
+                      }}
+                      >Change selection</axis-button
+                    >
+                  `
+                : nothing
+            }
+            ${
+              this.installCandidate
+                ? html`
+                    <p>
+                      Signature:
+                      ${this.installCandidate.package.signature === "present_unverified" ? "present, not verified" : this.installCandidate.package.signature === "not_detected" ? "not detected" : "unknown"}.
+                      The device makes the final vendor ID and signature checks.
+                    </p>
+                    ${this.renderAcapFindings(this.installCandidate)}
+                    ${this.installCandidate.warnings.length ? html`<p>Confirming acknowledges these findings; the device may still reject the package.</p>` : nothing}
+                  `
+                : nothing
+            }
+          </section>
           ${
             this.installationError
               ? html`<p class="error" role="alert">
