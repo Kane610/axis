@@ -5,6 +5,7 @@ from io import BytesIO
 import json
 import tarfile
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -252,6 +253,74 @@ def test_scan_bounds_and_missing_folder(
     monkeypatch.setattr(catalog, "MAX_PACKAGES", 0)
     with pytest.raises(catalog.PackageError, match="too many"):
         catalog.scan_folder(str(tmp_path))
+
+
+def test_archive_entry_count_and_unreadable_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reject archives with excessive entries or unreadable metadata."""
+    path = tmp_path / "package.eap"
+    create_package(path, entries=[("one", b""), ("manifest.json", b"{}")])
+    with monkeypatch.context() as patch:
+        patch.setattr(catalog, "MAX_ARCHIVE_MEMBERS", 1)
+        with pytest.raises(catalog.PackageError, match="too many archive entries"):
+            read(path)
+    with monkeypatch.context() as patch:
+        patch.setattr(tarfile.TarFile, "extractfile", lambda *_: None)
+        with pytest.raises(catalog.PackageError, match="Cannot read package metadata"):
+            read(path)
+
+
+def test_limited_reader_enforces_remaining_bytes() -> None:
+    """Read only within the expansion limit, including unbounded reads."""
+    reader = catalog._LimitedReader(BytesIO(b"abc"))
+    assert reader.read(2) == b"ab"
+    assert reader.remaining == catalog.MAX_EXPANDED_SIZE - 2
+    with pytest.raises(catalog.PackageError, match="inspection limit"):
+        reader.read()
+
+
+def test_missing_legacy_metadata_has_no_fields() -> None:
+    """An absent optional legacy configuration contributes no metadata."""
+    assert catalog._legacy(None) == {}
+
+
+@pytest.mark.parametrize(
+    ("entries", "message"),
+    [
+        ([("package.conf", b"# comment\n\nINVALID LINE")], "legacy"),
+        ([("manifest.json", b'{"acapPackageConf": {}}')], "manifest setup"),
+    ],
+)
+def test_rejects_malformed_legacy_and_missing_setup(
+    tmp_path: Path, entries: list[tuple[str, bytes]], message: str
+) -> None:
+    """Ignore legacy comments but reject malformed lines and missing setup."""
+    path = tmp_path / "package.eap"
+    create_package(path, entries=entries)
+    with pytest.raises(catalog.PackageError, match=message):
+        read(path)
+
+
+def test_inspection_rejects_empty_or_changed_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Do not accept empty packages or a file changed while being inspected."""
+    path = tmp_path / "package.eap"
+    path.touch()
+    with pytest.raises(catalog.PackageError, match="non-empty regular file"):
+        read(path)
+    create_package(path)
+    before = path.stat()
+    after = MagicMock(
+        st_size=before.st_size + 1,
+        st_mtime_ns=before.st_mtime_ns,
+        st_ctime_ns=before.st_ctime_ns,
+    )
+    with monkeypatch.context() as patch:
+        patch.setattr(catalog.os, "fstat", MagicMock(side_effect=[before, after]))
+        with pytest.raises(catalog.PackageError, match="changed during inspection"):
+            read(path)
 
 
 def test_semver_and_device_compatibility(tmp_path: Path) -> None:

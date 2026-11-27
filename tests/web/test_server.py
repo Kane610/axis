@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 from aiohttp import WSMsgType
 import pytest
 
-from axis.application.errors import ErrorKind, OperationError
+from axis.application.errors import ErrorKind, OperationError, StorageError
 from axis.application.records import (
     ConnectionSettings,
     DeviceRecord,
@@ -856,6 +856,135 @@ async def test_acap_folder_settings_and_catalog(
     await socket.close()
 
 
+async def test_catalog_discards_scans_when_folder_changes(
+    registry: DeviceRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Retry a scan if settings changed, and report repeated changes."""
+    catalog = server._AcapCatalog(registry)
+    folders = MagicMock(side_effect=["old", "new", "new", "new", "new", "new"])
+    monkeypatch.setattr(registry, "web_acap_folder", folders)
+    scan = MagicMock(return_value={"packages": [], "errors": []})
+    monkeypatch.setattr(server, "scan_folder", scan)
+    result = await catalog.scan()
+    assert result["folder"] == "new"
+    assert scan.call_args_list[0].args == ("old",)
+    assert scan.call_args_list[1].args == ("new",)
+
+    folders.side_effect = ["one", "two", "three", "four", "five", "six"]
+    with pytest.raises(OperationError, match="folder changed during scanning"):
+        await catalog.scan()
+
+
+async def test_catalog_background_reports_settings_failure(
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Log settings errors without terminating periodic catalog scans."""
+    catalog = server._AcapCatalog(registry)
+    scan = AsyncMock(side_effect=StorageError("unavailable"))
+    monkeypatch.setattr(catalog, "scan", scan)
+    monkeypatch.setattr(
+        server.asyncio, "sleep", AsyncMock(side_effect=asyncio.CancelledError)
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await catalog.run()
+    assert "ACAP catalog could not read server settings" in caplog.text
+    scan.assert_awaited_once()
+
+
+async def test_catalog_cleanup_cancels_pending_scan(
+    aiohttp_client: Callable[..., Any],
+    registry: DeviceRegistry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cancel the shielded scan when the web application shuts down."""
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def blocked_scan(self: server._AcapCatalog) -> dict[str, Any]:
+        started.set()
+        await release.wait()
+        return {"folder": None, "packages": [], "errors": [], "error": ""}
+
+    monkeypatch.setattr(server._AcapCatalog, "_scan", blocked_scan)
+    client = await aiohttp_client(server.create_app(registry, TOKEN, 8765))
+    await asyncio.wait_for(started.wait(), 2)
+    await client.close()
+    assert not release.is_set()
+
+
+async def test_catalog_commands_validate_context_and_device(
+    registry: DeviceRegistry,
+) -> None:
+    """Reject catalog commands without a catalog or a valid device identifier."""
+    with pytest.raises(ValueError, match=r"^$"):
+        await server._execute(MagicMock(), registry, {"type": "acap/catalog"}, {})
+    catalog = server._AcapCatalog(registry)
+    with pytest.raises(ValueError, match=r"^$"):
+        await server._execute(
+            MagicMock(),
+            registry,
+            {"type": "device/acap-updates", "device": ""},
+            {},
+            catalog=catalog,
+        )
+
+
+def test_catalog_folder_permission_failure(
+    registry: DeviceRegistry, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reject folder settings if its directory cannot be read."""
+    monkeypatch.setattr(server.os, "scandir", MagicMock(side_effect=PermissionError))
+    with pytest.raises(OperationError, match="Cannot read ACAP folder"):
+        server._configure_server(
+            registry,
+            {
+                "type": "server/configure",
+                "interfaces": None,
+                "acap_folder": str(tmp_path),
+            },
+        )
+
+
+def test_snapshot_rejects_nonregular_growing_and_unreadable_packages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Snapshot preflight rejects invalid source files and read failures."""
+    path = tmp_path / "package.eap"
+    path.touch()
+    with (
+        BytesIO() as snapshot,
+        pytest.raises(server.PackageError, match="non-empty regular"),
+    ):
+        server._snapshot_acap(str(tmp_path), path.name, "a" * 64, snapshot)
+    path.write_bytes(b"content")
+    with monkeypatch.context() as patch:
+        patch.setattr(server, "MAX_PACKAGE_SIZE", 4)
+        patch.setattr(
+            server.os,
+            "fstat",
+            MagicMock(return_value=MagicMock(st_mode=0o100644, st_size=1)),
+        )
+        with BytesIO() as snapshot, pytest.raises(server.PackageError, match="exceeds"):
+            server._snapshot_acap(str(tmp_path), path.name, "a" * 64, snapshot)
+    with monkeypatch.context() as patch:
+        source = MagicMock()
+        source.__enter__.return_value = source
+        source.read.side_effect = OSError("private")
+        patch.setattr(server, "open_package", lambda *_: source)
+        patch.setattr(
+            server.os,
+            "fstat",
+            MagicMock(return_value=MagicMock(st_mode=0o100644, st_size=1)),
+        )
+        with (
+            BytesIO() as snapshot,
+            pytest.raises(server.PackageError, match="check folder permissions"),
+        ):
+            server._snapshot_acap(str(tmp_path), path.name, "a" * 64, snapshot)
+
+
 async def test_browse_server_folders(client: TestClient, tmp_path: Path) -> None:
     """Browse directories without including files or changing saved settings."""
     (tmp_path / "Zebra").mkdir()
@@ -1010,6 +1139,104 @@ async def test_acap_updates_require_auth_confirmation_and_unchanged_file(
     assert response.status == 400
     assert replace_app.await_count == 1
     await socket.close()
+
+
+async def test_catalog_write_validates_requests_and_serializes_uploads(
+    client: TestClient,
+    registry: DeviceRegistry,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject malformed requests, missing folders, and concurrent uploads."""
+    headers = {**HEADERS, "X-Axis-Token": TOKEN}
+    body = {
+        "device": "SERIAL",
+        "filename": "package.eap",
+        "digest": "a" * 64,
+        "version": "1.0",
+        "status": "Running",
+        "vendor": "Vendor",
+        "warnings": [],
+        "confirmed": True,
+    }
+    response = await client.post("/api/application-update", json=[], headers=headers)
+    assert response.status == 400
+    response = await client.post(
+        "/api/application-update", json={**body, "status": ""}, headers=headers
+    )
+    assert response.status == 400
+    response = await client.post("/api/application-update", json=body, headers=headers)
+    assert "No ACAP folder" in (await response.json())["error"]["message"]
+
+    folder = tmp_path / "acaps"
+    folder.mkdir()
+    path = folder / "package.eap"
+    create_package(path, signed=True)
+    registry.update_web_settings(None, str(folder))
+    with path.open("rb") as package:
+        body["digest"] = server.inspect_package(package, path.name).digest
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def hold_update(*args: object, **kwargs: object) -> None:
+        started.set()
+        await release.wait()
+
+    monkeypatch.setattr(server.operations, "update_application", hold_update)
+    first = asyncio.create_task(
+        client.post("/api/application-update", json=body, headers=headers)
+    )
+    try:
+        await asyncio.wait_for(started.wait(), 2)
+        response = await client.post(
+            "/api/application-update", json=body, headers=headers
+        )
+        assert response.status == 409
+        assert "upload is in progress" in (await response.json())["error"]["message"]
+    finally:
+        release.set()
+        response = await first
+        assert response.status == 200
+
+
+async def test_catalog_write_rejects_folder_change_during_snapshot(
+    client: TestClient,
+    registry: DeviceRegistry,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Do not perform writes if the catalog folder changes after snapshotting."""
+    folder = tmp_path / "acaps"
+    folder.mkdir()
+    path = folder / "package.eap"
+    create_package(path, signed=True)
+    registry.update_web_settings(None, str(folder))
+    with path.open("rb") as package:
+        digest = server.inspect_package(package, path.name).digest
+    original = server._snapshot_acap
+
+    def snapshot(*args: Any) -> Any:
+        package = original(*args)
+        registry.update_web_settings(None, None)
+        return package
+
+    monkeypatch.setattr(server, "_snapshot_acap", snapshot)
+    install = AsyncMock()
+    monkeypatch.setattr(server.operations, "install_catalog_application", install)
+    response = await client.post(
+        "/api/application-catalog-install",
+        json={
+            "device": "SERIAL",
+            "filename": path.name,
+            "digest": digest,
+            "warnings": [],
+            "confirmed": True,
+        },
+        headers={**HEADERS, "X-Axis-Token": TOKEN},
+    )
+    assert response.status == 400
+    assert "folder changed" in (await response.json())["error"]["message"]
+    install.assert_not_awaited()
 
 
 async def test_acap_scan_reports_folder_failure(
