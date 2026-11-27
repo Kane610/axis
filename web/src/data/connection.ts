@@ -2,6 +2,10 @@ import type {
   ConfiguredDevice,
   Application,
   ApplicationAction,
+  ApplicationSupport,
+  AcapCandidate,
+  AcapCatalog,
+  AcapUpdate,
   Device,
   DeviceApi,
   DeviceConnection,
@@ -13,6 +17,16 @@ import type {
   ServerSettings,
 } from "./devices";
 
+export class ApplicationWriteError extends Error {
+  constructor(
+    message: string,
+    readonly deviceCode: number | null,
+    readonly outcomeUnknown: boolean,
+  ) {
+    super(message);
+  }
+}
+
 type Commands = {
   "devices/list": { args: Record<string, never>; result: Device[] };
   "devices/discover": {
@@ -20,10 +34,20 @@ type Commands = {
     result: DiscoveredDevice[];
   };
   "server/settings": { args: Record<string, never>; result: ServerSettings };
+  "server/browse-folders": {
+    args: { path: string | null };
+    result: {
+      path: string;
+      parent: string | null;
+      directories: { name: string; path: string }[];
+    };
+  };
   "server/configure": {
-    args: { interfaces: string[] | null };
+    args: { interfaces: string[] | null; acap_folder?: string | null };
     result: ServerSettings;
   };
+  "acap/catalog": { args: Record<string, never>; result: AcapCatalog };
+  "acap/scan": { args: Record<string, never>; result: AcapCatalog };
   "devices/save": { args: SaveDevice; result: string };
   "devices/test-connection": { args: DeviceConnection; result: string };
   "device/test-connection": {
@@ -42,6 +66,15 @@ type Commands = {
   "device/read": { args: { device: string; name: string }; result: unknown };
   "device/restart": { args: { device: string; confirmed: true }; result: null };
   "device/applications": { args: { device: string }; result: Application[] };
+  "device/application-support": {
+    args: { device: string };
+    result: ApplicationSupport;
+  };
+  "device/acap-updates": { args: { device: string }; result: AcapUpdate[] };
+  "device/acap-install-candidates": {
+    args: { device: string };
+    result: AcapCandidate[];
+  };
   "device/application-sdks": { args: { device: string }; result: string[] };
   "device/application-policy": { args: { device: string }; result: boolean };
   "device/application-policy-set": {
@@ -218,11 +251,97 @@ export class AxisConnection {
     );
   }
 
+  async updateApplication(
+    device: string,
+    app: Application,
+    candidate: AcapCandidate,
+  ): Promise<void> {
+    return this.requestWrite(
+      "/api/application-update",
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        device,
+        filename: candidate.package.filename,
+        digest: candidate.package.digest,
+        version: app.version,
+        status: app.status,
+        vendor: app.vendor,
+        warnings: candidate.warnings,
+        confirmed: true,
+      }),
+      INSTALL_UNKNOWN,
+    );
+  }
+
+  async replaceApplication(
+    device: string,
+    app: Application,
+    candidate: AcapCandidate,
+    remove: boolean,
+  ): Promise<void> {
+    if (!candidate.replacement)
+      throw new Error("Installation review is unavailable.");
+    return this.requestWrite(
+      "/api/application-replace",
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        device,
+        filename: candidate.package.filename,
+        digest: candidate.package.digest,
+        version: app.version,
+        status: app.status,
+        vendor: app.vendor,
+        warnings: candidate.warnings,
+        install_warnings: candidate.replacement.warnings,
+        remove,
+        confirmed: true,
+      }),
+      INSTALL_UNKNOWN,
+    );
+  }
+
+  async installCatalogApplication(
+    device: string,
+    candidate: AcapCandidate,
+  ): Promise<void> {
+    return this.requestWrite(
+      "/api/application-catalog-install",
+      { "Content-Type": "application/json" },
+      JSON.stringify({
+        device,
+        filename: candidate.package.filename,
+        digest: candidate.package.digest,
+        warnings: candidate.warnings,
+        confirmed: true,
+      }),
+      INSTALL_UNKNOWN,
+    );
+  }
+
   private async uploadFile(
     path: string,
     device: string,
     file: File,
     extraHeaders: Record<string, string>,
+    unknownMessage: string,
+  ): Promise<void> {
+    return this.requestWrite(
+      path,
+      {
+        "X-Axis-Device": encodeURIComponent(device),
+        ...extraHeaders,
+        "X-Axis-Confirmed": "true",
+        "Content-Type": "application/octet-stream",
+      },
+      file,
+      unknownMessage,
+    );
+  }
+
+  private async requestWrite(
+    path: string,
+    headers: Record<string, string>,
+    body: BodyInit,
     unknownMessage: string,
   ): Promise<void> {
     if (!this.connected || !this.token) throw new Error("Not connected.");
@@ -233,17 +352,21 @@ export class AxisConnection {
         redirect: "error",
         headers: {
           "X-Axis-Token": this.token,
-          "X-Axis-Device": encodeURIComponent(device),
-          ...extraHeaders,
-          "X-Axis-Confirmed": "true",
-          "Content-Type": "application/octet-stream",
+          ...headers,
         },
-        body: file,
+        body,
       });
     } catch {
       throw new Error(unknownMessage);
     }
-    let payload: { result?: unknown; error?: { message?: unknown } };
+    let payload: {
+      result?: unknown;
+      error?: {
+        message?: unknown;
+        device_code?: unknown;
+        outcome_unknown?: unknown;
+      };
+    };
     try {
       payload = (await response.json()) as typeof payload;
     } catch {
@@ -251,7 +374,13 @@ export class AxisConnection {
     }
     if (!response.ok) {
       const message = payload?.error?.message;
-      throw new Error(typeof message === "string" ? message : unknownMessage);
+      throw new ApplicationWriteError(
+        typeof message === "string" ? message : unknownMessage,
+        typeof payload.error?.device_code === "number"
+          ? payload.error.device_code
+          : null,
+        payload.error?.outcome_unknown === true,
+      );
     }
     if (payload?.result !== null) throw new Error(unknownMessage);
   }

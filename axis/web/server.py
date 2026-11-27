@@ -6,18 +6,29 @@ from datetime import UTC, datetime
 from importlib.resources import files
 import json
 import logging
+import os
+from pathlib import Path
 import re
 import secrets
+import stat
 import sys
 from tempfile import TemporaryFile
 from threading import Event, Thread
-from typing import TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any
 from urllib.parse import unquote
 import webbrowser
 
 from aiohttp import WSMsgType, web
 
 from axis.application import operations
+from axis.application.acap_catalog import (
+    MAX_PACKAGE_SIZE,
+    Package,
+    PackageError,
+    inspect_package,
+    open_package,
+    scan_folder,
+)
 from axis.application.discovery import DiscoveredDevice, discover_axis_devices
 from axis.application.errors import ErrorKind, OperationError, StorageError
 from axis.application.records import ConnectionSettings, DeviceRecord, DiscoverySnapshot
@@ -26,8 +37,6 @@ from axis.web.network import NetworkInterface, network_interfaces
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
-    from pathlib import Path
-
 LOGGER = logging.getLogger(__name__)
 MAX_MESSAGE_SIZE = 16384
 MAX_APPLICATION_PACKAGE_SIZE = 1024 * 1024 * 1024
@@ -37,6 +46,61 @@ MAX_PENDING = 8
 COMMAND_TIMEOUT = 60
 BROWSER_RECONNECT_WAIT = 3.0
 STARTUP_DISCOVERY_MAX_AGE = 15.0
+ACAP_SCAN_INTERVAL = 300
+MAX_FOLDER_ENTRIES = 10000
+
+
+class _AcapCatalog:
+    """Keep local package inspection off the event loop."""
+
+    def __init__(self, registry: DeviceRegistry) -> None:
+        self.registry = registry
+        self.lock = asyncio.Lock()
+        self.folder: str | None = None
+        self.initialized = False
+        self.result: dict[str, Any] = {"packages": [], "errors": [], "error": ""}
+        self.pending: asyncio.Task[dict[str, Any]] | None = None
+
+    async def scan(self) -> dict[str, Any]:
+        for _ in range(2):
+            if self.pending is None or self.pending.done():
+                self.pending = asyncio.create_task(self._scan())
+            result = await asyncio.shield(self.pending)
+            if result["folder"] == self.registry.web_acap_folder():
+                return result
+        msg = "ACAP folder changed during scanning. Try again."
+        raise OperationError(msg, kind=ErrorKind.CONFLICT)
+
+    async def _scan(self) -> dict[str, Any]:
+        async with self.lock:
+            folder = self.registry.web_acap_folder()
+            try:
+                result = await asyncio.to_thread(scan_folder, folder)
+            except PackageError as exc:
+                LOGGER.warning("ACAP catalog scan failed: %s", exc)
+                result = {"packages": [], "errors": [], "error": str(exc)}
+            else:
+                result["error"] = ""
+            if self.registry.web_acap_folder() != folder:
+                self.initialized = False
+            else:
+                self.folder = folder
+                self.result = result
+                self.initialized = True
+            return {"folder": folder, **result}
+
+    async def read(self) -> dict[str, Any]:
+        if not self.initialized or self.folder != self.registry.web_acap_folder():
+            return await self.scan()
+        return {"folder": self.folder, **self.result}
+
+    async def run(self) -> None:
+        while True:
+            try:
+                await self.scan()
+            except StorageError, OperationError:
+                LOGGER.warning("ACAP catalog could not read server settings.")
+            await asyncio.sleep(ACAP_SCAN_INTERVAL)
 
 
 class _StartupDiscovery:
@@ -151,11 +215,14 @@ async def _web_discovery(
 
 
 def _server_settings(
-    selected: list[str] | None, interfaces: list[NetworkInterface]
+    selected: list[str] | None,
+    interfaces: list[NetworkInterface],
+    acap_folder: str | None,
 ) -> dict[str, object]:
     known = {item.name for item in interfaces}
     return {
         "selected": selected,
+        "acap_folder": acap_folder,
         "interfaces": [
             {
                 "name": item.name,
@@ -173,12 +240,44 @@ def _server_settings(
     }
 
 
+def _browse_folders(path: str | None) -> dict[str, object]:
+    """List directories on the server without reading their contents."""
+    if path is not None and (
+        not isinstance(path, str) or not path or not Path(path).is_absolute()
+    ):
+        raise ValueError
+    try:
+        folder = (Path(path) if path is not None else Path.home()).resolve(strict=True)
+        directories = []
+        with os.scandir(folder) as entries:
+            for count, entry in enumerate(entries, start=1):
+                if count > MAX_FOLDER_ENTRIES:
+                    msg = "This folder contains too many entries to browse."
+                    raise OperationError(msg, kind=ErrorKind.VALIDATION)
+                if entry.is_dir():
+                    directories.append(
+                        {"name": entry.name, "path": str(folder / entry.name)}
+                    )
+    except (OSError, RuntimeError) as exc:
+        msg = "Cannot browse this folder; check its path and permissions."
+        raise OperationError(msg, kind=ErrorKind.VALIDATION) from exc
+    directories.sort(key=lambda entry: entry["name"].casefold())
+    return {
+        "path": str(folder),
+        "parent": str(folder.parent) if folder.parent != folder else None,
+        "directories": directories,
+    }
+
+
 def _configure_server(registry: DeviceRegistry, message: dict[str, Any]) -> object:
     if message["type"] == "server/settings":
         return _server_settings(
-            registry.web_discovery_interfaces(), network_interfaces()
+            registry.web_discovery_interfaces(),
+            network_interfaces(),
+            registry.web_acap_folder(),
         )
     selected = message.get("interfaces")
+    folder = message.get("acap_folder", registry.web_acap_folder())
     if "interfaces" not in message or (
         selected is not None
         and (
@@ -194,8 +293,27 @@ def _configure_server(registry: DeviceRegistry, message: dict[str, Any]) -> obje
     available.update(registry.web_discovery_interfaces() or [])
     if selected is not None and not set(selected) <= available:
         raise ValueError
-    registry.update_web_discovery_interfaces(selected)
-    return _server_settings(selected, interfaces)
+    if folder is not None:
+        if (
+            not isinstance(folder, str)
+            or not folder.strip()
+            or not Path(folder).is_absolute()
+        ):
+            raise ValueError
+        try:
+            if not Path(folder).is_dir():
+                msg = "ACAP folder does not exist or is not a directory."
+                raise OperationError(msg, kind=ErrorKind.VALIDATION)
+            with os.scandir(folder):
+                pass
+        except OSError as exc:
+            msg = "Cannot read ACAP folder; check its path and permissions."
+            raise OperationError(
+                msg,
+                kind=ErrorKind.VALIDATION,
+            ) from exc
+    registry.update_web_settings(selected, folder)
+    return _server_settings(selected, interfaces, folder)
 
 
 async def _configure_saved(registry: DeviceRegistry, message: dict[str, Any]) -> object:
@@ -325,12 +443,13 @@ async def _connect_discovered(
     return record.serial
 
 
-async def _execute(
+async def _execute(  # noqa: PLR0911 - commands have distinct responses
     socket: web.WebSocketResponse,
     registry: DeviceRegistry,
     message: dict[str, Any],
     discovered: dict[str, DiscoverySnapshot],
     startup: _StartupDiscovery | None = None,
+    catalog: _AcapCatalog | None = None,
 ) -> object:
     command = message.get("type")
     if command == "devices/list":
@@ -340,6 +459,32 @@ async def _execute(
         ]
     if command in ("server/settings", "server/configure"):
         return _configure_server(registry, message)
+    if command == "server/browse-folders":
+        return await asyncio.to_thread(_browse_folders, message.get("path"))
+    if command in (
+        "acap/catalog",
+        "acap/scan",
+        "device/acap-updates",
+        "device/acap-install-candidates",
+    ):
+        if catalog is None:
+            raise ValueError
+        result = await (catalog.scan() if command == "acap/scan" else catalog.read())
+        if command in ("acap/catalog", "acap/scan"):
+            return result
+        if result["error"]:
+            raise OperationError(result["error"], kind=ErrorKind.OPERATION)
+        identifier = message.get("device")
+        if not isinstance(identifier, str) or not identifier:
+            raise ValueError
+        packages = [Package(**entry) for entry in result["packages"]]
+        if command == "device/acap-updates":
+            return await operations.application_updates(
+                registry.resolve(identifier), packages
+            )
+        return await operations.application_install_candidates(
+            registry.resolve(identifier), packages
+        )
     if command == "devices/discover":
         discovered.clear()
         selected = registry.web_discovery_interfaces()
@@ -407,6 +552,7 @@ async def _saved_operation(  # noqa: PLR0911 - each command returns its own resp
             "device/applications",
             "device/application-action",
             "device/application-sdks",
+            "device/application-support",
             "device/application-policy",
             "device/application-policy-set",
             "device/application-license-remove",
@@ -416,6 +562,8 @@ async def _saved_operation(  # noqa: PLR0911 - each command returns its own resp
     ):
         raise ValueError
     record = registry.resolve(identifier)
+    if command == "device/application-support":
+        return await operations.application_support(record)
     if command == "device/application-action":
         action = message.get("action")
         package = message.get("package")
@@ -504,12 +652,15 @@ async def _respond(
     message: dict[str, Any],
     discovered: dict[str, DiscoverySnapshot],
     startup: _StartupDiscovery | None = None,
+    catalog: _AcapCatalog | None = None,
 ) -> None:
     request_id = message["id"]
     is_discovery = message.get("type") == "devices/discover"
     try:
         async with asyncio.timeout(COMMAND_TIMEOUT):
-            result = await _execute(socket, registry, message, discovered, startup)
+            result = await _execute(
+                socket, registry, message, discovered, startup, catalog
+            )
     except StorageError as err:
         response = {"id": request_id, "error": {"code": "storage", "message": str(err)}}
     except OperationError as err:
@@ -561,6 +712,10 @@ async def _respond(
                 "message": (
                     "Device discovery timed out. Try again."
                     if is_discovery
+                    else "ACAP scan is still running. Try again shortly."
+                    if message.get("type") in ("acap/catalog", "acap/scan")
+                    else "Browsing the folder timed out. Try again."
+                    if message.get("type") == "server/browse-folders"
                     else "Restart outcome is unknown. Check the device before trying again."
                     if message.get("type") == "device/restart"
                     else "Application action outcome is unknown. Check the application before trying again."
@@ -588,6 +743,38 @@ async def _respond(
             LOGGER.debug("Web client disconnected before receiving a response.")
 
 
+def _snapshot_acap(
+    folder: str, filename: str, digest: str, snapshot: IO[bytes]
+) -> Package:
+    """Copy the reviewed package into an immutable private upload snapshot."""
+    try:
+        with open_package(folder, filename) as source:
+            info = os.fstat(source.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or not 0 < info.st_size <= MAX_PACKAGE_SIZE
+            ):
+                msg = "Package must be a non-empty regular file up to 1 GiB."
+                raise PackageError(msg)
+            size = 0
+            while chunk := source.read(262144):
+                size += len(chunk)
+                if size > MAX_PACKAGE_SIZE:
+                    msg = "Package exceeds the 1 GiB size limit."
+                    raise PackageError(msg)
+                snapshot.write(chunk)
+        snapshot.seek(0)
+        package = inspect_package(snapshot, filename)
+        if package.digest != digest:
+            msg = "Package changed. Refresh before updating."
+            raise PackageError(msg)
+        snapshot.seek(0)
+        return package
+    except OSError as exc:
+        msg = "Cannot read the package; check folder permissions."
+        raise PackageError(msg) from exc
+
+
 def create_app(  # noqa: C901
     registry: DeviceRegistry,
     token: str,
@@ -603,7 +790,24 @@ def create_app(  # noqa: C901
 
     sockets: set[web.WebSocketResponse] = set()
     upload_lock = asyncio.Lock()
+    catalog = _AcapCatalog(registry)
     initial: _StartupDiscovery | None = None
+    catalog_task: asyncio.Task[None] | None = None
+
+    async def start_catalog(application: web.Application) -> None:
+        nonlocal catalog_task
+        catalog_task = asyncio.create_task(catalog.run())
+
+    async def stop_catalog(application: web.Application) -> None:
+        if catalog_task is not None:
+            catalog_task.cancel()
+            await asyncio.gather(catalog_task, return_exceptions=True)
+        if catalog.pending is not None and not catalog.pending.done():
+            catalog.pending.cancel()
+            await asyncio.gather(catalog.pending, return_exceptions=True)
+
+    app.on_startup.append(start_catalog)
+    app.on_cleanup.append(stop_catalog)
 
     async def start_discovery(application: web.Application) -> None:
         nonlocal initial
@@ -736,6 +940,144 @@ def create_app(  # noqa: C901
                         "error": {
                             "message": str(exc),
                             "outcome_unknown": exc.outcome_unknown,
+                        }
+                    },
+                    status=400,
+                )
+        return web.json_response({"result": None})
+
+    async def catalog_application(request: web.Request) -> web.Response:
+        installing = request.path == "/api/application-catalog-install"
+        replacing = request.path == "/api/application-replace"
+        supplied = request.headers.get("X-Axis-Token", "")
+        if (
+            request.headers.get("Origin") != origin
+            or not supplied.isascii()
+            or not secrets.compare_digest(supplied, token)
+        ):
+            raise web.HTTPForbidden
+        try:
+            data = await request.json()
+            if not isinstance(data, dict):
+                raise ValueError
+            device_id, filename, digest, version, status = (
+                data.get("device"),
+                data.get("filename"),
+                data.get("digest"),
+                data.get("version"),
+                data.get("status"),
+            )
+            warnings = data.get("warnings")
+            install_warnings = data.get("install_warnings")
+            remove = data.get("remove")
+            vendor = data.get("vendor")
+            if (
+                not isinstance(device_id, str)
+                or not device_id
+                or not isinstance(filename, str)
+                or not filename
+                or not isinstance(digest, str)
+                or not re.fullmatch(r"[a-f0-9]{64}", digest)
+                or not isinstance(warnings, list)
+                or len(warnings) > 10
+                or any(
+                    not isinstance(warning, str) or len(warning) > 256
+                    for warning in warnings
+                )
+                or data.get("confirmed") is not True
+            ):
+                raise ValueError
+            update_details: tuple[str, str, str] | None = None
+            if not installing:
+                if (
+                    not isinstance(version, str)
+                    or not isinstance(status, str)
+                    or not status
+                    or not isinstance(vendor, str)
+                ):
+                    raise ValueError
+                update_details = version, status, vendor
+            replacement_details: tuple[bool, tuple[str, ...]] | None = None
+            if replacing:
+                if (
+                    not isinstance(remove, bool)
+                    or not isinstance(install_warnings, list)
+                    or len(install_warnings) > 10
+                    or any(
+                        not isinstance(warning, str) or len(warning) > 256
+                        for warning in install_warnings
+                    )
+                ):
+                    raise ValueError
+                replacement_details = remove, tuple(install_warnings)
+            folder = registry.web_acap_folder()
+            if folder is None:
+                msg = "No ACAP folder is configured."
+                raise PackageError(msg)
+            record = registry.resolve(device_id)
+        except (ValueError, StorageError, PackageError) as exc:
+            return web.json_response(
+                {"error": {"message": str(exc) or "Invalid catalog request."}},
+                status=400,
+            )
+        if upload_lock.locked():
+            return web.json_response(
+                {"error": {"message": "Another application upload is in progress."}},
+                status=409,
+            )
+        async with upload_lock:
+            try:
+                with TemporaryFile() as snapshot:
+                    package = await asyncio.to_thread(
+                        _snapshot_acap, folder, filename, digest, snapshot
+                    )
+                    if registry.web_acap_folder() != folder:
+                        msg = "ACAP folder changed. Refresh before continuing."
+                        raise PackageError(msg)
+                    if update_details is None:
+                        await operations.install_catalog_application(
+                            record,
+                            snapshot,
+                            package,
+                            confirmed=True,
+                            reviewed_warnings=tuple(warnings),
+                        )
+                    else:
+                        version, status, vendor = update_details
+                        if replacement_details is not None:
+                            remove, reviewed_install_warnings = replacement_details
+                            await operations.replace_catalog_application(
+                                record,
+                                snapshot,
+                                package,
+                                version,
+                                status,
+                                remove=remove,
+                                confirmed=True,
+                                reviewed_warnings=tuple(warnings),
+                                reviewed_install_warnings=reviewed_install_warnings,
+                                reviewed_vendor=vendor,
+                            )
+                        else:
+                            await operations.update_application(
+                                record,
+                                snapshot,
+                                package,
+                                version,
+                                status,
+                                confirmed=True,
+                                reviewed_warnings=tuple(warnings),
+                                reviewed_vendor=vendor,
+                            )
+            except (PackageError, StorageError) as exc:
+                return web.json_response({"error": {"message": str(exc)}}, status=400)
+            except OperationError as exc:
+                return web.json_response(
+                    {
+                        "error": {
+                            "message": str(exc),
+                            "outcome_unknown": exc.outcome_unknown,
+                            "device_code": exc.device_code,
                         }
                     },
                     status=400,
@@ -895,7 +1237,7 @@ def create_app(  # noqa: C901
                     first_discovery and message.get("type") != "devices/discover"
                 )
                 task = asyncio.create_task(
-                    _respond(socket, registry, message, discovered, startup),
+                    _respond(socket, registry, message, discovered, startup, catalog),
                     name=str(message["id"]),
                 )
                 pending[message["id"]] = task
@@ -918,6 +1260,9 @@ def create_app(  # noqa: C901
     app.router.add_get("/app.js", script)
     app.router.add_get("/api/websocket", websocket)
     app.router.add_post("/api/application-upload", upload_application)
+    app.router.add_post("/api/application-update", catalog_application)
+    app.router.add_post("/api/application-replace", catalog_application)
+    app.router.add_post("/api/application-catalog-install", catalog_application)
     app.router.add_post("/api/application-license", upload_license)
     app.on_shutdown.append(shutdown)
     return app

@@ -15,6 +15,7 @@ from aiohttp import ClientConnectionError, ClientPayloadError, web
 import pytest
 
 from axis.application import operations
+from axis.application.acap_catalog import Package
 from axis.application.errors import ErrorKind, OperationError
 from axis.application.records import ConnectionSettings, DeviceRecord
 from axis.errors import (
@@ -31,7 +32,10 @@ from axis.interfaces.vapix import (
     InterfaceState,
     UploadDigestError,
 )
-from axis.models.applications.application import ApplicationControlError
+from axis.models.applications.application import (
+    ApplicationControlError,
+    ApplicationStatus,
+)
 from axis.models.configuration import AuthScheme, Configuration, WebProtocol
 from axis.models.event import Event, EventOperation, EventTopic
 from axis.models.pwdgrp_cgi import SecondaryGroup, User
@@ -550,6 +554,98 @@ async def test_list_apis(record: DeviceRecord, device: MagicMock) -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("discovered", "listed", "fallback", "supported"),
+    [(True, True, True, True), (True, False, True, True), (False, False, True, False)],
+)
+async def test_application_support(
+    record: DeviceRecord,
+    device: MagicMock,
+    discovered: bool,
+    listed: bool,
+    fallback: bool,
+    supported: bool,
+) -> None:
+    """Discovery is reused, and parameter support is checked only when needed."""
+    device.vapix.api_discovery.update.return_value = discovered
+    device.vapix.applications.listed_in_api_discovery = listed
+    device.vapix.applications.supported = supported
+    device.vapix.params.property_handler.update.return_value = fallback
+    assert await operations.application_support(record) == {
+        "apis": [] if discovered else None,
+        "supported": supported,
+    }
+    assert device.vapix.params.property_handler.update.await_count == int(not listed)
+    device.vapix.inspect_interfaces.assert_not_awaited()
+    device.vapix.initialize.assert_not_awaited()
+
+
+async def test_application_support_unknown(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """An unavailable fallback is not reported as lack of device support."""
+    device.vapix.api_discovery.update.return_value = False
+    device.vapix.applications.listed_in_api_discovery = False
+    device.vapix.params.property_handler.update.return_value = False
+    with pytest.raises(OperationError, match="support could not be determined"):
+        await operations.application_support(record)
+
+
+@pytest.mark.parametrize(
+    ("listed", "version", "supported"),
+    [(True, "0.0", True), (False, "1.20", True), (False, "1.19", False)],
+)
+async def test_application_support_through_real_handlers(
+    record: DeviceRecord,
+    aiohttp_mock_server,
+    listed: bool,
+    version: str,
+    supported: bool,
+) -> None:
+    """Discovery and the legacy property fallback exercise real handler parsing."""
+    parameter_calls = 0
+
+    async def discovery(request: web.Request) -> web.Response:
+        apis = (
+            [{"id": "application", "name": "Application", "version": "1.0"}]
+            if listed
+            else []
+        )
+        return web.json_response(
+            {
+                "apiVersion": "1.0",
+                "context": "",
+                "method": "getApiList",
+                "data": {"apiList": apis},
+            }
+        )
+
+    async def params(request: web.Request) -> web.Response:
+        nonlocal parameter_calls
+        parameter_calls += 1
+        return web.Response(
+            text=(
+                "root.Properties.API.HTTP.Version=3\n"
+                "root.Properties.Firmware.BuildDate=date\n"
+                "root.Properties.Firmware.BuildNumber=1\n"
+                "root.Properties.Firmware.Version=1\n"
+                "root.Properties.System.SerialNumber=SERIAL\n"
+                f"root.Properties.EmbeddedDevelopment.Version={version}\n"
+            )
+        )
+
+    mock_server, _ = await aiohttp_mock_server(
+        {"/axis-cgi/apidiscovery.cgi": discovery, "/axis-cgi/param.cgi": params}
+    )
+    record.config.host = "127.0.0.1"
+    record.config.port = mock_server.port
+    record.config.auth_scheme = "basic"
+    result = await operations.application_support(record)
+    assert result["supported"] is supported
+    assert len(result["apis"]) == int(listed)
+    assert parameter_calls == int(not listed)
+
+
 async def test_list_interfaces(record: DeviceRecord, device: MagicMock) -> None:
     """Interface support comes directly from inspect_interfaces, not heuristics."""
     device.vapix.inspect_interfaces.return_value = {
@@ -854,6 +950,415 @@ async def test_install_requires_confirmation_and_matching_device(
         device.vapix.applications.upload_application.assert_awaited_once_with(package)
 
 
+async def test_catalog_update_checks_identity_state_and_compatibility(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Only update an unchanged installed application on the verified device."""
+    package = Package(
+        "example.eap",
+        "a" * 64,
+        10,
+        "example",
+        "Example",
+        "2.0.0",
+        "armv7hf",
+        "Vendor",
+        "0123456789",
+        (("12.0", "13"),),
+        "",
+        "present_unverified",
+        "2.1.0",
+    )
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_version = "12.10"
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info["0"].architecture = "armv7hf"
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    app = MagicMock(name="application")
+    app.name = "example"
+    app.version = "1.0.0"
+    app.vendor = "Vendor"
+    app.status = ApplicationStatus.RUNNING
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={"example": app}
+    )
+    upload = device.vapix.applications.upload_application = AsyncMock()
+    updates = await operations.application_updates(record, [package])
+    assert updates[0]["name"] == "example"
+    assert updates[0]["candidates"][0]["replacement"]["warnings"] == ()
+    app.version = "1.0.0-very-secret-value"
+    updates = await operations.application_updates(record, [package])
+    assert "very-secret-value" not in str(updates[0]["version"])
+    app.version = "1.0.0"
+    assert await operations.application_updates(record, []) == []
+    assert (
+        await operations.application_updates(
+            record, [replace(package, name="different")]
+        )
+        == []
+    )
+    assert (
+        await operations.application_updates(
+            record, [replace(package, version="1.0.0")]
+        )
+        == []
+    )
+    device.vapix.basic_device_info.initialized = False
+    device.vapix.params.property_handler["0"].system_architecture = "armv7hf"
+    assert (await operations.application_updates(record, [package]))[0][
+        "name"
+    ] == "example"
+    device.vapix.basic_device_info.initialized = True
+    with BytesIO(b"package") as stream:
+        with pytest.raises(OperationError, match="confirmation"):
+            await operations.update_application(
+                record, stream, package, "1.0.0", "Running", reviewed_vendor="Vendor"
+            )
+        with pytest.raises(OperationError, match="changed"):
+            await operations.update_application(
+                record,
+                stream,
+                package,
+                "0.9.0",
+                "Running",
+                confirmed=True,
+                reviewed_vendor="Vendor",
+            )
+        with pytest.raises(OperationError, match="Architecture"):
+            await operations.update_application(
+                record,
+                stream,
+                replace(package, architecture="aarch64"),
+                "1.0.0",
+                "Running",
+                confirmed=True,
+                reviewed_vendor="Vendor",
+            )
+        device.vapix.serial_number = "DIFFERENT"
+        with pytest.raises(OperationError, match="identity differs"):
+            await operations.update_application(
+                record,
+                stream,
+                package,
+                "1.0.0",
+                "Running",
+                confirmed=True,
+                reviewed_vendor="Vendor",
+            )
+        device.vapix.serial_number = record.serial
+        upload.assert_not_awaited()
+        await operations.update_application(
+            record,
+            stream,
+            package,
+            "1.0.0",
+            "Running",
+            confirmed=True,
+            reviewed_vendor="Vendor",
+        )
+        upload.assert_awaited_once_with(stream)
+        upload.reset_mock()
+        upload.side_effect = TimeoutError()
+        with pytest.raises(OperationError) as raised:
+            await operations.update_application(
+                record,
+                stream,
+                package,
+                "1.0.0",
+                "Running",
+                confirmed=True,
+                reviewed_vendor="Vendor",
+            )
+        assert raised.value.outcome_unknown
+        upload.assert_awaited_once()
+
+
+async def test_catalog_ranks_warnings_and_requires_review_for_overrides(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Order versions regardless of warnings and recheck reviewed overrides."""
+    package = Package(
+        "normal.eap",
+        "a" * 64,
+        10,
+        "example",
+        "Example",
+        "3.0.0",
+        "armv7hf",
+        "Vendor",
+        "0123456789",
+        (("12.0", "13"),),
+        "",
+        "present_unverified",
+        "2.1.0",
+    )
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_version = "12.10"
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info["0"].architecture = "armv7hf"
+    policy = device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    app = MagicMock(name="application")
+    app.name = "example"
+    app.version = "2.0.0"
+    app.vendor = "Vendor"
+    app.status = ApplicationStatus.STOPPED
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={"example": app}
+    )
+    upload = device.vapix.applications.upload_application = AsyncMock()
+    uncertain = replace(
+        package, filename="unknown-os.eap", version="9.0.0", os_ranges=()
+    )
+    mismatch = replace(package, filename="vendor.eap", version="8.0.0", vendor="Other")
+    unknown_version = replace(package, filename="unknown-version.eap", version="beta")
+    downgrade = replace(package, filename="downgrade.eap", version="1.0.0")
+    hidden = replace(
+        package, filename="hidden.eap", architecture="aarch64", vendor="Other"
+    )
+    updates = await operations.application_updates(
+        record, [downgrade, mismatch, hidden, uncertain, package, unknown_version]
+    )
+    candidates = updates[0]["candidates"]
+    assert [item["package"]["filename"] for item in candidates] == [
+        "unknown-os.eap",
+        "vendor.eap",
+        "normal.eap",
+        "downgrade.eap",
+        "unknown-version.eap",
+    ]
+    assert candidates[2]["warnings"] == ()
+    assert {finding["kind"] for finding in candidates[2]["findings"]} == {"not_checked"}
+    assert any(
+        finding["kind"] == "incompatible" for finding in candidates[0]["findings"]
+    )
+    warning = tuple(candidates[1]["warnings"])
+    assert warning == ("Vendor differs from the installed application.",)
+    assert candidates[-2]["downgrade"] is True
+    less_certain = replace(
+        uncertain, filename="two-unknowns.eap", version="10.0.0", vendor=""
+    )
+    ranked = await operations.application_updates(record, [less_certain, uncertain])
+    assert [item["package"]["filename"] for item in ranked[0]["candidates"]] == [
+        "two-unknowns.eap",
+        "unknown-os.eap",
+    ]
+    with BytesIO(b"package") as stream:
+        with pytest.raises(OperationError, match="warnings changed"):
+            await operations.update_application(
+                record,
+                stream,
+                mismatch,
+                "2.0.0",
+                "Stopped",
+                confirmed=True,
+                reviewed_vendor="Vendor",
+            )
+        await operations.update_application(
+            record,
+            stream,
+            mismatch,
+            "2.0.0",
+            "Stopped",
+            confirmed=True,
+            reviewed_warnings=warning,
+            reviewed_vendor="Vendor",
+        )
+        upload.assert_awaited_once()
+        app.vendor = "Other"
+        with pytest.raises(OperationError, match="vendor changed"):
+            await operations.update_application(
+                record,
+                stream,
+                mismatch,
+                "2.0.0",
+                "Stopped",
+                confirmed=True,
+                reviewed_warnings=warning,
+                reviewed_vendor="Vendor",
+            )
+        app.vendor = "Vendor"
+        for selected, candidate in (
+            (uncertain, candidates[0]),
+            (unknown_version, candidates[4]),
+            (downgrade, candidates[3]),
+        ):
+            await operations.update_application(
+                record,
+                stream,
+                selected,
+                "2.0.0",
+                "Stopped",
+                confirmed=True,
+                reviewed_warnings=tuple(candidate["warnings"]),
+                reviewed_vendor="Vendor",
+            )
+        assert upload.await_count == 4
+        unsigned = replace(package, signature="not_detected")
+        unsigned_warnings = (await operations.application_updates(record, [unsigned]))[
+            0
+        ]["candidates"][0]["warnings"]
+        assert (
+            "Unsigned applications are disabled; the device may reject this package."
+            in unsigned_warnings
+        )
+        policy.return_value = True
+        with pytest.raises(OperationError, match="warnings changed"):
+            await operations.update_application(
+                record,
+                stream,
+                unsigned,
+                "2.0.0",
+                "Stopped",
+                confirmed=True,
+                reviewed_warnings=tuple(unsigned_warnings),
+                reviewed_vendor="Vendor",
+            )
+        policy.return_value = False
+        await operations.update_application(
+            record,
+            stream,
+            unsigned,
+            "2.0.0",
+            "Stopped",
+            confirmed=True,
+            reviewed_warnings=tuple(unsigned_warnings),
+            reviewed_vendor="Vendor",
+        )
+        assert upload.await_count == 5
+        policy.side_effect = ResponseError("unsupported")
+        updates = await operations.application_updates(record, [package])
+        policy_warnings = updates[0]["candidates"][0]["warnings"]
+        assert "Unsigned application policy is unknown." in policy_warnings
+        await operations.update_application(
+            record,
+            stream,
+            package,
+            "2.0.0",
+            "Stopped",
+            confirmed=True,
+            reviewed_warnings=tuple(policy_warnings),
+            reviewed_vendor="Vendor",
+        )
+        assert upload.await_count == 6
+        app.version = ""
+        unknown_installed = await operations.application_updates(record, [package])
+        unknown_warnings = unknown_installed[0]["candidates"][0]["warnings"]
+        assert (
+            "Application version cannot be compared; this may be a downgrade."
+            in unknown_warnings
+        )
+        await operations.update_application(
+            record,
+            stream,
+            package,
+            "",
+            "Stopped",
+            confirmed=True,
+            reviewed_warnings=tuple(unknown_warnings),
+            reviewed_vendor="Vendor",
+        )
+        assert upload.await_count == 7
+
+
+async def test_catalog_install_only_offers_and_installs_new_applications(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Recheck identity, installation state, compatibility, and reviewed warnings."""
+    package = Package(
+        "new.eap",
+        "a" * 64,
+        10,
+        "new",
+        "New",
+        "2.0.0",
+        "armv7hf",
+        "Vendor",
+        "0123456789",
+        (("12.0", "13"),),
+        "",
+        "present_unverified",
+        "2.1.0",
+    )
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_version = "12.10"
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info["0"].architecture = "armv7hf"
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    installed = device.vapix.applications.list_applications = AsyncMock(
+        return_value={"existing": MagicMock()}
+    )
+    upload = device.vapix.applications.upload_application = AsyncMock()
+    uncertain = replace(package, filename="unknown.eap", os_ranges=(), version="3.0.0")
+    candidates = await operations.application_install_candidates(
+        record,
+        [
+            uncertain,
+            replace(package, name="existing"),
+            replace(package, name=""),
+            replace(package, architecture="aarch64"),
+            package,
+        ],
+    )
+    assert [item["package"]["filename"] for item in candidates] == [
+        "unknown.eap",
+        "new.eap",
+    ]
+    assert candidates[1]["warnings"] == ()
+    assert any(
+        finding["kind"] == "not_checked" and "vendor" in finding["message"]
+        for finding in candidates[1]["findings"]
+    )
+    assert any(
+        "requires valid AXIS OS version ranges" in warning
+        for warning in candidates[0]["warnings"]
+    )
+    versions = ["1.9.0", "1.10.0", "10.0.0-rc.2", "10.0.0", "10.0.0-rc.10", "beta"]
+    ordered = await operations.application_install_candidates(
+        record, [replace(package, version=version) for version in versions]
+    )
+    assert [item["package"]["version"] for item in ordered] == [
+        "10.0.0",
+        "10.0.0-rc.10",
+        "10.0.0-rc.2",
+        "1.10.0",
+        "1.9.0",
+        "beta",
+    ]
+    assert await operations.application_install_candidates(record, []) == []
+    with BytesIO(b"package") as stream:
+        with pytest.raises(OperationError, match="confirmation"):
+            await operations.install_catalog_application(record, stream, package)
+        installed.return_value = {"new": MagicMock()}
+        with pytest.raises(OperationError, match="already installed"):
+            await operations.install_catalog_application(
+                record, stream, package, confirmed=True
+            )
+        installed.return_value = {}
+        with pytest.raises(OperationError, match="warnings changed"):
+            await operations.install_catalog_application(
+                record, stream, uncertain, confirmed=True
+            )
+        with pytest.raises(OperationError, match="architecture"):
+            await operations.install_catalog_application(
+                record, stream, replace(package, architecture="aarch64"), confirmed=True
+            )
+        device.vapix.serial_number = "DIFFERENT"
+        with pytest.raises(OperationError, match="identity differs"):
+            await operations.install_catalog_application(
+                record, stream, package, confirmed=True
+            )
+        device.vapix.serial_number = record.serial
+        upload.assert_not_awaited()
+        await operations.install_catalog_application(
+            record,
+            stream,
+            uncertain,
+            confirmed=True,
+            reviewed_warnings=tuple(candidates[0]["warnings"]),
+        )
+        upload.assert_awaited_once_with(stream)
+
+
 @pytest.mark.parametrize(
     ("error", "unknown"),
     [
@@ -896,6 +1401,275 @@ async def test_install_reports_package_signature_verification_failure(
     upload.assert_awaited_once()
 
 
+async def test_install_reports_vendor_id_mismatch(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Identify the device's vendor ID rejection without retrying the upload."""
+    device.vapix.serial_number = record.serial
+    upload = device.vapix.applications.upload_application = AsyncMock(
+        side_effect=ApplicationControlError(27)
+    )
+    with BytesIO(b"package") as package, pytest.raises(OperationError) as raised:
+        await operations.install_application(record, package, confirmed=True)
+    assert str(raised.value) == (
+        "The device rejected the upgrade (error 27): the package vendor ID does not "
+        "match the installed application's vendor ID. Obtain an upgrade from the "
+        "original application vendor. Check applications before trying again."
+    )
+    assert raised.value.outcome_unknown
+    assert raised.value.device_code == 27
+    upload.assert_awaited_once()
+
+
+@pytest.mark.parametrize("remove", [True, False])
+async def test_replace_catalog_application_checks_and_installs(
+    record: DeviceRecord, device: MagicMock, remove: bool
+) -> None:
+    """Remove only the reviewed app, verify absence, and upload the reviewed package."""
+    package = Package(
+        "example.eap",
+        "a" * 64,
+        10,
+        "example",
+        "Example",
+        "2.0.0",
+        "armv7hf",
+        "Vendor",
+        "0123456789",
+        (("12.0", "13"),),
+        "",
+        "present_unverified",
+        "2.1.0",
+    )
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_version = "12.10"
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info["0"].architecture = "armv7hf"
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    app = MagicMock()
+    app.name, app.version, app.status, app.vendor = (
+        "example",
+        "1.0.0",
+        ApplicationStatus.RUNNING,
+        "Vendor",
+    )
+    device.vapix.applications.list_applications = AsyncMock(
+        side_effect=[{"example": app}, {}] if remove else [{}]
+    )
+    control = device.vapix.applications.control_application = AsyncMock()
+    upload = device.vapix.applications.upload_application = AsyncMock()
+    with BytesIO(b"package") as stream:
+        await operations.replace_catalog_application(
+            record,
+            stream,
+            package,
+            "1.0.0",
+            "Running",
+            remove=remove,
+            confirmed=True,
+            reviewed_vendor="Vendor",
+            reviewed_warnings=(),
+            reviewed_install_warnings=(),
+        )
+        upload.assert_awaited_once_with(stream)
+    if remove:
+        control.assert_awaited_once_with("remove", "example")
+    else:
+        control.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "changed",
+        "warnings",
+        "remove_unknown",
+        "still_installed",
+        "refresh_failed",
+        "policy_changed",
+    ],
+)
+async def test_replace_stops_on_stale_or_uncertain_state(
+    record: DeviceRecord, device: MagicMock, failure: str
+) -> None:
+    """Never install after a stale review, uncertain removal, or failed readback."""
+    package = Package(
+        "example.eap",
+        "a" * 64,
+        10,
+        "example",
+        "Example",
+        "2.0.0",
+        "armv7hf",
+        "Vendor",
+        "0123456789",
+        (("12.0", "13"),),
+        "",
+        "present_unverified",
+        "2.1.0",
+    )
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_version = "12.10"
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info["0"].architecture = "armv7hf"
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    app = MagicMock()
+    app.name, app.version, app.status, app.vendor = (
+        "example",
+        "1.0.0",
+        ApplicationStatus.RUNNING,
+        "Vendor",
+    )
+    second = (
+        TimeoutError()
+        if failure == "refresh_failed"
+        else {}
+        if failure == "policy_changed"
+        else {"example": app}
+    )
+    device.vapix.applications.list_applications = AsyncMock(
+        side_effect=[{"example": app}, second]
+    )
+    control = device.vapix.applications.control_application = AsyncMock(
+        side_effect=TimeoutError() if failure == "remove_unknown" else None
+    )
+    upload = device.vapix.applications.upload_application = AsyncMock()
+    if failure == "policy_changed":
+        device.vapix.applications.allow_unsigned = AsyncMock(side_effect=[False, None])
+    with BytesIO(b"package") as stream, pytest.raises(OperationError) as raised:
+        await operations.replace_catalog_application(
+            record,
+            stream,
+            package,
+            "old" if failure == "changed" else "1.0.0",
+            "Running",
+            remove=True,
+            confirmed=True,
+            reviewed_vendor="Vendor",
+            reviewed_warnings=(),
+            reviewed_install_warnings=("changed",) if failure == "warnings" else (),
+        )
+    upload.assert_not_awaited()
+    if failure in {"changed", "warnings"}:
+        control.assert_not_awaited()
+    else:
+        control.assert_awaited_once()
+        assert raised.value.outcome_unknown
+
+
+async def test_replace_reports_install_failure_after_removal(
+    record: DeviceRecord, device: MagicMock
+) -> None:
+    """Make it explicit that removal was accepted if the subsequent upload fails."""
+    package = Package(
+        "example.eap",
+        "a" * 64,
+        10,
+        "example",
+        "Example",
+        "2.0.0",
+        "armv7hf",
+        "Vendor",
+        "0123456789",
+        (("12.0", "13"),),
+        "",
+        "present_unverified",
+        "2.1.0",
+    )
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_version = "12.10"
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info["0"].architecture = "armv7hf"
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    app = MagicMock()
+    app.name, app.version, app.status, app.vendor = (
+        "example",
+        "1.0.0",
+        ApplicationStatus.RUNNING,
+        "Vendor",
+    )
+    device.vapix.applications.list_applications = AsyncMock(
+        side_effect=[{"example": app}, {}]
+    )
+    device.vapix.applications.control_application = AsyncMock()
+    upload = device.vapix.applications.upload_application = AsyncMock(
+        side_effect=TimeoutError()
+    )
+    with BytesIO(b"package") as stream, pytest.raises(OperationError) as raised:
+        await operations.replace_catalog_application(
+            record,
+            stream,
+            package,
+            "1.0.0",
+            "Running",
+            remove=True,
+            confirmed=True,
+            reviewed_vendor="Vendor",
+            reviewed_warnings=(),
+            reviewed_install_warnings=(),
+        )
+    assert "Removal was accepted, but installation failed" in str(raised.value)
+    assert raised.value.outcome_unknown
+    upload.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        ("unconfirmed", "explicit confirmation"),
+        ("installed", "already installed|is installed"),
+        ("architecture", "architecture"),
+        ("upload", "outcome is unknown"),
+    ],
+)
+async def test_replace_without_removal_requires_safe_install(
+    record: DeviceRecord, device: MagicMock, failure: str, message: str
+) -> None:
+    """Installing after a failed upgrade must still satisfy installation preflight."""
+    package = Package(
+        "example.eap",
+        "a" * 64,
+        10,
+        "example",
+        "Example",
+        "2.0.0",
+        "aarch64" if failure == "architecture" else "armv7hf",
+        "Vendor",
+        "0123456789",
+        (("12.0", "13"),),
+        "",
+        "present_unverified",
+        "2.1.0",
+    )
+    device.vapix.serial_number = record.serial
+    device.vapix.firmware_version = "12.10"
+    device.vapix.basic_device_info.initialized = True
+    device.vapix.basic_device_info["0"].architecture = "armv7hf"
+    device.vapix.applications.allow_unsigned = AsyncMock(return_value=False)
+    device.vapix.applications.list_applications = AsyncMock(
+        return_value={"example": MagicMock()} if failure == "installed" else {}
+    )
+    control = device.vapix.applications.control_application = AsyncMock()
+    upload = device.vapix.applications.upload_application = AsyncMock(
+        side_effect=TimeoutError() if failure == "upload" else None
+    )
+    with BytesIO(b"package") as stream, pytest.raises(OperationError, match=message):
+        await operations.replace_catalog_application(
+            record,
+            stream,
+            package,
+            "1.0.0",
+            "Running",
+            remove=False,
+            confirmed=failure != "unconfirmed",
+            reviewed_vendor="Vendor",
+            reviewed_warnings=(),
+            reviewed_install_warnings=(),
+        )
+    control.assert_not_awaited()
+    assert upload.await_count == (1 if failure == "upload" else 0)
+
+
 @pytest.mark.parametrize(
     ("code", "detail"),
     [
@@ -907,7 +1681,6 @@ async def test_install_reports_package_signature_verification_failure(
         (13, "user or group"),
         (14, "capitalization"),
         (15, "outcome is unknown"),
-        (27, "vendor"),
         (29, "manifest"),
         (51, "serial number"),
         (52, "vendor changed"),

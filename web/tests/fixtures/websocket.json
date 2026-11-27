@@ -60,6 +60,7 @@
   },
   "device/apis": [
     {
+      "doc_link": "https://developer.axis.com/vapix/network-video/light-control/",
       "id": "light-control",
       "name": "Light control",
       "status": "official",

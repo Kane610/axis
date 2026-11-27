@@ -9,6 +9,7 @@ from typing import IO, Literal
 from aiohttp import FormData
 from packaging import version
 
+from ...models.api_discovery import ApiId
 from ...models.applications.application import (
     Application,
     ApplicationConfigRequest,
@@ -27,6 +28,8 @@ UPLOAD_PATH = "/axis-cgi/applications/upload.cgi"
 
 class ApplicationsHandler(ApiHandler[Application]):
     """List applications installed on the device, such as video analytics."""
+
+    api_id = ApiId.APPLICATION
 
     @property
     def listed_in_parameters(self) -> bool:

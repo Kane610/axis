@@ -55,11 +55,13 @@ class OperationError(Exception):
         *,
         kind: ErrorKind | str = ErrorKind.OPERATION,
         outcome_unknown: bool = False,
+        device_code: int | None = None,
     ) -> None:
         """Store the failure category and whether a device write may have completed."""
         super().__init__(message)
         self.kind = ErrorKind(kind)
         self.outcome_unknown = outcome_unknown
+        self.device_code = device_code
 
 
 def _fail(message: str) -> Never:

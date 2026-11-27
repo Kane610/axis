@@ -214,6 +214,51 @@ class DeviceRegistry:
                 section["discovery_interfaces"] = selected
             self._write(data)
 
+    def web_acap_folder(self) -> str | None:
+        """Return the configured server-side ACAP folder, if enabled."""
+        section = self._read().get("web", {})
+        if not isinstance(section, dict):
+            _fail("The web settings section must be a TOML table.")
+        folder = section.get("acap_folder")
+        if folder is not None and (
+            not isinstance(folder, str)
+            or not folder.strip()
+            or not Path(folder).is_absolute()
+        ):
+            _fail("The ACAP folder must be an absolute path.")
+        return folder
+
+    def update_web_settings(
+        self, selected: list[str] | None, acap_folder: str | None
+    ) -> None:
+        """Atomically persist discovery and ACAP settings."""
+        if selected is not None and (
+            not selected
+            or any(not isinstance(name, str) or not name.strip() for name in selected)
+            or len(set(selected)) != len(selected)
+        ):
+            _fail("Web discovery interfaces must be a non-empty list of unique names.")
+        if acap_folder is not None and (
+            not isinstance(acap_folder, str)
+            or not acap_folder.strip()
+            or not Path(acap_folder).is_absolute()
+        ):
+            _fail("The ACAP folder must be an absolute path.")
+        with self._locked():
+            data = self._read()
+            section = data.setdefault("web", {})
+            if not isinstance(section, dict):
+                _fail("The web settings section must be a TOML table.")
+            if selected is None:
+                section.pop("discovery_interfaces", None)
+            else:
+                section["discovery_interfaces"] = selected
+            if acap_folder is None:
+                section.pop("acap_folder", None)
+            else:
+                section["acap_folder"] = acap_folder
+            self._write(data)
+
     def web_access_token(self) -> str:
         """Return the registry's persistent, owner-only web access token."""
         path = self.path.with_name(self.path.name + ".web-token")

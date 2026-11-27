@@ -120,12 +120,14 @@ serial and uses firmware management when advertised, otherwise `restart.cgi`.
 “Restart requested” does not confirm the reboot completed. If the outcome is
 unknown, check the device before trying again.
 
-Select **applications** in Interfaces to view installed apps and their status,
-version, vendor, license, signature, bundled status, resources, and compatible
-OS versions when reported. When available and the app is running, its
+Select **Applications** in the device navigation (or **applications** in
+Interfaces) for an overview of installed apps, their status, version, signature,
+and confidently assessed updates. Select an app to see its vendor, license,
+bundled status, resources, compatible OS versions, and controls when reported.
+When available and the app is running, its
 configuration page opens on the device in a separate tab and may require a separate
-login. Starting, stopping, restarting,
-or uninstalling requires confirmation and administrator credentials. Uninstalling
+login. Starting and stopping run directly when selected; restarting or
+uninstalling requires confirmation. All actions require administrator credentials. Uninstalling
 also removes the app's data. If an action's outcome is unknown, refresh and check
 the app before trying again.
 
@@ -137,16 +139,37 @@ may use a different format. License contents are not sent over the WebSocket.
 If a license change has an unknown outcome, check the app before retrying.
 
 To install an application, open **Install application**, choose or drag and drop
-an `.eap` package (up to 1024 MB / 1 GiB), and confirm. The device's reported
+an `.eap` package (up to 1024 MB / 1 GiB), or select an applicable package
+from the configured server catalog, and confirm. Suggested applications use
+compact list rows showing vendor, version, signature information, and any need
+for review. Select an application row to see its versions, then select a
+version row to open package details and choose it. Installation and updates share
+the same package details, with technical metadata available on expansion.
+Application lists are alphabetical; each application's versions remain newest
+first. Version rows distinguish **Newest**, declared incompatibility,
+incomplete verification, and downgrades without recommending a package.
+Installation's **Device requirements** section contains architecture, SDK,
+unsigned-policy, and RAM guidance; selected-package warnings stay visible.
+A separate **Selected application** summary identifies the selected catalog
+package or uploaded file and offers **Change selection**. Uploaded files are
+not inspected locally for compatibility. Catalog installation lists only apps not already installed, and
+rechecks that before upload. The device's reported
 hardware architecture and supported SDKs are shown to help select a compatible package; other
 application requirements still apply.
 The **Allow unsigned applications (AllowUnsigned)** toggle reflects the actual
-device policy when supported. Changing the toggle applies the setting;
-allowing unsigned applications weakens security. If a
+device policy when supported. Changing the toggle opens a confirmation step;
+the policy changes only after confirmation.
+Allowing unsigned applications weakens security. If a
 policy change has an unknown outcome, refresh the policy before retrying.
 A matching package may upgrade or downgrade an existing app; a
 failed or interrupted upgrade can remove both versions. Newly installed apps
-are not started automatically. Installation requires administrator credentials
+are not started automatically. After a catalog installation or update, the web
+interface checks that the device reports the selected version and shows its
+running state. A stopped application has an explicit **Start** action.
+For uploaded files, it reports observed device changes without claiming the
+uninspected file's identity was verified. Failed readback or a missing/different
+version leaves an explicit unverified-outcome message; uploads are not retried.
+Installation requires administrator credentials
 and temporarily uses local disk space for the package. If the result is unknown,
 check the device's applications before retrying. Devices that require digest
 `auth-int` without `auth` cannot be used for streamed installation.
@@ -154,6 +177,65 @@ Signed-package verification may temporarily require approximately twice the
 package size in available device RAM.
 Upload error 2 means the package signature is missing or invalid; obtain a
 correctly signed package from the application vendor.
+Upload error 27 means the package and installed application have different
+vendor IDs; obtain an upgrade from the original application vendor. Check the
+installed application before retrying. In a catalog upgrade, the versions
+dialog checks whether the application is still present. If it is, **Remove
+and install** offers an explicitly confirmed replacement; removal deletes the
+application's data and settings, and installation can still fail. If the
+failed upgrade already removed it, the dialog offers installation instead.
+The server checks the reviewed device, application, package snapshot, and
+installation warnings before removal, then verifies absence and rechecks
+compatibility before upload. If removal or the verification has an uncertain
+outcome, installation stops and the application state must be checked.
+
+In **Server settings**, browse for a folder or enter its absolute path on the
+computer running the web server to catalog local `.eap` files. Browsing shows
+directories accessible to the server, not folders on a remote browser's computer.
+Select the folder and save the settings. The server scans the
+folder at startup, every five minutes, and on request; it does not scan
+subdirectories. The settings view shows available package metadata and scan
+errors. Inspection is limited to 1 GiB per file and 256 MiB of expanded archive
+data; packages exceeding these limits are reported rather than installed.
+
+The Applications view keeps its last application list visible when revisited
+and refreshes it silently in the background while remaining interactive.
+Writes recheck the reviewed device state before proceeding;
+failed refreshes leave the cached list marked as out of date.
+The Applications view checks the catalog for versions of installed apps.
+The overview marks updates only when the assessment reports no warnings, and
+labels them as candidates when verification is incomplete. This does not verify
+signatures or guarantee compatibility. Open an app and use
+**View versions** to review all its candidates in a dialog.
+Version lists use the same compact rows for installation and updates;
+choose a version to see its findings and available action.
+For field definitions and schema differences, see the
+[Axis manifest schema documentation](https://developer.axis.com/acap/reference/manifest-schemas/general-info/).
+Packages with a different application name or known architecture mismatch are
+hidden. Versions are ordered newest first using semantic version order, with
+unrecognized versions last; warnings do not change version order. The web
+interface also sorts received versions before caching and displaying them in
+installation and update lists. The first
+five are shown initially. Assessments distinguish declared incompatibilities,
+unknown information, items for review, and checks not performed. Schema v2
+declares compatible AXIS OS ranges and a vendor ID; older or unknown schemas
+cannot establish OS compatibility from those fields. AXIS OS 12.10 and later
+are expected to reject installations outside declared ranges. You can explicitly
+confirm a package despite findings or choose a downgrade, but confirmation
+cannot override the device's checks. Version comparisons use semantic versions;
+an unrecognized version may be a downgrade.
+An observed appended signature is reported as present but **not verified**;
+other signature formats may be unknown. A matching vendor name does not verify
+vendor identity, and the installed application's vendor ID is not available for
+comparison. SDK metadata is displayed but not compared automatically. The device makes the final signature, vendor ID, and
+compatibility checks. Updates are never installed automatically:
+review and confirm each update. The server rechecks the saved device, installed
+version, warnings and package contents before sending a private snapshot. New
+catalog installations also recheck that the application is not already installed
+and that its warnings remain unchanged. If
+the warnings change, refresh and review them again. As with other
+upgrades, a failure can remove both versions; check the device before retrying
+an unknown outcome.
 
 The line under **Axis devices** indicates the web app's connection to the local
 server. It is green when connected, pulses orange while connecting or retrying,
@@ -199,11 +281,23 @@ or red on failure without changing its label or moving the form. A successful
 test is required to register a device or save changed connection settings.
 Editing a connection field clears the result; changing only the alias does not
 require a test.
-The saved-device modal opens on **Health**. Use **APIs** or
+The saved-device modal opens on **Health**. Use **Applications**, **APIs**, or
 **Interfaces** below the device name to switch views; individual interface
-buttons are inside **Interfaces**. While the modal is open, switching back to
+buttons are inside **Interfaces**. The APIs view links to documentation when
+the device provides an HTTP or HTTPS documentation URL; the link displays its
+destination host. While the modal is open, switching back to
 a view or interface reuses its last successful result. Select the active button
-again to refresh it. A moving dashed outline marks the button while it loads
+again to refresh it. API and interface inspection results are also kept in
+browser memory when the modal is closed, and reused after a fresh health read
+confirms the saved serial and unchanged AXIS OS version. Application support
+is checked using API Discovery, with legacy device properties as a fallback;
+installed apps load only when Applications is opened, and installation
+compatibility details load when the installation dialog is opened. Interface inspection
+includes a snapshot of probe results and item counts; refresh it to check for
+changes made elsewhere. Application and license changes, a device restart,
+connection-setting changes, or a server disconnection discard these capability
+snapshots. Installed applications and individual interface data are not retained
+across modal sessions. A moving dashed outline marks the button while it loads
 without moving the existing content. The modal starts at the top of the
 **Devices** box and scrolls independently. Use **Close** or click outside the
 modal to return to the list. **Esc** returns from Settings to the current view,
@@ -587,6 +681,8 @@ Vapix initialization is phase-based and driven by handler metadata:
 - `APPLICATION`: handlers initialized after applications are loaded.
 
 Handlers declare phase membership through `handler_groups` and may customize phase eligibility through `should_initialize_in_group`.
+The applications handler recognizes the `application` API Discovery entry or,
+for older devices, the `Properties.EmbeddedDevelopment.Version` parameter.
 
 ## Request and response typing
 

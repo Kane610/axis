@@ -100,6 +100,41 @@ def test_rejects_invalid_web_settings_table(registry: DeviceRegistry) -> None:
         registry.web_discovery_interfaces()
     with pytest.raises(StorageError, match="web settings"):
         registry.update_web_discovery_interfaces(None)
+    with pytest.raises(StorageError, match="web settings"):
+        registry.web_acap_folder()
+    with pytest.raises(StorageError, match="web settings"):
+        registry.update_web_settings(None, None)
+
+
+def test_acap_folder_settings_are_atomic_and_preserve_other_data(
+    registry: DeviceRegistry, tmp_path: Path
+) -> None:
+    """Keep device records and unrelated web settings when changing the catalog."""
+    registry.upsert(device())
+    data = raw_config(registry)
+    data["web"] = {"other": "keep"}
+    write_config(registry, data)
+    registry.update_web_settings(["en0"], str(tmp_path))
+    assert registry.web_acap_folder() == str(tmp_path)
+    assert registry.web_discovery_interfaces() == ["en0"]
+    assert raw_config(registry)["web"]["other"] == "keep"
+    assert registry.load()["SERIAL"] == device()
+    registry.update_web_settings(None, None)
+    assert registry.web_acap_folder() is None
+
+
+@pytest.mark.parametrize("folder", ["relative", "", 4])
+def test_rejects_invalid_acap_folder_settings(
+    registry: DeviceRegistry, folder: Any
+) -> None:
+    """Reject invalid stored and submitted paths rather than resetting them."""
+    write_config(registry, {"web": {"acap_folder": folder}})
+    with pytest.raises(StorageError, match="absolute path"):
+        registry.web_acap_folder()
+    with pytest.raises(StorageError, match="absolute path"):
+        registry.update_web_settings(None, folder)
+    with pytest.raises(StorageError, match="interfaces"):
+        registry.update_web_settings([], None)
 
 
 @pytest.mark.parametrize(

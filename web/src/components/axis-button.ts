@@ -9,16 +9,21 @@ import {
 
 export class AxisButton extends Button {
   static properties = {
+    expanded: { type: Boolean },
     pressed: { type: Boolean },
     busy: { type: Boolean, reflect: true },
   };
 
   override appearance: Button["appearance"] = "outlined";
+  expanded: boolean | undefined = undefined;
   pressed: boolean | undefined = undefined;
   busy = false;
 
   protected override updated(changed: PropertyValues<this>): void {
     super.updated(changed);
+    if (this.expanded === undefined)
+      this.button.removeAttribute("aria-expanded");
+    else this.button.setAttribute("aria-expanded", String(this.expanded));
     if (this.pressed === undefined) this.button.removeAttribute("aria-pressed");
     else this.button.setAttribute("aria-pressed", String(this.pressed));
     if (this.busy) this.button.setAttribute("aria-busy", "true");

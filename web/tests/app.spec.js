@@ -18,6 +18,15 @@ const devices = [
   },
 ];
 
+function assessedCandidate(candidate) {
+  return {
+    ...candidate,
+    findings:
+      candidate.findings ??
+      candidate.warnings.map((message) => ({ kind: "review", message })),
+  };
+}
+
 async function openApp(
   page,
   savedDevices = devices,
@@ -25,8 +34,13 @@ async function openApp(
   holdInitialDiscovery = false,
   architecture = "armv7hf",
   holdPolicy = false,
+  catalog = { folder: null, packages: [], errors: [], error: "" },
+  updates = [],
+  installCandidates = [],
+  appSupport = { apis: null, supported: true },
 ) {
   const requests = [];
+  const supportRequests = [];
   const automaticScans = [];
   const sockets = [];
   const tokens = [];
@@ -73,6 +87,29 @@ async function openApp(
         socket.send(
           JSON.stringify({ id: message.id, result: ["acap4-native"] }),
         );
+      } else if (message.type === "device/application-support") {
+        supportRequests.push({ ...message, socket });
+        if (appSupport !== null)
+          socket.send(JSON.stringify({ id: message.id, result: appSupport }));
+      } else if (message.type === "acap/catalog") {
+        socket.send(JSON.stringify({ id: message.id, result: catalog }));
+      } else if (message.type === "device/acap-updates") {
+        socket.send(
+          JSON.stringify({
+            id: message.id,
+            result: updates.map((update) => ({
+              ...update,
+              candidates: update.candidates.map(assessedCandidate),
+            })),
+          }),
+        );
+      } else if (message.type === "device/acap-install-candidates") {
+        socket.send(
+          JSON.stringify({
+            id: message.id,
+            result: installCandidates.map(assessedCandidate),
+          }),
+        );
       } else if (message.type === "device/application-policy" && !holdPolicy) {
         socket.send(JSON.stringify({ id: message.id, result: false }));
       } else if (message.type === "devices/discover" && firstDiscovery) {
@@ -93,7 +130,7 @@ async function openApp(
     await expect(
       page.getByRole("button", { name: "Discover devices · No new devices" }),
     ).toBeEnabled();
-  return { requests, automaticScans, sockets, tokens };
+  return { requests, automaticScans, sockets, tokens, supportRequests };
 }
 
 async function respond(page, request, result, error) {
@@ -113,6 +150,200 @@ function health(product) {
     observed_at: "now",
   };
 }
+
+test("opens Applications directly using lightweight discovery and reuses its API list", async ({
+  page,
+}) => {
+  const { requests, supportRequests } = await openApp(
+    page,
+    undefined,
+    undefined,
+    false,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    {
+      apis: [{ id: "application", name: "Application", version: "1.0" }],
+      supported: true,
+    },
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  await expect.poll(() => supportRequests.length).toBe(1);
+  const dialog = page.getByRole("dialog");
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  await views
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect(dialog).toHaveAccessibleName("Camera A");
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    type: "device/applications",
+    device: "A",
+  });
+  await respond(page, requests[1], []);
+  await expect(
+    dialog.getByRole("heading", { name: "Installed applications" }),
+  ).toBeVisible();
+  await views.getByRole("button", { name: "APIs", exact: true }).click();
+  await expect(dialog.locator("pre")).toContainText("application");
+  expect(requests).toHaveLength(2);
+});
+
+test("settings remain available from Applications and return to it", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  await dialog
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], []);
+  const settings = dialog.getByRole("button", {
+    name: "Settings",
+    exact: true,
+  });
+  await settings.click();
+  await expect.poll(() => requests.length).toBe(3);
+  const device = {
+    ...devices[0],
+    web_proto: "https",
+    port: 0,
+    verify_ssl: true,
+  };
+  await respond(page, requests[2], { device, username: "operator" });
+  await expect(
+    dialog.getByRole("heading", { name: "Device settings" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeFocused();
+  await expect(
+    dialog.getByRole("heading", { name: "Installed applications" }),
+  ).toBeVisible();
+
+  await settings.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], { device, username: "operator" });
+  await dialog.getByLabel("Address").fill("camera-new");
+  await dialog.getByRole("button", { name: "Test connection" }).click();
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], "A");
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(6);
+  await respond(page, requests[5], {
+    device: { ...device, host: "camera-new" },
+    connection_changed: true,
+  });
+  await expect.poll(() => requests.length).toBe(7);
+  expect(requests[6]).toMatchObject({
+    type: "device/applications",
+    device: "A",
+  });
+  await respond(page, requests[6], []);
+  await expect(
+    dialog.getByRole("heading", { name: "Installed applications" }),
+  ).toBeVisible();
+});
+
+test("retries an inconclusive application support check", async ({ page }) => {
+  const { requests, supportRequests } = await openApp(
+    page,
+    undefined,
+    undefined,
+    false,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    null,
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  await expect.poll(() => supportRequests.length).toBe(1);
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("navigation")
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await respond(page, supportRequests[0], undefined, {
+    code: "unsupported",
+    message: "Support unavailable.",
+  });
+  await expect(dialog.getByRole("alert")).toContainText("Support unavailable.");
+  await dialog.getByRole("button", { name: "Retry support check" }).click();
+  await expect.poll(() => supportRequests.length).toBe(2);
+  await respond(page, supportRequests[1], { apis: null, supported: false });
+  await expect(
+    dialog.getByText("Applications are not supported by this device."),
+  ).toBeVisible();
+  expect(requests).toHaveLength(1);
+});
+
+test("reconnect keeps the Applications installation dialog open", async ({
+  page,
+}) => {
+  const { requests, supportRequests, sockets } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], []);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  await expect(install).toBeVisible();
+  sockets[0].close({ code: 1001 });
+  await expect.poll(() => sockets.length).toBe(2);
+  await expect.poll(() => supportRequests.length).toBe(2);
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({
+    type: "device/applications",
+    device: "A",
+  });
+  await respond(page, requests[2], []);
+  await expect(install).toBeVisible();
+  expect(
+    requests.filter((request) => request.type === "device/interfaces"),
+  ).toHaveLength(0);
+});
+
+test("late support discovery does not replace a refreshed API list", async ({
+  page,
+}) => {
+  const { requests, supportRequests } = await openApp(
+    page,
+    undefined,
+    undefined,
+    false,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    null,
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  await expect.poll(() => supportRequests.length).toBe(1);
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "APIs", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "fresh-api" }]);
+  await respond(page, supportRequests[0], {
+    apis: [{ id: "older-api" }],
+    supported: true,
+  });
+  await expect(dialog.locator("pre")).toContainText("fresh-api");
+  await expect(dialog.locator("pre")).not.toContainText("older-api");
+});
 
 async function select(page, name, requests, count) {
   if (await page.getByRole("dialog").isVisible())
@@ -851,6 +1082,1244 @@ test("server settings select discovery interfaces and show warnings", async ({
   ).toBeVisible();
 });
 
+test("server settings save the ACAP folder and show catalog metadata", async ({
+  page,
+}) => {
+  const catalog = {
+    folder: "/srv/acaps",
+    error: "",
+    errors: [{ filename: "bad.eap", message: "Invalid package." }],
+    packages: [
+      {
+        filename: "example.eap",
+        name: "example",
+        friendly_name: "Example",
+        version: "2.0.0",
+        architecture: "armv7hf",
+        vendor: "Vendor",
+        vendor_id: "123",
+        sdk: "3.0",
+        size: 1024,
+        os_ranges: [["12.10", "13"]],
+        signature: "present_unverified",
+      },
+    ],
+  };
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    catalog,
+  );
+  await page.getByRole("button", { name: "Server settings" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], {
+    selected: null,
+    interfaces: [],
+    acap_folder: "/srv/acaps",
+  });
+  const dialog = page.getByRole("dialog", { name: "Server settings" });
+  await expect(
+    dialog
+      .locator("p")
+      .filter({ hasText: /signature\s+present, not verified/ }),
+  ).toBeVisible();
+  await expect(
+    dialog.locator("p").filter({ hasText: "vendor ID 123" }),
+  ).toContainText("SDK 3.0");
+  await expect(
+    dialog.locator("p").filter({ hasText: "vendor ID 123" }),
+  ).toContainText("size 1024 bytes");
+  await expect(dialog.getByRole("alert")).toContainText("bad.eap");
+  await dialog.getByLabel("Server folder").fill("/srv/other");
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    type: "server/configure",
+    interfaces: null,
+    acap_folder: "/srv/other",
+  });
+  await respond(page, requests[1], { selected: null, interfaces: [] });
+});
+
+test("browse server folders and save the selected path", async ({ page }) => {
+  const { requests } = await openApp(page);
+  await page.getByRole("button", { name: "Server settings" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], {
+    selected: null,
+    interfaces: [],
+    acap_folder: null,
+  });
+  const dialog = page.getByRole("dialog", { name: "Server settings" });
+  await dialog.getByRole("button", { name: "Browse folders" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    type: "server/browse-folders",
+    path: null,
+  });
+  await respond(page, requests[1], {
+    path: "/home/user",
+    parent: "/home",
+    directories: [{ name: "ACAPs", path: "/home/user/ACAPs" }],
+  });
+  const browser = dialog.getByRole("region", { name: "Browse server folders" });
+  await browser.getByRole("button", { name: "Open ACAPs" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toMatchObject({ path: "/home/user/ACAPs" });
+  await respond(page, requests[2], {
+    path: "/home/user/ACAPs",
+    parent: "/home/user",
+    directories: [],
+  });
+  await expect(browser).toContainText("Current folder: /home/user/ACAPs");
+  await expect(browser).toContainText("No subfolders.");
+  await browser.getByRole("button", { name: "Parent folder" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({ path: "/home/user" });
+  await respond(page, requests[3], undefined, {
+    message: "Cannot browse this folder; check its path and permissions.",
+  });
+  await expect(browser.getByRole("alert")).toContainText("Cannot browse");
+  await browser.getByRole("button", { name: "Select this folder" }).click();
+  await expect(dialog.getByLabel("Server folder")).toHaveValue(
+    "/home/user/ACAPs",
+  );
+  await dialog.getByRole("button", { name: "Save settings" }).click();
+  await expect.poll(() => requests.length).toBe(5);
+  expect(requests[4]).toMatchObject({
+    type: "server/configure",
+    acap_folder: "/home/user/ACAPs",
+  });
+  await respond(page, requests[4], { selected: null, interfaces: [] });
+});
+
+test("cancelling folder browsing ignores an obsolete response", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await page.getByRole("button", { name: "Server settings" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await respond(page, requests[0], {
+    selected: null,
+    interfaces: [],
+    acap_folder: null,
+  });
+  const dialog = page.getByRole("dialog", { name: "Server settings" });
+  await dialog.getByRole("button", { name: "Browse folders" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await expect(
+    dialog.getByRole("button", { name: "Save settings" }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel browsing" }).click();
+  await dialog.getByRole("button", { name: "Browse folders" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], {
+    path: "/new",
+    parent: "/",
+    directories: [],
+  });
+  await respond(page, requests[1], {
+    path: "/old",
+    parent: "/",
+    directories: [],
+  });
+  const browser = dialog.getByRole("region", { name: "Browse server folders" });
+  await expect(browser).toContainText("Current folder: /new");
+  await browser.getByRole("button", { name: "Cancel browsing" }).click();
+  await expect(dialog.getByLabel("Server folder")).toHaveValue("");
+});
+
+test("application overview only flags warning-free upgrades and opens details", async ({
+  page,
+}) => {
+  const candidates = [
+    { package: { version: "2.0.0" }, warnings: [], downgrade: false },
+    {
+      package: { version: "3.0.0" },
+      warnings: ["Vendor differs."],
+      downgrade: false,
+    },
+    {
+      package: { version: "0.5.0" },
+      warnings: ["This is a downgrade."],
+      downgrade: true,
+    },
+  ];
+  const { requests } = await openApp(
+    page,
+    devices,
+    undefined,
+    false,
+    undefined,
+    false,
+    {
+      folder: "/catalog",
+      packages: [candidates[0].package],
+      errors: [],
+      error: "",
+    },
+    ["trusted", "warning", "downgrade"].map((name, index) => ({
+      name,
+      version: "1.0.0",
+      status: "Stopped",
+      candidates: [candidates[index]],
+    })),
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const overview = page.getByRole("dialog");
+  await overview
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(
+    page,
+    requests[1],
+    ["trusted", "warning", "downgrade"].map((name) => ({
+      name,
+      nice_name: name,
+      version: "1.0.0",
+      status: "Stopped",
+      vendor: "Vendor",
+      license_status: "Valid",
+      signature_status: "Signed",
+    })),
+  );
+  const rows = overview.getByRole("list", { name: "Applications" });
+  await expect(rows.locator(".application-info > span:first-child")).toHaveText(
+    ["downgrade", "trusted", "warning"],
+  );
+  const trusted = rows.getByRole("button", { name: /^trusted/ });
+  await expect(trusted).toHaveAccessibleName(/Update available: 2\.0\.0/);
+  await expect(trusted).toHaveAccessibleName(/Signature: Signed/);
+  await expect(
+    rows.getByRole("button", { name: /^warning/ }),
+  ).not.toHaveAccessibleName(/Update available/);
+  await expect(
+    rows.getByRole("button", { name: /^downgrade/ }),
+  ).not.toHaveAccessibleName(/Update available/);
+  await expect(overview.getByRole("button", { name: "Start" })).toHaveCount(0);
+  await trusted.click();
+  const details = page.getByRole("dialog", { name: "trusted" });
+  await expect(
+    details.getByRole("definition").filter({ hasText: "Vendor" }),
+  ).toBeVisible();
+  await expect(details.getByRole("button", { name: "Start" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(details).toBeHidden();
+  await expect(trusted).toBeFocused();
+});
+
+test("Applications keeps cached rows during background refresh and read failures", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  const applications = views.getByRole("button", {
+    name: "Applications",
+    exact: true,
+  });
+  await applications.click();
+  await expect.poll(() => requests.length).toBe(2);
+  const app = {
+    name: "example",
+    nice_name: "Example",
+    status: "Running",
+    version: "1.0.0",
+    vendor: "Vendor",
+    license_status: "None",
+  };
+  await respond(page, requests[1], [app]);
+  await views.getByRole("button", { name: "Health", exact: true }).click();
+  await applications.click();
+  await expect.poll(() => requests.length).toBe(3);
+  const row = dialog
+    .getByRole("list", { name: "Applications" })
+    .getByRole("button", { name: /^Example/ });
+  await expect(row).toBeVisible();
+  await expect(row).toBeEnabled();
+  await expect(applications).not.toHaveAttribute("aria-busy", "true");
+  await expect(
+    dialog.getByText("Application list may be out of date."),
+  ).toHaveCount(0);
+  await expect(row).toHaveAccessibleName(/Version 1\.0\.0/);
+  await row.click();
+  const details = page.getByRole("dialog", { name: "Example", exact: true });
+  await expect(
+    details.getByRole("button", { name: "Stop", exact: true }),
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await respond(page, requests[2], [{ ...app, version: "2.0.0" }]);
+  await expect(row).toBeEnabled();
+  await expect(row).toHaveAccessibleName(/Version 2\.0\.0/);
+  await views.getByRole("button", { name: "Health", exact: true }).click();
+  await applications.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], null, { message: "Read failed." });
+  await expect(row).toBeVisible();
+  await expect(row).toBeDisabled();
+  await expect(dialog.getByRole("alert")).toContainText("Read failed.");
+  await expect(
+    dialog.getByText("Application list may be out of date."),
+  ).toBeVisible();
+});
+
+test("application details require fresh support and state after reconnect", async ({
+  page,
+}) => {
+  const { requests, supportRequests, sockets } = await openApp(
+    page,
+    devices,
+    undefined,
+    false,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    null,
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  await expect.poll(() => supportRequests.length).toBe(1);
+  await respond(page, supportRequests[0], { apis: null, supported: true });
+  const overview = page.getByRole("dialog");
+  await overview
+    .getByRole("button", { name: "Applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(2);
+  const app = {
+    name: "example",
+    nice_name: "Example",
+    version: "1",
+    status: "Stopped",
+    license_status: "None",
+  };
+  await respond(page, requests[1], [app]);
+  await overview.getByRole("button", { name: /^Example/ }).click();
+  const details = page.getByRole("dialog", { name: "Example" });
+  await expect(details.getByRole("button", { name: "Start" })).toBeEnabled();
+  sockets[0].close({ code: 1001 });
+  await expect.poll(() => sockets.length).toBe(2);
+  await expect.poll(() => supportRequests.length).toBe(2);
+  await expect(details.getByRole("button", { name: "Start" })).toBeDisabled();
+  await expect(
+    details.getByRole("button", { name: "Confirm start" }),
+  ).toHaveCount(0);
+  await respond(page, supportRequests[1], { apis: null, supported: true });
+  await expect.poll(() => requests.length).toBe(3);
+  await expect(details.getByRole("button", { name: "Start" })).toBeDisabled();
+  await respond(page, requests[2], [{ ...app, status: "Running" }]);
+  await expect(details.getByRole("button", { name: "Stop" })).toBeEnabled();
+});
+
+test("catalog updates require confirmation and send the reviewed package", async ({
+  page,
+}) => {
+  const packageFile = {
+    filename: "example.eap",
+    name: "example",
+    digest: "a".repeat(64),
+    version: "2.0.0",
+    signature: "present_unverified",
+  };
+  const catalog = {
+    folder: "/srv/acaps",
+    packages: [packageFile],
+    errors: [],
+    error: "",
+  };
+  const updates = [
+    {
+      name: "example",
+      version: "1.0.0",
+      status: "Running",
+      candidates: [
+        {
+          package: packageFile,
+          warnings: [],
+          findings: [
+            {
+              kind: "not_checked",
+              message:
+                "The installed application's vendor ID is unavailable; the device may reject the upgrade even if vendor names match.",
+            },
+            {
+              kind: "not_checked",
+              message:
+                "Package signature is present but has not been verified locally.",
+            },
+          ],
+          downgrade: false,
+        },
+      ],
+    },
+  ];
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    catalog,
+    updates,
+  );
+  let write = null;
+  await page.route("http://axis.test/api/application-update", async (route) => {
+    write = route.request().postDataJSON();
+    await route.fulfill({ json: { result: null } });
+  });
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    {
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+      configuration_page: null,
+    },
+  ]);
+  await expect(
+    dialog.getByRole("button", { name: "Update to 2.0.0" }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: /^Example/ }),
+  ).toHaveAccessibleName(/Update candidate: 2\.0\.0 — verification incomplete/);
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  await page
+    .getByRole("dialog", { name: "Example" })
+    .getByRole("button", { name: "View versions (1)" })
+    .click();
+  const versions = page.getByRole("dialog", {
+    name: "Application versions: Example",
+  });
+  await expect(
+    versions.getByText(
+      "Not checked: The installed application's vendor ID is unavailable; the device may reject the upgrade even if vendor names match.",
+    ),
+  ).toHaveCount(0);
+  await expect(
+    versions.getByText(
+      "Not checked: Package signature is present but has not been verified locally.",
+    ),
+  ).toHaveCount(0);
+  await versions.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
+  await expect(
+    versions.getByText("Server catalog", { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(versions).toBeVisible();
+  await expect(
+    versions.getByRole("button", { name: /^Version 2\.0\.0 / }),
+  ).toBeFocused();
+  await versions.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
+  await expect(
+    versions.getByText(
+      "Not checked: Package signature is present but has not been verified locally.",
+    ),
+  ).toBeVisible();
+  await expect(
+    versions.locator("p").filter({ hasText: /remove\s+both\s+versions/ }),
+  ).toBeVisible();
+  expect(write).toBeNull();
+  await versions.getByRole("button", { name: "Confirm update" }).click();
+  await expect
+    .poll(() => write)
+    .toMatchObject({
+      device: "A",
+      filename: "example.eap",
+      digest: "a".repeat(64),
+      version: "1.0.0",
+      status: "Running",
+      confirmed: true,
+      warnings: [],
+    });
+  await expect.poll(() => requests.length).toBe(4);
+  await expect(
+    page
+      .getByRole("dialog", { name: "Camera A" })
+      .getByText(/outcome not yet verified/),
+  ).toBeVisible();
+  await respond(page, requests[3], [
+    {
+      name: "example",
+      nice_name: "Example",
+      version: "2.0.0",
+      status: "Running",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    page
+      .getByRole("dialog", { name: "Camera A" })
+      .getByText("Updated Example 2.0.0 — Running."),
+  ).toBeVisible();
+});
+
+for (const state of [
+  "installed",
+  "missing",
+  "other error",
+  "changed",
+  "replacement failed",
+]) {
+  test(`failed upgrade retains the app and offers safe recovery: ${state}`, async ({
+    page,
+  }) => {
+    const app = {
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+    };
+    const packageFile = {
+      filename: "example.eap",
+      digest: "a".repeat(64),
+      version: "2.0.0",
+      signature: "present_unverified",
+    };
+    const candidate = {
+      package: packageFile,
+      warnings: [],
+      findings: [],
+      downgrade: false,
+      replacement: {
+        warnings: ["Installation warning."],
+        findings: [{ kind: "review", message: "Installation warning." }],
+      },
+    };
+    const { requests } = await openApp(
+      page,
+      devices,
+      undefined,
+      false,
+      undefined,
+      false,
+      { folder: "/catalog", packages: [packageFile], errors: [], error: "" },
+      [
+        {
+          name: app.name,
+          version: app.version,
+          status: app.status,
+          candidates: [candidate],
+        },
+      ],
+    );
+    await page.route("http://axis.test/api/application-update", (route) =>
+      route.fulfill({
+        status: 400,
+        json: {
+          error: {
+            message: "Upgrade failed.",
+            device_code: state === "other error" ? 5 : 27,
+            outcome_unknown: true,
+          },
+        },
+      }),
+    );
+    let replacement = null;
+    await page.route("http://axis.test/api/application-replace", (route) => {
+      replacement = route.request().postDataJSON();
+      return state === "replacement failed"
+        ? route.fulfill({
+            status: 400,
+            json: {
+              error: {
+                message: "Removal was accepted, but installation failed.",
+                outcome_unknown: true,
+              },
+            },
+          })
+        : route.fulfill({ json: { result: null } });
+    });
+    await select(page, "A", requests, 1);
+    await respond(page, requests[0], health("Camera"));
+    const overview = page.getByRole("dialog");
+    await overview
+      .getByRole("button", { name: "Applications", exact: true })
+      .click();
+    await expect.poll(() => requests.length).toBe(2);
+    await respond(page, requests[1], [app]);
+    await overview.getByRole("button", { name: /^Example/ }).click();
+    await page
+      .getByRole("dialog", { name: "Example" })
+      .getByRole("button", { name: "View versions (1)" })
+      .click();
+    const versions = page.getByRole("dialog", {
+      name: "Application versions: Example",
+    });
+    await versions.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
+    await versions.getByRole("button", { name: "Confirm update" }).click();
+    await expect(versions.getByRole("alert")).toContainText("Upgrade failed.");
+    await expect.poll(() => requests.length).toBe(3);
+    await expect(overview.locator(".application-list")).toContainText(
+      "Example",
+    );
+
+    if (state === "installed") {
+      await respond(page, requests[2], null, { message: "Read failed." });
+      await expect(
+        versions.getByText(
+          "Could not check installed applications: Read failed.",
+        ),
+      ).toBeVisible();
+      await expect(
+        versions.getByRole("button", { name: "Remove and install" }),
+      ).toHaveCount(0);
+      await versions
+        .getByRole("button", { name: "Check applications" })
+        .click();
+      await expect.poll(() => requests.length).toBe(4);
+      await respond(page, requests[3], [app]);
+    } else {
+      await respond(
+        page,
+        requests[2],
+        state === "missing"
+          ? []
+          : [state === "changed" ? { ...app, status: "Stopped" } : app],
+      );
+    }
+
+    if (state === "other error" || state === "changed") {
+      if (state === "changed")
+        await expect(
+          versions.getByText(/The application changed/),
+        ).toBeVisible();
+      await expect(
+        versions.getByRole("button", { name: "Remove and install" }),
+      ).toHaveCount(0);
+      await expect(
+        versions.getByRole("button", { name: "Install", exact: true }),
+      ).toHaveCount(0);
+      return;
+    }
+    const remove = state !== "missing";
+    await versions
+      .getByRole("button", {
+        name: remove ? "Remove and install" : "Install",
+        exact: true,
+      })
+      .click();
+    if (remove)
+      await expect(
+        versions.getByText(
+          /Removal deletes the application's data and settings/,
+        ),
+      ).toBeVisible();
+    await expect(
+      versions.getByText("Review: Installation warning."),
+    ).toBeVisible();
+    expect(replacement).toBeNull();
+    await versions
+      .getByRole("button", {
+        name: remove ? "Confirm remove and install" : "Confirm install",
+      })
+      .click();
+    await expect
+      .poll(() => replacement)
+      .toMatchObject({
+        filename: "example.eap",
+        digest: "a".repeat(64),
+        remove,
+        confirmed: true,
+        install_warnings: ["Installation warning."],
+      });
+    const refreshIndex = state === "installed" ? 4 : 3;
+    await expect.poll(() => requests.length).toBe(refreshIndex + 1);
+    if (state === "replacement failed") {
+      await respond(page, requests[refreshIndex], []);
+      await expect(versions.getByRole("alert")).toContainText(
+        "Removal was accepted, but installation failed.",
+      );
+      await expect(
+        versions.getByRole("button", { name: "Install", exact: true }),
+      ).toBeVisible();
+      return;
+    }
+    await respond(page, requests[refreshIndex], [
+      { ...app, version: "2.0.0", status: "Stopped" },
+    ]);
+  });
+}
+
+test("sorts shuffled update versions and confirms warnings and downgrades", async ({
+  page,
+}) => {
+  const candidates = [
+    ...["6.0.0", "9.0.0", "5.0.0", "8.0.0", "7.0.0"].map((version) => ({
+      package: {
+        filename: `${version}.eap`,
+        digest: "a".repeat(64),
+        version,
+        signature: "present_unverified",
+      },
+      warnings: [],
+      downgrade: false,
+    })),
+    {
+      package: {
+        filename: "uncertain.eap",
+        digest: "b".repeat(64),
+        version: "4.0.0",
+        signature: "unknown",
+      },
+      warnings: [
+        "Vendor differs from the installed application.",
+        "Package signature format is unknown.",
+        "The package's declared OS range excludes this device.",
+      ],
+      findings: [
+        {
+          kind: "review",
+          message: "Vendor differs from the installed application.",
+        },
+        { kind: "unknown", message: "Package signature format is unknown." },
+        {
+          kind: "incompatible",
+          message: "The package's declared OS range excludes this device.",
+        },
+      ],
+      downgrade: false,
+    },
+    {
+      package: {
+        filename: "old.eap",
+        digest: "c".repeat(64),
+        version: "1.0.0",
+        signature: "present_unverified",
+      },
+      warnings: ["This is a downgrade."],
+      downgrade: true,
+    },
+  ];
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    {
+      folder: "/srv/acaps",
+      packages: [candidates[0].package],
+      errors: [],
+      error: "",
+    },
+    [{ name: "example", version: "2.0.0", status: "Stopped", candidates }],
+  );
+  let write = null;
+  await page.route("http://axis.test/api/application-update", async (route) => {
+    write = route.request().postDataJSON();
+    await route.fulfill({ json: { result: null } });
+  });
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    {
+      name: "example",
+      nice_name: "Example",
+      status: "Stopped",
+      version: "2.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+      configuration_page: null,
+    },
+  ]);
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  await page
+    .getByRole("dialog", { name: "Example" })
+    .getByRole("button", { name: "View versions (7)" })
+    .click();
+  const versions = page.getByRole("dialog", {
+    name: "Application versions: Example",
+  });
+  await expect(
+    versions.getByRole("button", { name: /^Version 9\.0\.0 / }),
+  ).toBeVisible();
+  await expect(
+    versions.getByRole("button", { name: /^Version 5\.0\.0 / }),
+  ).toBeVisible();
+  await expect(versions.getByRole("button", { name: /^Version / })).toHaveCount(
+    5,
+  );
+  await expect(
+    versions
+      .getByRole("list", { name: "Package versions" })
+      .locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "Version 9.0.0",
+    "Version 8.0.0",
+    "Version 7.0.0",
+    "Version 6.0.0",
+    "Version 5.0.0",
+  ]);
+  await expect(
+    versions.getByRole("button", { name: /^Version 4\.0\.0 / }),
+  ).toHaveCount(0);
+  await versions.getByRole("button", { name: "Show 2 more versions" }).click();
+  await expect(
+    versions.getByRole("button", { name: /^Version 4\.0\.0 / }),
+  ).toHaveAccessibleName(/Declared incompatibility Verification incomplete/);
+  await expect(
+    versions.getByRole("button", { name: /^Version 1\.0\.0 / }),
+  ).toHaveAccessibleName(/Downgrade/);
+  await expect(
+    versions
+      .getByRole("list", { name: "Package versions" })
+      .locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "Version 9.0.0",
+    "Version 8.0.0",
+    "Version 7.0.0",
+    "Version 6.0.0",
+    "Version 5.0.0",
+    "Version 4.0.0",
+    "Version 1.0.0",
+  ]);
+  await expect(
+    versions.getByText(
+      "Review: Vendor differs from the installed application.",
+    ),
+  ).toHaveCount(0);
+  await expect(
+    versions.getByText("Unknown: Package signature format is unknown."),
+  ).toHaveCount(0);
+  await expect(
+    versions.getByText(
+      "Incompatible: The package's declared OS range excludes this device.",
+    ),
+  ).toHaveCount(0);
+  await versions.getByRole("button", { name: /^Version 4\.0\.0 / }).click();
+  await expect(
+    versions.getByText(
+      "Review: Vendor differs from the installed application.",
+    ),
+  ).toBeVisible();
+  await expect(
+    versions.getByText("Confirming acknowledges these findings;", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  expect(write).toBeNull();
+  await versions.getByRole("button", { name: "Back to versions" }).click();
+  await expect(
+    versions.getByRole("button", { name: /^Version 4\.0\.0 / }),
+  ).toBeFocused();
+  await versions.getByRole("button", { name: /^Version 1\.0\.0 / }).click();
+  await expect(
+    versions.getByText("Review: This is a downgrade."),
+  ).toBeVisible();
+  await versions.getByRole("button", { name: "Confirm downgrade" }).click();
+  await expect
+    .poll(() => write)
+    .toMatchObject({
+      filename: "old.eap",
+      status: "Stopped",
+      confirmed: true,
+      warnings: ["This is a downgrade."],
+    });
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], []);
+});
+
+test("installs a reviewed new application from the server catalog", async ({
+  page,
+}) => {
+  const candidates = Array.from({ length: 6 }, (_, index) => ({
+    package: {
+      filename: `new${index}.eap`,
+      name: `new${index}`,
+      friendly_name: `New ${index}`,
+      version: "1.0.0",
+      digest: "a".repeat(64),
+      signature: "present_unverified",
+      vendor: "Vendor",
+      os_ranges: [["12", "13"]],
+    },
+    warnings: index === 5 ? ["AXIS OS compatibility is unknown."] : [],
+    findings: [
+      {
+        kind: "not_checked",
+        message: "Package vendor identity has not been verified.",
+      },
+      ...(index === 5
+        ? [{ kind: "unknown", message: "AXIS OS compatibility is unknown." }]
+        : []),
+    ],
+    downgrade: false,
+  }));
+  for (const version of ["2.0.0", "3.0.0", "4.0.0", "5.0.0", "6.0.0"]) {
+    candidates.push({
+      ...candidates[0],
+      package: {
+        ...candidates[0].package,
+        version,
+        filename: `new0-${version}.eap`,
+      },
+    });
+  }
+  const { requests } = await openApp(
+    page,
+    devices,
+    () => true,
+    false,
+    "armv7hf",
+    false,
+    {
+      folder: "/srv/acaps",
+      packages: candidates.map((item) => item.package),
+      errors: [],
+      error: "",
+    },
+    [],
+    candidates.toReversed(),
+  );
+  let write = null;
+  await page.route(
+    "http://axis.test/api/application-catalog-install",
+    async (route) => {
+      write = route.request().postDataJSON();
+      await route.fulfill({ json: { result: null } });
+    },
+  );
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ name: "applications", supported: true }]);
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], []);
+  await dialog.getByRole("button", { name: "Install application" }).click();
+  const install = page.getByRole("dialog", { name: "Install application" });
+  const suggestions = install.getByRole("list", {
+    name: "Suggested applications",
+  });
+  await expect(suggestions.getByRole("listitem")).toHaveCount(5);
+  await expect(
+    suggestions.locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "New 0 (new0)",
+    "New 1 (new1)",
+    "New 2 (new2)",
+    "New 3 (new3)",
+    "New 4 (new4)",
+  ]);
+  await expect(install.getByText("Supported SDKs: acap4-native")).toBeHidden();
+  await install.getByText("Device requirements", { exact: true }).click();
+  await expect(install.getByText("Supported SDKs: acap4-native")).toBeVisible();
+  await install.getByText("Device requirements", { exact: true }).click();
+  await expect(install.getByRole("button", { name: /^Select / })).toHaveCount(
+    0,
+  );
+  const first = suggestions
+    .getByRole("listitem")
+    .filter({ hasText: "New 0 (new0)" });
+  const firstRow = first.getByRole("button", { name: /^New 0/ });
+  await expect(firstRow).toHaveAccessibleName(
+    /Vendor — Version 6\.0\.0 — Signature: present, not verified/,
+  );
+  await expect(firstRow).toHaveAccessibleName(/6 versions available/);
+  await expect(firstRow).not.toHaveAccessibleName(/new0\.eap|Review needed/);
+  await expect(firstRow).toHaveAttribute("aria-expanded", "false");
+  await firstRow.click();
+  await expect(firstRow).toHaveAttribute("aria-expanded", "true");
+  await expect(first.locator("axis-button").first()).toHaveAttribute(
+    "variant",
+    "brand",
+  );
+  await expect(
+    first.getByRole("region", { name: "Versions of New 0 (new0)" }),
+  ).toContainText("Choose a version of New 0");
+  await expect(first.getByRole("button", { name: /^Version / })).toHaveCount(5);
+  await expect(
+    first.getByRole("button", { name: /^Version 6\.0\.0 / }),
+  ).toHaveAccessibleName(/Newest/);
+  await expect(
+    first
+      .getByRole("list", { name: "Package versions" })
+      .locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "Version 6.0.0",
+    "Version 5.0.0",
+    "Version 4.0.0",
+    "Version 3.0.0",
+    "Version 2.0.0",
+  ]);
+  await expect(
+    first.getByText(
+      "Not checked: Package vendor identity has not been verified.",
+    ),
+  ).toHaveCount(0);
+  await first.getByRole("button", { name: "Show 1 more version" }).click();
+  await expect(first.getByRole("button", { name: /^Version / })).toHaveCount(6);
+  const versionRow = first.getByRole("button", { name: /^Version 1\.0\.0 / });
+  await versionRow.click();
+  const detail = page.getByRole("dialog", { name: "New 0 — 1.0.0" });
+  await expect(
+    detail.getByText("Server catalog", { exact: true }),
+  ).toBeVisible();
+  await detail.getByText("Technical details", { exact: true }).click();
+  await expect(detail.getByText("new0.eap", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(detail).toBeHidden();
+  await expect(versionRow).toBeFocused();
+  await versionRow.click();
+  await detail.getByRole("button", { name: "Select package" }).click();
+  await expect(detail).toBeHidden();
+  const selection = install.getByRole("region", {
+    name: "Selected application",
+  });
+  await expect(selection).toBeFocused();
+  await expect(install.locator(".installation-drop")).not.toContainText(
+    "Selected server package",
+  );
+  await expect(selection).toContainText("New 0, 1.0.0");
+  await selection.getByRole("button", { name: "Change selection" }).click();
+  await expect(versionRow).toBeFocused();
+  await expect(
+    install.getByRole("button", { name: "Confirm installation" }),
+  ).toBeDisabled();
+  await versionRow.click();
+  await detail.getByRole("button", { name: "Select package" }).click();
+  await expect(versionRow).toHaveAttribute("aria-pressed", "true");
+  await expect(selection.getByRole("status")).toContainText("New 0");
+  await expect(selection.getByRole("status")).toContainText("new0.eap");
+  await install.locator('input[type="file"]').setInputFiles({
+    name: "local.eap",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("package"),
+  });
+  await expect(selection.getByRole("status")).toHaveText("Selected: local.eap");
+  await expect(selection).toContainText("Source: Uploaded file");
+  await expect(selection).toContainText(
+    "compatibility have not been checked locally",
+  );
+  await expect(versionRow).toHaveAttribute("aria-pressed", "false");
+  await install
+    .getByRole("button", { name: "Show 1 more application" })
+    .click();
+  const last = suggestions
+    .getByRole("listitem")
+    .filter({ hasText: "New 5 (new5)" });
+  const lastRow = last.getByRole("button", { name: /^New 5/ });
+  await expect(lastRow).toHaveAccessibleName(
+    /1 version available Verification incomplete/,
+  );
+  await lastRow.click();
+  await expect(firstRow).toHaveAttribute("aria-expanded", "false");
+  await expect(first.locator("axis-button").first()).toHaveAttribute(
+    "variant",
+    "neutral",
+  );
+  await expect(last.locator("axis-button").first()).toHaveAttribute(
+    "variant",
+    "brand",
+  );
+  await last.getByRole("button", { name: /^Version 1\.0\.0 / }).click();
+  const lastDetail = page.getByRole("dialog", { name: "New 5 — 1.0.0" });
+  await expect(
+    lastDetail.getByText("Unknown: AXIS OS compatibility is unknown."),
+  ).toBeVisible();
+  await lastDetail.getByRole("button", { name: "Select package" }).click();
+  await expect(selection.getByRole("status")).toContainText("New 5");
+  await expect(selection.getByRole("status")).toContainText("new5.eap");
+  await expect(
+    install.getByText("Unknown: AXIS OS compatibility is unknown."),
+  ).toHaveCount(1);
+  await expect(
+    selection.getByText(
+      "Not checked: Package vendor identity has not been verified.",
+    ),
+  ).toBeVisible();
+  expect(write).toBeNull();
+  await install.getByRole("button", { name: "Confirm installation" }).click();
+  await expect
+    .poll(() => write)
+    .toMatchObject({
+      device: "A",
+      filename: "new5.eap",
+      confirmed: true,
+      warnings: ["AXIS OS compatibility is unknown."],
+    });
+  await expect.poll(() => requests.length).toBe(4);
+  await expect(dialog.getByText(/outcome not yet verified/)).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Start New 5" })).toHaveCount(
+    0,
+  );
+  await respond(page, requests[3], [
+    {
+      name: "new5",
+      nice_name: "New 5",
+      version: "1.0.0",
+      status: "Stopped",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    dialog.getByText("Installed New 5 1.0.0 — Stopped."),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Start New 5" }),
+  ).toBeEnabled();
+  expect(requests).toHaveLength(4);
+  await dialog.getByRole("button", { name: "Start New 5" }).click();
+  await expect.poll(() => requests.length).toBe(5);
+  expect(requests[4]).toMatchObject({
+    type: "device/application-action",
+    action: "start",
+    package: "new5",
+    confirmed: true,
+  });
+  await respond(page, requests[4], null);
+  await expect.poll(() => requests.length).toBe(6);
+  await respond(page, requests[5], [
+    {
+      name: "new5",
+      nice_name: "New 5",
+      version: "1.0.0",
+      status: "Running",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    page
+      .getByRole("dialog", { name: "New 5" })
+      .getByRole("button", { name: "Stop", exact: true }),
+  ).toBeEnabled();
+  expect(
+    requests.filter((item) => item.type === "device/application-action"),
+  ).toHaveLength(1);
+});
+
+for (const state of ["missing", "different version", "read failure"]) {
+  test(`accepted catalog install does not claim success after ${state}`, async ({
+    page,
+  }) => {
+    const candidate = {
+      package: {
+        name: "new",
+        friendly_name: "New",
+        filename: "new.eap",
+        version: "2.0.0",
+        digest: "a".repeat(64),
+        signature: "present_unverified",
+      },
+      warnings: [],
+      findings: [],
+      downgrade: false,
+    };
+    const { requests } = await openApp(
+      page,
+      devices,
+      undefined,
+      false,
+      undefined,
+      false,
+      {
+        folder: "/catalog",
+        packages: [candidate.package],
+        errors: [],
+        error: "",
+      },
+      [],
+      [candidate],
+    );
+    let writes = 0;
+    await page.route("**/api/application-catalog-install", async (route) => {
+      writes++;
+      await route.fulfill({ json: { result: null } });
+    });
+    await select(page, "A", requests, 1);
+    await respond(page, requests[0], health("Camera"));
+    const overview = page.getByRole("dialog");
+    await overview
+      .getByRole("button", { name: "Applications", exact: true })
+      .click();
+    await expect.poll(() => requests.length).toBe(2);
+    await respond(page, requests[1], []);
+    await overview.getByRole("button", { name: "Install application" }).click();
+    const install = page.getByRole("dialog", { name: "Install application" });
+    await install.getByRole("button", { name: /^New \(new\)/ }).click();
+    await install.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
+    await page
+      .getByRole("dialog", { name: "New — 2.0.0" })
+      .getByRole("button", { name: "Select package" })
+      .click();
+    await install.getByRole("button", { name: "Confirm installation" }).click();
+    await expect.poll(() => requests.length).toBe(3);
+    await expect(overview.getByText(/outcome not yet verified/)).toBeVisible();
+    if (state === "read failure")
+      await respond(page, requests[2], null, { message: "Read failed." });
+    else
+      await respond(
+        page,
+        requests[2],
+        state === "missing"
+          ? []
+          : [
+              {
+                name: "new",
+                nice_name: "New",
+                version: "1.0.0",
+                status: "Stopped",
+                vendor: "Vendor",
+                license_status: "None",
+              },
+            ],
+      );
+    await expect(overview.getByRole("alert")).toContainText(
+      state === "read failure"
+        ? "Refresh failed: Read failed."
+        : "requested version could not be verified",
+    );
+    await expect(overview.getByText(/^Installed New/)).toHaveCount(0);
+    await expect(
+      overview.getByRole("button", { name: "Start New" }),
+    ).toHaveCount(0);
+    await expect(
+      overview.getByRole("button", { name: "Refresh applications" }),
+    ).toBeEnabled();
+    expect(writes).toBe(1);
+  });
+}
+
 test("dialog controls respond to hover in both themes", async ({ page }) => {
   const { requests } = await openApp(page);
   await select(page, "A", requests, 1);
@@ -891,9 +2360,15 @@ test("applications present details, configuration links, and confirmed controls"
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
-  await expect(dialog).toHaveAccessibleName("Applications");
-  await expect(dialog.getByRole("button", { name: "Back" })).toBeFocused();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
+  await expect(dialog).toHaveAccessibleName("Camera A");
+  await expect(
+    dialog
+      .getByRole("navigation", { name: "Device views" })
+      .getByRole("button", { name: "Applications" }),
+  ).toBeFocused();
   await expect.poll(() => requests.length).toBe(3);
   expect(requests[2]).toMatchObject({
     type: "device/applications",
@@ -920,12 +2395,14 @@ test("applications present details, configuration links, and confirmed controls"
     },
   ];
   await respond(page, requests[2], apps);
-  const app = dialog
-    .locator("axis-card")
-    .filter({ has: page.getByRole("heading", { name: "Object Analytics" }) })
-    .last();
-  await expect(app).toContainText("Stopped");
-  await expect(app).toContainText("2.0");
+  const row = dialog.getByRole("button", { name: /^Object Analytics/ });
+  await expect(row).toHaveAccessibleName(/Stopped/);
+  await expect(row).toHaveAccessibleName(/Version 2\.0/);
+  await expect(row).toHaveAccessibleName(/Signature: Unknown/);
+  await expect(dialog.getByText("Vendor", { exact: true })).toHaveCount(0);
+  await row.click();
+  const app = page.getByRole("dialog", { name: "Object Analytics" });
+  await expect(app.getByText("Axis", { exact: true })).toBeVisible();
   const disabledConfiguration = app.getByRole("button", {
     name: "Open configuration",
   });
@@ -937,11 +2414,11 @@ test("applications present details, configuration links, and confirmed controls"
     dialog.getByRole("link", { name: "Open configuration" }),
   ).toHaveCount(0);
   await app.getByRole("button", { name: "Start" }).click();
-  await expect(app.getByText("Start Object Analytics?")).toBeVisible();
-  await app.getByRole("button", { name: "Cancel" }).click();
-  expect(requests).toHaveLength(3);
-  await app.getByRole("button", { name: "Start" }).click();
-  await app.getByRole("button", { name: "Confirm start" }).click();
+  await expect(app.getByRole("button", { name: "Confirm start" })).toHaveCount(
+    0,
+  );
+  await expect(app.getByRole("button", { name: "Start" })).toBeDisabled();
+  await app.getByRole("button", { name: "Start" }).dispatchEvent("click");
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3]).toMatchObject({
     type: "device/application-action",
@@ -952,10 +2429,9 @@ test("applications present details, configuration links, and confirmed controls"
     status: "Stopped",
     confirmed: true,
   });
-  await expect(dialog.getByRole("button", { name: "Back" })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close" })).toBeDisabled();
+  await expect(app.getByRole("button", { name: "Close" })).toBeDisabled();
   await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
+  await expect(app).toBeVisible();
   await respond(page, requests[3], null);
   await expect.poll(() => requests.length).toBe(5);
   await respond(page, requests[4], [
@@ -990,11 +2466,18 @@ test("applications present details, configuration links, and confirmed controls"
   await expect.poll(() => requests.length).toBe(7);
   await respond(page, requests[6], [apps[1]]);
   await expect(
-    dialog.getByRole("heading", { name: "Object Analytics" }),
+    dialog.getByRole("button", { name: /^Object Analytics/ }),
   ).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Back" }).click();
+  await page.keyboard.press("Escape");
   await expect.poll(() => requests.length).toBe(8);
   expect(requests[7]).toMatchObject({ type: "device/interfaces" });
+  await respond(page, requests[7], [{ name: "applications", supported: true }]);
+  await select(page, "A", requests, 9);
+  await respond(page, requests[8], health("Camera"));
+  await dialog.getByRole("button", { name: "Interfaces" }).click();
+  await expect.poll(() => requests.length).toBe(10);
+  expect(requests[9]).toMatchObject({ type: "device/interfaces" });
+  await respond(page, requests[9], []);
 });
 
 test("license management offers removal only for an installed license", async ({
@@ -1007,7 +2490,9 @@ test("license management offers removal only for an installed license", async ({
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(
     page,
@@ -1062,7 +2547,7 @@ test("license management offers removal only for an installed license", async ({
   expect(requests).toHaveLength(3);
 });
 
-test("application policy applies immediately while restart and license changes require confirmation", async ({
+test("application policy, restart, and license changes require confirmation", async ({
   page,
 }) => {
   const { requests } = await openApp(page, [
@@ -1073,7 +2558,9 @@ test("application policy applies immediately while restart and license changes r
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   const app = {
     name: "example",
@@ -1088,12 +2575,17 @@ test("application policy applies immediately while restart and license changes r
     compatible_os_versions: [{ Min: "11", Max: "12" }],
   };
   await respond(page, requests[2], [app]);
-  await expect(dialog.getByText("Signed", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("camera: yes")).toBeVisible();
-  await expect(dialog.getByText("11 – 12")).toBeVisible();
-  await dialog.getByRole("button", { name: "Restart", exact: true }).click();
-  await expect(dialog.getByText("Restart Example?")).toBeVisible();
-  await dialog.getByRole("button", { name: "Confirm restart" }).click();
+  await expect(
+    dialog.getByRole("button", { name: /^Example/ }),
+  ).toHaveAccessibleName(/Signature: Signed/);
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  const details = page.getByRole("dialog", { name: "Example" });
+  await expect(details.getByText("Signed", { exact: true })).toBeVisible();
+  await expect(details.getByText("camera: yes")).toBeVisible();
+  await expect(details.getByText("11 – 12")).toBeVisible();
+  await details.getByRole("button", { name: "Restart", exact: true }).click();
+  await expect(details.getByText("Restart Example?")).toBeVisible();
+  await details.getByRole("button", { name: "Confirm restart" }).click();
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3]).toMatchObject({
     type: "device/application-action",
@@ -1103,6 +2595,7 @@ test("application policy applies immediately while restart and license changes r
   await respond(page, requests[3], null);
   await expect.poll(() => requests.length).toBe(5);
   await respond(page, requests[4], [app]);
+  await details.getByRole("button", { name: "Close" }).click();
 
   const policy = dialog.getByRole("switch", {
     name: /Allow unsigned applications/,
@@ -1111,7 +2604,13 @@ test("application policy applies immediately while restart and license changes r
   await policy.click();
   await expect(policy).not.toBeChecked();
   await expect(policy).toBeDisabled();
-  await expect(dialog.getByText(/weakens application security/)).toHaveCount(0);
+  await expect(dialog.getByText(/weakens application security/)).toBeVisible();
+  expect(requests).toHaveLength(5);
+  await dialog.getByRole("button", { name: "Cancel policy change" }).click();
+  await expect(policy).toBeEnabled();
+  expect(requests).toHaveLength(5);
+  await policy.click();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(6);
   await expect(
     dialog.getByRole("button", { name: "Confirm policy change" }),
@@ -1126,6 +2625,7 @@ test("application policy applies immediately while restart and license changes r
   await expect(policy).toBeChecked();
   await dialog.getByRole("button", { name: "Install application" }).click();
   const install = page.getByRole("dialog", { name: "Install application" });
+  await install.getByText("Device requirements", { exact: true }).click();
   await expect(install.getByText("Supported SDKs: acap4-native")).toBeVisible();
   await expect(
     install.getByText("Unsigned applications: Allowed"),
@@ -1197,7 +2697,9 @@ test("license removal failure remains visible without retry", async ({
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], [
     {
@@ -1241,7 +2743,9 @@ test("license modal validates drops and blocks navigation during upload", async 
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   const apps = ["first", "second"].map((name) => ({
     name,
@@ -1347,7 +2851,9 @@ test("unavailable unsigned policy disables the switch until refreshed", async ({
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(4);
   await respond(page, requests[2], undefined, {
     message: "Policy unsupported.",
@@ -1370,6 +2876,7 @@ test("unavailable unsigned policy disables the switch until refreshed", async ({
   await policy.click();
   await expect(policy).toBeChecked();
   await expect(policy).toBeDisabled();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(6);
   expect(requests[5]).toMatchObject({
     type: "device/application-policy-set",
@@ -1380,6 +2887,7 @@ test("unavailable unsigned policy disables the switch until refreshed", async ({
   await respond(page, requests[5], null);
   await expect(policy).not.toBeChecked();
   await policy.click();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(7);
   await respond(page, requests[6], undefined, {
     message:
@@ -1408,7 +2916,9 @@ test("license upload errors remain in the modal without retrying", async ({
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], [
     {
@@ -1464,7 +2974,9 @@ test("ignores an older unsigned-policy read after a toggle change", async ({
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[2].type).toBe("device/application-policy");
   await respond(page, requests[3], []);
@@ -1476,6 +2988,7 @@ test("ignores an older unsigned-policy read after a toggle change", async ({
   await dialog
     .getByRole("switch", { name: /Allow unsigned applications/ })
     .click();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(6);
   await respond(page, requests[5], null);
   await respond(page, requests[2], false);
@@ -1497,7 +3010,9 @@ test("configuration is available only for running applications", async ({
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(
     page,
@@ -1512,13 +3027,21 @@ test("configuration is available only for running applications", async ({
       configuration_page: "local/example/index.html",
     })),
   );
-  await expect(
-    dialog.getByRole("link", { name: "Open configuration" }),
-  ).toHaveCount(1);
-  const disabled = dialog.getByRole("button", { name: "Open configuration" });
-  await expect(disabled).toHaveCount(3);
-  for (const button of await disabled.all())
-    await expect(button).toBeDisabled();
+  for (const status of ["Running", "Stopped", "Idle", "Unknown"]) {
+    await dialog
+      .getByRole("button", { name: new RegExp(`^${status} `) })
+      .click();
+    const details = page.getByRole("dialog", { name: status });
+    if (status === "Running")
+      await expect(
+        details.getByRole("link", { name: "Open configuration" }),
+      ).toBeVisible();
+    else
+      await expect(
+        details.getByRole("button", { name: "Open configuration" }),
+      ).toBeDisabled();
+    await details.getByRole("button", { name: "Close" }).click();
+  }
 });
 
 test("application installation is confirmed and blocks navigation while pending", async ({
@@ -1531,16 +3054,17 @@ test("application installation is confirmed and blocks navigation while pending"
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], []);
   await dialog.getByRole("button", { name: "Install application" }).click();
   const install = page.getByRole("dialog", { name: "Install application" });
+  await install.getByText("Device requirements", { exact: true }).click();
   await expect(
     install.getByText("Hardware architecture: armv7hf"),
   ).toBeVisible();
-  await expect(install.getByText(/upgraded or downgraded/)).toBeVisible();
-  await expect(install.getByText(/both versions may be removed/)).toBeVisible();
   await expect(
     install.getByRole("button", { name: "Confirm installation" }),
   ).toBeDisabled();
@@ -1566,6 +3090,8 @@ test("application installation is confirmed and blocks navigation while pending"
   };
   await choose();
   await expect(install.getByText("Selected: example.eap")).toBeVisible();
+  await expect(install.getByText(/upgraded or downgraded/)).toBeVisible();
+  await expect(install.getByText(/both versions may be removed/)).toBeVisible();
   await install.getByRole("button", { name: "Cancel" }).click();
   await expect(install).toBeHidden();
   await expect(
@@ -1598,7 +3124,9 @@ test("application installation is confirmed and blocks navigation while pending"
   await expect.poll(() => requests.length).toBe(4);
   await respond(page, requests[3], []);
   await expect(install).toBeHidden();
-  await expect(dialog.getByText("Application installed.")).toBeVisible();
+  await expect(
+    dialog.getByText(/Upload accepted\. Application list refreshed/),
+  ).toBeVisible();
   await expect(
     dialog.getByRole("button", { name: "Install application" }),
   ).toBeFocused();
@@ -1615,11 +3143,14 @@ test("architecture lookup failure is visible without blocking application instal
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], []);
   await dialog.getByRole("button", { name: "Install application" }).click();
   const install = page.getByRole("dialog", { name: "Install application" });
+  await install.getByText("Device requirements", { exact: true }).click();
   await expect(
     install.getByText(
       "Hardware architecture: Unavailable: Architecture unavailable.",
@@ -1636,7 +3167,7 @@ test("drag and drop validates packages before confirmed installation", async ({
   const { requests } = await openApp(page);
   await select(page, "A", requests, 1);
   await respond(page, requests[0], health("Camera"));
-  const dialog = page.getByRole("dialog", { name: "Applications" });
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Interfaces" })
@@ -1645,7 +3176,7 @@ test("drag and drop validates packages before confirmed installation", async ({
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "applications" })
+    .getByRole("button", { name: "applications", exact: true })
     .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], []);
@@ -1711,8 +3242,25 @@ test("drag and drop validates packages before confirmed installation", async ({
   await expect.poll(() => uploads.length).toBe(1);
   expect(uploads[0].postData()).toBe("package");
   await expect.poll(() => requests.length).toBe(4);
-  await respond(page, requests[3], []);
-  await expect(dialog.getByText("Application installed.")).toBeVisible();
+  await respond(page, requests[3], [
+    {
+      name: "example",
+      nice_name: "Example",
+      version: "1.2.0",
+      status: "Stopped",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    dialog.getByText(
+      "Upload accepted. Device now reports: Example 1.2.0 — Stopped.",
+    ),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Start Example" }),
+  ).toBeEnabled();
+  expect(requests).toHaveLength(4);
 });
 
 test("installation dialog fits a narrow screen", async ({ page }) => {
@@ -1728,7 +3276,7 @@ test("installation dialog fits a narrow screen", async ({ page }) => {
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "applications" })
+    .getByRole("button", { name: "applications", exact: true })
     .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], []);
@@ -1761,7 +3309,7 @@ test("installation errors remain visible in the modal and do not retry", async (
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "applications" })
+    .getByRole("button", { name: "applications", exact: true })
     .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], []);
@@ -1795,6 +3343,57 @@ test("installation errors remain visible in the modal and do not retry", async (
   expect(uploads).toBe(1);
 });
 
+for (const status of ["Stopped", "Running"]) {
+  test(`direct Stop reports observed ${status} state without retrying`, async ({
+    page,
+  }) => {
+    const app = {
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+    };
+    const { requests } = await openApp(page);
+    await select(page, "A", requests, 1);
+    await respond(page, requests[0], health("Camera"));
+    const overview = page.getByRole("dialog", { name: "Camera A" });
+    await overview
+      .getByRole("button", { name: "Applications", exact: true })
+      .click();
+    await expect.poll(() => requests.length).toBe(2);
+    await respond(page, requests[1], [app]);
+    await overview.getByRole("button", { name: /^Example/ }).click();
+    const details = page.getByRole("dialog", { name: "Example" });
+    const stop = details.getByRole("button", { name: "Stop", exact: true });
+    await stop.click();
+    await expect.poll(() => requests.length).toBe(3);
+    await expect(stop).toBeDisabled();
+    await stop.dispatchEvent("click");
+    expect(requests).toHaveLength(3);
+    await respond(page, requests[2], null);
+    await expect.poll(() => requests.length).toBe(4);
+    await respond(page, requests[3], [{ ...app, status }]);
+    await expect(
+      details.getByRole(status === "Stopped" ? "status" : "alert"),
+    ).toContainText(
+      status === "Stopped"
+        ? "Device reports Example 1.0.0 — Stopped."
+        : "expected state was not observed",
+    );
+    await expect(
+      details.getByRole("button", {
+        name: status === "Stopped" ? "Start" : "Stop",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    expect(
+      requests.filter((item) => item.type === "device/application-action"),
+    ).toHaveLength(1);
+  });
+}
+
 test("application action interruption warns before retry", async ({ page }) => {
   const { requests, sockets } = await openApp(page);
   await select(page, "A", requests, 1);
@@ -1803,7 +3402,9 @@ test("application action interruption warns before retry", async ({ page }) => {
   await dialog.getByRole("button", { name: "Interfaces" }).click();
   await expect.poll(() => requests.length).toBe(2);
   await respond(page, requests[1], [{ name: "applications", supported: true }]);
-  await dialog.getByRole("button", { name: "applications" }).click();
+  await dialog
+    .getByRole("button", { name: "applications", exact: true })
+    .click();
   await expect.poll(() => requests.length).toBe(3);
   await respond(page, requests[2], [
     {
@@ -1816,13 +3417,20 @@ test("application action interruption warns before retry", async ({ page }) => {
       configuration_page: null,
     },
   ]);
-  await dialog.getByRole("button", { name: "Stop" }).click();
-  await dialog.getByRole("button", { name: "Confirm stop" }).click();
+  await dialog.getByRole("button", { name: /^Example/ }).click();
+  const details = page.getByRole("dialog", { name: "Example" });
+  await details.getByRole("button", { name: "Stop" }).click();
+  await expect(
+    details.getByRole("button", { name: "Confirm stop" }),
+  ).toHaveCount(0);
+  await expect(details.getByRole("button", { name: "Stop" })).toBeDisabled();
   await expect.poll(() => requests.length).toBe(4);
   sockets[0].close({ code: 1001 });
-  await expect(dialog.getByRole("alert")).toHaveText(
+  await expect(details.getByRole("alert")).toHaveText(
     "Application action outcome is unknown. Check the application before trying again.",
   );
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("button", { name: "Stop" })).toBeDisabled();
   expect(
     requests.filter((item) => item.type === "device/application-action"),
   ).toHaveLength(1);
@@ -1935,7 +3543,7 @@ test("keyboard selection and typed API commands work through the component bound
   await expect(
     page.getByRole("button", { name: "unavailable" }),
   ).toBeDisabled();
-  await expect(views.getByRole("button")).toHaveCount(3);
+  await expect(views.getByRole("button")).toHaveCount(4);
   await expect(dialog.locator("pre")).not.toContainText(
     '"id": "basic-device-info"',
   );
@@ -1991,6 +3599,51 @@ test("switches modal views while a request is pending without showing stale resu
   await respond(page, requests[3], health("Refreshed health"));
   await expect(dialog.getByText("Refreshed health")).toBeVisible();
   await expect(outline).toHaveCount(0);
+});
+
+test("shows safe API documentation links without trusting device-provided URLs", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "APIs", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [
+    {
+      id: "application",
+      name: "Application",
+      doc_link:
+        "https://developer.axis.com/vapix/applications/application-api/",
+    },
+    { id: "invalid", name: "Invalid", doc_link: "javascript:alert(1)" },
+    {
+      id: "credentials",
+      name: "Credentials",
+      doc_link: "https://user:pass@example.com/",
+    },
+    { id: "missing", name: "Missing", doc_link: "" },
+  ]);
+  const section = dialog.getByRole("region", { name: "API documentation" });
+  const link = section.getByRole("link", {
+    name: "Application — developer.axis.com",
+  });
+  await expect(link).toHaveAttribute(
+    "href",
+    "https://developer.axis.com/vapix/applications/application-api/",
+  );
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(section.getByRole("link")).toHaveCount(1);
+  await expect(section).toContainText(
+    "Invalid: documentation link unavailable",
+  );
+  await expect(section).toContainText(
+    "Credentials: documentation link unavailable",
+  );
+  await expect(section).not.toContainText("Missing");
+  await expect(dialog.locator("pre")).toContainText("application");
 });
 
 test("reuses loaded views and interface results until the active button is clicked again", async ({
@@ -2068,6 +3721,192 @@ test("reuses loaded views and interface results until the active button is click
   await interfaces.click();
   await expect(result).toHaveText("[]");
   expect(requests).toHaveLength(7);
+});
+
+test("reuses capabilities only after rechecking the device and firmware", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  const apis = views.getByRole("button", { name: "APIs", exact: true });
+  const interfaces = views.getByRole("button", {
+    name: "Interfaces",
+    exact: true,
+  });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "api-v1" }]);
+  await interfaces.click();
+  await expect.poll(() => requests.length).toBe(3);
+  await respond(page, requests[2], [
+    { name: "basic_device_info", supported: true },
+  ]);
+  await dialog.getByRole("button", { name: "basic_device_info" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], { model: "old data" });
+
+  await select(page, "A", requests, 5);
+  await respond(page, requests[4], health("Camera"));
+  await interfaces.click();
+  await expect(
+    dialog.getByRole("button", { name: "basic_device_info" }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "basic_device_info" }).click();
+  await expect.poll(() => requests.length).toBe(6);
+  expect(requests[5]).toMatchObject({ type: "device/read" });
+  await respond(page, requests[5], { model: "fresh data" });
+  await apis.click();
+  await expect(dialog.locator("pre")).toContainText("api-v1");
+  expect(requests).toHaveLength(6);
+
+  await select(page, "A", requests, 7);
+  await respond(page, requests[6], {
+    ...health("Camera"),
+    firmware_version: "2",
+  });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(8);
+  await respond(page, requests[7], [{ id: "api-v2" }]);
+  await interfaces.click();
+  await expect.poll(() => requests.length).toBe(9);
+  await respond(page, requests[8], []);
+  await expect(dialog.locator("pre")).toHaveText("[]");
+});
+
+test("does not reuse capabilities after an unverifiable identity or firmware", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  const apis = dialog.getByRole("button", { name: "APIs", exact: true });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "old-api" }]);
+  await select(page, "A", requests, 3);
+  await respond(page, requests[2], { ...health("Other"), serial: "B" });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], [{ id: "other-api" }]);
+  await select(page, "A", requests, 5);
+  await respond(page, requests[4], {
+    ...health("Camera"),
+    firmware_version: "",
+  });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(6);
+  await respond(page, requests[5], [{ id: "unverified-api" }]);
+  await select(page, "A", requests, 7);
+  await respond(page, requests[6], health("Camera"));
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(8);
+  await respond(page, requests[7], [{ id: "new-api" }]);
+});
+
+test("keeps capability snapshots separate and invalidates them on firmware refresh", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera A"));
+  const dialog = page.getByRole("dialog");
+  const apis = dialog.getByRole("button", { name: "APIs", exact: true });
+  const healthView = dialog.getByRole("button", {
+    name: "Health",
+    exact: true,
+  });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "api-a" }]);
+  await select(page, "B", requests, 3);
+  await respond(page, requests[2], { ...health("Camera B"), serial: "B" });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], [{ id: "api-b" }]);
+
+  await select(page, "A", requests, 5);
+  await respond(page, requests[4], health("Camera A"));
+  await apis.click();
+  await expect(dialog.locator("pre")).toContainText("api-a");
+  expect(requests).toHaveLength(5);
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(6);
+  await respond(page, requests[5], [{ id: "refreshed-api-a" }]);
+  await healthView.click();
+  await healthView.click();
+  await expect.poll(() => requests.length).toBe(7);
+  await respond(page, requests[6], {
+    ...health("Camera A"),
+    firmware_version: "2",
+  });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(8);
+  await respond(page, requests[7], [{ id: "new-api-a" }]);
+  await select(page, "B", requests, 9);
+  await respond(page, requests[8], { ...health("Camera B"), serial: "B" });
+  await apis.click();
+  await expect(dialog.locator("pre")).toContainText("api-b");
+  expect(requests).toHaveLength(9);
+});
+
+test("discards reusable capability snapshots after reconnecting", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const { requests, sockets, tokens } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  const apis = dialog.getByRole("button", { name: "APIs", exact: true });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "before-reconnect" }]);
+  sockets[0].close({ code: 1001 });
+  await expect(page.getByText("Reconnecting to Axis…")).toBeAttached();
+  await page.clock.fastForward(2100);
+  await expect.poll(() => tokens.length).toBe(2);
+  await expect(page.getByText("Connected to Axis")).toBeAttached();
+  await select(page, "A", requests, 3);
+  await respond(page, requests[2], health("Camera"));
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], [{ id: "after-reconnect" }]);
+});
+
+test("does not replace a fresh read with an unverified cached snapshot", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog");
+  const apis = dialog.getByRole("button", { name: "APIs", exact: true });
+  const healthView = dialog.getByRole("button", {
+    name: "Health",
+    exact: true,
+  });
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(2);
+  await respond(page, requests[1], [{ id: "old-api" }]);
+  await select(page, "A", requests, 3);
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], [{ id: "fresh-api" }]);
+  await respond(page, requests[2], health("Obsolete"));
+  await healthView.click();
+  await expect.poll(() => requests.length).toBe(5);
+  await respond(page, requests[4], health("Camera"));
+  await apis.click();
+  await expect(dialog.locator("pre")).toContainText("fresh-api");
+  await select(page, "A", requests, 6);
+  await respond(page, requests[5], health("Camera"));
+  await apis.click();
+  await expect.poll(() => requests.length).toBe(7);
+  await respond(page, requests[6], [{ id: "latest-api" }]);
 });
 
 test("edits a saved device in Settings without reloading health for an alias change", async ({

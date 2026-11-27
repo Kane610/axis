@@ -11,6 +11,7 @@ import pytest
 
 from axis.errors import ResponseError, Unauthorized
 from axis.interfaces.vapix import UploadDigestError
+from axis.models.api_discovery import Api, ListApisRequest
 from axis.models.applications.application import (
     ApplicationConfigResponse,
     ApplicationControlError,
@@ -18,6 +19,7 @@ from axis.models.applications.application import (
     ApplicationLicense,
     ApplicationStatus,
     ControlApplicationRequest,
+    ListApplicationsRequest,
     ListApplicationsResponse,
 )
 
@@ -31,6 +33,63 @@ if TYPE_CHECKING:
 def applications(axis_device) -> ApplicationsHandler:
     """Return the applications handler attached to the mocked device."""
     return axis_device.vapix.applications
+
+
+async def test_application_support_from_api_discovery(mock_api_request, applications):
+    """Discovery can identify the application API without loading parameters."""
+    mock_api_request(
+        ListApisRequest,
+        response=MockApiResponseSpec(
+            json={
+                "apiVersion": "1.0",
+                "context": "Axis library",
+                "method": "getApiList",
+                "data": {
+                    "apiList": [
+                        {
+                            "id": "application",
+                            "name": "Application",
+                            "status": "official",
+                            "version": "1.0",
+                        }
+                    ]
+                },
+            }
+        ),
+    )
+    route = mock_api_request(
+        ListApplicationsRequest,
+        response=MockApiResponseSpec(text='<reply result="ok"/>'),
+    )
+    assert not applications.supported
+    await applications.vapix.api_discovery.update()
+    assert applications.listed_in_api_discovery
+    assert applications.supported
+    assert applications.api_version == "1.0"
+    await applications.vapix.initialize_applications()
+    assert applications.initialized
+    assert route.call_count == 1
+
+
+@pytest.mark.parametrize("status", [401, 403, 404])
+async def test_discovered_application_api_can_be_unavailable(
+    mock_api_request, applications, status
+):
+    """Discovery does not make denied or unavailable application reads succeed."""
+    applications.vapix.api_discovery.update_items(
+        {
+            "application": Api.decode(
+                {"id": "application", "name": "Application", "version": "1.0"}
+            )
+        }
+    )
+    route = mock_api_request(
+        ListApplicationsRequest, response=MockApiResponseSpec(status_code=status)
+    )
+    await applications.vapix.initialize_applications()
+    assert applications.supported
+    assert not applications.initialized
+    assert route.call_count == 1
 
 
 @pytest.mark.parametrize("action", ["start", "stop", "restart", "remove"])
