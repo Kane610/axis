@@ -664,10 +664,9 @@ def _rank_acap_candidates(
 ) -> list[dict[str, Any]]:
     candidates.sort(
         key=lambda item: (
-            not item[1].downgrade,
+            version_key(item[0].version) or (-1,),
             -item[1].severity,
             -len(item[1].warnings),
-            version_key(item[0].version) or (-1,),
         ),
         reverse=True,
     )

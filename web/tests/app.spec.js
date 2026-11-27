@@ -1311,6 +1311,63 @@ test("application overview only flags warning-free upgrades and opens details", 
   await expect(trusted).toBeFocused();
 });
 
+test("Applications keeps cached rows during background refresh and read failures", async ({
+  page,
+}) => {
+  const { requests } = await openApp(page);
+  await select(page, "A", requests, 1);
+  await respond(page, requests[0], health("Camera"));
+  const dialog = page.getByRole("dialog", { name: "Camera A" });
+  const views = dialog.getByRole("navigation", { name: "Device views" });
+  const applications = views.getByRole("button", {
+    name: "Applications",
+    exact: true,
+  });
+  await applications.click();
+  await expect.poll(() => requests.length).toBe(2);
+  const app = {
+    name: "example",
+    nice_name: "Example",
+    status: "Running",
+    version: "1.0.0",
+    vendor: "Vendor",
+    license_status: "None",
+  };
+  await respond(page, requests[1], [app]);
+  await views.getByRole("button", { name: "Health", exact: true }).click();
+  await applications.click();
+  await expect.poll(() => requests.length).toBe(3);
+  const row = dialog
+    .getByRole("list", { name: "Applications" })
+    .getByRole("button", { name: /^Example/ });
+  await expect(row).toBeVisible();
+  await expect(row).toBeEnabled();
+  await expect(applications).not.toHaveAttribute("aria-busy", "true");
+  await expect(
+    dialog.getByText("Application list may be out of date."),
+  ).toHaveCount(0);
+  await expect(row).toHaveAccessibleName(/Version 1\.0\.0/);
+  await row.click();
+  const details = page.getByRole("dialog", { name: "Example", exact: true });
+  await expect(
+    details.getByRole("button", { name: "Stop", exact: true }),
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await respond(page, requests[2], [{ ...app, version: "2.0.0" }]);
+  await expect(row).toBeEnabled();
+  await expect(row).toHaveAccessibleName(/Version 2\.0\.0/);
+  await views.getByRole("button", { name: "Health", exact: true }).click();
+  await applications.click();
+  await expect.poll(() => requests.length).toBe(4);
+  await respond(page, requests[3], null, { message: "Read failed." });
+  await expect(row).toBeVisible();
+  await expect(row).toBeDisabled();
+  await expect(dialog.getByRole("alert")).toContainText("Read failed.");
+  await expect(
+    dialog.getByText("Application list may be out of date."),
+  ).toBeVisible();
+});
+
 test("application details require fresh support and state after reconnect", async ({
   page,
 }) => {
@@ -1458,13 +1515,13 @@ test("catalog updates require confirmation and send the reviewed package", async
     versions.getByText(
       "Not checked: The installed application's vendor ID is unavailable; the device may reject the upgrade even if vendor names match.",
     ),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     versions.getByText(
       "Not checked: Package signature is present but has not been verified locally.",
     ),
-  ).toBeVisible();
-  await versions.getByRole("button", { name: "Update to 2.0.0" }).click();
+  ).toHaveCount(0);
+  await versions.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
   await expect(
     versions.getByText(
       "Not checked: Package signature is present but has not been verified locally.",
@@ -1584,7 +1641,7 @@ for (const state of [
     const versions = page.getByRole("dialog", {
       name: "Application versions: Example",
     });
-    await versions.getByRole("button", { name: "Update to 2.0.0" }).click();
+    await versions.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
     await versions.getByRole("button", { name: "Confirm update" }).click();
     await expect(versions.getByRole("alert")).toContainText("Upgrade failed.");
     await expect.poll(() => requests.length).toBe(3);
@@ -1679,11 +1736,11 @@ for (const state of [
   });
 }
 
-test("shows five ranked versions and confirms warnings and downgrades", async ({
+test("sorts shuffled update versions and confirms warnings and downgrades", async ({
   page,
 }) => {
   const candidates = [
-    ...["9.0.0", "8.0.0", "7.0.0", "6.0.0", "5.0.0"].map((version) => ({
+    ...["6.0.0", "9.0.0", "5.0.0", "8.0.0", "7.0.0"].map((version) => ({
       package: {
         filename: `${version}.eap`,
         digest: "a".repeat(64),
@@ -1779,32 +1836,56 @@ test("shows five ranked versions and confirms warnings and downgrades", async ({
     name: "Application versions: Example",
   });
   await expect(
-    versions.getByRole("button", { name: "Update to 9.0.0" }),
+    versions.getByRole("button", { name: /^Version 9\.0\.0 / }),
   ).toBeVisible();
   await expect(
-    versions.getByRole("button", { name: "Update to 5.0.0" }),
+    versions.getByRole("button", { name: /^Version 5\.0\.0 / }),
   ).toBeVisible();
+  await expect(versions.getByRole("button", { name: /^Version / })).toHaveCount(
+    5,
+  );
   await expect(
-    versions.getByRole("button", { name: /^Update to / }),
-  ).toHaveCount(5);
+    versions
+      .getByRole("list", { name: "Package versions" })
+      .locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "Version 9.0.0",
+    "Version 8.0.0",
+    "Version 7.0.0",
+    "Version 6.0.0",
+    "Version 5.0.0",
+  ]);
   await expect(
-    versions.getByRole("button", { name: "Update to 4.0.0" }),
+    versions.getByRole("button", { name: /^Version 4\.0\.0 / }),
   ).toHaveCount(0);
   await versions.getByRole("button", { name: "Show 2 more versions" }).click();
+  await expect(
+    versions
+      .getByRole("list", { name: "Package versions" })
+      .locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "Version 9.0.0",
+    "Version 8.0.0",
+    "Version 7.0.0",
+    "Version 6.0.0",
+    "Version 5.0.0",
+    "Version 4.0.0",
+    "Version 1.0.0",
+  ]);
   await expect(
     versions.getByText(
       "Review: Vendor differs from the installed application.",
     ),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     versions.getByText("Unknown: Package signature format is unknown."),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     versions.getByText(
       "Incompatible: The package's declared OS range excludes this device.",
     ),
-  ).toBeVisible();
-  await versions.getByRole("button", { name: "Update to 4.0.0" }).click();
+  ).toHaveCount(0);
+  await versions.getByRole("button", { name: /^Version 4\.0\.0 / }).click();
   await expect(
     versions.getByText(
       "Review: Vendor differs from the installed application.",
@@ -1817,7 +1898,7 @@ test("shows five ranked versions and confirms warnings and downgrades", async ({
   ).toBeVisible();
   expect(write).toBeNull();
   await versions.getByRole("button", { name: "Cancel update" }).click();
-  await versions.getByRole("button", { name: "Downgrade to 1.0.0" }).click();
+  await versions.getByRole("button", { name: /^Version 1\.0\.0 / }).click();
   await expect(
     versions.getByText("Review: This is a downgrade."),
   ).toBeVisible();
@@ -1907,25 +1988,62 @@ test("installs a reviewed new application from the server catalog", async ({
   await respond(page, requests[2], []);
   await dialog.getByRole("button", { name: "Install application" }).click();
   const install = page.getByRole("dialog", { name: "Install application" });
-  await expect(install.getByRole("group")).toHaveCount(5);
+  const suggestions = install.getByRole("list", {
+    name: "Suggested applications",
+  });
+  await expect(suggestions.getByRole("listitem")).toHaveCount(5);
   await expect(install.getByRole("button", { name: /^Select / })).toHaveCount(
     0,
   );
-  const first = install.getByRole("group", { name: "New 0 (new0)" });
+  const first = suggestions
+    .getByRole("listitem")
+    .filter({ hasText: "New 0 (new0)" });
+  const firstRow = first.getByRole("button", { name: /^New 0/ });
+  await expect(firstRow).toHaveAccessibleName(
+    /Vendor — Version 6\.0\.0 — Signature: present, not verified/,
+  );
+  await expect(firstRow).toHaveAccessibleName(/6 versions available/);
+  await expect(firstRow).not.toHaveAccessibleName(/new0\.eap|Review needed/);
+  await expect(firstRow).toHaveAttribute("aria-expanded", "false");
+  await firstRow.click();
+  await expect(firstRow).toHaveAttribute("aria-expanded", "true");
+  await expect(first.locator("axis-button").first()).toHaveAttribute(
+    "variant",
+    "brand",
+  );
   await expect(
-    first.getByRole("button", { name: "View versions (6)" }),
-  ).toHaveAttribute("aria-expanded", "false");
-  await first.getByRole("button", { name: "View versions (6)" }).click();
+    first.getByRole("region", { name: "Versions of New 0 (new0)" }),
+  ).toContainText("Choose a version of New 0");
+  await expect(first.getByRole("button", { name: /^Version / })).toHaveCount(5);
   await expect(
-    first.getByRole("button", { name: "Hide versions (6)" }),
-  ).toHaveAttribute("aria-expanded", "true");
-  await expect(first.getByRole("button", { name: /^Select / })).toHaveCount(5);
+    first
+      .getByRole("list", { name: "Package versions" })
+      .locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "Version 6.0.0",
+    "Version 5.0.0",
+    "Version 4.0.0",
+    "Version 3.0.0",
+    "Version 2.0.0",
+  ]);
+  await expect(
+    first.getByText(
+      "Not checked: Package vendor identity has not been verified.",
+    ),
+  ).toHaveCount(0);
   await first.getByRole("button", { name: "Show 1 more version" }).click();
-  await expect(first.getByRole("button", { name: /^Select / })).toHaveCount(6);
-  await first.getByRole("button", { name: "Select 1.0.0" }).click();
-  await expect(
-    first.getByRole("button", { name: "Selected 1.0.0" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(first.getByRole("button", { name: /^Version / })).toHaveCount(6);
+  const versionRow = first.getByRole("button", { name: /^Version 1\.0\.0 / });
+  await versionRow.click();
+  const detail = page.getByRole("dialog", { name: "New 0 — 1.0.0" });
+  await expect(detail.getByText("new0.eap", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(detail).toBeHidden();
+  await expect(versionRow).toBeFocused();
+  await versionRow.click();
+  await detail.getByRole("button", { name: "Select package" }).click();
+  await expect(detail).toBeHidden();
+  await expect(versionRow).toHaveAttribute("aria-pressed", "true");
   const drop = install.getByRole("region", {
     name: "Application package drop area",
   });
@@ -1937,23 +2055,38 @@ test("installs a reviewed new application from the server catalog", async ({
     buffer: Buffer.from("package"),
   });
   await expect(drop.getByRole("status")).toHaveText("Selected: local.eap");
-  await expect(
-    first.getByRole("button", { name: "Select 1.0.0" }),
-  ).toHaveAttribute("aria-pressed", "false");
+  await expect(versionRow).toHaveAttribute("aria-pressed", "false");
   await install
     .getByRole("button", { name: "Show 1 more application" })
     .click();
-  const last = install.getByRole("group", { name: "New 5 (new5)" });
-  await last.getByRole("button", { name: "View versions (1)" }).click();
+  const last = suggestions
+    .getByRole("listitem")
+    .filter({ hasText: "New 5 (new5)" });
+  const lastRow = last.getByRole("button", { name: /^New 5/ });
+  await expect(lastRow).toHaveAccessibleName(
+    /1 version available — Review needed/,
+  );
+  await lastRow.click();
+  await expect(firstRow).toHaveAttribute("aria-expanded", "false");
+  await expect(first.locator("axis-button").first()).toHaveAttribute(
+    "variant",
+    "neutral",
+  );
+  await expect(last.locator("axis-button").first()).toHaveAttribute(
+    "variant",
+    "brand",
+  );
+  await last.getByRole("button", { name: /^Version 1\.0\.0 / }).click();
+  const lastDetail = page.getByRole("dialog", { name: "New 5 — 1.0.0" });
   await expect(
-    first.getByRole("button", { name: "View versions (6)" }),
-  ).toHaveAttribute("aria-expanded", "false");
-  await last.getByRole("button", { name: "Select 1.0.0" }).click();
+    lastDetail.getByText("Unknown: AXIS OS compatibility is unknown."),
+  ).toBeVisible();
+  await lastDetail.getByRole("button", { name: "Select package" }).click();
   await expect(drop.getByRole("status")).toContainText("New 5");
   await expect(drop.getByRole("status")).toContainText("new5.eap");
   await expect(
     install.getByText("Unknown: AXIS OS compatibility is unknown."),
-  ).toHaveCount(2);
+  ).toHaveCount(1);
   await expect(
     drop.getByText(
       "Not checked: Package vendor identity has not been verified.",

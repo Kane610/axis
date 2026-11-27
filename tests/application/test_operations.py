@@ -1076,7 +1076,7 @@ async def test_catalog_update_checks_identity_state_and_compatibility(
 async def test_catalog_ranks_warnings_and_requires_review_for_overrides(
     record: DeviceRecord, device: MagicMock
 ) -> None:
-    """Hide architecture mismatches, order risk, and recheck reviewed warnings."""
+    """Order versions regardless of warnings and recheck reviewed overrides."""
     package = Package(
         "normal.eap",
         "a" * 64,
@@ -1120,27 +1120,27 @@ async def test_catalog_ranks_warnings_and_requires_review_for_overrides(
     )
     candidates = updates[0]["candidates"]
     assert [item["package"]["filename"] for item in candidates] == [
-        "normal.eap",
         "unknown-os.eap",
         "vendor.eap",
-        "unknown-version.eap",
+        "normal.eap",
         "downgrade.eap",
+        "unknown-version.eap",
     ]
-    assert candidates[0]["warnings"] == ()
-    assert {finding["kind"] for finding in candidates[0]["findings"]} == {"not_checked"}
+    assert candidates[2]["warnings"] == ()
+    assert {finding["kind"] for finding in candidates[2]["findings"]} == {"not_checked"}
     assert any(
-        finding["kind"] == "incompatible" for finding in candidates[1]["findings"]
+        finding["kind"] == "incompatible" for finding in candidates[0]["findings"]
     )
-    warning = tuple(candidates[2]["warnings"])
+    warning = tuple(candidates[1]["warnings"])
     assert warning == ("Vendor differs from the installed application.",)
-    assert candidates[-1]["downgrade"] is True
+    assert candidates[-2]["downgrade"] is True
     less_certain = replace(
         uncertain, filename="two-unknowns.eap", version="10.0.0", vendor=""
     )
     ranked = await operations.application_updates(record, [less_certain, uncertain])
     assert [item["package"]["filename"] for item in ranked[0]["candidates"]] == [
-        "unknown-os.eap",
         "two-unknowns.eap",
+        "unknown-os.eap",
     ]
     with BytesIO(b"package") as stream:
         with pytest.raises(OperationError, match="warnings changed"):
@@ -1178,9 +1178,9 @@ async def test_catalog_ranks_warnings_and_requires_review_for_overrides(
             )
         app.vendor = "Vendor"
         for selected, candidate in (
-            (uncertain, candidates[1]),
-            (unknown_version, candidates[3]),
-            (downgrade, candidates[4]),
+            (uncertain, candidates[0]),
+            (unknown_version, candidates[4]),
+            (downgrade, candidates[3]),
         ):
             await operations.update_application(
                 record,
@@ -1300,18 +1300,30 @@ async def test_catalog_install_only_offers_and_installs_new_applications(
         ],
     )
     assert [item["package"]["filename"] for item in candidates] == [
-        "new.eap",
         "unknown.eap",
+        "new.eap",
     ]
-    assert candidates[0]["warnings"] == ()
+    assert candidates[1]["warnings"] == ()
     assert any(
         finding["kind"] == "not_checked" and "vendor" in finding["message"]
-        for finding in candidates[0]["findings"]
+        for finding in candidates[1]["findings"]
     )
     assert any(
         "requires valid AXIS OS version ranges" in warning
-        for warning in candidates[1]["warnings"]
+        for warning in candidates[0]["warnings"]
     )
+    versions = ["1.9.0", "1.10.0", "10.0.0-rc.2", "10.0.0", "10.0.0-rc.10", "beta"]
+    ordered = await operations.application_install_candidates(
+        record, [replace(package, version=version) for version in versions]
+    )
+    assert [item["package"]["version"] for item in ordered] == [
+        "10.0.0",
+        "10.0.0-rc.10",
+        "10.0.0-rc.2",
+        "1.10.0",
+        "1.9.0",
+        "beta",
+    ]
     assert await operations.application_install_candidates(record, []) == []
     with BytesIO(b"package") as stream:
         with pytest.raises(OperationError, match="confirmation"):
@@ -1342,7 +1354,7 @@ async def test_catalog_install_only_offers_and_installs_new_applications(
             stream,
             uncertain,
             confirmed=True,
-            reviewed_warnings=tuple(candidates[1]["warnings"]),
+            reviewed_warnings=tuple(candidates[0]["warnings"]),
         )
         upload.assert_awaited_once_with(stream)
 

@@ -140,8 +140,10 @@ If a license change has an unknown outcome, check the app before retrying.
 
 To install an application, open **Install application**, choose or drag and drop
 an `.eap` package (up to 1024 MB / 1 GiB), or select an applicable package
-from the configured server catalog, and confirm. Expand an application's
-versions to choose a catalog package; the selection appears in the file
+from the configured server catalog, and confirm. Suggested applications use
+compact list rows showing vendor, version, signature information, and any need
+for review. Select an application row to see its versions, then select a
+version row to open package details and choose it; the selection appears in the file
 selection area. Catalog installation lists only apps not already installed, and
 rechecks that before upload. The device's reported
 hardware architecture and supported SDKs are shown to help select a compatible package; other
@@ -181,15 +183,24 @@ subdirectories. The settings view shows available package metadata and scan
 errors. Inspection is limited to 1 GiB per file and 256 MiB of expanded archive
 data; packages exceeding these limits are reported rather than installed.
 
+The Applications view keeps its last application list visible when revisited
+and refreshes it silently in the background while remaining interactive.
+Writes recheck the reviewed device state before proceeding;
+failed refreshes leave the cached list marked as out of date.
 The Applications view checks the catalog for versions of installed apps.
 The overview marks updates only when the assessment reports no warnings, and
 labels them as candidates when verification is incomplete. This does not verify
 signatures or guarantee compatibility. Open an app and use
 **View versions** to review all its candidates in a dialog.
+Version lists use the same compact rows for installation and updates;
+choose a version to see its findings and available action.
 For field definitions and schema differences, see the
 [Axis manifest schema documentation](https://developer.axis.com/acap/reference/manifest-schemas/general-info/).
 Packages with a different application name or known architecture mismatch are
-hidden. Candidates are ordered by confidence, with downgrades last; the first
+hidden. Versions are ordered newest first using semantic version order, with
+unrecognized versions last; warnings do not change version order. The web
+interface also sorts received versions before caching and displaying them in
+installation and update lists. The first
 five are shown initially. Assessments distinguish declared incompatibilities,
 unknown information, items for review, and checks not performed. Schema v2
 declares compatible AXIS OS ranges and a vendor ID; older or unknown schemas
