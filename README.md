@@ -145,6 +145,11 @@ compact list rows showing vendor, version, signature information, and any need
 for review. Select an application row to see its versions, then select a
 version row to open package details and choose it. Installation and updates share
 the same package details, with technical metadata available on expansion.
+Application lists are alphabetical; each application's versions remain newest
+first. Version rows distinguish **Newest**, declared incompatibility,
+incomplete verification, and downgrades without recommending a package.
+Installation's **Device requirements** section contains architecture, SDK,
+unsigned-policy, and RAM guidance; selected-package warnings stay visible.
 A separate **Selected application** summary identifies the selected catalog
 package or uploaded file and offers **Change selection**. Uploaded files are
 not inspected locally for compatibility. Catalog installation lists only apps not already installed, and

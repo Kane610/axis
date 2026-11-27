@@ -45,7 +45,10 @@ import {
   type ServerSettings,
 } from "./data/devices";
 import { deviceName } from "./device-name";
-import { compareApplicationVersions } from "./application-versions";
+import {
+  compareApplicationVersions,
+  isApplicationVersion,
+} from "./application-versions";
 import { contentStyles } from "./resources/theme";
 import "./components/axis-button";
 import "./components/axis-card";
@@ -2122,42 +2125,51 @@ class AxisApp extends LitElement {
         ${this.applications?.length === 0 ? html`<p>No applications installed.</p>` : nothing}
         ${this.applicationUpdatesError ? html`<p role="alert">Update check failed: ${this.applicationUpdatesError}</p>` : nothing}
         <ul class="application-list" aria-label="Applications">
-          ${this.applications?.map((app) => {
-            const update = this.applicationUpdates.find(
-              (item) =>
-                item.name === app.name &&
-                item.version === app.version &&
-                item.status === app.status,
-            );
-            const upgrade = update?.candidates.find(
-              (candidate) =>
-                !candidate.downgrade && candidate.warnings.length === 0,
-            );
-            const incomplete = upgrade?.findings.some(
-              (finding) => finding.kind === "not_checked",
-            );
-            return html`
-              <li>
-                <axis-button
-                  ?disabled=${controlsDisabled}
-                  @click=${() => {
-                    this.applicationMessage = "";
-                    this.selectedApplication = app;
-                  }}
-                >
-                  <span class="application-info">
-                    <span>${app.nice_name || app.name}</span>
-                    <span class="application-meta">
-                      ${app.status || "Unknown"} — Version
-                      ${app.version || "Unknown"} — Signature:
-                      ${app.signature_status || "Unknown"}
+          ${this.applications
+            ?.slice()
+            .sort((a, b) =>
+              (a.nice_name || a.name).localeCompare(
+                b.nice_name || b.name,
+                undefined,
+                { numeric: true },
+              ),
+            )
+            .map((app) => {
+              const update = this.applicationUpdates.find(
+                (item) =>
+                  item.name === app.name &&
+                  item.version === app.version &&
+                  item.status === app.status,
+              );
+              const upgrade = update?.candidates.find(
+                (candidate) =>
+                  !candidate.downgrade && candidate.warnings.length === 0,
+              );
+              const incomplete = upgrade?.findings.some(
+                (finding) => finding.kind === "not_checked",
+              );
+              return html`
+                <li>
+                  <axis-button
+                    ?disabled=${controlsDisabled}
+                    @click=${() => {
+                      this.applicationMessage = "";
+                      this.selectedApplication = app;
+                    }}
+                  >
+                    <span class="application-info">
+                      <span>${app.nice_name || app.name}</span>
+                      <span class="application-meta">
+                        ${app.status || "Unknown"} — Version
+                        ${app.version || "Unknown"} — Signature:
+                        ${app.signature_status || "Unknown"}
+                      </span>
+                      ${upgrade ? html`<span class="application-meta ${incomplete ? "update-warning" : "application-update"}">${incomplete ? "Update candidate" : "Update available"}: ${upgrade.package.version}${incomplete ? " — verification incomplete" : ""}</span>` : nothing}
                     </span>
-                    ${upgrade ? html`<span class="application-meta ${incomplete ? "update-warning" : "application-update"}">${incomplete ? "Update candidate" : "Update available"}: ${upgrade.package.version}${incomplete ? " — verification incomplete" : ""}</span>` : nothing}
-                  </span>
-                </axis-button>
-              </li>
-            `;
-          })}
+                  </axis-button>
+                </li>
+              `;
+            })}
         </ul>
       </axis-card>
     `;
@@ -2433,7 +2445,8 @@ class AxisApp extends LitElement {
                     Signature:
                     ${candidate.package.signature === "present_unverified" ? "present, not verified" : candidate.package.signature === "not_detected" ? "not detected" : "unknown"}</span
                   >
-                  ${candidate === selected || candidate.warnings.length || candidate.downgrade ? html`<span class="application-meta">${candidate === selected ? "Selected" : candidate.downgrade ? "Downgrade — Review needed" : "Review needed"}</span>` : nothing}
+                  ${candidate === selected ? html`<span class="application-meta">Selected</span>` : nothing}
+                  ${this.renderCandidateBadges(candidate, candidate === candidates[0])}
                 </span>
               </axis-button>
             </li>`,
@@ -2447,6 +2460,22 @@ class AxisApp extends LitElement {
     event?.preventDefault();
     event?.stopPropagation();
     this.installDetail = null;
+  }
+
+  private renderCandidateBadges(candidate: AcapCandidate, newest = false) {
+    const incompatible = candidate.findings.some(
+      (finding) => finding.kind === "incompatible",
+    );
+    const unknown = candidate.findings.some(
+      (finding) => finding.kind === "unknown",
+    );
+    return html`
+      ${newest && isApplicationVersion(candidate.package.version) ? html`<span class="application-meta">Newest</span>` : nothing}
+      ${candidate.downgrade ? html`<span class="application-meta update-warning">Downgrade</span>` : nothing}
+      ${incompatible ? html`<span class="application-meta update-warning">Declared incompatibility</span>` : nothing}
+      ${unknown ? html`<span class="application-meta update-warning">Verification incomplete</span>` : nothing}
+      ${candidate.warnings.length && !incompatible && !unknown && !candidate.downgrade ? html`<span class="application-meta update-warning">Review needed</span>` : nothing}
+    `;
   }
 
   private renderPackageDetails(candidate: AcapCandidate) {
@@ -2702,7 +2731,13 @@ class AxisApp extends LitElement {
       if (group) group.push(candidate);
       else groups.set(name, [candidate]);
     }
-    const apps = [...groups.entries()];
+    const apps = [...groups.entries()].sort(([, a], [, b]) =>
+      (a[0].package.friendly_name || a[0].package.name).localeCompare(
+        b[0].package.friendly_name || b[0].package.name,
+        undefined,
+        { numeric: true },
+      ),
+    );
     return html`
       <dialog
         class="installation-dialog"
@@ -2726,26 +2761,23 @@ class AxisApp extends LitElement {
           </header>
         </div>
         <div class="dialog-content">
-          <p>Hardware architecture: ${this.applicationArchitecture}</p>
-          <p>Supported SDKs: ${this.applicationSdks}</p>
           <p>
-            Unsigned applications:
-            ${this.applicationPolicy === null ? this.applicationPolicyError : this.applicationPolicy ? "Allowed" : "Not allowed"}
+            Choose a server package or upload an .eap file up to 1024 MB (1
+            GiB). Administrator credentials are required.
           </p>
-          <p>
-            Choose a compatible .eap package up to 1024 MB (1 GiB).
-            Administrator credentials are required.
-          </p>
-          <p>
-            A matching application may be upgraded or downgraded. If an upgrade
-            fails or is interrupted, both versions may be removed. A running
-            application restarts after an upgrade; a new installation is not
-            started automatically.
-          </p>
-          <p>
-            Signed packages may temporarily require approximately twice their
-            size in available device RAM during installation.
-          </p>
+          <details>
+            <summary>Device requirements</summary>
+            <p>Hardware architecture: ${this.applicationArchitecture}</p>
+            <p>Supported SDKs: ${this.applicationSdks}</p>
+            <p>
+              Unsigned applications:
+              ${this.applicationPolicy === null ? this.applicationPolicyError : this.applicationPolicy ? "Allowed" : "Not allowed"}
+            </p>
+            <p>
+              Signed packages may temporarily require approximately twice their
+              size in available device RAM during installation.
+            </p>
+          </details>
           <h3>Available server packages</h3>
           ${this.installCandidatesLoading ? html`<p role="status">Checking server packages…</p>` : nothing}
           ${this.installCandidatesError ? html`<p class="error" role="alert">${this.installCandidatesError}</p>` : nothing}
@@ -2781,8 +2813,8 @@ class AxisApp extends LitElement {
                           ${candidates.length}
                           ${candidates.length === 1 ? "version" : "versions"}
                           available
-                          ${candidate.warnings.length ? html` — <span class="update-warning">Review needed</span>` : nothing}
                         </span>
+                        ${this.renderCandidateBadges(candidate)}
                       </span>
                     </axis-button>
                     ${
@@ -2893,6 +2925,14 @@ class AxisApp extends LitElement {
             tabindex="-1"
           >
             <h3>Selected application</h3>
+            ${
+              this.installCandidate || this.installationFile
+                ? html`
+                    <p>New applications are not started automatically.</p>
+                    ${this.installationFile ? html`<p>A matching application may be upgraded or downgraded. If an upgrade fails or is interrupted, both versions may be removed. A running application restarts after an upgrade.</p>` : nothing}
+                  `
+                : nothing
+            }
             <p role="status">
               ${
                 this.installCandidate

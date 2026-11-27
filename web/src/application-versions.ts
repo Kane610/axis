@@ -12,6 +12,10 @@ function versionParts(value: string) {
   };
 }
 
+export function isApplicationVersion(value: string): boolean {
+  return versionParts(value) !== null;
+}
+
 export function compareApplicationVersions(
   left: string,
   right: string,

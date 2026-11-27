@@ -1290,6 +1290,9 @@ test("application overview only flags warning-free upgrades and opens details", 
     })),
   );
   const rows = overview.getByRole("list", { name: "Applications" });
+  await expect(rows.locator(".application-info > span:first-child")).toHaveText(
+    ["downgrade", "trusted", "warning"],
+  );
   const trusted = rows.getByRole("button", { name: /^trusted/ });
   await expect(trusted).toHaveAccessibleName(/Update available: 2\.0\.0/);
   await expect(trusted).toHaveAccessibleName(/Signature: Signed/);
@@ -1869,6 +1872,12 @@ test("sorts shuffled update versions and confirms warnings and downgrades", asyn
   ).toHaveCount(0);
   await versions.getByRole("button", { name: "Show 2 more versions" }).click();
   await expect(
+    versions.getByRole("button", { name: /^Version 4\.0\.0 / }),
+  ).toHaveAccessibleName(/Declared incompatibility Verification incomplete/);
+  await expect(
+    versions.getByRole("button", { name: /^Version 1\.0\.0 / }),
+  ).toHaveAccessibleName(/Downgrade/);
+  await expect(
     versions
       .getByRole("list", { name: "Package versions" })
       .locator(".application-info > span:first-child"),
@@ -1977,7 +1986,7 @@ test("installs a reviewed new application from the server catalog", async ({
       error: "",
     },
     [],
-    candidates,
+    candidates.toReversed(),
   );
   let write = null;
   await page.route(
@@ -2004,6 +2013,19 @@ test("installs a reviewed new application from the server catalog", async ({
     name: "Suggested applications",
   });
   await expect(suggestions.getByRole("listitem")).toHaveCount(5);
+  await expect(
+    suggestions.locator(".application-info > span:first-child"),
+  ).toHaveText([
+    "New 0 (new0)",
+    "New 1 (new1)",
+    "New 2 (new2)",
+    "New 3 (new3)",
+    "New 4 (new4)",
+  ]);
+  await expect(install.getByText("Supported SDKs: acap4-native")).toBeHidden();
+  await install.getByText("Device requirements", { exact: true }).click();
+  await expect(install.getByText("Supported SDKs: acap4-native")).toBeVisible();
+  await install.getByText("Device requirements", { exact: true }).click();
   await expect(install.getByRole("button", { name: /^Select / })).toHaveCount(
     0,
   );
@@ -2027,6 +2049,9 @@ test("installs a reviewed new application from the server catalog", async ({
     first.getByRole("region", { name: "Versions of New 0 (new0)" }),
   ).toContainText("Choose a version of New 0");
   await expect(first.getByRole("button", { name: /^Version / })).toHaveCount(5);
+  await expect(
+    first.getByRole("button", { name: /^Version 6\.0\.0 / }),
+  ).toHaveAccessibleName(/Newest/);
   await expect(
     first
       .getByRole("list", { name: "Package versions" })
@@ -2096,7 +2121,7 @@ test("installs a reviewed new application from the server catalog", async ({
     .filter({ hasText: "New 5 (new5)" });
   const lastRow = last.getByRole("button", { name: /^New 5/ });
   await expect(lastRow).toHaveAccessibleName(
-    /1 version available — Review needed/,
+    /1 version available Verification incomplete/,
   );
   await lastRow.click();
   await expect(firstRow).toHaveAttribute("aria-expanded", "false");
@@ -2437,6 +2462,7 @@ test("application policy applies immediately while restart and license changes r
   await expect(policy).toBeChecked();
   await dialog.getByRole("button", { name: "Install application" }).click();
   const install = page.getByRole("dialog", { name: "Install application" });
+  await install.getByText("Device requirements", { exact: true }).click();
   await expect(install.getByText("Supported SDKs: acap4-native")).toBeVisible();
   await expect(
     install.getByText("Unsigned applications: Allowed"),
@@ -2955,6 +2981,7 @@ test("architecture lookup failure is visible without blocking application instal
   await respond(page, requests[2], []);
   await dialog.getByRole("button", { name: "Install application" }).click();
   const install = page.getByRole("dialog", { name: "Install application" });
+  await install.getByText("Device requirements", { exact: true }).click();
   await expect(
     install.getByText(
       "Hardware architecture: Unavailable: Architecture unavailable.",
