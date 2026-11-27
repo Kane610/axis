@@ -1405,10 +1405,7 @@ test("application details require fresh support and state after reconnect", asyn
   await respond(page, requests[1], [app]);
   await overview.getByRole("button", { name: /^Example/ }).click();
   const details = page.getByRole("dialog", { name: "Example" });
-  await details.getByRole("button", { name: "Start" }).click();
-  await expect(
-    details.getByRole("button", { name: "Confirm start" }),
-  ).toBeVisible();
+  await expect(details.getByRole("button", { name: "Start" })).toBeEnabled();
   sockets[0].close({ code: 1001 });
   await expect.poll(() => sockets.length).toBe(2);
   await expect.poll(() => supportRequests.length).toBe(2);
@@ -2201,6 +2198,34 @@ test("installs a reviewed new application from the server catalog", async ({
     dialog.getByRole("button", { name: "Start New 5" }),
   ).toBeEnabled();
   expect(requests).toHaveLength(4);
+  await dialog.getByRole("button", { name: "Start New 5" }).click();
+  await expect.poll(() => requests.length).toBe(5);
+  expect(requests[4]).toMatchObject({
+    type: "device/application-action",
+    action: "start",
+    package: "new5",
+    confirmed: true,
+  });
+  await respond(page, requests[4], null);
+  await expect.poll(() => requests.length).toBe(6);
+  await respond(page, requests[5], [
+    {
+      name: "new5",
+      nice_name: "New 5",
+      version: "1.0.0",
+      status: "Running",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    page
+      .getByRole("dialog", { name: "New 5" })
+      .getByRole("button", { name: "Stop", exact: true }),
+  ).toBeEnabled();
+  expect(
+    requests.filter((item) => item.type === "device/application-action"),
+  ).toHaveLength(1);
 });
 
 for (const state of ["missing", "different version", "read failure"]) {
@@ -2389,11 +2414,11 @@ test("applications present details, configuration links, and confirmed controls"
     dialog.getByRole("link", { name: "Open configuration" }),
   ).toHaveCount(0);
   await app.getByRole("button", { name: "Start" }).click();
-  await expect(app.getByText("Start Object Analytics?")).toBeVisible();
-  await app.getByRole("button", { name: "Cancel" }).click();
-  expect(requests).toHaveLength(3);
-  await app.getByRole("button", { name: "Start" }).click();
-  await app.getByRole("button", { name: "Confirm start" }).click();
+  await expect(app.getByRole("button", { name: "Confirm start" })).toHaveCount(
+    0,
+  );
+  await expect(app.getByRole("button", { name: "Start" })).toBeDisabled();
+  await app.getByRole("button", { name: "Start" }).dispatchEvent("click");
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3]).toMatchObject({
     type: "device/application-action",
@@ -2522,7 +2547,7 @@ test("license management offers removal only for an installed license", async ({
   expect(requests).toHaveLength(3);
 });
 
-test("application policy applies immediately while restart and license changes require confirmation", async ({
+test("application policy, restart, and license changes require confirmation", async ({
   page,
 }) => {
   const { requests } = await openApp(page, [
@@ -2579,7 +2604,13 @@ test("application policy applies immediately while restart and license changes r
   await policy.click();
   await expect(policy).not.toBeChecked();
   await expect(policy).toBeDisabled();
-  await expect(dialog.getByText(/weakens application security/)).toHaveCount(0);
+  await expect(dialog.getByText(/weakens application security/)).toBeVisible();
+  expect(requests).toHaveLength(5);
+  await dialog.getByRole("button", { name: "Cancel policy change" }).click();
+  await expect(policy).toBeEnabled();
+  expect(requests).toHaveLength(5);
+  await policy.click();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(6);
   await expect(
     dialog.getByRole("button", { name: "Confirm policy change" }),
@@ -2845,6 +2876,7 @@ test("unavailable unsigned policy disables the switch until refreshed", async ({
   await policy.click();
   await expect(policy).toBeChecked();
   await expect(policy).toBeDisabled();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(6);
   expect(requests[5]).toMatchObject({
     type: "device/application-policy-set",
@@ -2855,6 +2887,7 @@ test("unavailable unsigned policy disables the switch until refreshed", async ({
   await respond(page, requests[5], null);
   await expect(policy).not.toBeChecked();
   await policy.click();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(7);
   await respond(page, requests[6], undefined, {
     message:
@@ -2955,6 +2988,7 @@ test("ignores an older unsigned-policy read after a toggle change", async ({
   await dialog
     .getByRole("switch", { name: /Allow unsigned applications/ })
     .click();
+  await dialog.getByRole("button", { name: "Confirm policy change" }).click();
   await expect.poll(() => requests.length).toBe(6);
   await respond(page, requests[5], null);
   await respond(page, requests[2], false);
@@ -3309,6 +3343,57 @@ test("installation errors remain visible in the modal and do not retry", async (
   expect(uploads).toBe(1);
 });
 
+for (const status of ["Stopped", "Running"]) {
+  test(`direct Stop reports observed ${status} state without retrying`, async ({
+    page,
+  }) => {
+    const app = {
+      name: "example",
+      nice_name: "Example",
+      status: "Running",
+      version: "1.0.0",
+      vendor: "Vendor",
+      license_status: "None",
+    };
+    const { requests } = await openApp(page);
+    await select(page, "A", requests, 1);
+    await respond(page, requests[0], health("Camera"));
+    const overview = page.getByRole("dialog", { name: "Camera A" });
+    await overview
+      .getByRole("button", { name: "Applications", exact: true })
+      .click();
+    await expect.poll(() => requests.length).toBe(2);
+    await respond(page, requests[1], [app]);
+    await overview.getByRole("button", { name: /^Example/ }).click();
+    const details = page.getByRole("dialog", { name: "Example" });
+    const stop = details.getByRole("button", { name: "Stop", exact: true });
+    await stop.click();
+    await expect.poll(() => requests.length).toBe(3);
+    await expect(stop).toBeDisabled();
+    await stop.dispatchEvent("click");
+    expect(requests).toHaveLength(3);
+    await respond(page, requests[2], null);
+    await expect.poll(() => requests.length).toBe(4);
+    await respond(page, requests[3], [{ ...app, status }]);
+    await expect(
+      details.getByRole(status === "Stopped" ? "status" : "alert"),
+    ).toContainText(
+      status === "Stopped"
+        ? "Device reports Example 1.0.0 — Stopped."
+        : "expected state was not observed",
+    );
+    await expect(
+      details.getByRole("button", {
+        name: status === "Stopped" ? "Start" : "Stop",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    expect(
+      requests.filter((item) => item.type === "device/application-action"),
+    ).toHaveLength(1);
+  });
+}
+
 test("application action interruption warns before retry", async ({ page }) => {
   const { requests, sockets } = await openApp(page);
   await select(page, "A", requests, 1);
@@ -3335,12 +3420,17 @@ test("application action interruption warns before retry", async ({ page }) => {
   await dialog.getByRole("button", { name: /^Example/ }).click();
   const details = page.getByRole("dialog", { name: "Example" });
   await details.getByRole("button", { name: "Stop" }).click();
-  await details.getByRole("button", { name: "Confirm stop" }).click();
+  await expect(
+    details.getByRole("button", { name: "Confirm stop" }),
+  ).toHaveCount(0);
+  await expect(details.getByRole("button", { name: "Stop" })).toBeDisabled();
   await expect.poll(() => requests.length).toBe(4);
   sockets[0].close({ code: 1001 });
-  await expect(dialog.getByRole("alert")).toHaveText(
+  await expect(details.getByRole("alert")).toHaveText(
     "Application action outcome is unknown. Check the application before trying again.",
   );
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("button", { name: "Stop" })).toBeDisabled();
   expect(
     requests.filter((item) => item.type === "device/application-action"),
   ).toHaveLength(1);

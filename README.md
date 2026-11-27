@@ -126,8 +126,8 @@ and confidently assessed updates. Select an app to see its vendor, license,
 bundled status, resources, compatible OS versions, and controls when reported.
 When available and the app is running, its
 configuration page opens on the device in a separate tab and may require a separate
-login. Starting, stopping, restarting,
-or uninstalling requires confirmation and administrator credentials. Uninstalling
+login. Starting and stopping run directly when selected; restarting or
+uninstalling requires confirmation. All actions require administrator credentials. Uninstalling
 also removes the app's data. If an action's outcome is unknown, refresh and check
 the app before trying again.
 
@@ -157,8 +157,9 @@ rechecks that before upload. The device's reported
 hardware architecture and supported SDKs are shown to help select a compatible package; other
 application requirements still apply.
 The **Allow unsigned applications (AllowUnsigned)** toggle reflects the actual
-device policy when supported. Changing the toggle applies the setting;
-allowing unsigned applications weakens security. If a
+device policy when supported. Changing the toggle opens a confirmation step;
+the policy changes only after confirmation.
+Allowing unsigned applications weakens security. If a
 policy change has an unknown outcome, refresh the policy before retrying.
 A matching package may upgrade or downgrade an existing app; a
 failed or interrupted upgrade can remove both versions. Newly installed apps

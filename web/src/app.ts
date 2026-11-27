@@ -190,6 +190,7 @@ class AxisApp extends LitElement {
     applicationArchitecture: { state: true },
     applicationSdks: { state: true },
     applicationPolicy: { state: true },
+    policyConfirmation: { state: true },
     applicationPolicyError: { state: true },
     licenseSelection: { state: true },
     licenseOpen: { state: true },
@@ -669,6 +670,7 @@ class AxisApp extends LitElement {
   private applicationArchitecture = "";
   private applicationSdks = "";
   private applicationPolicy: boolean | null = null;
+  private policyConfirmation: boolean | null = null;
   private applicationPolicyError = "";
   private licenseSelection: Application | null = null;
   private licenseOpen = false;
@@ -908,6 +910,7 @@ class AxisApp extends LitElement {
     this.loading = null;
     this.applicationLoading = false;
     this.applicationConfirmation = null;
+    this.policyConfirmation = null;
     ++this.architectureRequest;
     ++this.applicationInfoRequest;
     ++this.applicationPolicyRequest;
@@ -1304,6 +1307,7 @@ class AxisApp extends LitElement {
     this.error = "";
     this.applicationMessage = "";
     this.applicationConfirmation = null;
+    this.policyConfirmation = null;
     this.installationOpen = false;
     this.installationFile = null;
     this.installationError = "";
@@ -1493,6 +1497,7 @@ class AxisApp extends LitElement {
         this.applicationsOpen &&
         this.selected === serial
       ) {
+        if (policy !== this.applicationPolicy) this.policyConfirmation = null;
         this.applicationPolicy = policy;
         const cached = this.applicationViews.get(serial);
         if (cached) cached.policy = policy;
@@ -1505,6 +1510,7 @@ class AxisApp extends LitElement {
         this.selected === serial
       ) {
         this.applicationPolicy = null;
+        this.policyConfirmation = null;
         const cached = this.applicationViews.get(serial);
         if (cached) cached.policy = null;
         this.applicationPolicyError = `Unavailable: ${(error as Error).message}`;
@@ -1526,15 +1532,19 @@ class AxisApp extends LitElement {
   }
 
   private async applyPolicy(device: Device): Promise<void> {
-    const previous = this.applicationPolicy;
+    const previous = this.policyConfirmation;
     if (
       previous === null ||
+      this.applicationPolicy !== previous ||
+      this.applicationsStale ||
+      this.applicationSupported !== true ||
       this.applicationPending ||
       this.status !== "connected"
     )
       return;
     ++this.applicationPolicyRequest;
     this.applicationPending = true;
+    this.policyConfirmation = null;
     try {
       await setApplicationPolicy(
         this.connection,
@@ -1709,11 +1719,23 @@ class AxisApp extends LitElement {
     }
   }
 
-  private async applyApplicationAction(device: Device): Promise<void> {
-    const selection = this.applicationConfirmation;
-    if (!selection || this.applicationPending) return;
+  private async applyApplicationAction(
+    device: Device,
+    selection = this.applicationConfirmation,
+  ): Promise<void> {
+    if (
+      !selection ||
+      !this.applications?.includes(selection.app) ||
+      this.applicationsStale ||
+      this.applicationSupported !== true ||
+      this.status !== "connected" ||
+      this.selected !== device.serial ||
+      this.applicationPending
+    )
+      return;
     this.applicationPending = true;
-    this.applicationMessage = "";
+    this.applicationFailed = false;
+    this.applicationMessage = `${{ start: "Starting", stop: "Stopping", restart: "Restarting", remove: "Uninstalling" }[selection.action]} ${selection.app.nice_name || selection.app.name}…`;
     try {
       await controlApplication(
         this.connection,
@@ -1723,15 +1745,32 @@ class AxisApp extends LitElement {
       );
       this.applicationConfirmation = null;
       this.applicationFailed = false;
-      this.applicationMessage = "Application action accepted.";
+      this.applicationMessage =
+        "Application action accepted; outcome not yet verified. Checking device applications…";
       this.invalidateDeviceViews(device.serial);
-      await this.loadApplications(device.serial);
+      const applications = await this.loadApplications(device.serial);
+      if (applications) {
+        const app = applications.find(
+          (item) => item.name === selection.app.name,
+        );
+        const expected = selection.action === "stop" ? "Stopped" : "Running";
+        const verified =
+          selection.action === "remove"
+            ? !app
+            : app?.status === expected &&
+              app.version === selection.app.version &&
+              app.vendor === selection.app.vendor;
+        this.applicationFailed = !verified;
+        this.applicationMessage =
+          selection.action === "remove" && verified
+            ? `Uninstalled ${selection.app.nice_name || selection.app.name}.`
+            : `${verified ? "Device reports" : "Action accepted, but the expected state was not observed:"} ${app ? `${app.nice_name || app.name} ${app.version || "unknown version"} — ${app.status || "Unknown"}.` : "The application is not reported installed."}`;
+      }
     } catch (error) {
       this.applicationConfirmation = null;
-      this.selectedApplication = null;
       this.applicationFailed = true;
       this.applicationMessage = (error as Error).message;
-      this.applications = null;
+      this.applicationsStale = true;
       this.invalidateDeviceViews(device.serial);
     } finally {
       this.applicationPending = false;
@@ -2088,6 +2127,7 @@ class AxisApp extends LitElement {
       this.applicationsStale ||
       (this.applicationLoading && this.applications === null) ||
       this.applicationPending ||
+      this.policyConfirmation !== null ||
       this.applicationConfirmation !== null ||
       this.updateApp !== null ||
       this.updateConfirmation !== null ||
@@ -2139,11 +2179,32 @@ class AxisApp extends LitElement {
               @change=${(event: Event) => {
                 const input = event.currentTarget as HTMLInputElement;
                 input.checked = this.applicationPolicy === true;
-                void this.applyPolicy(device);
+                this.policyConfirmation = this.applicationPolicy;
               }}
             />
             Allow unsigned applications (AllowUnsigned)
           </label>
+          ${
+            this.policyConfirmation !== null
+              ? html`
+                  <p>
+                    ${this.policyConfirmation ? "Disallow unsigned applications on this device?" : "Allow unsigned applications on this device? This weakens application security."}
+                  </p>
+                  <div class="actions">
+                    <axis-button
+                      variant=${this.policyConfirmation ? "brand" : "danger"}
+                      ?disabled=${!connected || this.applicationsStale || this.applicationPending || this.applicationPolicy === null}
+                      @click=${() => this.applyPolicy(device)}
+                      >Confirm policy change</axis-button
+                    >
+                    <axis-button
+                      @click=${() => (this.policyConfirmation = null)}
+                      >Cancel policy change</axis-button
+                    >
+                  </div>
+                `
+              : nothing
+          }
           ${
             this.applicationPolicy === null
               ? html`<p role="status">Policy: ${this.applicationPolicyError}</p>
@@ -2163,13 +2224,14 @@ class AxisApp extends LitElement {
                 ${
                   !this.applicationFailed && stopped
                     ? html`<axis-button
+                        .busy=${this.applicationPending}
                         ?disabled=${controlsDisabled}
                         @click=${() => {
                           this.selectedApplication = stopped;
-                          this.applicationConfirmation = {
+                          void this.applyApplicationAction(device, {
                             app: stopped,
                             action: "start",
-                          };
+                          });
                         }}
                         >Start ${stopped.nice_name || stopped.name}</axis-button
                       >`
@@ -2402,16 +2464,17 @@ class AxisApp extends LitElement {
                           ${
                             app.status === "Running" || app.status === "Stopped"
                               ? html`<axis-button
+                                  .busy=${this.applicationPending}
                                   ?disabled=${controlsDisabled}
                                   @click=${() => {
                                     this.applicationMessage = "";
-                                    this.applicationConfirmation = {
+                                    void this.applyApplicationAction(device, {
                                       app,
                                       action:
                                         app.status === "Running"
                                           ? "stop"
                                           : "start",
-                                    };
+                                    });
                                   }}
                                   >${app.status === "Running" ? "Stop" : "Start"}</axis-button
                                 >`
