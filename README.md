@@ -162,7 +162,13 @@ allowing unsigned applications weakens security. If a
 policy change has an unknown outcome, refresh the policy before retrying.
 A matching package may upgrade or downgrade an existing app; a
 failed or interrupted upgrade can remove both versions. Newly installed apps
-are not started automatically. Installation requires administrator credentials
+are not started automatically. After a catalog installation or update, the web
+interface checks that the device reports the selected version and shows its
+running state. A stopped application has an explicit **Start** action.
+For uploaded files, it reports observed device changes without claiming the
+uninspected file's identity was verified. Failed readback or a missing/different
+version leaves an explicit unverified-outcome message; uploads are not retried.
+Installation requires administrator credentials
 and temporarily uses local disk space for the package. If the result is unknown,
 check the device's applications before retrying. Devices that require digest
 `auth-int` without `auth` cannot be used for streamed installation.

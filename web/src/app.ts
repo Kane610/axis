@@ -185,6 +185,7 @@ class AxisApp extends LitElement {
     installCandidate: { state: true },
     installDetail: { state: true },
     applicationMessage: { state: true },
+    applicationResult: { state: true },
     applicationFailed: { state: true },
     applicationArchitecture: { state: true },
     applicationSdks: { state: true },
@@ -663,6 +664,7 @@ class AxisApp extends LitElement {
   private installDetail: AcapCandidate | null = null;
   private installCandidatesRequest = 0;
   private applicationMessage = "";
+  private applicationResult: Application | null = null;
   private applicationFailed = false;
   private applicationArchitecture = "";
   private applicationSdks = "";
@@ -1320,12 +1322,15 @@ class AxisApp extends LitElement {
   }
 
   private invalidateDeviceViews(serial: string): void {
+    this.applicationResult = null;
     this.applicationViews.delete(serial);
     this.capabilities.delete(serial);
     this.viewData = {};
   }
 
-  private async loadApplications(serial: string): Promise<void> {
+  private async loadApplications(
+    serial: string,
+  ): Promise<Application[] | null> {
     const operation = ++this.operation;
     const afterWrite = this.applicationPending;
     this.applicationLoading = true;
@@ -1349,6 +1354,7 @@ class AxisApp extends LitElement {
               (app) => app.name === this.selectedApplication?.name,
             ) ?? null;
         void this.loadAcapUpdates(serial);
+        return applications;
       }
     } catch (error) {
       if (
@@ -1365,6 +1371,44 @@ class AxisApp extends LitElement {
       }
     } finally {
       if (this.operation === operation) this.applicationLoading = false;
+    }
+    return null;
+  }
+
+  private async verifyApplicationWrite(
+    device: Device,
+    action: "Installed" | "Updated",
+    candidate: AcapCandidate | null,
+    before: Application[] = [],
+  ): Promise<void> {
+    this.applicationFailed = false;
+    this.applicationMessage =
+      "Upload accepted; outcome not yet verified. Checking device applications…";
+    this.invalidateDeviceViews(device.serial);
+    const applications = await this.loadApplications(device.serial);
+    if (!applications) return;
+    const app = candidate
+      ? applications.find((item) => item.name === candidate.package.name)
+      : null;
+    if (candidate) {
+      if (!app || app.version !== candidate.package.version) {
+        this.applicationFailed = true;
+        this.applicationMessage = `Upload accepted, but the requested version could not be verified. ${app ? `The device reports ${app.nice_name || app.name} ${app.version || "unknown version"} — ${app.status || "Unknown"}.` : "The device does not report this application installed."} Refresh and review device state before trying again.`;
+        return;
+      }
+      this.applicationResult = app;
+      this.applicationMessage = `${action} ${app.nice_name || app.name} ${app.version} — ${app.status || "Unknown"}.`;
+    } else {
+      const changed = applications.filter(
+        (item) =>
+          !before.some(
+            (old) => old.name === item.name && old.version === item.version,
+          ),
+      );
+      this.applicationResult = changed.length === 1 ? changed[0] : null;
+      this.applicationMessage = changed.length
+        ? `Upload accepted. Device now reports: ${changed.map((item) => `${item.nice_name || item.name} ${item.version || "unknown version"} — ${item.status || "Unknown"}`).join("; ")}.`
+        : "Upload accepted. Application list refreshed; verify the uploaded package's version and status below.";
     }
   }
 
@@ -1714,10 +1758,7 @@ class AxisApp extends LitElement {
       );
       this.updateConfirmation = null;
       this.updateApp = null;
-      this.applicationFailed = false;
-      this.applicationMessage = "Application updated.";
-      this.invalidateDeviceViews(device.serial);
-      await this.loadApplications(device.serial);
+      await this.verifyApplicationWrite(device, "Updated", selection.candidate);
     } catch (error) {
       this.updateConfirmation = null;
       this.applicationsStale = true;
@@ -1800,10 +1841,11 @@ class AxisApp extends LitElement {
       );
       this.updateRecovery = null;
       this.updateApp = null;
-      this.applicationFailed = false;
-      this.applicationMessage = "Application installed.";
-      this.invalidateDeviceViews(device.serial);
-      await this.loadApplications(device.serial);
+      await this.verifyApplicationWrite(
+        device,
+        "Installed",
+        recovery.candidate,
+      );
     } catch (error) {
       this.updateRecovery = {
         ...recovery,
@@ -1956,6 +1998,7 @@ class AxisApp extends LitElement {
   private async applyInstallation(device: Device): Promise<void> {
     const file = this.installationFile;
     const candidate = this.installCandidate;
+    const before = this.applications ?? [];
     if (
       (!file && !candidate) ||
       this.applicationPending ||
@@ -1978,10 +2021,7 @@ class AxisApp extends LitElement {
       this.installationFile = null;
       this.installCandidate = null;
       ++this.installCandidatesRequest;
-      this.applicationFailed = false;
-      this.applicationMessage = "Application installed.";
-      this.invalidateDeviceViews(device.serial);
-      await this.loadApplications(device.serial);
+      await this.verifyApplicationWrite(device, "Installed", candidate, before);
     } catch (error) {
       this.installationFile = null;
       this.installCandidate = null;
@@ -2055,6 +2095,16 @@ class AxisApp extends LitElement {
       this.installationOpen ||
       this.licenseOpen ||
       this.applicationSupported !== true;
+    const result = this.applicationResult;
+    const stopped =
+      result &&
+      this.applications?.find(
+        (app) =>
+          app.name === result.name &&
+          app.version === result.version &&
+          app.vendor === result.vendor &&
+          app.status === "Stopped",
+      );
     return html`
       <axis-card>
         <div class="application-heading">
@@ -2108,13 +2158,29 @@ class AxisApp extends LitElement {
         ${
           this.applicationMessage
             ? html`<p role=${this.applicationFailed ? "alert" : "status"}>
-                ${this.applicationMessage}
-              </p>`
+                  ${this.applicationMessage}
+                </p>
+                ${
+                  !this.applicationFailed && stopped
+                    ? html`<axis-button
+                        ?disabled=${controlsDisabled}
+                        @click=${() => {
+                          this.selectedApplication = stopped;
+                          this.applicationConfirmation = {
+                            app: stopped,
+                            action: "start",
+                          };
+                        }}
+                        >Start ${stopped.nice_name || stopped.name}</axis-button
+                      >`
+                    : nothing
+                }`
             : nothing
         }
         ${
-          this.applicationsStale
-            ? html`<p role="status">Application list may be out of date.</p>
+          this.applicationsStale ||
+          (this.applicationFailed && this.applications !== null)
+            ? html`${this.applicationsStale ? html`<p role="status">Application list may be out of date.</p>` : nothing}
                 <axis-button
                   ?disabled=${!connected || this.applicationLoading || this.applicationPending || this.updateApp !== null}
                   @click=${() => this.loadApplications(device.serial)}

@@ -1428,6 +1428,7 @@ test("catalog updates require confirmation and send the reviewed package", async
 }) => {
   const packageFile = {
     filename: "example.eap",
+    name: "example",
     digest: "a".repeat(64),
     version: "2.0.0",
     signature: "present_unverified",
@@ -1556,7 +1557,26 @@ test("catalog updates require confirmation and send the reviewed package", async
       warnings: [],
     });
   await expect.poll(() => requests.length).toBe(4);
-  await respond(page, requests[3], []);
+  await expect(
+    page
+      .getByRole("dialog", { name: "Camera A" })
+      .getByText(/outcome not yet verified/),
+  ).toBeVisible();
+  await respond(page, requests[3], [
+    {
+      name: "example",
+      nice_name: "Example",
+      version: "2.0.0",
+      status: "Running",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    page
+      .getByRole("dialog", { name: "Camera A" })
+      .getByText("Updated Example 2.0.0 — Running."),
+  ).toBeVisible();
 });
 
 for (const state of [
@@ -2160,8 +2180,120 @@ test("installs a reviewed new application from the server catalog", async ({
       warnings: ["AXIS OS compatibility is unknown."],
     });
   await expect.poll(() => requests.length).toBe(4);
-  await respond(page, requests[3], []);
+  await expect(dialog.getByText(/outcome not yet verified/)).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Start New 5" })).toHaveCount(
+    0,
+  );
+  await respond(page, requests[3], [
+    {
+      name: "new5",
+      nice_name: "New 5",
+      version: "1.0.0",
+      status: "Stopped",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    dialog.getByText("Installed New 5 1.0.0 — Stopped."),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Start New 5" }),
+  ).toBeEnabled();
+  expect(requests).toHaveLength(4);
 });
+
+for (const state of ["missing", "different version", "read failure"]) {
+  test(`accepted catalog install does not claim success after ${state}`, async ({
+    page,
+  }) => {
+    const candidate = {
+      package: {
+        name: "new",
+        friendly_name: "New",
+        filename: "new.eap",
+        version: "2.0.0",
+        digest: "a".repeat(64),
+        signature: "present_unverified",
+      },
+      warnings: [],
+      findings: [],
+      downgrade: false,
+    };
+    const { requests } = await openApp(
+      page,
+      devices,
+      undefined,
+      false,
+      undefined,
+      false,
+      {
+        folder: "/catalog",
+        packages: [candidate.package],
+        errors: [],
+        error: "",
+      },
+      [],
+      [candidate],
+    );
+    let writes = 0;
+    await page.route("**/api/application-catalog-install", async (route) => {
+      writes++;
+      await route.fulfill({ json: { result: null } });
+    });
+    await select(page, "A", requests, 1);
+    await respond(page, requests[0], health("Camera"));
+    const overview = page.getByRole("dialog");
+    await overview
+      .getByRole("button", { name: "Applications", exact: true })
+      .click();
+    await expect.poll(() => requests.length).toBe(2);
+    await respond(page, requests[1], []);
+    await overview.getByRole("button", { name: "Install application" }).click();
+    const install = page.getByRole("dialog", { name: "Install application" });
+    await install.getByRole("button", { name: /^New \(new\)/ }).click();
+    await install.getByRole("button", { name: /^Version 2\.0\.0 / }).click();
+    await page
+      .getByRole("dialog", { name: "New — 2.0.0" })
+      .getByRole("button", { name: "Select package" })
+      .click();
+    await install.getByRole("button", { name: "Confirm installation" }).click();
+    await expect.poll(() => requests.length).toBe(3);
+    await expect(overview.getByText(/outcome not yet verified/)).toBeVisible();
+    if (state === "read failure")
+      await respond(page, requests[2], null, { message: "Read failed." });
+    else
+      await respond(
+        page,
+        requests[2],
+        state === "missing"
+          ? []
+          : [
+              {
+                name: "new",
+                nice_name: "New",
+                version: "1.0.0",
+                status: "Stopped",
+                vendor: "Vendor",
+                license_status: "None",
+              },
+            ],
+      );
+    await expect(overview.getByRole("alert")).toContainText(
+      state === "read failure"
+        ? "Refresh failed: Read failed."
+        : "requested version could not be verified",
+    );
+    await expect(overview.getByText(/^Installed New/)).toHaveCount(0);
+    await expect(
+      overview.getByRole("button", { name: "Start New" }),
+    ).toHaveCount(0);
+    await expect(
+      overview.getByRole("button", { name: "Refresh applications" }),
+    ).toBeEnabled();
+    expect(writes).toBe(1);
+  });
+}
 
 test("dialog controls respond to hover in both themes", async ({ page }) => {
   const { requests } = await openApp(page);
@@ -2895,11 +3027,10 @@ test("application installation is confirmed and blocks navigation while pending"
   await respond(page, requests[2], []);
   await dialog.getByRole("button", { name: "Install application" }).click();
   const install = page.getByRole("dialog", { name: "Install application" });
+  await install.getByText("Device requirements", { exact: true }).click();
   await expect(
     install.getByText("Hardware architecture: armv7hf"),
   ).toBeVisible();
-  await expect(install.getByText(/upgraded or downgraded/)).toBeVisible();
-  await expect(install.getByText(/both versions may be removed/)).toBeVisible();
   await expect(
     install.getByRole("button", { name: "Confirm installation" }),
   ).toBeDisabled();
@@ -2925,6 +3056,8 @@ test("application installation is confirmed and blocks navigation while pending"
   };
   await choose();
   await expect(install.getByText("Selected: example.eap")).toBeVisible();
+  await expect(install.getByText(/upgraded or downgraded/)).toBeVisible();
+  await expect(install.getByText(/both versions may be removed/)).toBeVisible();
   await install.getByRole("button", { name: "Cancel" }).click();
   await expect(install).toBeHidden();
   await expect(
@@ -2957,7 +3090,9 @@ test("application installation is confirmed and blocks navigation while pending"
   await expect.poll(() => requests.length).toBe(4);
   await respond(page, requests[3], []);
   await expect(install).toBeHidden();
-  await expect(dialog.getByText("Application installed.")).toBeVisible();
+  await expect(
+    dialog.getByText(/Upload accepted\. Application list refreshed/),
+  ).toBeVisible();
   await expect(
     dialog.getByRole("button", { name: "Install application" }),
   ).toBeFocused();
@@ -3073,8 +3208,25 @@ test("drag and drop validates packages before confirmed installation", async ({
   await expect.poll(() => uploads.length).toBe(1);
   expect(uploads[0].postData()).toBe("package");
   await expect.poll(() => requests.length).toBe(4);
-  await respond(page, requests[3], []);
-  await expect(dialog.getByText("Application installed.")).toBeVisible();
+  await respond(page, requests[3], [
+    {
+      name: "example",
+      nice_name: "Example",
+      version: "1.2.0",
+      status: "Stopped",
+      vendor: "Vendor",
+      license_status: "None",
+    },
+  ]);
+  await expect(
+    dialog.getByText(
+      "Upload accepted. Device now reports: Example 1.2.0 — Stopped.",
+    ),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Start Example" }),
+  ).toBeEnabled();
+  expect(requests).toHaveLength(4);
 });
 
 test("installation dialog fits a narrow screen", async ({ page }) => {
