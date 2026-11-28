@@ -39,7 +39,7 @@ cli = [
 requirements = [
     "aiohttp==3.14.5",
     "orjson==3.13.0",
-    "packaging==26.3",
+    "packaging==26.4",
     "xmltodict==1.0.4",
     "zeroconf>=0.150.0",
 ]
