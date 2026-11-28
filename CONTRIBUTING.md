@@ -9,7 +9,7 @@ Python 3.14 and [`uv`](https://docs.astral.sh/uv/) are required.
 The easiest path is the bootstrap script, which installs `uv` if not present and provisions Python 3.14 automatically:
 
 ```bash
-./setup.sh
+./script/setup.sh
 ```
 
 Or provision manually:
@@ -135,7 +135,7 @@ If a hook modifies files, stage the changes and re-run the commit:
 git add -u && git commit
 ```
 
-The hooks require an active `.venv` — run `./setup.sh` or `uv sync --all-extras` first if they report a missing environment.
+The hooks require an active `.venv` — run `./script/setup.sh` or `uv sync --all-extras` first if they report a missing environment.
 
 ## Architecture overview
 

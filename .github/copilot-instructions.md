@@ -3,7 +3,7 @@
 ## Build And Test
 
 - Use the project environment managed by `uv` (see `README.md`).
-- Preferred bootstrap: `./setup.sh`.
+- Preferred bootstrap: `./script/setup.sh`.
 - Python requirement is `>=3.14.0` (see `pyproject.toml`).
 - Standard full checks:
 	- `uv run ruff check .`

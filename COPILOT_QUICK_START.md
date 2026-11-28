@@ -167,7 +167,7 @@ uv run pytest tests/test_[area].py -v --cov=axis.[area] --cov-report=term-missin
 
 ```bash
 # Setup
-./setup.sh
+./script/setup.sh
 
 # Full validation
 uv run ruff check .

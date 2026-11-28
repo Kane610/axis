@@ -366,14 +366,73 @@ uv sync --python 3.14 --all-extras
 Or run the bootstrap script, which installs `uv` if needed and provisions Python 3.14 automatically:
 
 ```bash
-./setup.sh
+./script/setup.sh
 ```
 
-Dependencies are locked via `uv.lock`. The pre-commit hook installed by `./setup.sh`
+Dependencies are locked via `uv.lock`. The pre-commit hook installed by `./script/setup.sh`
 automatically refreshes it when `pyproject.toml` or `uv.lock` is included in a commit.
 If the hook modifies it, include the updated lockfile when retrying the commit.
 CI rejects stale or missing lockfiles, even when local hooks are bypassed, and
 runs checks with `--locked` to prevent implicit lockfile updates.
+
+To update Python and frontend dependencies, including major versions, run:
+
+```bash
+./script/bump_dependencies.sh
+```
+
+This updates runtime, CLI, build, test, and development requirements to stable
+releases compatible with the current Python minimum, refreshes both lockfiles,
+installs the updated dependencies, and rebuilds the frontend bundle. Exact Python
+pins stay exact; minimum bounds advance, and existing major-version caps advance
+to the next major. The Python requirement and pinned pnpm version are unchanged.
+Node.js and either the pinned pnpm version or npm are required. If pnpm is not
+on PATH, npm downloads and runs the pinned version without a global installation.
+The shell script runs its Python helper in an isolated uv environment.
+Frontend release-age, trust, and build
+policies remain enabled; an upgrade may be held back or rejected by those policies.
+Failures stop the script and may leave partial changes for review. Without
+`--pr`, it does not commit or push. Review the diff and run `sh scripts/check.sh`
+before committing.
+
+To validate and publish dependency updates as a pull request:
+
+```bash
+./script/bump_dependencies.sh --pr
+```
+
+This requires Git, an authenticated GitHub CLI (`gh`), and a clean checkout on
+the repository's default branch at the same commit as `origin`. It creates a
+feature branch, upgrades dependencies, and runs `sh scripts/check.sh`, including
+Python, frontend, and installed-package checks. Only dependency manifests,
+lockfiles, and the rebuilt frontend bundle are committed and pushed. The PR uses
+the repository template and includes passing validation results.
+No dependency changes means no commit, push, or PR. A failed upgrade, check, or
+commit leaves changes on the feature branch for review; the script does not
+stash, reset, retry, or bypass failures. If pushing or PR creation fails, the
+validated commit remains available for manual publication.
+No-op runs also leave the new local feature branch in place. Full validation
+requires the frontend test prerequisites, including Playwright Chromium and Zsh
+for terminal tests.
+
+To update dependencies, increment the library's integer release version, and open
+a pull request:
+
+```bash
+./script/bump_version.sh
+```
+
+For example, version `75` becomes `76`. This uses the same clean, up-to-date
+default-branch requirement and full validation as dependency PRs. It always runs
+the Python and frontend dependency updater described above, including major
+versions while respecting compatibility and frontend safety policies. It bumps
+the library version, refreshes both lockfiles, and rebuilds the frontend, then
+commits all these changes together on a `release/bump-<version>` branch and opens
+one PR using the repository template. The private frontend package version and
+pinned pnpm version remain unchanged.
+Failures leave local changes for review rather than publishing an unvalidated PR.
+The script does not merge the PR, create a GitHub release, or upload to PyPI;
+the existing release-publishing workflow still runs when a release is published.
 
 Run checks with `uv`:
 
@@ -420,7 +479,7 @@ To evaluate this checkout rather than a published release:
 uv tool install --python 3.14 --reinstall --from . 'axis[cli]'
 ```
 
-For editable development, run `./setup.sh`, then `uv run axis`. To use Zsh
+For editable development, run `./script/setup.sh`, then `uv run axis`. To use Zsh
 completion against the development entrypoint, activate `.venv` in the current
 terminal with `source .venv/bin/activate`. This does not modify shell startup.
 Library-only installations do not need Click or prompt_toolkit; attempting to
