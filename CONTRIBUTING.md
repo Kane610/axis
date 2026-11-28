@@ -40,7 +40,7 @@ To run the required Python, frontend, and packaging checks together after
 setting up both toolchains and installing Chromium, run:
 
 ```bash
-sh scripts/check.sh
+sh script/check.sh
 ```
 
 This rebuilds the packaged frontend bundle; include any intended bundle
@@ -79,7 +79,7 @@ Zsh must be installed for the real completion tests.
 Before publishing CLI packaging or entrypoint changes, also run:
 
 ```bash
-uv run python scripts/check_cli_install.py
+uv run python script/check_cli_install.py
 ```
 
 This builds the wheel and installs library-only and CLI-extra profiles into

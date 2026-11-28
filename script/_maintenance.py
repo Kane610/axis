@@ -143,7 +143,7 @@ def publish_pr(
             wrapper.chmod(0o755)
             env["PATH"] = f"{temporary}{os.pathsep}{env.get('PATH', '')}"
         subprocess.run(
-            ["/bin/sh", "scripts/check.sh"],
+            ["/bin/sh", "script/check.sh"],
             cwd=ROOT,
             env=env,
             check=True,
@@ -185,7 +185,7 @@ def publish_pr(
         )
         checks = [
             line
-            for line in (ROOT / "scripts/check.sh").read_text().splitlines()
+            for line in (ROOT / "script/check.sh").read_text().splitlines()
             if line.startswith(("uv ", "pnpm "))
         ]
         evidence = "\n".join(f"- `{command}` - passed." for command in checks)
@@ -205,7 +205,7 @@ def publish_pr(
         )
         body = body.replace(
             NOTES_PLACEHOLDER,
-            f"{notes}\n\n`sh scripts/check.sh` - passed.\n\n{evidence}",
+            f"{notes}\n\n`sh script/check.sh` - passed.\n\n{evidence}",
         )
         for item in (
             "`uv run ruff check .` passes",
@@ -424,7 +424,7 @@ def main(*, create_pr: bool = False, bump_version: bool = False) -> None:
         publish_pr(*pr, pnpm, version=version)
     else:
         sys.stdout.write(
-            "Dependencies updated and frontend rebuilt. Review the diff and run sh scripts/check.sh before committing.\n"
+            "Dependencies updated and frontend rebuilt. Review the diff and run sh script/check.sh before committing.\n"
         )
 
 
