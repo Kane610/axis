@@ -403,22 +403,35 @@ To validate and publish dependency updates as a pull request:
 ./script/bump_dependencies.sh --pr
 ```
 
-This requires Git, an authenticated GitHub CLI (`gh`), and a checkout on
-the repository's default branch at the same commit as `origin`. It accepts a
-clean worktree or pending changes limited to `pyproject.toml`, `uv.lock`,
-`web/package.json`, `web/pnpm-lock.yaml`, and `axis/web/static/app.js`, including
+This requires Git and an authenticated GitHub CLI (`gh`). From the repository's
+default branch at the same commit as `origin`, it creates a new dependency branch
+and PR. From a feature branch with one open PR targeting the default branch in
+the same repository, it reuses that branch and updates the existing PR. The
+local branch must include its latest `origin` commits; existing feature commits
+and any unpushed local commits are retained and pushed, not discarded.
+
+It accepts a clean worktree or pending changes limited to `pyproject.toml`,
+`uv.lock`, `web/package.json`, `web/pnpm-lock.yaml`, and `axis/web/static/app.js`, including
 staged changes. Review these edits before publishing; unrelated staged,
-unstaged, or untracked files stop the script. It creates a
-feature branch, upgrades dependencies, and runs `sh script/check.sh`, including
+unstaged, or untracked files stop the script. It upgrades dependencies
+and runs `sh script/check.sh`, including
 Python, frontend, and installed-package checks. Only dependency manifests,
-lockfiles, and the rebuilt frontend bundle are committed and pushed. The PR uses
-the repository template and includes passing validation results.
+lockfiles, and the rebuilt frontend bundle are included in the new commit. New
+PRs use the repository template and include passing validation results. Existing
+PRs retain their title and description and receive a comment with the validated
+commit and passing check results; no duplicate PR is created.
+Index-only edits outside the validated working files must be resolved before a
+new commit; no-op runs leave them untouched. Already committed local changes on
+an existing PR branch are validated and pushed even when no further dependency
+updates are available, without creating an empty commit.
 You can run this after an initial local `./script/bump_dependencies.sh` run.
 It reruns the updater to refresh the existing changes or complete an interrupted
 update before validating and publishing them.
-No dependency changes means no commit, push, or PR. A failed upgrade, check, or
-commit leaves changes on the feature branch for review; the script does not
-stash, reset, retry, or bypass failures. If pushing or PR creation fails, the
+No generated file changes and no unpushed commits means no commit, push, new PR,
+or validation comment.
+A failed upgrade, check, or commit leaves changes on the feature branch for
+review; the script does not stash, reset, retry, or bypass failures. If pushing
+or PR creation fails, the
 validated commit remains available for manual publication.
 No-op runs also leave the new local feature branch in place. Full validation
 requires the frontend test prerequisites, including Playwright Chromium and Zsh

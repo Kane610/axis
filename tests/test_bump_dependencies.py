@@ -252,6 +252,10 @@ def pr_runner(project: Path, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
             stdout = (
                 '{"nameWithOwner":"Kane610/axis","defaultBranchRef":{"name":"master"}}'
             )
+        elif args[:3] == ["gh", "pr", "list"]:
+            stdout = "[]"
+        elif args == ["git", "remote", "get-url", "origin"]:
+            stdout = "https://github.com/Kane610/axis.git"
         elif args == ["git", "branch", "--show-current"]:
             stdout = branch
         elif args[:3] == ["git", "switch", "-c"]:
@@ -268,6 +272,134 @@ def pr_runner(project: Path, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     runner.real_run = subprocess.run
     monkeypatch.setattr(bump.subprocess, "run", runner)
     return runner
+
+
+@pytest.fixture
+def existing_pr_runner(pr_runner: MagicMock) -> MagicMock:
+    """Model a published feature branch with one open PR in the origin repository."""
+    original_run = pr_runner.side_effect
+
+    def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        stdout = None
+        if args == ["git", "branch", "--show-current"]:
+            stdout = "feature/existing"
+        elif args[:3] == ["gh", "pr", "list"]:
+            stdout = '[{"number":42}]'
+        elif args[:3] == ["gh", "pr", "view"]:
+            stdout = json.dumps(
+                {
+                    "state": "OPEN",
+                    "baseRefName": "master",
+                    "headRefName": "feature/existing",
+                    "isCrossRepository": False,
+                }
+            )
+        elif args[:2] == ["git", "merge-base"]:
+            stdout = "same-commit"
+        if stdout is not None:
+            return subprocess.CompletedProcess(args, 0, stdout=stdout)
+        return original_run(args, **kwargs)
+
+    pr_runner.side_effect = run
+    return pr_runner
+
+
+@pytest.mark.parametrize(
+    ("problem", "message"),
+    [
+        ("detached", "detached HEAD"),
+        ("multiple PRs", "one open PR"),
+        ("closed", "PR is closed"),
+        ("base", "PR is closed or targets"),
+        ("head", "PR is closed or targets"),
+        ("fork", "PR is closed or targets"),
+        ("behind", "must include origin"),
+        ("version", "Run bump_version"),
+    ],
+)
+def test_existing_pr_preflight_rejects_unsafe_targets(
+    problem: str, message: str, existing_pr_runner: MagicMock
+) -> None:
+    """Reject ambiguous, changed, forked, or outdated PR targets before any updates."""
+    original_run = existing_pr_runner.side_effect
+
+    def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        stdout = None
+        if problem == "detached" and args == ["git", "branch", "--show-current"]:
+            stdout = ""
+        elif problem == "multiple PRs" and args[:3] == ["gh", "pr", "list"]:
+            stdout = '[{"number":42},{"number":43}]'
+        elif args[:3] == ["gh", "pr", "view"]:
+            pr = {
+                "state": "OPEN",
+                "baseRefName": "master",
+                "headRefName": "feature/existing",
+                "isCrossRepository": False,
+            }
+            if problem == "closed":
+                pr["state"] = "CLOSED"
+            elif problem == "base":
+                pr["baseRefName"] = "another-base"
+            elif problem == "head":
+                pr["headRefName"] = "another-branch"
+            elif problem == "fork":
+                pr["isCrossRepository"] = True
+            stdout = json.dumps(pr)
+        elif problem == "behind" and args[:2] == ["git", "merge-base"]:
+            stdout = "older-commit"
+        if stdout is not None:
+            return subprocess.CompletedProcess(args, 0, stdout=stdout)
+        return original_run(args, **kwargs)
+
+    existing_pr_runner.side_effect = run
+    with pytest.raises(SystemExit, match=message):
+        bump.prepare_pr(version="76" if problem == "version" else None)
+    assert not any(
+        call.args[0][:2] in (["git", "switch"], ["git", "commit"], ["git", "push"])
+        for call in existing_pr_runner.call_args_list
+    )
+
+
+@pytest.mark.parametrize("phase", ["checks", "commit"])
+def test_existing_pr_closing_stops_publication(
+    phase: str, project: Path, existing_pr_runner: MagicMock
+) -> None:
+    """Recheck PR state after checks and hooks rather than pushing into a closed PR."""
+    original_run = existing_pr_runner.side_effect
+    checked = committed = False
+
+    def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal checked, committed
+        if args == ["/bin/sh", "script/check.sh"]:
+            checked = True
+        elif args[:2] == ["git", "commit"]:
+            committed = True
+        elif args[:3] == ["gh", "pr", "view"] and (
+            checked if phase == "checks" else committed
+        ):
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                stdout=json.dumps(
+                    {
+                        "state": "CLOSED",
+                        "baseRefName": "master",
+                        "headRefName": "feature/existing",
+                        "isCrossRepository": False,
+                    }
+                ),
+            )
+        return original_run(args, **kwargs)
+
+    existing_pr_runner.side_effect = run
+    with pytest.raises(SystemExit, match="PR is closed"):
+        bump.main(create_pr=True)
+    assert committed == (phase == "commit")
+    assert not any(
+        call.args[0][:2] == ["git", "push"]
+        or call.args[0][:3] in (["gh", "pr", "comment"], ["gh", "pr", "create"])
+        for call in existing_pr_runner.call_args_list
+    )
 
 
 @pytest.mark.parametrize("launcher", ["pnpm", "npm"])
@@ -391,7 +523,7 @@ def test_pr_workflow(
         (
             ["git", "branch", "--show-current"],
             "feature/unrelated",
-            "Run --pr from master",
+            "one open PR",
         ),
         (["git", "rev-parse", "HEAD"], "older-commit", "Update your local master"),
     ],
@@ -487,7 +619,7 @@ def test_pr_publication_gates(
     problem: str, project: Path, pr_runner: MagicMock
 ) -> None:
     """Stop before publishing if there are no dependency changes or safety checks fail."""
-    repository, base, branch, template = bump.prepare_pr()
+    repository, base, branch, template, existing_pr = bump.prepare_pr()
     pr_runner.reset_mock()
     original_run = pr_runner.side_effect
     checked = False
@@ -537,7 +669,7 @@ def test_pr_publication_gates(
 
     pr_runner.side_effect = run
     if problem in {"no changes", "bundle only", "checks remove changes"}:
-        bump.publish_pr(repository, base, branch, template, ["pnpm"])
+        bump.publish_pr(repository, base, branch, template, existing_pr, ["pnpm"])
     else:
         error = (
             subprocess.CalledProcessError
@@ -545,7 +677,7 @@ def test_pr_publication_gates(
             else SystemExit
         )
         with pytest.raises(error):
-            bump.publish_pr(repository, base, branch, template, ["pnpm"])
+            bump.publish_pr(repository, base, branch, template, existing_pr, ["pnpm"])
     commands = [call.args[0] for call in pr_runner.call_args_list]
     assert not any(
         command[:2] == ["git", "push"] or command[:3] == ["gh", "pr", "create"]
@@ -586,7 +718,9 @@ def test_cli_pr_flag(
     assert (project / "pyproject.toml").read_text() == before
 
 
-@pytest.mark.parametrize("mode", ["dependencies", "previous dependency run", "version"])
+@pytest.mark.parametrize(
+    "mode", ["dependencies", "previous dependency run", "version", "existing PR"]
+)
 def test_pr_persists_only_maintenance_commit(
     mode: str,
     project: Path,
@@ -628,8 +762,34 @@ def test_pr_persists_only_maintenance_commit(
     git("remote", "add", "origin", str(remote))
     git("push", "--set-upstream", "origin", "main")
     base_commit = git("rev-parse", "HEAD")
+    feature_commit = ""
+    if mode == "existing PR":
+        git("switch", "-c", "feature/existing")
+        (project / "README.md").write_text("Existing feature\n")
+        git("add", "--", "README.md")
+        git(
+            "commit",
+            "-m",
+            "Add existing feature",
+            "-m",
+            "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
+        )
+        git("push", "--set-upstream", "origin", "feature/existing")
+        (project / "README.md").write_text(
+            "Existing feature with an unpushed local commit\n"
+        )
+        git("add", "--", "README.md")
+        git(
+            "commit",
+            "-m",
+            "Extend existing feature locally",
+            "-m",
+            "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
+        )
+        feature_commit = git("rev-parse", "HEAD")
     original_run = pr_runner.side_effect
     created: list[list[str]] = []
+    comments: list[str] = []
 
     def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         if args[0] == "git":
@@ -644,6 +804,25 @@ def test_pr_persists_only_maintenance_commit(
             )
         if args[:3] == ["gh", "pr", "create"]:
             created.append(args)
+        if mode == "existing PR":
+            if args[:3] == ["gh", "pr", "list"]:
+                return subprocess.CompletedProcess(args, 0, stdout='[{"number":42}]')
+            if args[:3] == ["gh", "pr", "view"]:
+                return subprocess.CompletedProcess(
+                    args,
+                    0,
+                    stdout=json.dumps(
+                        {
+                            "state": "OPEN",
+                            "baseRefName": "main",
+                            "headRefName": "feature/existing",
+                            "isCrossRepository": False,
+                        }
+                    ),
+                )
+            if args[:3] == ["gh", "pr", "comment"]:
+                assert args[3] == "42"
+                comments.append(Path(args[args.index("--body-file") + 1]).read_text())
         return original_run(args, **kwargs)
 
     pr_runner.side_effect = run
@@ -661,12 +840,20 @@ def test_pr_persists_only_maintenance_commit(
         assert [(package["name"], package["version"]) for package in locked] == [
             ("example", "76")
         ]
+    elif mode == "existing PR":
+        assert branch == "feature/existing"
+        assert git("merge-base", feature_commit, "HEAD") == feature_commit
+        assert git("diff", "--name-only", "HEAD^", "HEAD") == "pyproject.toml"
     else:
         assert branch.startswith("dependencies/bump-")
     assert git("status", "--porcelain") == ""
     assert git("rev-parse", "main") == base_commit
     assert git("diff", "--name-only", "main", "HEAD") == (
-        "pyproject.toml\nuv.lock" if mode == "version" else "pyproject.toml"
+        "pyproject.toml\nuv.lock"
+        if mode == "version"
+        else "README.md\npyproject.toml"
+        if mode == "existing PR"
+        else "pyproject.toml"
     )
     assert git("rev-parse", "HEAD") == git(
         "--git-dir", str(remote), "rev-parse", f"refs/heads/{branch}"
@@ -675,8 +862,38 @@ def test_pr_persists_only_maintenance_commit(
         "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
         in git("log", "-1", "--format=%B")
     )
-    assert len(created) == 1
-    assert created[0][created[0].index("--base") + 1] == "main"
+    if mode == "existing PR":
+        assert created == []
+        assert len(comments) == 1
+        assert git("rev-parse", "HEAD") in comments[0]
+        assert "`uv lock --check` - passed." in comments[0]
+        published = git("rev-parse", "HEAD")
+        bump.main(create_pr=True)
+        assert git("rev-parse", "HEAD") == published
+        assert created == []
+        assert len(comments) == 1
+        (project / "README.md").write_text("Additional local feature commit\n")
+        git("add", "--", "README.md")
+        git(
+            "commit",
+            "-m",
+            "Extend feature after dependency publication",
+            "-m",
+            "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
+        )
+        local_commit = git("rev-parse", "HEAD")
+        bump.main(create_pr=True)
+        assert git("rev-parse", "HEAD") == local_commit
+        assert (
+            git("--git-dir", str(remote), "rev-parse", f"refs/heads/{branch}")
+            == local_commit
+        )
+        assert created == []
+        assert len(comments) == 2
+        assert local_commit in comments[-1]
+    else:
+        assert len(created) == 1
+        assert created[0][created[0].index("--base") + 1] == "main"
 
 
 @pytest.mark.parametrize(
@@ -999,9 +1216,13 @@ def test_version_pr_still_requires_clean_checkout(
     )
 
 
-@pytest.mark.parametrize("file_name", ["README.md", "pyproject.toml"])
+@pytest.mark.parametrize(
+    ("file_name", "other_changes"),
+    [("README.md", False), ("pyproject.toml", False), ("pyproject.toml", True)],
+)
 def test_pr_preserves_index_only_edits(
     file_name: str,
+    other_changes: bool,
     project: Path,
     pr_runner: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
@@ -1019,6 +1240,7 @@ def test_pr_preserves_index_only_edits(
     if not file.exists():
         file.write_text("Original\n")
     original = file.read_text()
+    (project / "uv.lock").write_text("Original lock\n")
     git("init", "--initial-branch=fixture")
     git("config", "user.name", "Test")
     git("config", "user.email", "test@example.invalid")
@@ -1035,8 +1257,12 @@ def test_pr_preserves_index_only_edits(
     file.write_text(original)
     assert git("diff", "--name-only", "HEAD") == ""
     assert git("diff", "--cached", "--name-only") == file_name
+    if other_changes:
+        (project / "uv.lock").write_text("Updated lock\n")
 
     def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if args == ["/bin/sh", "script/check.sh"] and other_changes:
+            return subprocess.CompletedProcess(args, 0)
         assert args[0] == "git", "Index-only edits must not reach checks or GitHub"
         return real_run(args, **kwargs)
 
@@ -1044,8 +1270,13 @@ def test_pr_preserves_index_only_edits(
     if file_name == "README.md":
         with pytest.raises(SystemExit, match=r"unrelated changes: README\.md"):
             bump.prepare_pr()
+    elif other_changes:
+        with pytest.raises(SystemExit, match="staged edits"):
+            bump.publish_pr(
+                "example/fixture", "main", "fixture", "unused", None, ["pnpm"]
+            )
     else:
-        bump.publish_pr("example/fixture", "main", "fixture", "unused", ["pnpm"])
+        bump.publish_pr("example/fixture", "main", "fixture", "unused", None, ["pnpm"])
         assert (
             "No manifest changes; no commit, push, or PR created."
             in capsys.readouterr().out
