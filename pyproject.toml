@@ -52,7 +52,7 @@ requirements-test = [
     "ruff==0.17.5",
     "tomlkit==0.15.3",
     "ty==0.0.104",
-    "types-psutil==7.2.2.20261111",
+    "types-psutil==7.2.2.20261122",
     "types-xmltodict==v1.0.1.20260518",
 ]
 requirements-dev = [
