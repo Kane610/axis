@@ -235,8 +235,8 @@ def pr_runner(project: Path, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     (project / ".github/pull_request_template.md").write_text(
         (root / ".github/pull_request_template.md").read_text()
     )
-    (project / "scripts").mkdir()
-    (project / "scripts/check.sh").write_text((root / "scripts/check.sh").read_text())
+    (project / "script").mkdir()
+    (project / "script/check.sh").write_text((root / "script/check.sh").read_text())
     branch = "master"
 
     def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -291,7 +291,7 @@ def test_pr_workflow(
 
     def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         nonlocal body
-        if args == ["/bin/sh", "scripts/check.sh"]:
+        if args == ["/bin/sh", "script/check.sh"]:
             assert kwargs["cwd"] == project
             env = kwargs["env"]
             if launcher == "npm":
@@ -332,7 +332,7 @@ def test_pr_workflow(
         for index, command in enumerate(commands)
         if command[1:3] == ["pip", "compile"]
     )
-    check_index = commands.index(["/bin/sh", "scripts/check.sh"])
+    check_index = commands.index(["/bin/sh", "script/check.sh"])
     add_index = commands.index(
         [
             "git",
@@ -373,7 +373,7 @@ def test_pr_workflow(
     assert "[issue number]" not in body
     assert "- [ ] New tests added" in body
     assert "- [x] `uv run mypy axis` passes" in body
-    for line in (project / "scripts/check.sh").read_text().splitlines():
+    for line in (project / "script/check.sh").read_text().splitlines():
         if line.startswith(("uv ", "pnpm ")):
             assert f"`{line}` - passed." in body
     assert not Path(commands[-1][-1]).exists()
@@ -482,7 +482,7 @@ def test_pr_publication_gates(
     def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         nonlocal checked, committed
         stdout = None
-        if args == ["/bin/sh", "scripts/check.sh"]:
+        if args == ["/bin/sh", "script/check.sh"]:
             checked = True
             if problem == "failed checks":
                 raise subprocess.CalledProcessError(1, args)
@@ -558,7 +558,7 @@ def test_cli_pr_flag(
         document["project"]["version"] = "75"
         path.write_text(tomlkit.dumps(document))
     script = project / "script/_maintenance.py"
-    script.parent.mkdir()
+    script.parent.mkdir(exist_ok=True)
     script.write_text(Path(bump.__file__).read_text())
     monkeypatch.setattr(
         sys, "argv", [str(script), "--bump-version" if mode == "version" else "--pr"]
@@ -813,7 +813,7 @@ def test_version_pr_updates_dependencies(project: Path, pr_runner: MagicMock) ->
         ["pnpm", "update", "--latest", "--lockfile-only", "--peer", "lit", "vitest"]
     )
     build_index = commands.index(["pnpm", "build"])
-    check_index = commands.index(["/bin/sh", "scripts/check.sh"])
+    check_index = commands.index(["/bin/sh", "script/check.sh"])
     commit_index = next(
         index
         for index, command in enumerate(commands)
@@ -928,4 +928,35 @@ def test_version_dependency_failure_stops_publication(
         call.args[0][:2] in (["git", "commit"], ["git", "push"])
         or call.args[0][:3] == ["gh", "pr", "create"]
         for call in pr_runner.call_args_list
+    )
+
+
+def test_check_script_runs_outside_checkout(tmp_path: Path) -> None:
+    """Keep validation rooted in the checkout and invoke the relocated packaging check."""
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    for tool in ("uv", "pnpm"):
+        executable = binary / tool
+        executable.write_text(
+            '#!/bin/sh\nprintf \'%s|%s\\n\' "$PWD" "$*" >> "$COMMAND_LOG"\n'
+        )
+        executable.chmod(0o755)
+    log = tmp_path / "commands"
+    checker = Path(bump.__file__).with_name("check.sh")
+    subprocess.run(  # noqa: S603
+        ["/bin/sh", str(checker)],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PATH": f"{binary}{os.pathsep}{os.environ['PATH']}",
+            "COMMAND_LOG": str(log),
+        },
+        check=True,
+    )
+    commands = log.read_text().splitlines()
+    repository = checker.parent.parent.resolve()
+    assert all(command.startswith(f"{repository}|") for command in commands)
+    assert f"{repository}|--dir web test:e2e" in commands
+    assert commands[-1] == (
+        f"{repository}|run --locked python script/check_cli_install.py"
     )

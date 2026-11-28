@@ -14,4 +14,4 @@ pnpm --dir web format:check
 pnpm --dir web test
 pnpm --dir web test:e2e
 
-uv run --locked python scripts/check_cli_install.py
+uv run --locked python script/check_cli_install.py

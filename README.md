@@ -375,6 +375,8 @@ If the hook modifies it, include the updated lockfile when retrying the commit.
 CI rejects stale or missing lockfiles, even when local hooks are bypassed, and
 runs checks with `--locked` to prevent implicit lockfile updates.
 
+All repository maintenance and validation scripts live in `script/`.
+
 To update Python and frontend dependencies, including major versions, run:
 
 ```bash
@@ -392,7 +394,7 @@ The shell script runs its Python helper in an isolated uv environment.
 Frontend release-age, trust, and build
 policies remain enabled; an upgrade may be held back or rejected by those policies.
 Failures stop the script and may leave partial changes for review. Without
-`--pr`, it does not commit or push. Review the diff and run `sh scripts/check.sh`
+`--pr`, it does not commit or push. Review the diff and run `sh script/check.sh`
 before committing.
 
 To validate and publish dependency updates as a pull request:
@@ -403,7 +405,7 @@ To validate and publish dependency updates as a pull request:
 
 This requires Git, an authenticated GitHub CLI (`gh`), and a clean checkout on
 the repository's default branch at the same commit as `origin`. It creates a
-feature branch, upgrades dependencies, and runs `sh scripts/check.sh`, including
+feature branch, upgrades dependencies, and runs `sh script/check.sh`, including
 Python, frontend, and installed-package checks. Only dependency manifests,
 lockfiles, and the rebuilt frontend bundle are committed and pushed. The PR uses
 the repository template and includes passing validation results.
