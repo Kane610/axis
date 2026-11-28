@@ -9,24 +9,24 @@ repos:
         pass_filenames: false
       - id: ruff-check
         name: ruff check
-        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ruff check --fix'
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./script/setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ruff check --fix'
         language: system
         types_or: [python, pyi]
         pass_filenames: false
       - id: ruff-format
         name: ruff format
-        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ruff format'
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./script/setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ruff format'
         language: system
         types_or: [python, pyi]
         pass_filenames: false
       - id: mypy
         name: mypy
-        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m mypy axis'
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./script/setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m mypy axis'
         language: system
         pass_filenames: false
       - id: ty
         name: ty (advisory)
-        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ty check axis --exit-zero'
+        entry: sh -c 'if [ ! -x .venv/bin/python ]; then echo "Missing .venv. Run ./script/setup.sh (or uv sync --all-extras) first."; exit 1; fi; .venv/bin/python -m ty check axis --exit-zero'
         language: system
         pass_filenames: false
         verbose: true

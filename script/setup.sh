@@ -4,7 +4,7 @@
 # Stop on errors
 set -e
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 REQUIRED_PYTHON="$(
     grep -E '^requires-python[[:space:]]*=' pyproject.toml | head -n1 | grep -Eo '[0-9]+\.[0-9]+' | head -n1

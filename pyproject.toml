@@ -50,6 +50,7 @@ requirements-test = [
     "pytest-asyncio==1.5.0",
     "pytest-cov==7.1.0",
     "ruff==0.17.5",
+    "tomlkit==0.15.3",
     "ty==0.0.104",
     "types-psutil==7.2.2.20261111",
     "types-xmltodict==v1.0.1.20260518",
