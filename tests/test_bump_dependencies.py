@@ -382,7 +382,12 @@ def test_pr_workflow(
 @pytest.mark.parametrize(
     ("command", "output", "message"),
     [
-        (["git", "status", "--porcelain"], " M README.md", "clean worktree"),
+        (["git", "status", "--porcelain"], " M README.md", "unrelated changes"),
+        (
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            "notes.txt",
+            "unrelated changes",
+        ),
         (
             ["git", "branch", "--show-current"],
             "feature/unrelated",
@@ -398,11 +403,20 @@ def test_pr_preflight_rejects_unsafe_checkout(
     project: Path,
     pr_runner: MagicMock,
 ) -> None:
-    """Do not upgrade dependencies from dirty, unrelated, or outdated checkouts."""
+    """Reject unrelated edits, unrelated branches, and outdated checkouts before updates."""
     before = (project / "pyproject.toml").read_text()
     original_run = pr_runner.side_effect
 
     def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if command == ["git", "status", "--porcelain"] and args == [
+            "git",
+            "diff",
+            "--name-only",
+            "HEAD",
+        ]:
+            return subprocess.CompletedProcess(args, 0, stdout="README.md")
+        if command[1] == "ls-files" and args == ["git", "status", "--porcelain"]:
+            return subprocess.CompletedProcess(args, 0, stdout="?? notes.txt")
         if args == command:
             return subprocess.CompletedProcess(args, 0, stdout=output)
         return original_run(args, **kwargs)
@@ -572,7 +586,7 @@ def test_cli_pr_flag(
     assert (project / "pyproject.toml").read_text() == before
 
 
-@pytest.mark.parametrize("mode", ["dependencies", "version"])
+@pytest.mark.parametrize("mode", ["dependencies", "previous dependency run", "version"])
 def test_pr_persists_only_maintenance_commit(
     mode: str,
     project: Path,
@@ -633,6 +647,10 @@ def test_pr_persists_only_maintenance_commit(
         return original_run(args, **kwargs)
 
     pr_runner.side_effect = run
+    if mode == "previous dependency run":
+        bump.main()
+        assert git("status", "--porcelain")
+        git("add", "--", "pyproject.toml")
     bump.main(create_pr=True, bump_version=mode == "version")
     branch = git("branch", "--show-current")
     if mode == "version":
@@ -960,3 +978,77 @@ def test_check_script_runs_outside_checkout(tmp_path: Path) -> None:
     assert commands[-1] == (
         f"{repository}|run --locked python script/check_cli_install.py"
     )
+
+
+def test_version_pr_still_requires_clean_checkout(
+    project: Path, pr_runner: MagicMock
+) -> None:
+    """Keep release-version retries from accepting a previously edited version."""
+    original_run = pr_runner.side_effect
+
+    def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if args == ["git", "status", "--porcelain"]:
+            return subprocess.CompletedProcess(args, 0, stdout=" M pyproject.toml")
+        return original_run(args, **kwargs)
+
+    pr_runner.side_effect = run
+    with pytest.raises(SystemExit, match=r"bump_version\.sh requires a clean worktree"):
+        bump.prepare_pr(version="76")
+    assert not any(
+        call.args[0][:3] == ["git", "switch", "-c"] for call in pr_runner.call_args_list
+    )
+
+
+@pytest.mark.parametrize("file_name", ["README.md", "pyproject.toml"])
+def test_pr_preserves_index_only_edits(
+    file_name: str,
+    project: Path,
+    pr_runner: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Reject unrelated index-only edits and leave known index-only edits untouched."""
+    real_run = pr_runner.real_run
+
+    def git(*args: str) -> str:
+        return real_run(
+            ["git", *args], cwd=project, text=True, stdout=subprocess.PIPE, check=True
+        ).stdout.strip()
+
+    file = project / file_name
+    if not file.exists():
+        file.write_text("Original\n")
+    original = file.read_text()
+    git("init", "--initial-branch=fixture")
+    git("config", "user.name", "Test")
+    git("config", "user.email", "test@example.invalid")
+    git("add", ".")
+    git(
+        "commit",
+        "-m",
+        "Create test fixture",
+        "-m",
+        "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
+    )
+    file.write_text(original + "# Staged edit\n")
+    git("add", "--", file_name)
+    file.write_text(original)
+    assert git("diff", "--name-only", "HEAD") == ""
+    assert git("diff", "--cached", "--name-only") == file_name
+
+    def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert args[0] == "git", "Index-only edits must not reach checks or GitHub"
+        return real_run(args, **kwargs)
+
+    monkeypatch.setattr(bump.subprocess, "run", run)
+    if file_name == "README.md":
+        with pytest.raises(SystemExit, match=r"unrelated changes: README\.md"):
+            bump.prepare_pr()
+    else:
+        bump.publish_pr("example/fixture", "main", "fixture", "unused", ["pnpm"])
+        assert (
+            "No manifest changes; no commit, push, or PR created."
+            in capsys.readouterr().out
+        )
+    assert git("branch", "--show-current") == "fixture"
+    assert git("diff", "--cached", "--name-only") == file_name

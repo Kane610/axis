@@ -403,12 +403,19 @@ To validate and publish dependency updates as a pull request:
 ./script/bump_dependencies.sh --pr
 ```
 
-This requires Git, an authenticated GitHub CLI (`gh`), and a clean checkout on
-the repository's default branch at the same commit as `origin`. It creates a
+This requires Git, an authenticated GitHub CLI (`gh`), and a checkout on
+the repository's default branch at the same commit as `origin`. It accepts a
+clean worktree or pending changes limited to `pyproject.toml`, `uv.lock`,
+`web/package.json`, `web/pnpm-lock.yaml`, and `axis/web/static/app.js`, including
+staged changes. Review these edits before publishing; unrelated staged,
+unstaged, or untracked files stop the script. It creates a
 feature branch, upgrades dependencies, and runs `sh script/check.sh`, including
 Python, frontend, and installed-package checks. Only dependency manifests,
 lockfiles, and the rebuilt frontend bundle are committed and pushed. The PR uses
 the repository template and includes passing validation results.
+You can run this after an initial local `./script/bump_dependencies.sh` run.
+It reruns the updater to refresh the existing changes or complete an interrupted
+update before validating and publishing them.
 No dependency changes means no commit, push, or PR. A failed upgrade, check, or
 commit leaves changes on the feature branch for review; the script does not
 stash, reset, retry, or bypass failures. If pushing or PR creation fails, the
@@ -424,8 +431,10 @@ a pull request:
 ./script/bump_version.sh
 ```
 
-For example, version `75` becomes `76`. This uses the same clean, up-to-date
-default-branch requirement and full validation as dependency PRs. It always runs
+For example, version `75` becomes `76`. Version bumps still require a clean,
+up-to-date default-branch checkout so retrying does not accidentally increment
+an already edited release version again. They use the same full validation as
+dependency PRs. The script always runs
 the Python and frontend dependency updater described above, including major
 versions while respecting compatibility and frontend safety policies. It bumps
 the library version, refreshes both lockfiles, and rebuilds the frontend, then

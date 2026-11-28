@@ -45,13 +45,23 @@ def command_output(*args: str) -> str:
 
 
 def prepare_pr(*, version: str | None = None) -> tuple[str, str, str, str]:
-    """Create a feature branch only from a clean, current default branch."""
+    """Create a feature branch from the current default head, allowing dependency outputs."""
     operation = "bump_version.sh" if version else "--pr"
     if not shutil.which("git") or not shutil.which("gh"):
         sys.exit(f"{operation} requires git and the authenticated GitHub CLI (gh).")
     if command_output("git", "status", "--porcelain"):
-        sys.exit(
-            f"{operation} requires a clean worktree. Commit or set aside your changes first."
+        if version:
+            sys.exit(
+                f"{operation} requires a clean worktree. Commit or set aside your changes first."
+            )
+        unexpected = changed_files() - set(PR_FILES)
+        if unexpected:
+            sys.exit(
+                f"--pr found unrelated changes: {', '.join(sorted(unexpected))}. "
+                "Commit or set aside those changes first."
+            )
+        sys.stdout.write(
+            "Pending dependency changes will be refreshed, validated, and included in the PR.\n"
         )
     template_path = ROOT / ".github/pull_request_template.md"
     if not template_path.is_file():
@@ -91,13 +101,18 @@ def prepare_pr(*, version: str | None = None) -> tuple[str, str, str, str]:
     return repository["nameWithOwner"], base, branch, template
 
 
-def changed_files() -> set[str]:
-    """Include tracked and untracked changes so unrelated work cannot be committed."""
-    return set(command_output("git", "diff", "--name-only", "HEAD").splitlines()) | set(
-        command_output(
-            "git", "ls-files", "--others", "--exclude-standard"
-        ).splitlines(),
+def changed_files(*, include_index_only: bool = True) -> set[str]:
+    """List working-tree changes, optionally including index-only edits for safety checks."""
+    files = set(
+        command_output("git", "diff", "--name-only", "HEAD").splitlines()
+    ) | set(
+        command_output("git", "ls-files", "--others", "--exclude-standard").splitlines()
     )
+    if include_index_only:
+        files.update(
+            command_output("git", "diff", "--cached", "--name-only").splitlines()
+        )
+    return files
 
 
 def require_pr_branch(branch: str, base: str) -> None:
@@ -132,6 +147,7 @@ def publish_pr(
         sys.exit(
             f"Unexpected changes; review them before publishing: {', '.join(sorted(files - set(allowed_files)))}"
         )
+    files = changed_files(include_index_only=False)
     if not files.intersection(required_files):
         sys.stdout.write("No manifest changes; no commit, push, or PR created.\n")
         return
@@ -151,6 +167,7 @@ def publish_pr(
         files = changed_files()
         if files - set(allowed_files):
             sys.exit("Checks left unrelated changes. Review them before publishing.")
+        files = changed_files(include_index_only=False)
         if not files.intersection(required_files):
             sys.stdout.write(
                 "No manifest changes remain after checks; no PR created.\n"
