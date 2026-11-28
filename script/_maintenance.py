@@ -44,14 +44,49 @@ def command_output(*args: str) -> str:
     ).stdout.strip()
 
 
-def prepare_pr(*, version: str | None = None) -> tuple[str, str, str, str]:
-    """Create a feature branch only from a clean, current default branch."""
+def require_open_pr(repository: str, base: str, branch: str, number: int) -> None:
+    """Only update an open PR for this repository, branch, and target."""
+    pr = json.loads(
+        command_output(
+            "gh",
+            "pr",
+            "view",
+            str(number),
+            "--repo",
+            repository,
+            "--json",
+            "state,baseRefName,headRefName,isCrossRepository",
+        )
+    )
+    if (
+        pr["state"] != "OPEN"
+        or pr["baseRefName"] != base
+        or pr["headRefName"] != branch
+        or pr["isCrossRepository"]
+    ):
+        sys.exit(
+            "The PR is closed or targets another branch/repository; refusing to update it."
+        )
+
+
+def prepare_pr(*, version: str | None = None) -> tuple[str, str, str, str, int | None]:
+    """Create a dependency branch or reuse the current branch's open PR."""
     operation = "bump_version.sh" if version else "--pr"
     if not shutil.which("git") or not shutil.which("gh"):
         sys.exit(f"{operation} requires git and the authenticated GitHub CLI (gh).")
     if command_output("git", "status", "--porcelain"):
-        sys.exit(
-            f"{operation} requires a clean worktree. Commit or set aside your changes first."
+        if version:
+            sys.exit(
+                f"{operation} requires a clean worktree. Commit or set aside your changes first."
+            )
+        unexpected = changed_files() - set(PR_FILES)
+        if unexpected:
+            sys.exit(
+                f"--pr found unrelated changes: {', '.join(sorted(unexpected))}. "
+                "Commit or set aside those changes first."
+            )
+        sys.stdout.write(
+            "Pending dependency changes will be refreshed, validated, and included in the PR.\n"
         )
     template_path = ROOT / ".github/pull_request_template.md"
     if not template_path.is_file():
@@ -65,15 +100,55 @@ def prepare_pr(*, version: str | None = None) -> tuple[str, str, str, str]:
             "gh",
             "repo",
             "view",
+            command_output("git", "remote", "get-url", "origin"),
             "--json",
             "nameWithOwner,defaultBranchRef",
         )
     )
     base = repository["defaultBranchRef"]["name"]
-    if command_output("git", "branch", "--show-current") != base:
+    branch = command_output("git", "branch", "--show-current")
+    if not branch:
         sys.exit(
-            f"Run {operation} from {base} so unrelated feature commits are not included."
+            "Check out a branch before running --pr; detached HEAD is not supported."
         )
+    if branch != base:
+        if version:
+            sys.exit(f"Run {operation} from {base} to start a new release PR.")
+        prs = json.loads(
+            command_output(
+                "gh",
+                "pr",
+                "list",
+                "--repo",
+                repository["nameWithOwner"],
+                "--head",
+                branch,
+                "--base",
+                base,
+                "--state",
+                "open",
+                "--limit",
+                "2",
+                "--json",
+                "number",
+            )
+        )
+        if len(prs) != 1:
+            sys.exit(
+                f"Use a branch with one open PR targeting {base}, or run --pr on {base} to create a new dependency PR."
+            )
+        number = prs[0]["number"]
+        require_open_pr(repository["nameWithOwner"], base, branch, number)
+        command_output("git", "fetch", "origin", branch)
+        remote_head = command_output("git", "rev-parse", f"origin/{branch}")
+        if command_output("git", "merge-base", remote_head, "HEAD") != remote_head:
+            sys.exit(
+                f"Your branch must include origin/{branch} before updating its PR."
+            )
+        sys.stdout.write(
+            f"Updating PR #{number} on {branch}; existing feature commits and local commits will be retained and pushed.\n"
+        )
+        return repository["nameWithOwner"], base, branch, template, number
     command_output("git", "fetch", "origin", base)
     if command_output("git", "rev-parse", "HEAD") != command_output(
         "git", "rev-parse", f"origin/{base}"
@@ -88,16 +163,21 @@ def prepare_pr(*, version: str | None = None) -> tuple[str, str, str, str]:
         f"Creating {branch} from {base}; only validated changes will be published.\n"
     )
     command_output("git", "switch", "-c", branch)
-    return repository["nameWithOwner"], base, branch, template
+    return repository["nameWithOwner"], base, branch, template, None
 
 
-def changed_files() -> set[str]:
-    """Include tracked and untracked changes so unrelated work cannot be committed."""
-    return set(command_output("git", "diff", "--name-only", "HEAD").splitlines()) | set(
-        command_output(
-            "git", "ls-files", "--others", "--exclude-standard"
-        ).splitlines(),
+def changed_files(*, include_index_only: bool = True) -> set[str]:
+    """List working-tree changes, optionally including index-only edits for safety checks."""
+    files = set(
+        command_output("git", "diff", "--name-only", "HEAD").splitlines()
+    ) | set(
+        command_output("git", "ls-files", "--others", "--exclude-standard").splitlines()
     )
+    if include_index_only:
+        files.update(
+            command_output("git", "diff", "--cached", "--name-only").splitlines()
+        )
+    return files
 
 
 def require_pr_branch(branch: str, base: str) -> None:
@@ -114,11 +194,12 @@ def publish_pr(
     base: str,
     branch: str,
     template: str,
+    existing_pr: int | None,
     pnpm: list[str],
     *,
     version: str | None = None,
 ) -> None:
-    """Run the complete repository checks before committing, pushing, and opening a PR."""
+    """Run all checks before committing, pushing, and creating or updating a PR."""
     allowed_files = PR_FILES
     required_files = PR_FILES[:4]
     title = (
@@ -127,12 +208,16 @@ def publish_pr(
         else "Bump Python and frontend dependencies"
     )
     change = "Version and dependency" if version else "Dependency-only"
+    pending_push = existing_pr is not None and command_output(
+        "git", "rev-parse", "HEAD"
+    ) != command_output("git", "rev-parse", f"origin/{branch}")
     files = changed_files()
     if files - set(allowed_files):
         sys.exit(
             f"Unexpected changes; review them before publishing: {', '.join(sorted(files - set(allowed_files)))}"
         )
-    if not files.intersection(required_files):
+    files = changed_files(include_index_only=False)
+    if not files.intersection(required_files) and not pending_push:
         sys.stdout.write("No manifest changes; no commit, push, or PR created.\n")
         return
     with TemporaryDirectory(prefix="axis-dependency-pr-") as temporary:
@@ -151,33 +236,47 @@ def publish_pr(
         files = changed_files()
         if files - set(allowed_files):
             sys.exit("Checks left unrelated changes. Review them before publishing.")
-        if not files.intersection(required_files):
+        files = changed_files(include_index_only=False)
+        if not files.intersection(required_files) and not pending_push:
             sys.stdout.write(
                 "No manifest changes remain after checks; no PR created.\n"
             )
             return
         require_pr_branch(branch, base)
-        sys.stdout.write(
-            f"Checks passed. Committing {', '.join(sorted(files))}, pushing {branch}, and opening a PR.\n"
-        )
-        command_output("git", "add", "--", *sorted(files))
-        subprocess.run(  # noqa: S603
-            [  # noqa: S607
-                "git",
-                "commit",
-                "-m",
-                title,
-                "-m",
-                "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
-            ],
-            cwd=ROOT,
-            check=True,
-        )
-        if command_output("git", "status", "--porcelain"):
+        if existing_pr is not None:
+            require_open_pr(repository, base, branch, existing_pr)
+        if files and changed_files() - files:
             sys.exit(
-                "Commit hooks left changes. Review them before pushing or opening a PR."
+                "Some staged edits are not represented in the validated working files. "
+                "Resolve them before publishing."
             )
+        if files:
+            sys.stdout.write(
+                f"Checks passed. Committing {', '.join(sorted(files))} before pushing {branch}.\n"
+            )
+            command_output("git", "add", "--", *sorted(files))
+            subprocess.run(  # noqa: S603
+                [  # noqa: S607
+                    "git",
+                    "commit",
+                    "-m",
+                    title,
+                    "-m",
+                    "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
+                ],
+                cwd=ROOT,
+                check=True,
+            )
+            if command_output("git", "status", "--porcelain"):
+                sys.exit(
+                    "Commit hooks left changes. Review them before pushing or opening a PR."
+                )
+        sys.stdout.write(
+            f"Checks passed. Pushing {branch} and publishing the PR update.\n"
+        )
         require_pr_branch(branch, base)
+        if existing_pr is not None:
+            require_open_pr(repository, base, branch, existing_pr)
         subprocess.run(  # noqa: S603
             ["git", "push", "--set-upstream", "origin", branch],  # noqa: S607
             cwd=ROOT,
@@ -189,6 +288,27 @@ def publish_pr(
             if line.startswith(("uv ", "pnpm "))
         ]
         evidence = "\n".join(f"- `{command}` - passed." for command in checks)
+        body_path = Path(temporary) / "body.md"
+        if existing_pr is not None:
+            body_path.write_text(
+                f"Dependency maintenance checks passed for `{command_output('git', 'rev-parse', 'HEAD')}`; PR branch updated.\n\n"
+                f"`sh script/check.sh` - passed.\n\n{evidence}\n"
+            )
+            subprocess.run(  # noqa: S603
+                [  # noqa: S607
+                    "gh",
+                    "pr",
+                    "comment",
+                    str(existing_pr),
+                    "--repo",
+                    repository,
+                    "--body-file",
+                    str(body_path),
+                ],
+                cwd=ROOT,
+                check=True,
+            )
+            return
         body = template.replace(
             SUMMARY_PLACEHOLDER,
             (
@@ -220,7 +340,6 @@ def publish_pr(
             "- [ ] New tests added for new code (100% coverage for new code)",
             f"- [ ] New tests added for new code (100% coverage for new code) - not applicable; {change.lower()} changes.",
         )
-        body_path = Path(temporary) / "body.md"
         body_path.write_text(body)
         subprocess.run(  # noqa: S603
             [  # noqa: S607
@@ -447,7 +566,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--pr",
             action="store_true",
-            help="Validate dependency updates, commit on a feature branch, and open a GitHub PR.",
+            help="Validate and publish dependency updates in a new or existing GitHub PR.",
         )
     args = parser.parse_args()
     main(create_pr=not version_mode and args.pr, bump_version=args.bump_version)
